@@ -1,0 +1,452 @@
+[
+    {
+        "RBrank": "#1",
+        "name": "Jahmyr Gibbs",
+        "position": "RB",
+        "team": "DET",
+        "avgValue": 51,
+        "draftChance": 98,
+        "tier": "RB Tier 1"
+    },
+    {
+        "RBrank": "#2",
+        "name": "Bijan Robinson",
+        "position": "RB",
+        "team": "ATL",
+        "avgValue": 52,
+        "draftChance": 99,
+        "tier": "RB Tier 1"
+    },
+    {
+        "RBrank": "#3",
+        "name": "Christian McCaffrey",
+        "position": "RB",
+        "team": "SF",
+        "avgValue": 50,
+        "draftChance": 97,
+        "tier": "RB Tier 2"
+    },
+    {
+        "RBrank": "#4",
+        "name": "Jonathan Taylor",
+        "position": "RB",
+        "team": "IND",
+        "avgValue": 48,
+        "draftChance": 96,
+        "tier": "RB Tier 2"
+    },
+    {
+        "RBrank": "#5",
+        "name": "De'Von Achane",
+        "position": "RB",
+        "team": "MIA",
+        "avgValue": 46,
+        "draftChance": 94,
+        "tier": "RB Tier 2"
+    },
+    {
+        "RBrank": "#6",
+        "name": "James Cook III",
+        "position": "RB",
+        "team": "BUF",
+        "avgValue": 41,
+        "draftChance": 94,
+        "tier": "RB Tier 2"
+    },
+    {
+        "RBrank": "#7",
+        "name": "Jeremiyah Love",
+        "position": "RB",
+        "team": "ARI",
+        "avgValue": 41,
+        "draftChance": 92,
+        "tier": "RB Tier 3"
+    },
+    {
+        "RBrank": "#8",
+        "name": "Ashton Jeanty",
+        "position": "RB",
+        "team": "LV",
+        "avgValue": 37,
+        "draftChance": 92,
+        "tier": "RB Tier 3"
+    },
+    {
+        "RBrank": "#9",
+        "name": "Saquon Barkley",
+        "position": "RB",
+        "team": "PHI",
+        "avgValue": 36,
+        "draftChance": 92,
+        "tier": "RB Tier 3"
+    },
+    {
+        "RBrank": "#10",
+        "name": "Derrick Henry",
+        "position": "RB",
+        "team": "BAL",
+        "avgValue": 35,
+        "draftChance": 90,
+        "tier": "RB Tier 3"
+    },
+    {
+        "RBrank": "#11",
+        "name": "Omarion Hampton",
+        "position": "RB",
+        "team": "LAC",
+        "avgValue": 30,
+        "draftChance": 86,
+        "tier": "RB Tier 3"
+    },
+    {
+        "RBrank": "#12",
+        "name": "Chase Brown",
+        "position": "RB",
+        "team": "CIN",
+        "avgValue": 29,
+        "draftChance": 86,
+        "tier": "RB Tier 3"
+    },
+    {
+        "RBrank": "#13",
+        "name": "Breece Hall",
+        "position": "RB",
+        "team": "NYJ",
+        "avgValue": 28,
+        "draftChance": 86,
+        "tier": "RB Tier 3"
+    },
+    {
+        "RBrank": "#14",
+        "name": "Kyren Williams",
+        "position": "RB",
+        "team": "LAR",
+        "avgValue": 26,
+        "draftChance": 83,
+        "tier": "RB Tier 4"
+    },
+    {
+        "RBrank": "#15",
+        "name": "Josh Jacobs",
+        "position": "RB",
+        "team": "GB",
+        "avgValue": 25,
+        "draftChance": 88,
+        "tier": "RB Tier 4"
+    },
+    {
+        "RBrank": "#16",
+        "name": "Kenneth Walker III",
+        "position": "RB",
+        "team": "KC",
+        "avgValue": 25,
+        "draftChance": 85,
+        "tier": "RB Tier 4"
+    },
+    {
+        "RBrank": "#17",
+        "name": "D'Andre Swift",
+        "position": "RB",
+        "team": "CHI",
+        "avgValue": 24,
+        "draftChance": 73,
+        "tier": "RB Tier 4"
+    },
+    {
+        "RBrank": "#18",
+        "name": "Travis Etienne Jr.",
+        "position": "RB",
+        "team": "NO",
+        "avgValue": 24,
+        "draftChance": 79,
+        "tier": "RB Tier 4"
+    },
+    {
+        "RBrank": "#19",
+        "name": "Javonte Williams",
+        "position": "RB",
+        "team": "DAL",
+        "avgValue": 26,
+        "draftChance": 83,
+        "tier": "RB Tier 5"
+    },
+    {
+        "RBrank": "#20",
+        "name": "Cam Skattebo",
+        "position": "RB",
+        "team": "NYG",
+        "avgValue": 22,
+        "draftChance": 79,
+        "tier": "RB Tier 5"
+    },
+    {
+        "RBrank": "#21",
+        "name": "Bucky Irving",
+        "position": "RB",
+        "team": "TB",
+        "avgValue": 21,
+        "draftChance": 79,
+        "tier": "RB Tier 5"
+    },
+    {
+        "RBrank": "#22",
+        "name": "Quinshon Judkins",
+        "position": "RB",
+        "team": "CLE",
+        "avgValue": 20,
+        "draftChance": 75,
+        "tier": "RB Tier 5"
+    },
+    {
+        "RBrank": "#23",
+        "name": "Jadarian Price",
+        "position": "RB",
+        "team": "SEA",
+        "avgValue": 18,
+        "draftChance": 72,
+        "tier": "RB Tier 5"
+    },
+    {
+        "RBrank": "#24",
+        "name": "TreVeyon Henderson",
+        "position": "RB",
+        "team": "NE",
+        "avgValue": 16,
+        "draftChance": 75,
+        "tier": "RB Tier 6"
+    },
+    {
+        "RBrank": "#25",
+        "name": "Bhayshul Tuten",
+        "position": "RB",
+        "team": "JAC",
+        "avgValue": 18,
+        "draftChance": 74,
+        "tier": "RB Tier 6"
+    },
+    {
+        "RBrank": "#26",
+        "name": "Chuba Hubbard",
+        "position": "RB",
+        "team": "CAR",
+        "avgValue": 16,
+        "draftChance": 72,
+        "tier": "RB Tier 6"
+    },
+    {
+        "RBrank": "#27",
+        "name": "David Montgomery",
+        "position": "RB",
+        "team": "HOU",
+        "avgValue": 14,
+        "draftChance": 70,
+        "tier": "RB Tier 6"
+    },
+    {
+        "RBrank": "#28",
+        "name": "Tony Pollard",
+        "position": "RB",
+        "team": "TEN",
+        "avgValue": 13,
+        "draftChance": 70,
+        "tier": "RB Tier 7"
+    },
+    {
+        "RBrank": "#29",
+        "name": "Jacory Croskey-Merritt",
+        "position": "RB",
+        "team": "WAS",
+        "avgValue": 10,
+        "draftChance": 70,
+        "tier": "RB Tier 7"
+    },
+    {
+        "RBrank": "#30",
+        "name": "Jaylen Warren",
+        "position": "RB",
+        "team": "PIT",
+        "avgValue": 9,
+        "draftChance": 65,
+        "tier": "RB Tier 7"
+    },
+    {
+        "RBrank": "#31",
+        "name": "Rhamondre Stevenson",
+        "position": "RB",
+        "team": "NE",
+        "avgValue": 7,
+        "draftChance": 55,
+        "tier": "RB Tier 7"
+    },
+    {
+        "RBrank": "#32",
+        "name": "Rico Dowdle",
+        "position": "RB",
+        "team": "PIT",
+        "avgValue": 7,
+        "draftChance": 55,
+        "tier": "RB Tier 7"
+    },
+    {
+        "RBrank": "#33",
+        "name": "Kenneth Gainwell",
+        "position": "RB",
+        "team": "TB",
+        "avgValue": 6,
+        "draftChance": 55,
+        "tier": "RB Tier 7"
+    },
+    {
+        "RBrank": "#34",
+        "name": "J.K. Dobbins",
+        "position": "RB",
+        "team": "DEN",
+        "avgValue": 6,
+        "draftChance": 60,
+        "tier": "RB Tier 7"
+    },
+    {
+        "RBrank": "#35",
+        "name": "Zach Charbonnet",
+        "position": "RB",
+        "team": "SEA",
+        "avgValue": 4,
+        "draftChance": 55,
+        "tier": "RB Tier 8"
+    },
+    {
+        "RBrank": "#36",
+        "name": "Aaron Jones Sr.",
+        "position": "RB",
+        "team": "MIN",
+        "avgValue": 4,
+        "draftChance": 55,
+        "tier": "RB Tier 8"
+    },
+    {
+        "RBrank": "#37",
+        "name": "Kyle Monangai",
+        "position": "RB",
+        "team": "CHI",
+        "avgValue": 3,
+        "draftChance": 55,
+        "tier": "RB Tier 8"
+    },
+    {
+        "RBrank": "#38",
+        "name": "Blake Corum",
+        "position": "RB",
+        "team": "LAR",
+        "avgValue": 3,
+        "draftChance": 55,
+        "tier": "RB Tier 8"
+    },
+    {
+        "RBrank": "#39",
+        "name": "Alvin Kamara",
+        "position": "RB",
+        "team": "NO",
+        "avgValue": 3,
+        "draftChance": 60,
+        "tier": "RB Tier 8"
+    },
+    {
+        "RBrank": "#40",
+        "name": "Woody Marks",
+        "position": "RB",
+        "team": "HOU",
+        "avgValue": 3,
+        "draftChance": 55,
+        "tier": "RB Tier 8"
+    },
+    {
+        "RBrank": "#41",
+        "name": "Tyjae Spears",
+        "position": "RB",
+        "team": "TEN",
+        "avgValue": 2,
+        "draftChance": 45,
+        "tier": "RB Tier 9"
+    },
+    {
+        "RBrank": "#42",
+        "name": "RJ Harvey",
+        "position": "RB",
+        "team": "DEN",
+        "avgValue": 2,
+        "draftChance": 45,
+        "tier": "RB Tier 9"
+    },
+    {
+        "RBrank": "#43",
+        "name": "Jordan Mason",
+        "position": "RB",
+        "team": "MIN",
+        "avgValue": 2,
+        "draftChance": 45,
+        "tier": "RB Tier 9"
+    },
+    {
+        "RBrank": "#44",
+        "name": "Rachaad White",
+        "position": "RB",
+        "team": "WAS",
+        "avgValue": 2,
+        "draftChance": 35,
+        "tier": "RB Tier 9"
+    },
+    {
+        "RBrank": "#45",
+        "name": "Jonathon Brooks",
+        "position": "RB",
+        "team": "CAR",
+        "avgValue": 1,
+        "draftChance": 30,
+        "tier": "RB Tier 9"
+    },
+    {
+        "RBrank": "#46",
+        "name": "Isiah Pacheco",
+        "position": "RB",
+        "team": "DET",
+        "avgValue": 1,
+        "draftChance": 35,
+        "tier": "RB Tier 10"
+    },
+    {
+        "RBrank": "#47",
+        "name": "Tyler Allgeier",
+        "position": "RB",
+        "team": "ARI",
+        "avgValue": 1,
+        "draftChance": 30,
+        "tier": "RB Tier 10"
+    },
+    {
+        "RBrank": "#48",
+        "name": "Chris Rodriguez Jr.",
+        "position": "RB",
+        "team": "JAC",
+        "avgValue": 1,
+        "draftChance": 30,
+        "tier": "RB Tier 10"
+    },
+    {
+        "RBrank": "#49",
+        "name": "Brian Robinson Jr.",
+        "position": "RB",
+        "team": "ATL",
+        "avgValue": 0,
+        "draftChance": 25,
+        "tier": "RB Tier 10"
+    },
+    {
+        "RBrank": "#50",
+        "name": "Braelon Allen",
+        "position": "RB",
+        "team": "NYJ",
+        "avgValue": 0,
+        "draftChance": 25,
+        "tier": "RB Tier 10"
+    }
+]

@@ -1,0 +1,302 @@
+[
+    {
+        "TErank": "#1",
+        "name": "Trey McBride",
+        "position": "TE",
+        "team": "ARI",
+        "avgValue": 26,
+        "draftChance": 99,
+        "tier": "TE Tier 1",
+        "img": "image/te3.JPG"
+    },
+    {
+        "TErank": "#2",
+        "name": "Brock Bowers",
+        "position": "TE",
+        "team": "LV",
+        "avgValue": 22,
+        "draftChance": 97,
+        "tier": "TE Tier 1",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#3",
+        "name": "Colston Loveland",
+        "position": "TE",
+        "team": "CHI",
+        "avgValue": 17,
+        "draftChance": 97,
+        "tier": "TE Tier 2",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#4",
+        "name": "Tyler Warren",
+        "position": "TE",
+        "team": "IND",
+        "avgValue": 13,
+        "draftChance": 96,
+        "tier": "TE Tier 2",
+        "img": "image/te2.JPG"
+    },
+    {
+        "TErank": "#5",
+        "name": "Harold Fannin Jr.",
+        "position": "TE",
+        "team": "CLE",
+        "avgValue": 10,
+        "draftChance": 88,
+        "tier": "TE Tier 3",
+        "img": "image/te3.JPG"
+    },
+    {
+        "TErank": "#6",
+        "name": "Kyle Pitts Sr.",
+        "position": "TE",
+        "team": "ATL",
+        "avgValue": 7,
+        "draftChance": 79,
+        "tier": "TE Tier 3",
+        "img": "image/te3.JPG"
+    },
+    {
+        "TErank": "#7",
+        "name": "Sam LaPorta",
+        "position": "TE",
+        "team": "DET",
+        "avgValue": 7,
+        "draftChance": 79,
+        "tier": "TE Tier 3",
+        "img": "image/te3.JPG"
+    },
+    {
+        "TErank": "#8",
+        "name": "Dallas Goedert",
+        "position": "TE",
+        "team": "PHI",
+        "avgValue": 4,
+        "draftChance": 75,
+        "tier": "TE Tier 3",
+        "img": "image/te3.JPG"
+    },
+    {
+        "TErank": "#9",
+        "name": "Travis Kelce",
+        "position": "TE",
+        "team": "KC",
+        "avgValue": 4,
+        "draftChance": 86,
+        "tier": "TE Tier 3",
+        "img": "image/te3.JPG"
+    },
+    {
+        "TErank": "#10",
+        "name": "Jake Ferguson",
+        "position": "TE",
+        "team": "DAL",
+        "avgValue": 2,
+        "draftChance": 75,
+        "tier": "TE Tier 4",
+        "img": "image/te2.JPG"
+    },
+    {
+        "TErank": "#11",
+        "name": "T.J. Hockenson",
+        "position": "TE",
+        "team": "MIN",
+        "avgValue": 1,
+        "draftChance": 62,
+        "tier": "TE Tier 4",
+        "img": "image/te2.JPG"
+    },
+    {
+        "TErank": "#12",
+        "name": "Mark Andrews",
+        "position": "TE",
+        "team": "BAL",
+        "avgValue": 1,
+        "draftChance": 62,
+        "tier": "TE Tier 4",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#13",
+        "name": "Tucker Kraft",
+        "position": "TE",
+        "team": "GB",
+        "avgValue": 1,
+        "draftChance": 75,
+        "tier": "TE Tier 4",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#14",
+        "name": "George Kittle",
+        "position": "TE",
+        "team": "SF",
+        "avgValue": 1,
+        "draftChance": 75,
+        "tier": "TE Tier 5",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#15",
+        "name": "Isaiah Likely",
+        "position": "TE",
+        "team": "NYG",
+        "avgValue": 1,
+        "draftChance": 75,
+        "tier": "TE Tier 5",
+        "img": "image/te2.JPG"
+    },
+    {
+        "TErank": "#16",
+        "name": "Oronde Gadsden",
+        "position": "TE",
+        "team": "LAC",
+        "avgValue": 1,
+        "draftChance": 75,
+        "tier": "TE Tier 5",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#17",
+        "name": "Juwan Johnson",
+        "position": "TE",
+        "team": "NO",
+        "avgValue": 1,
+        "draftChance": 62,
+        "tier": "TE Tier 5",
+        "img": "image/te2.JPG"
+    },
+    {
+        "TErank": "#18",
+        "name": "Dalton Kincaid",
+        "position": "TE",
+        "team": "BUF",
+        "avgValue": 1,
+        "draftChance": 72,
+        "tier": "TE Tier 5",
+        "img": "image/te2.JPG"
+    },
+    {
+        "TErank": "#19",
+        "name": "Brenton Strange",
+        "position": "TE",
+        "team": "JAC",
+        "avgValue": 0,
+        "draftChance": 55,
+        "tier": "TE Tier 6",
+        "img": "image/te3.JPG"
+    },
+    {
+        "TErank": "#20",
+        "name": "Kenyon Sadiq",
+        "position": "TE",
+        "team": "NYJ",
+        "avgValue": 0,
+        "draftChance": 55,
+        "tier": "TE Tier 6",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#21",
+        "name": "Hunter Henry",
+        "position": "TE",
+        "team": "NE",
+        "avgValue": 0,
+        "draftChance": 55,
+        "tier": "TE Tier 6",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#22",
+        "name": "Pat Freiermuth",
+        "position": "TE",
+        "team": "PIT",
+        "avgValue": 0,
+        "draftChance": 45,
+        "tier": "TE Tier 6",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#23",
+        "name": "Dalton Schultz",
+        "position": "TE",
+        "team": "HOU",
+        "avgValue": 0,
+        "draftChance": 45,
+        "tier": "TE Tier 6",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#24",
+        "name": "Gunnar Helm",
+        "position": "TE",
+        "team": "TEN",
+        "avgValue": 0,
+        "draftChance": 45,
+        "tier": "TE Tier 7",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#25",
+        "name": "Jake Tonges",
+        "position": "TE",
+        "team": "SF",
+        "avgValue": 0,
+        "draftChance": 45,
+        "tier": "TE Tier 7",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#26",
+        "name": "Chig Okonkwo",
+        "position": "TE",
+        "team": "WAS",
+        "avgValue": 0,
+        "draftChance": 45,
+        "tier": "TE Tier 7",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#27",
+        "name": "AJ Barner",
+        "position": "TE",
+        "team": "SEA",
+        "avgValue": 0,
+        "draftChance": 45,
+        "tier": "TE Tier 7",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#28",
+        "name": "Mike Gesicki",
+        "position": "TE",
+        "team": "CIN",
+        "avgValue": 0,
+        "draftChance": 40,
+        "tier": "TE Tier 7",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#29",
+        "name": "Greg Dulcich",
+        "position": "TE",
+        "team": "MIA",
+        "avgValue": 0,
+        "draftChance": 40,
+        "tier": "TE Tier 7",
+        "img": "image/te1.JPG"
+    },
+    {
+        "TErank": "#30",
+        "name": "David Njoku",
+        "position": "TE",
+        "team": "LAC",
+        "avgValue": 0,
+        "draftChance": 30,
+        "tier": "TE Tier 7",
+        "img": "image/te2.JPG"
+    }
+]

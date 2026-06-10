@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Wallet</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-overlay">
+  <header class="site-header">
+    <div class="header-left">
+      <img src="HUSHLOGO.png" alt="Logo" class="logo">
+    </div>
+    <div class="header-right">
+      <a href="dashboard.html" class="account-btn">Back</a>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="container">
+      <section class="box">
+        <h2>Your Wallet</h2>
+        <p>Current balance: <strong id="walletAmount">$0</strong></p>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:12px;">
+          <input id="addAmount" type="number" min="1" placeholder="Amount" style="padding:6px;border-radius:6px;border:1px solid #ccc;width:120px;" />
+          <button id="addBtn" class="btn">Add Funds</button>
+          <button id="clearBtn" class="btn btn-secondary">Withdrawal</button>
+        </div>
+
+        <hr style="margin:16px 0" />
+        <h3>Pay with Card</h3>
+        <form id="cardForm" style="display:grid;grid-template-columns:1fr;gap:8px;max-width:420px;margin-top:8px;">
+          <input id="cardName" type="text" placeholder="Name on card" required style="padding:8px;border-radius:6px;border:1px solid #ccc;" />
+          <input id="cardNumber" type="text" placeholder="Card number (xxxx xxxx xxxx xxxx)" maxlength="19" required style="padding:8px;border-radius:6px;border:1px solid #ccc;" />
+          <div style="display:flex;gap:8px;">
+            <input id="cardExpiry" type="text" placeholder="MM/YY" maxlength="5" required style="padding:8px;border-radius:6px;border:1px solid #ccc;flex:1;" />
+            <input id="cardCVC" type="text" placeholder="CVC" maxlength="4" required style="padding:8px;border-radius:6px;border:1px solid #ccc;width:100px;" />
+          </div>
+          <button id="cardPayBtn" type="submit" class="btn">Pay with Card</button>
+        </form>
+
+        <hr style="margin:16px 0" />
+        <h3>PayPal</h3>
+        <p>
+          <a id="paypalBtn" href="https://www.paypal.com/signin" target="_blank" rel="noopener noreferrer" aria-label="Open PayPal" style="display:inline-block;text-decoration:none;">
+            <img src="https://www.citypng.com/public/uploads/preview/download-paypal-yellow-payment-button-png-21635275375jabzun4vce.png" alt="PayPal button" style="height:40px;display:block;border:0;" />
+          </a>
+        </p>
+        <p style="margin-top:12px;color:var(--muted);">This is a demo wallet stored in localStorage.</p>
+      </section>
+    </div>
+  </main>
+
+  <script src="wallet.js"></script>
+</body>
+</html>

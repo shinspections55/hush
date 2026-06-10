@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Rankings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="rankings.css">
+</head>
+<body class="bg-overlay">
+
+  <header class="site-header">
+    <div class="rankings-header-banner" aria-hidden="true">
+      <img src="Backupfiles/HUSHV1.3/HUSHRANKHEADERBLUE.png" alt="" class="rankings-header-banner-image rankings-header-banner-image-dark">
+      <img src="Backupfiles/HUSHV1.3/TRANSHEADERWHITE.png" alt="" class="rankings-header-banner-image rankings-header-banner-image-light">
+    </div>
+    <div class="header-left">
+      <a href="dashboard.html" class="account-btn">← Dashboard</a>
+    </div>
+    <div class="header-right">
+      <span id="draftStatusBadge" class="draft-status-badge hidden"></span>
+      <button id="themeToggleBtn" class="account-btn theme-toggle-btn" type="button">Theme: Dark</button>
+    </div>
+  </header>
+
+  <div class="rankings-page">
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <!-- LEFT PANEL: My Rankings                           -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <div class="rankings-panel">
+
+      <div class="rankings-panel-header">
+        <div class="rankings-panel-title">
+          <h2>My Rankings</h2>
+          <span id="totalCount" class="total-count">0 players</span>
+        </div>
+        <div class="rankings-panel-actions">
+          <button id="tierInsertModeBtn" class="action-btn" type="button">Easy Tier Breaks: Off</button>
+          <button id="printRankingsBtn" class="action-btn" type="button">Print</button>
+          <button id="saveRankingsBtn" class="action-btn saved">Saved ✓</button>
+        </div>
+      </div>
+
+      <div id="printMetaBar" class="print-meta-bar" aria-live="polite"></div>
+
+      <div class="board-tabs" id="boardTabs">
+        <button class="board-tab-btn active" data-board="personal">Personal Rankings</button>
+        <button class="board-tab-btn" data-board="default">Default Rankings</button>
+      </div>
+
+      <!-- Legend (shown only during active draft) -->
+      <div id="draftLegend" class="draft-legend hidden">
+        <span class="legend-item legend-current">Current Round</span>
+        <span class="legend-item legend-yours">Your Roster</span>
+        <span class="legend-item legend-drafted">Drafted</span>
+        <span class="legend-item legend-passed">Passed</span>
+      </div>
+
+      <!-- Position filter bar -->
+      <div class="pos-filter-bar">
+        <button class="pos-filter-btn active" data-pos="ALL">ALL</button>
+        <button class="pos-filter-btn" data-pos="QB">QB</button>
+        <button class="pos-filter-btn" data-pos="RB">RB</button>
+        <button class="pos-filter-btn" data-pos="WR">WR</button>
+        <button class="pos-filter-btn" data-pos="TE">TE</button>
+        <button class="pos-filter-btn" data-pos="K">K</button>
+        <button class="pos-filter-btn" data-pos="DEF">DEF</button>
+        <button id="clearFilteredRankingsBtn" class="action-btn danger clear-filter-btn" type="button">Clear Position</button>
+      </div>
+
+      <!-- Rankings list (tiers rendered here) -->
+      <div class="rankings-list" id="rankingsList">
+        <div class="rankings-empty" id="rankingsEmpty">
+          <div class="empty-icon">📋</div>
+          <p>Your rankings board is empty</p>
+          <p class="empty-hint">Click players on the right to add them, or drag &amp; drop</p>
+        </div>
+      </div>
+
+      <div id="printLayoutSheet" class="print-layout-sheet" aria-hidden="true"></div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <!-- RIGHT PANEL: Player Pool                          -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <div class="pool-panel">
+
+      <div class="pool-panel-header">
+        <h2>Player Pool</h2>
+        <div class="pool-search-wrap">
+          <input type="text" id="poolSearch" class="pool-search" placeholder="Search players…" autocomplete="off">
+        </div>
+      </div>
+
+      <!-- Position tabs -->
+      <div class="pos-tabs">
+        <button class="pos-tab active" data-pos="QB">QB</button>
+        <button class="pos-tab" data-pos="RB">RB</button>
+        <button class="pos-tab" data-pos="WR">WR</button>
+        <button class="pos-tab" data-pos="TE">TE</button>
+        <button class="pos-tab" data-pos="K">K</button>
+        <button class="pos-tab" data-pos="DEF">DEF</button>
+      </div>
+
+      <!-- Pool count line -->
+      <div class="pool-meta" id="poolMeta">Loading…</div>
+
+      <!-- Player list -->
+      <div class="pool-list" id="poolList">
+        <div class="pool-loading">Loading players…</div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="preferences.js"></script>
+  <script src="rankings.js"></script>
+</body>
+</html>

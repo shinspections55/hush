@@ -1,0 +1,258 @@
+[
+    {
+        "qbRank": 1,
+        "name": "Josh Allen",
+        "position": "QB",
+        "team": "BUF",
+        "avgValue": 26,
+        "draftChance": 99
+    },
+    {
+        "qbRank": 2,
+        "name": "Lamar Jackson",
+        "position": "QB",
+        "team": "BAL",
+        "avgValue": 22,
+        "draftChance": 98
+    },
+    {
+        "qbRank": 3,
+        "name": "Jayden Daniels",
+        "position": "QB",
+        "team": "WAS",
+        "avgValue": 22,
+        "draftChance": 97
+    },
+    {
+        "qbRank": 4,
+        "name": "Jalen Hurts",
+        "position": "QB",
+        "team": "PHI",
+        "avgValue": 17,
+        "draftChance": 96
+    },
+    {
+        "qbRank": 5,
+        "name": "Drake Maye",
+        "position": "QB",
+        "team": "NE",
+        "avgValue": 17,
+        "draftChance": 95
+    },
+    {
+        "qbRank": 6,
+        "name": "Joe Burrow",
+        "position": "QB",
+        "team": "CIN",
+        "avgValue": 14,
+        "draftChance": 94
+    },
+    {
+        "qbRank": 7,
+        "name": "Jaxson Dart",
+        "position": "QB",
+        "team": "NYG",
+        "avgValue": 11,
+        "draftChance": 92
+    },
+    {
+        "qbRank": 8,
+        "name": "Brock Purdy",
+        "position": "QB",
+        "team": "SF",
+        "avgValue": 6,
+        "draftChance": 82
+    },
+    {
+        "qbRank": 9,
+        "name": "Trevor Lawrence",
+        "position": "QB",
+        "team": "JAC",
+        "avgValue": 6,
+        "draftChance": 82
+    },
+    {
+        "qbRank": 10,
+        "name": "Dak Prescott",
+        "position": "QB",
+        "team": "DAL",
+        "avgValue": 6,
+        "draftChance": 82
+    },
+    {
+        "qbRank": 11,
+        "name": "Bo Nix",
+        "position": "QB",
+        "team": "DEN",
+        "avgValue": 6,
+        "draftChance": 82
+    },
+    {
+        "qbRank": 12,
+        "name": "Caleb Williams",
+        "position": "QB",
+        "team": "CHI",
+        "avgValue": 6,
+        "draftChance": 82
+    },
+    {
+        "qbRank": 13,
+        "name": "Matthew Stafford",
+        "position": "QB",
+        "team": "LAR",
+        "avgValue": 4,
+        "draftChance": 72
+    },
+    {
+        "qbRank": 14,
+        "name": "Patrick Mahomes",
+        "position": "QB",
+        "team": "KC",
+        "avgValue": 4,
+        "draftChance": 89
+    },
+    {
+        "qbRank": 15,
+        "name": "Justin Herbert",
+        "position": "QB",
+        "team": "LAC",
+        "avgValue": 3,
+        "draftChance": 79
+    },
+    {
+        "qbRank": 16,
+        "name": "Daniel Jones",
+        "position": "QB",
+        "team": "IND",
+        "avgValue": 1,
+        "draftChance": 60
+    },
+    {
+        "qbRank": 17,
+        "name": "Tyler Shough",
+        "position": "QB",
+        "team": "NO",
+        "avgValue": 1,
+        "draftChance": 60
+    },
+    {
+        "qbRank": 18,
+        "name": "Kyler Murray",
+        "position": "QB",
+        "team": "MIN",
+        "avgValue": 1,
+        "draftChance": 65
+    },
+    {
+        "qbRank": 19,
+        "name": "Jared Goff",
+        "position": "QB",
+        "team": "DET",
+        "avgValue": 1,
+        "draftChance": 65
+    },
+    {
+        "qbRank": 20,
+        "name": "Baker Mayfield",
+        "position": "QB",
+        "team": "TB",
+        "avgValue": 1,
+        "draftChance": 65
+    },
+    {
+        "qbRank": 21,
+        "name": "Jordan Love",
+        "position": "QB",
+        "team": "GB",
+        "avgValue": 1,
+        "draftChance": 65
+    },
+    {
+        "qbRank": 22,
+        "name": "Cam Ward",
+        "position": "QB",
+        "team": "TEN",
+        "avgValue": 1,
+        "draftChance": 55
+    },
+    {
+        "qbRank": 23,
+        "name": "C.J. Stroud",
+        "position": "QB",
+        "team": "HOU",
+        "avgValue": 1,
+        "draftChance": 55
+    },
+    {
+        "qbRank": 24,
+        "name": "Sam Darnold",
+        "position": "QB",
+        "team": "SEA",
+        "avgValue": 1,
+        "draftChance": 52
+    },
+    {
+        "qbRank": 25,
+        "name": "Fernando Mendoza",
+        "position": "QB",
+        "team": "LV",
+        "avgValue": 1,
+        "draftChance": 52
+    },
+    {
+        "qbRank": 26,
+        "name": "Bryce Young",
+        "position": "QB",
+        "team": "CAR",
+        "avgValue": 0,
+        "draftChance": 45
+    },
+    {
+        "qbRank": 27,
+        "name": "Malik Willis",
+        "position": "QB",
+        "team": "MIA",
+        "avgValue": 0,
+        "draftChance": 40
+    },
+    {
+        "qbRank": 28,
+        "name": "Geno Smith",
+        "position": "QB",
+        "team": "NYJ",
+        "avgValue": 0,
+        "draftChance": 35
+    },
+    {
+        "qbRank": 29,
+        "name": "Aaron Rodgers",
+        "position": "QB",
+        "team": "PIT",
+        "avgValue": 0,
+        "draftChance": 32
+    },
+    {
+        "qbRank": 30,
+        "name": "Deshaun Watson",
+        "position": "QB",
+        "team": "CLE",
+        "avgValue": 0,
+        "draftChance": 20
+    },
+    {
+        "qbRank": 31,
+        "name": "Jacoby Brissett",
+        "position": "QB",
+        "team": "ARI",
+        "avgValue": 0,
+        "draftChance": 20
+    },
+    {
+        "qbRank": 32,
+        "name": "Tua Tagovailoa",
+        "position": "QB",
+        "team": "ATL",
+        "avgValue": 0,
+        "draftChance": 20
+    }
+]

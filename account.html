@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Edit Account</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-overlay account-page">
+  <header class="site-header">
+    <img src="HUSHLOGO.png" alt="Logo" class="logo">
+  </header>
+
+  <main class="page">
+    <div class="container account-page-grid">
+      <section class="box account-panel">
+        <h2>Edit Account</h2>
+        <p class="form-helper">Update your local profile details and your Firebase sign-in email. Your draft username stays fixed so your drafts and saved local data keep matching the same account.</p>
+        <form id="accountProfileForm">
+          <input type="text" id="accountUsername" name="username" placeholder="Username" readonly>
+          <input type="text" id="accountFullname" name="fullname" placeholder="Full name" required>
+          <input type="email" id="accountEmail" name="email" placeholder="Email address" required>
+          <input type="tel" id="accountPhone" name="phone" placeholder="Phone">
+          <input type="password" id="accountCurrentPassword" name="currentPassword" placeholder="Current password" required>
+          <button type="submit" class="btn btn-signup">Save Account Changes</button>
+        </form>
+        <p id="accountProfileStatus" class="form-status"></p>
+      </section>
+
+      <section class="box account-panel">
+        <h2>Security</h2>
+        <p class="form-helper">Change your Firebase password or clear saved browser login details for this account.</p>
+        <form id="accountPasswordForm">
+          <input type="password" id="passwordCurrent" name="currentPassword" placeholder="Current password" required>
+          <input type="password" id="passwordNew" name="newPassword" placeholder="New password" required>
+          <input type="password" id="passwordConfirm" name="confirmPassword" placeholder="Confirm new password" required>
+          <button type="submit" class="btn btn-signup">Change Password</button>
+        </form>
+        <div class="account-inline-actions">
+          <button id="clearSavedLoginBtn" type="button" class="btn btn-login">Clear Saved Login</button>
+          <button id="exportAccountBtn" type="button" class="btn btn-login">Export Account Data</button>
+        </div>
+        <p id="accountSecurityStatus" class="form-status"></p>
+      </section>
+
+      <section class="box account-panel account-danger-panel" id="delete-account">
+        <h2>Delete Account</h2>
+        <p class="form-helper">This permanently deletes the Firebase account and clears this browser's saved data for this user. This cannot be undone.</p>
+        <form id="deleteAccountForm">
+          <input type="password" id="deleteCurrentPassword" name="currentPassword" placeholder="Current password" required>
+          <input type="text" id="deleteConfirmText" name="confirmText" placeholder="Type DELETE to confirm" required>
+          <button type="submit" class="btn account-delete-btn">Delete Account Permanently</button>
+        </form>
+        <p id="accountDeleteStatus" class="form-status"></p>
+      </section>
+
+      <section class="box account-panel">
+        <h2>Quick Access</h2>
+        <p class="form-helper">Common account actions you may want handy.</p>
+        <div class="account-link-list">
+          <a href="dashboard.html" class="form-link">Back to Dashboard</a>
+          <a href="rankings.html?draftView=off" class="form-link">Open My Rankings</a>
+          <a href="recent-drafts.html" class="form-link">View Completed Drafts</a>
+          <a href="wallet.html" class="form-link">Open Wallet</a>
+          <a href="forgot-password.html" class="form-link">Password Recovery</a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="firebase-config.js"></script>
+  <script src="preferences.js"></script>
+  <script type="module" src="account.js"></script>
+</body>
+</html>

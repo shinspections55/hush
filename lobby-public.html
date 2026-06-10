@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Public Draft Lobby</title>
+  <link rel="stylesheet" href="styles.css">
+  </head>
+<body class="bg-overlay">
+  <header class="site-header">
+    <div class="header-left">
+      <img src="HUSHLOGO.png" alt="Logo" class="logo">
+    </div>
+    <div class="header-right">
+      <a href="dashboard.html" class="account-btn">Back</a>
+    </div>
+  </header>
+  <main class="page">
+    <div class="container">
+      <section class="box" id="lobbyBox">
+        <div id="hostBanner" class="host-banner hidden">
+          Lobby is full.
+          <button id="dismissBanner" class="dismiss-btn">✕</button>
+        </div>
+        <div class="lobby-top-row">
+          <div class="lobby-top-left">
+            <div class="lobby-heading-row">
+              <h2 id="draftTitle" class="hush-silver">Public Draft Lobby</h2>
+              <div id="memberCountBadge" class="member-count-badge hush-silver">Users in Lobby: 0</div>
+            </div>
+            <p id="draftCode" class="hush-silver">Code: </p>
+          </div>
+          <div class="lobby-member-counter hush-silver">Users: <span id="memberCount">0</span></div>
+        </div>
+        <style>
+        .hush-silver { color: var(--hush-silver) !important; }
+        </style>
+        <div class="lobby-layout">
+          <div class="lobby-members-column">
+            <h3 class="hush-silver">Members</h3>
+            <ul id="memberList" class="hush-silver"></ul>
+          </div>
+          <div class="lobby-options-column">
+            <div class="lobby-controls">
+              <div class="type-display">Type:</div>
+              <div class="flex-container">
+                <label class="radio-label">
+                  <input type="radio" name="draftType" value="silent" checked>
+                  <span>Silent auction</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="draftType" value="rounds3">
+                  <span>3 rounds auction</span>
+                </label>
+              </div>
+            </div>
+            <div id="draftOrderSection" class="lobby-controls draft-order-section">
+              <div class="type-display">Draft Order:</div>
+              <div class="flex-container">
+                <label class="radio-label">
+                  <input type="radio" name="draftOrder" value="manual" checked>
+                  <span>Set draft order</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="draftOrder" value="random">
+                  <span>Random order</span>
+                </label>
+              </div>
+            </div>
+            <details class="lobby-custom-settings" id="lobbyCustomSettings">
+              <summary class="lobby-custom-settings-summary">Custom Settings</summary>
+              <div class="lobby-custom-settings-body">
+                <div class="lobby-controls">
+                  <div class="type-display">Capacity: <span id="draftCapacity">10</span></div>
+                  <div id="capacityControls" class="capacity-controls">
+                    <select id="capacitySelect" class="type-btn" aria-label="Select draft capacity">
+                      <option value="10" selected>10</option>
+                      <option value="12">12</option>
+                      <option value="14">14</option>
+                    </select>
+                    <button id="applyCapacityBtn" type="button" class="type-btn">Apply</button>
+                  </div>
+                </div>
+                <div class="lobby-controls roster-controls" id="rosterControls">
+                  <div class="type-display">Roster Setup:</div>
+                  <div class="roster-grid" id="rosterGrid">
+                    <label>QB <input id="rosterQB" type="number" min="0" max="8" step="1" value="1"></label>
+                    <label>WR <input id="rosterWR" type="number" min="0" max="10" step="1" value="2"></label>
+                    <label>RB <input id="rosterRB" type="number" min="0" max="10" step="1" value="2"></label>
+                    <label>TE <input id="rosterTE" type="number" min="0" max="8" step="1" value="1"></label>
+                    <label>FLEX <input id="rosterFLEX" type="number" min="0" max="5" step="1" value="1"></label>
+                    <label>K <input id="rosterK" type="number" min="0" max="5" step="1" value="1"></label>
+                    <label>DEF <input id="rosterDEF" type="number" min="0" max="5" step="1" value="1"></label>
+                    <label>BN <input id="rosterBN" type="number" min="0" max="13" step="1" value="5"></label>
+                  </div>
+                  <button id="applyRosterBtn" type="button" class="type-btn">Apply Roster</button>
+                </div>
+                <div id="rosterSummary" class="roster-summary"></div>
+                <div class="lobby-controls custom-budgets-controls" id="customBudgetControls">
+                  <button id="toggleBudgetPanelBtn" type="button" class="type-btn">Custom Budgets</button>
+                </div>
+                <div id="customBudgetPanel" class="custom-budget-panel hidden">
+                  <div id="customBudgetList" class="custom-budget-list"></div>
+                  <div class="custom-budget-actions">
+                    <button id="applyCustomBudgetsBtn" type="button" class="type-btn">Apply Budgets</button>
+                    <button id="resetCustomBudgetsBtn" type="button" class="type-btn">Reset to 200</button>
+                  </div>
+                </div>
+              </div>
+            </details>
+            <div class="lobby-action-row">
+              <button id="startDraftBtn" class="btn btn-signup">Start Draft</button>
+              <button id="leaveBtn" class="btn">Leave Draft</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script>
+    // Try to load socket.io from the server; if that 404s, fall back to CDN
+    (function(){
+      var s = document.createElement('script');
+      s.src = '/socket.io/socket.io.js';
+      s.onload = function(){ console.debug('Loaded socket.io from server'); };
+      s.onerror = function(){
+        console.warn('Local socket.io not available, falling back to CDN');
+        var c = document.createElement('script');
+        c.src = 'https://cdn.socket.io/4.7.2/socket.io.min.js';
+        c.onload = function(){ console.debug('Loaded socket.io from CDN'); };
+        document.head.appendChild(c);
+      };
+      document.head.appendChild(s);
+    })();
+  </script>
+  <script src="lobby.js"></script>
+  <script src="lobby-public.js"></script>
+</body>
+</html>

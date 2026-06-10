@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin Delivery Debug</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-overlay">
+  <header class="site-header">
+    <img src="HUSHLOGO.png" alt="Logo" class="logo">
+  </header>
+
+  <main class="page">
+    <div class="container">
+      <section class="box">
+        <h2>Admin Delivery Debug</h2>
+        <p class="form-helper">Use your ADMIN_DEBUG_KEY to inspect provider status and send test messages.</p>
+
+        <form id="statusForm">
+          <input type="password" id="adminKey" placeholder="Admin debug key" autocomplete="current-password" required>
+          <button type="submit" class="btn btn-login">Check delivery status</button>
+        </form>
+
+        <p id="statusText" class="form-status"></p>
+        <pre id="statusJson" class="admin-debug-pre"></pre>
+
+        <h3 class="admin-debug-subtitle">Send Test Email</h3>
+        <form id="testEmailForm">
+          <input type="email" id="testEmailTo" placeholder="Destination email" required>
+          <input type="text" id="testEmailName" placeholder="Recipient name (optional)">
+          <button type="submit" class="btn btn-signup">Send test email</button>
+        </form>
+
+        <h3 class="admin-debug-subtitle">Send Test SMS</h3>
+        <form id="testSmsForm">
+          <input type="tel" id="testSmsTo" placeholder="Destination phone (+15551234567)" required>
+          <button type="submit" class="btn btn-signup">Send test SMS</button>
+        </form>
+
+        <p id="sendResult" class="form-status"></p>
+        <p><a class="form-link" href="admin-portal.html">Open full admin portal</a></p>
+        <p><a class="form-link" href="index.html">Back to login</a></p>
+      </section>
+    </div>
+  </main>
+
+  <script src="admin-delivery-debug.js"></script>
+  <script src="preferences.js"></script>
+</body>
+</html>

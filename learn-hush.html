@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Learn Hush</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-overlay dashboard-page">
+  <header class="dashboard-header hush-silver-bg">
+    <div class="dashboard-header-left">
+      <a href="dashboard.html" class="account-btn hush-header-contrast">← Dashboard</a>
+    </div>
+    <div class="dashboard-header-center">
+      <span class="dashboard-header-title hush-header-contrast">Learn Hush</span>
+    </div>
+    <div class="dashboard-header-right">
+      <span class="welcome-user hush-header-contrast">Draft Concept Guide</span>
+    </div>
+  </header>
+
+  <main class="dashboard-main-centered">
+    <section class="dashboard-three-column learn-hush-layout">
+      <article class="dashboard-column-card learn-hush-card">
+        <h2>What Hush Is</h2>
+        <h3>How the Silent Draft Works</h3>
+        <p>Hush introduces a modern twist on fantasy football drafting with our <strong>Silent Auction Draft</strong> — a strategic, data-driven alternative to traditional snake drafts and fast-paced live auctions.</p>
+        <p>Instead of bidding out loud, every manager submits <strong>private, hidden bids</strong> on players each round. When the round ends, all bids are revealed at once, and players are awarded to the highest bidders.</p>
+
+        <h3>Example</h3>
+        <p>Let’s say Bijan Robinson is available.</p>
+        <p>Manager A bids:<br><strong>$49</strong></p>
+        <p>Manager B bids:<br><strong>$55</strong></p>
+        <p>Manager C bids:<br><strong>$45</strong></p>
+        <p>When the round ends:</p>
+        <ul class="dashboard-placeholder-list">
+          <li>Manager B wins Bijan Robinson for $50 because the second highest bid was $49.</li>
+          <li>The other managers keep their remaining budget.</li>
+          <li>This can also get crazy. For example, if nobody else bids on Ceedee Lamb for whatever reason, the team that bid will win him for a dollar.</li>
+        </ul>
+
+        <p>No one knows the market until the reveal.</p>
+
+        <h3>Draft Basics</h3>
+        <p>Each manager begins with a set <strong>salary-cap budget</strong>.</p>
+        <p>During every round:</p>
+        <ul class="dashboard-placeholder-list">
+          <li><strong>Player Pool</strong> — A group of players becomes available for bidding.</li>
+          <li><strong>Secret Bidding</strong> — Managers privately submit bids on any players they want.</li>
+          <li><strong>Hidden Information</strong> — No one can see what others are bidding.</li>
+          <li><strong>Round Reveal</strong> — When the timer expires (or all bids are submitted), winners are revealed.</li>
+          <li><strong>Winning Logic</strong> — The highest bidder wins the player <strong>for $1 more than the second-highest bid</strong>.</li>
+          <li><strong>Tie Resolution</strong> — If two managers submit the same top bid, a quick live tiebreaker auction determines the winner.</li>
+        </ul>
+
+        <h3>Why It’s Different</h3>
+        <p>Traditional drafts often reward:</p>
+        <ul class="dashboard-placeholder-list">
+          <li><strong>Reaction Speed</strong></li>
+          <li><strong>Draft Position Luck</strong></li>
+          <li><strong>Fast Clicking</strong></li>
+        </ul>
+
+        <p>Silent Drafting rewards:</p>
+        <ul class="dashboard-placeholder-list">
+          <li><strong>Preparation</strong></li>
+          <li><strong>Player Rankings</strong></li>
+          <li><strong>Value Recognition</strong></li>
+          <li><strong>Predicting League Behavior</strong></li>
+        </ul>
+
+        <h3>Tiers &amp; Rankings</h3>
+        <p>Managers can build their own personal rankings with a drag and drop rankings creator and personalized tiers before the draft.</p>
+        <p>These rankings are also printable, so you can use them for your other drafts.</p>
+        <p>This helps identify:</p>
+        <ul class="dashboard-placeholder-list">
+          <li>positional drop-offs</li>
+          <li>value cliffs</li>
+          <li>sleeper targets</li>
+          <li>roster priorities</li>
+        </ul>
+
+        <p>As players are drafted, tier scarcity becomes increasingly important.</p>
+
+        <h3>Player Status Indicators</h3>
+        <p>During the draft, player rankings update live:</p>
+        <ul class="dashboard-placeholder-list">
+          <li>Yellow highlight = Current round player pool</li>
+          <li>Green highlight = Player is on your roster</li>
+          <li>Red strikethrough = Drafted by another team</li>
+          <li>Dark faded strikethrough = Went Undrafted</li>
+        </ul>
+
+        <p>This creates a dynamic draft board that constantly reflects the league market.</p>
+
+        <p>One of the biggest advantages: You can land players you’d never have a chance at in a snake draft due to draft position.</p>
+        <p>Every bid becomes a <strong>strategic decision</strong>, not a race against the clock.</p>
+      </article>
+
+      <article class="dashboard-column-card learn-hush-card">
+        <h2>Suggested Sections</h2>
+        <ul class="dashboard-placeholder-list">
+          <li>How the Hush draft format works</li>
+          <li>What makes it different from a standard draft</li>
+          <li>How rankings, bidding, and strategy fit together</li>
+          <li>What a new player should do first</li>
+        </ul>
+      </article>
+    </section>
+  </main>
+
+  <script src="preferences.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const username = sessionStorage.getItem('username');
+      if (typeof getUserThemePreference === 'function' && username) {
+        document.body.classList.toggle('dashboard-light-mode', getUserThemePreference(username, 'dark') === 'light');
+      }
+    });
+  </script>
+</body>
+</html>

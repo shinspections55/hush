@@ -1,0 +1,251 @@
+.draft-summary-box {
+    width: 100%;
+    max-width: 980px;
+}
+
+.summary-header {
+    margin-bottom: 18px;
+}
+
+.summary-title {
+    margin: 0;
+    font-size: 28px;
+}
+
+.summary-meta {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.summary-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 14px;
+}
+
+.summary-panel {
+    background: #0b0b0d;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 14px;
+}
+
+.summary-section-title {
+    margin: 0 0 12px 0;
+    font-size: 18px;
+}
+
+.mt-14 {
+    margin-top: 14px;
+}
+
+.mt-16 {
+    margin-top: 16px;
+}
+
+.team-list {
+    display: grid;
+    gap: 8px;
+    max-height: 68vh;
+    overflow: auto;
+    padding-right: 4px;
+}
+
+.team-btn {
+    text-align: left;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #111218;
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.team-btn:hover {
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.team-btn.active {
+    border-color: #3498db;
+    background: rgba(52, 152, 219, 0.14);
+}
+
+.badge {
+    display: inline-block;
+    margin-top: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    padding: 3px 8px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.team-title {
+    margin: 0;
+    font-size: 22px;
+}
+
+.team-meta {
+    margin-top: 8px;
+}
+
+.lineup-grid {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 3px 12px 12px 12px;
+    min-height: 60px;
+}
+
+.lineup-row {
+    display: flex;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 12px;
+}
+
+.lineup-row:last-child {
+    border-bottom: none;
+}
+
+.lineup-pos {
+    display: inline-block;
+    width: 60px;
+    color: #3498db;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.lineup-player {
+    color: var(--accent);
+    font-size: 12px;
+}
+
+.lineup-row.empty .lineup-player {
+    color: var(--muted);
+    font-style: italic;
+}
+
+.bench-list {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 3px 12px 12px 12px;
+    min-height: 60px;
+}
+
+.bench-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 12px;
+}
+
+.bench-item:last-child {
+    border-bottom: none;
+}
+
+.bench-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+
+.bench-pos {
+    display: inline-block;
+    min-width: 34px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 12px;
+    background: #3498db;
+    color: #fff;
+    border-radius: 3px;
+    padding: 1px 4px;
+}
+
+.bench-player {
+    color: var(--accent);
+    font-size: 12px;
+}
+
+.bench-rank {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.bench-item-cut {
+    justify-content: space-between;
+    cursor: pointer;
+}
+
+.bench-cut-toggle {
+    width: 16px;
+    height: 16px;
+    margin-left: 8px;
+    accent-color: #3498db;
+    cursor: pointer;
+}
+
+.bench-empty {
+    padding: 10px 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-style: italic;
+}
+
+.warning {
+    margin-top: 8px;
+    color: #f59e0b;
+}
+
+.warning-badge {
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.45);
+}
+
+.cut-panel {
+    margin-top: 8px;
+    margin-bottom: 12px;
+    padding: 10px;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: 8px;
+    background: rgba(245, 158, 11, 0.08);
+}
+
+.cut-panel h4 {
+    margin: 0 0 8px 0;
+    color: #fbbf24;
+}
+
+.cut-panel p {
+    margin: 0 0 10px 0;
+    color: #f8fafc;
+}
+
+.cut-option {
+    display: block;
+    margin-bottom: 8px;
+    color: #e5e7eb;
+}
+
+.cut-option input {
+    margin-right: 8px;
+}
+
+.cut-btn {
+    margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+    .summary-layout {
+        grid-template-columns: 1fr;
+    }
+}

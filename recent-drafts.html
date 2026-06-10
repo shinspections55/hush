@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Recent Drafts</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="draft-summary.css">
+  <link rel="stylesheet" href="recent-drafts.css">
+</head>
+<body class="bg-overlay">
+  <header class="site-header">
+    <div class="header-left">
+      <img src="HUSHLOGO.png" alt="Logo" class="logo">
+    </div>
+    <div class="header-right">
+      <a href="dashboard.html" class="account-btn">Back to Dashboard</a>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="box draft-summary-box">
+      <div class="summary-header recent-header">
+        <div>
+          <h1 class="summary-title">Recent Draft Summaries</h1>
+          <div id="summaryMeta" class="summary-meta">Loading drafts...</div>
+        </div>
+        <form id="lookupForm" class="lookup-form">
+          <label for="codeLookup" class="lookup-label">Lobby Code</label>
+          <div class="lookup-controls">
+            <input id="codeLookup" type="text" maxlength="12" placeholder="e.g. ABC123">
+            <button type="submit" class="account-btn">Find</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="summary-layout">
+        <section class="summary-panel">
+          <h2 class="summary-section-title">Completed Drafts</h2>
+          <div id="draftList" class="team-list"></div>
+        </section>
+
+        <section class="summary-panel">
+          <div id="teamHeader"></div>
+          <h3 class="summary-section-title mt-14">Starting Lineup</h3>
+          <div id="lineupGrid" class="lineup-grid"></div>
+
+          <h3 class="summary-section-title mt-16">Bench</h3>
+          <div id="benchContainer"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script src="recent-drafts.js"></script>
+</body>
+</html>

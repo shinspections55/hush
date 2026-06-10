@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Signup — Account System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="site-header">
+        <img src="HUSHLOGO.png" alt="Logo" class="logo">
+    </header>
+
+    <main class="page">
+        <div class="container">
+            <section class="box">
+                <h2>Create Account</h2>
+                <p style="margin:0 0 12px 0;color:var(--muted);">Use the full registration page to create your account.</p>
+                <a class="btn btn-signup" href="register.html" style="display:inline-block;text-decoration:none;padding:10px 14px;border-radius:8px;">Create an account</a>
+            </section>
+
+            <section class="box">
+                <h2>Login</h2>
+                <form id="loginForm">
+                    <input type="email" name="email" placeholder="Email address" autocomplete="email" required>
+                    <input type="password" name="password" placeholder="Password" required>
+                    <label class="form-inline-checkbox" for="rememberPassword">
+                        <input type="checkbox" id="rememberPassword" name="rememberPassword">
+                        Keep me signed in on this browser
+                    </label>
+                    <a class="form-link" href="forgot-password.html">Forgot password?</a>
+                    <button type="submit" class="btn btn-login">Login</button>
+                </form>
+            </section>
+        </div>
+    </main>
+
+    <script src="firebase-config.js"></script>
+    <script src="preferences.js"></script>
+    <script type="module" src="scripts.js"></script>
+</body>
+</html>

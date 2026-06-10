@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Join Private Draft</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-overlay">
+  <header class="site-header">
+    <div class="header-left">
+      <img src="HUSHLOGO.png" alt="Logo" class="logo">
+    </div>
+  </header>
+  <main class="page">
+    <div class="container">
+      <section class="box">
+        <h2>Join a Private Draft</h2>
+        <form id="joinPrivateForm">
+          <input type="text" name="code" placeholder="Enter draft code" required>
+          <button type="submit" class="btn btn-signup">Join</button>
+        </form>
+        <p style="margin-top:10px;color:var(--muted)">Or go back to <a href="dashboard.html">Dashboard</a></p>
+      </section>
+    </div>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="join-private.js"></script>
+</body>
+</html>

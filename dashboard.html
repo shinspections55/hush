@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-overlay dashboard-page">
+
+  <header class="dashboard-header hush-silver-bg">
+    <div class="dashboard-header-left">
+      <img src="HUSHLOGO.png" alt="HUSH Logo" class="dashboard-header-logo">
+    </div>
+    <div class="dashboard-header-center">
+      <span class="dashboard-header-title hush-header-contrast">HUSH Fantasy Drafts</span>
+    </div>
+    <div class="dashboard-header-right">
+      <div id="walletBalance" class="wallet-balance hush-header-contrast">$0</div>
+      <div class="account-menu-stack">
+        <span id="welcomeUser" class="welcome-user hush-header-contrast">Timbee12</span>
+        <button id="accountBtn" class="account-btn hush-header-contrast">Account ▼</button>
+        <div id="accountMenu" class="account-menu">
+          <button id="editAccountBtn">Edit Account</button>
+          <button id="deleteAccountMenuBtn">Delete Account</button>
+          <button id="toggleDashboardTheme">Theme: Dark</button>
+          <button id="completedDraftsBtn">Completed Drafts</button>
+          <button id="openWallet">Wallet</button>
+          <a href="rankings.html?draftView=off" id="myRankingsMenu" class="account-menu-link"><span>My Rankings</span></a>
+          <button id="logoutBtn">Log out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+
+  <main class="dashboard-main-centered">
+    <section class="dashboard-three-column">
+      <article class="dashboard-column-card dashboard-column-left">
+        <p id="welcomeText">This is your dashboard. Use the account menu to manage your account, sign out, or open your rankings.</p>
+        <div class="dashboard-cta-row">
+          <a href="#" id="joinDraft" class="cta cta-secondary">Join a Draft</a>
+          <a href="#" id="joinPrivate" class="cta cta-secondary">Join a Private Draft</a>
+          <a href="#" id="startPrivate" class="cta cta-primary">Start New Private Draft</a>
+          <a href="#" id="startPublic" class="cta cta-primary">Start Public Draft</a>
+        </div>
+      </article>
+
+      <article class="dashboard-column-card dashboard-column-middle">
+        <h2>News and Updates</h2>
+        <p id="newsFeedStatus">Loading latest sports headlines...</p>
+        <ul id="newsFeedList" class="dashboard-placeholder-list">
+          <li>Fetching live RSS feed...</li>
+        </ul>
+      </article>
+
+      <article class="dashboard-column-card dashboard-column-right">
+        <h2>Features and Links</h2>
+        <p>This area will showcase features and new links you have not created yet.</p>
+        <div class="dashboard-cta-row">
+          <a href="learn-hush.html" id="learnHush" class="cta cta-primary">Learn Hush</a>
+        </div>
+        <ul class="dashboard-placeholder-list">
+          <li>Draft room walkthrough</li>
+          <li>Ranking tips and tricks</li>
+          <li>Quick links hub</li>
+        </ul>
+      </article>
+    </section>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="preferences.js"></script>
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>

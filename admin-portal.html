@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin Portal</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-overlay admin-portal-page">
+  <header class="site-header">
+    <img src="HUSHLOGO.png" alt="Logo" class="logo">
+    <section class="admin-header-access" aria-label="Admin access">
+      <h2>Admin Access</h2>
+      <form id="adminConnectForm">
+        <input type="password" id="adminKeyInput" placeholder="Admin key" autocomplete="current-password" required>
+        <button type="submit" class="btn btn-login">Connect</button>
+      </form>
+      <p id="adminConnectStatus" class="form-status"></p>
+    </section>
+  </header>
+
+  <main class="page">
+    <div class="container admin-portal-layout">
+      <section class="box admin-portal-card">
+        <h2>Traffic + System Health</h2>
+        <div class="admin-portal-actions">
+          <button id="refreshOverviewBtn" type="button" class="btn btn-signup">Refresh Overview</button>
+          <button id="toggleRawOverviewBtn" type="button" class="btn btn-login">Show Raw Code/Data</button>
+          <a href="admin-delivery-debug.html" class="form-link">Open Delivery Debug</a>
+        </div>
+
+        <div class="admin-metric-grid" id="adminMetricGrid">
+          <article class="admin-metric-card">
+            <h3>Uptime</h3>
+            <p id="metricUptime">--</p>
+          </article>
+          <article class="admin-metric-card">
+            <h3>Total Requests</h3>
+            <p id="metricTotalRequests">--</p>
+          </article>
+          <article class="admin-metric-card">
+            <h3>Auth Users</h3>
+            <p id="metricAuthUsers">--</p>
+          </article>
+          <article class="admin-metric-card">
+            <h3>Default Rankings</h3>
+            <p id="metricDefaultRankings">--</p>
+          </article>
+        </div>
+
+        <div class="admin-overview-charts" id="adminOverviewCharts">
+          <section class="admin-chart-card">
+            <h3>Requests by Method</h3>
+            <canvas id="adminMethodChart" height="160"></canvas>
+          </section>
+          <section class="admin-chart-card">
+            <h3>Status Codes</h3>
+            <canvas id="adminStatusChart" height="160"></canvas>
+          </section>
+          <section class="admin-chart-card admin-chart-card-wide">
+            <h3>Top Paths</h3>
+            <canvas id="adminTopPathsChart" height="190"></canvas>
+          </section>
+        </div>
+
+        <pre id="adminOverviewOutput" class="admin-debug-pre hidden"></pre>
+      </section>
+
+      <section class="box admin-portal-card admin-rankings-card">
+        <h2>Default Rankings Manager</h2>
+        <p class="form-helper">Edit each position file directly. QB loads qb.json, RB loads rb.json, WR loads wr.json, and so on. Drag to reorder, change AV, add players, remove players, then save.</p>
+
+        <div class="admin-portal-actions">
+          <button id="loadRankingsBtn" type="button" class="btn btn-login">Load Rankings</button>
+          <button id="tierInsertModeBtn" type="button" class="btn btn-login" aria-pressed="false">Easy Tier Breaks: Off</button>
+          <button id="saveRankingsLayoutBtn" type="button" class="btn btn-signup" disabled>Save Order + Tier Breaks</button>
+          <button id="saveJsonFileBtn" type="button" class="btn btn-signup" disabled>Save to .json File</button>
+          <button id="clearTopBoardBtn" type="button" class="btn btn-login" disabled>Remove All From TOP</button>
+          <button id="undoRankingsEditBtn" type="button" class="btn btn-login" disabled>Undo Last Edit</button>
+          <button id="resetUnsavedBtn" type="button" class="btn btn-login">Reset Unsaved Changes</button>
+          <span id="rankingsSourceLabel" class="form-helper"></span>
+        </div>
+
+        <div class="admin-position-tabs" id="adminPositionTabs" role="tablist" aria-label="Position categories">
+          <button type="button" class="admin-pos-tab" data-pos="TOP" role="tab" aria-selected="false">TOP</button>
+          <button type="button" class="admin-pos-tab active" data-pos="QB" role="tab" aria-selected="true">QB</button>
+          <button type="button" class="admin-pos-tab" data-pos="RB" role="tab" aria-selected="false">RB</button>
+          <button type="button" class="admin-pos-tab" data-pos="WR" role="tab" aria-selected="false">WR</button>
+          <button type="button" class="admin-pos-tab" data-pos="TE" role="tab" aria-selected="false">TE</button>
+          <button type="button" class="admin-pos-tab" data-pos="K" role="tab" aria-selected="false">K</button>
+          <button type="button" class="admin-pos-tab" data-pos="DEF" role="tab" aria-selected="false">DEF</button>
+        </div>
+
+        <div id="jsonSaveBanner" class="admin-save-banner hidden" role="status" aria-live="polite">
+          <div class="admin-save-banner-copy">
+            <strong>Update completed</strong>
+            <span id="jsonSaveBannerText">The selected .json file finished updating.</span>
+          </div>
+          <button id="dismissJsonSaveBannerBtn" type="button" class="admin-save-banner-close" aria-label="Dismiss update banner">Close</button>
+        </div>
+
+        <div id="adminTierBoard" class="admin-tier-board" aria-live="polite"></div>
+
+        <form id="addPlayerForm" class="admin-inline-form">
+          <input type="text" id="addName" placeholder="Player name" required>
+          <input type="text" id="addTeam" placeholder="Team (e.g. KC)">
+          <select id="addPosition" title="Player position" aria-label="Player position" required>
+            <option value="">Position</option>
+            <option value="QB">QB</option>
+            <option value="RB">RB</option>
+            <option value="WR">WR</option>
+            <option value="TE">TE</option>
+            <option value="K">K</option>
+            <option value="DEF">DEF</option>
+          </select>
+          <input type="number" id="addAvgValue" placeholder="Avg Value" min="0" step="1">
+          <button type="submit" class="btn btn-signup">Add Player</button>
+        </form>
+
+        <form id="removePlayerForm" class="admin-inline-form">
+          <input type="number" id="removeId" placeholder="Remove by current rank" min="1" step="1">
+          <input type="text" id="removeName" placeholder="Or remove by exact player name in active tab">
+          <button type="submit" class="btn btn-login">Remove Player</button>
+        </form>
+
+        <p id="rankingsActionStatus" class="form-status"></p>
+      </section>
+    </div>
+  </main>
+
+  <script src="admin-portal.js"></script>
+  <script src="preferences.js"></script>
+</body>
+</html>

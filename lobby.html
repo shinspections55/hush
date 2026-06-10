@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Draft Lobby</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-overlay lobby-page">
+  <header class="site-header">
+    <div class="header-left">
+      <img src="HUSHLOGO.png" alt="Logo" class="logo">
+    </div>
+    <div class="header-right">
+      <a href="dashboard.html" class="account-btn">Back</a>
+    </div>
+  </header>
+  <main class="page">
+    <div class="container">
+      <section class="box" id="lobbyBox">
+        <div id="hostBanner" class="host-banner hidden">
+          Lobby is full.
+          <button id="dismissBanner" class="dismiss-btn">✕</button>
+        </div>
+        <h2 id="draftTitle" class="hush-silver">Draft Lobby</h2>
+        <p id="draftCode" class="hush-silver">Code: </p>
+        <h3 class="hush-silver">Members</h3>
+        <ul id="memberList" class="hush-silver"></ul>
+        <div class="lobby-controls">
+          <div class="type-display">Type:</div>
+          <div class="flex-container">
+            <label class="radio-label">
+              <input type="radio" name="draftType" value="silent" checked>
+              <span>Silent auction</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="draftType" value="rounds3">
+              <span>3 rounds auction</span>
+            </label>
+          </div>
+        </div>
+        <div id="draftOrderSection" class="lobby-controls draft-order-section">
+          <div class="type-display">Draft Order:</div>
+          <div class="flex-container">
+            <label class="radio-label">
+              <input type="radio" name="draftOrder" value="manual" checked>
+              <span>Set draft order</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="draftOrder" value="random">
+              <span>Random order</span>
+            </label>
+          </div>
+        </div>
+        <div class="lobby-controls">
+          <div class="type-display">Capacity: <span id="draftCapacity">10</span></div>
+          <div id="capacityControls" class="capacity-controls">
+            <select id="capacitySelect" class="type-btn" aria-label="Select draft capacity">
+              <option value="10" selected>10</option>
+              <option value="12">12</option>
+              <option value="14">14</option>
+            </select>
+            <button id="applyCapacityBtn" type="button" class="type-btn">Apply</button>
+          </div>
+        </div>
+        <button id="startDraftBtn" class="btn btn-signup">Start Draft</button>
+        <button id="leaveBtn" class="btn">Leave Draft</button>
+      </section>
+    </div>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="lobby.js"></script>
+</body>
+</html>

@@ -1,0 +1,632 @@
+[
+    {
+        "WRrank": "#1",
+        "name": "Puka Nacua",
+        "position": "WR",
+        "team": "LAR",
+        "avgValue": 57,
+        "draftChance": 99,
+        "tier": "WR Tier 1"
+    },
+    {
+        "WRrank": "#2",
+        "name": "Ja'Marr Chase",
+        "position": "WR",
+        "team": "CIN",
+        "avgValue": 57,
+        "draftChance": 99,
+        "tier": "WR Tier 1"
+    },
+    {
+        "WRrank": "#3",
+        "name": "Jaxon Smith-Njigba",
+        "position": "WR",
+        "team": "SEA",
+        "avgValue": 57,
+        "draftChance": 99,
+        "tier": "WR Tier 1"
+    },
+    {
+        "WRrank": "#4",
+        "name": "Amon-Ra St. Brown",
+        "position": "WR",
+        "team": "DET",
+        "avgValue": 49,
+        "draftChance": 93,
+        "tier": "WR Tier 2"
+    },
+    {
+        "WRrank": "#5",
+        "name": "CeeDee Lamb",
+        "position": "WR",
+        "team": "DAL",
+        "avgValue": 49,
+        "draftChance": 93,
+        "tier": "WR Tier 2"
+    },
+    {
+        "WRrank": "#6",
+        "name": "Drake London",
+        "position": "WR",
+        "team": "ATL",
+        "avgValue": 47,
+        "draftChance": 91,
+        "tier": "WR Tier 2"
+    },
+    {
+        "WRrank": "#7",
+        "name": "Justin Jefferson",
+        "position": "WR",
+        "team": "MIN",
+        "avgValue": 47,
+        "draftChance": 91,
+        "tier": "WR Tier 2"
+    },
+    {
+        "WRrank": "#8",
+        "name": "Rashee Rice",
+        "position": "WR",
+        "team": "KC",
+        "avgValue": 43,
+        "draftChance": 78,
+        "tier": "WR Tier 3"
+    },
+    {
+        "WRrank": "#9",
+        "name": "Malik Nabers",
+        "position": "WR",
+        "team": "NYG",
+        "avgValue": 43,
+        "draftChance": 78,
+        "tier": "WR Tier 3"
+    },
+    {
+        "WRrank": "#10",
+        "name": "Nico Collins",
+        "position": "WR",
+        "team": "HOU",
+        "avgValue": 43,
+        "draftChance": 89,
+        "tier": "WR Tier 3"
+    },
+    {
+        "WRrank": "#11",
+        "name": "Garrett Wilson",
+        "position": "WR",
+        "team": "NYJ",
+        "avgValue": 38,
+        "draftChance": 85,
+        "tier": "WR Tier 3"
+    },
+    {
+        "WRrank": "#12",
+        "name": "Chris Olave",
+        "position": "WR",
+        "team": "NO",
+        "avgValue": 38,
+        "draftChance": 85,
+        "tier": "WR Tier 3"
+    },
+    {
+        "WRrank": "#13",
+        "name": "George Pickens",
+        "position": "WR",
+        "team": "DAL",
+        "avgValue": 37,
+        "draftChance": 84,
+        "tier": "WR Tier 4"
+    },
+    {
+        "WRrank": "#14",
+        "name": "A.J. Brown",
+        "position": "WR",
+        "team": "NE",
+        "avgValue": 34,
+        "draftChance": 78,
+        "tier": "WR Tier 4"
+    },
+    {
+        "WRrank": "#15",
+        "name": "DeVonta Smith",
+        "position": "WR",
+        "team": "PHI",
+        "avgValue": 34,
+        "draftChance": 78,
+        "tier": "WR Tier 4"
+    },
+    {
+        "WRrank": "#16",
+        "name": "Tetairoa McMillan",
+        "position": "WR",
+        "team": "CAR",
+        "avgValue": 31,
+        "draftChance": 78,
+        "tier": "WR Tier 4"
+    },
+    {
+        "WRrank": "#17",
+        "name": "Zay Flowers",
+        "position": "WR",
+        "team": "BAL",
+        "avgValue": 26,
+        "draftChance": 76,
+        "tier": "WR Tier 4"
+    },
+    {
+        "WRrank": "#18",
+        "name": "Davante Adams",
+        "position": "WR",
+        "team": "LAR",
+        "avgValue": 26,
+        "draftChance": 76,
+        "tier": "WR Tier 4"
+    },
+    {
+        "WRrank": "#19",
+        "name": "Terry McLaurin",
+        "position": "WR",
+        "team": "WAS",
+        "avgValue": 24,
+        "draftChance": 74,
+        "tier": "WR Tier 4"
+    },
+    {
+        "WRrank": "#20",
+        "name": "Tee Higgins",
+        "position": "WR",
+        "team": "CIN",
+        "avgValue": 24,
+        "draftChance": 74,
+        "tier": "WR Tier 4"
+    },
+    {
+        "WRrank": "#21",
+        "name": "Jaylen Waddle",
+        "position": "WR",
+        "team": "DEN",
+        "avgValue": 22,
+        "draftChance": 74,
+        "tier": "WR Tier 5"
+    },
+    {
+        "WRrank": "#22",
+        "name": "Carnell Tate",
+        "position": "WR",
+        "team": "TEN",
+        "avgValue": 20,
+        "draftChance": 74,
+        "tier": "WR Tier 5"
+    },
+    {
+        "WRrank": "#23",
+        "name": "Ladd McConkey",
+        "position": "WR",
+        "team": "LAC",
+        "avgValue": 20,
+        "draftChance": 73,
+        "tier": "WR Tier 5"
+    },
+    {
+        "WRrank": "#24",
+        "name": "Emeka Egbuka",
+        "position": "WR",
+        "team": "TB",
+        "avgValue": 20,
+        "draftChance": 73,
+        "tier": "WR Tier 5"
+    },
+    {
+        "WRrank": "#25",
+        "name": "Jameson Williams",
+        "position": "WR",
+        "team": "DET",
+        "avgValue": 18,
+        "draftChance": 73,
+        "tier": "WR Tier 5"
+    },
+    {
+        "WRrank": "#26",
+        "name": "DJ Moore",
+        "position": "WR",
+        "team": "BUF",
+        "avgValue": 18,
+        "draftChance": 73,
+        "tier": "WR Tier 5"
+    },
+    {
+        "WRrank": "#27",
+        "name": "Rome Odunze",
+        "position": "WR",
+        "team": "CHI",
+        "avgValue": 18,
+        "draftChance": 73,
+        "tier": "WR Tier 5"
+    },
+    {
+        "WRrank": "#28",
+        "name": "Michael Pittman Jr.",
+        "position": "WR",
+        "team": "PIT",
+        "avgValue": 16,
+        "draftChance": 70,
+        "tier": "WR Tier 6"
+    },
+    {
+        "WRrank": "#29",
+        "name": "Marvin Harrison Jr.",
+        "position": "WR",
+        "team": "ARI",
+        "avgValue": 16,
+        "draftChance": 70,
+        "tier": "WR Tier 6"
+    },
+    {
+        "WRrank": "#30",
+        "name": "Courtland Sutton",
+        "position": "WR",
+        "team": "DEN",
+        "avgValue": 14,
+        "draftChance": 70,
+        "tier": "WR Tier 6"
+    },
+    {
+        "WRrank": "#31",
+        "name": "Luther Burden III",
+        "position": "WR",
+        "team": "CHI",
+        "avgValue": 14,
+        "draftChance": 65,
+        "tier": "WR Tier 6"
+    },
+    {
+        "WRrank": "#32",
+        "name": "DK Metcalf",
+        "position": "WR",
+        "team": "PIT",
+        "avgValue": 13,
+        "draftChance": 65,
+        "tier": "WR Tier 6"
+    },
+    {
+        "WRrank": "#33",
+        "name": "Alec Pierce",
+        "position": "WR",
+        "team": "IND",
+        "avgValue": 13,
+        "draftChance": 65,
+        "tier": "WR Tier 7"
+    },
+    {
+        "WRrank": "#34",
+        "name": "Jordyn Tyson",
+        "position": "WR",
+        "team": "NO",
+        "avgValue": 13,
+        "draftChance": 70,
+        "tier": "WR Tier 7"
+    },
+    {
+        "WRrank": "#35",
+        "name": "Chris Godwin Jr.",
+        "position": "WR",
+        "team": "TB",
+        "avgValue": 11,
+        "draftChance": 60,
+        "tier": "WR Tier 7"
+    },
+    {
+        "WRrank": "#36",
+        "name": "Mike Evans",
+        "position": "WR",
+        "team": "SF",
+        "avgValue": 11,
+        "draftChance": 65,
+        "tier": "WR Tier 7"
+    },
+    {
+        "WRrank": "#37",
+        "name": "Jakobi Meyers",
+        "position": "WR",
+        "team": "JAC",
+        "avgValue": 9,
+        "draftChance": 55,
+        "tier": "WR Tier 7"
+    },
+    {
+        "WRrank": "#38",
+        "name": "Parker Washington",
+        "position": "WR",
+        "team": "JAC",
+        "avgValue": 9,
+        "draftChance": 55,
+        "tier": "WR Tier 7"
+    },
+    {
+        "WRrank": "#39",
+        "name": "Christian Watson",
+        "position": "WR",
+        "team": "GB",
+        "avgValue": 7,
+        "draftChance": 52,
+        "tier": "WR Tier 7"
+    },
+    {
+        "WRrank": "#40",
+        "name": "Wan'Dale Robinson",
+        "position": "WR",
+        "team": "TEN",
+        "avgValue": 6,
+        "draftChance": 48,
+        "tier": "WR Tier 8"
+    },
+    {
+        "WRrank": "#41",
+        "name": "Brian Thomas Jr.",
+        "position": "WR",
+        "team": "JAC",
+        "avgValue": 6,
+        "draftChance": 52,
+        "tier": "WR Tier 8"
+    },
+    {
+        "WRrank": "#42",
+        "name": "KC Concepcion",
+        "position": "WR",
+        "team": "CLE",
+        "avgValue": 5,
+        "draftChance": 52,
+        "tier": "WR Tier 8"
+    },
+    {
+        "WRrank": "#43",
+        "name": "Jordan Addison",
+        "position": "WR",
+        "team": "MIN",
+        "avgValue": 4,
+        "draftChance": 52,
+        "tier": "WR Tier 8"
+    },
+    {
+        "WRrank": "#44",
+        "name": "Michael Wilson",
+        "position": "WR",
+        "team": "ARI",
+        "avgValue": 4,
+        "draftChance": 55,
+        "tier": "WR Tier 8"
+    },
+    {
+        "WRrank": "#45",
+        "name": "Makai Lemon",
+        "position": "WR",
+        "team": "PHI",
+        "avgValue": 4,
+        "draftChance": 55,
+        "tier": "WR Tier 9"
+    },
+    {
+        "WRrank": "#46",
+        "name": "Khalil Shakir",
+        "position": "WR",
+        "team": "BUF",
+        "avgValue": 4,
+        "draftChance": 45,
+        "tier": "WR Tier 9"
+    },
+    {
+        "WRrank": "#47",
+        "name": "Matthew Golden",
+        "position": "WR",
+        "team": "GB",
+        "avgValue": 4,
+        "draftChance": 45,
+        "tier": "WR Tier 9"
+    },
+    {
+        "WRrank": "#48",
+        "name": "Ricky Pearsall",
+        "position": "WR",
+        "team": "SF",
+        "avgValue": 4,
+        "draftChance": 45,
+        "tier": "WR Tier 9"
+    },
+    {
+        "WRrank": "#49",
+        "name": "Quentin Johnston",
+        "position": "WR",
+        "team": "LAC",
+        "avgValue": 3,
+        "draftChance": 45,
+        "tier": "WR Tier 9"
+    },
+    {
+        "WRrank": "#50",
+        "name": "Josh Downs",
+        "position": "WR",
+        "team": "IND",
+        "avgValue": 3,
+        "draftChance": 45,
+        "tier": "WR Tier 10"
+    },
+    {
+        "WRrank": "#51",
+        "name": "Romeo Doubs",
+        "position": "WR",
+        "team": "NE",
+        "avgValue": 3,
+        "draftChance": 45,
+        "tier": "WR Tier 10"
+    },
+    {
+        "WRrank": "#52",
+        "name": "Calvin Ridley",
+        "position": "WR",
+        "team": "TEN",
+        "avgValue": 3,
+        "draftChance": 35,
+        "tier": "WR Tier 10"
+    },
+    {
+        "WRrank": "#53",
+        "name": "Xavier Worthy",
+        "position": "WR",
+        "team": "KC",
+        "avgValue": 3,
+        "draftChance": 40,
+        "tier": "WR Tier 10"
+    },
+    {
+        "WRrank": "#54",
+        "name": "Jayden Reed",
+        "position": "WR",
+        "team": "GB",
+        "avgValue": 3,
+        "draftChance": 45,
+        "tier": "WR Tier 10"
+    },
+    {
+        "WRrank": "#55",
+        "name": "Jerry Jeudy",
+        "position": "WR",
+        "team": "CLE",
+        "avgValue": 3,
+        "draftChance": 40,
+        "tier": "WR Tier 10"
+    },
+    {
+        "WRrank": "#56",
+        "name": "Omar Cooper Jr.",
+        "position": "WR",
+        "team": "NYJ",
+        "avgValue": 3,
+        "draftChance": 55,
+        "tier": "WR Tier 10"
+    },
+    {
+        "WRrank": "#57",
+        "name": "Jayden Higgins",
+        "position": "WR",
+        "team": "HOU",
+        "avgValue": 2,
+        "draftChance": 45,
+        "tier": "WR Tier 10"
+    },
+    {
+        "WRrank": "#58",
+        "name": "Jalen Coker",
+        "position": "WR",
+        "team": "CAR",
+        "avgValue": 2,
+        "draftChance": 40,
+        "tier": "WR Tier 10"
+    },
+    {
+        "WRrank": "#59",
+        "name": "Jalen McMillan",
+        "position": "WR",
+        "team": "TB",
+        "avgValue": 1,
+        "draftChance": 35,
+        "tier": "WR Tier 11"
+    },
+    {
+        "WRrank": "#60",
+        "name": "Germie Bernard",
+        "position": "WR",
+        "team": "PIT",
+        "avgValue": 1,
+        "draftChance": 30,
+        "tier": "WR Tier 11"
+    },
+    {
+        "WRrank": "#61",
+        "name": "Rashid Shaheed",
+        "position": "WR",
+        "team": "SEA",
+        "avgValue": 1,
+        "draftChance": 30,
+        "tier": "WR Tier 11"
+    },
+    {
+        "WRrank": "#62",
+        "name": "Denzel Boston",
+        "position": "WR",
+        "team": "CLE",
+        "avgValue": 1,
+        "draftChance": 30,
+        "tier": "WR Tier 11"
+    },
+    {
+        "WRrank": "#63",
+        "name": "Tre Tucker",
+        "position": "WR",
+        "team": "LV",
+        "avgValue": 1,
+        "draftChance": 30,
+        "tier": "WR Tier 11"
+    },
+    {
+        "WRrank": "#64",
+        "name": "Chris Bell",
+        "position": "WR",
+        "team": "MIA",
+        "avgValue": 1,
+        "draftChance": 20,
+        "tier": "WR Tier 11"
+    },
+    {
+        "WRrank": "#65",
+        "name": "Caleb Douglas",
+        "position": "WR",
+        "team": "MIA",
+        "avgValue": 1,
+        "draftChance": 20,
+        "tier": "WR Tier 11"
+    },
+    {
+        "WRrank": "#66",
+        "name": "Travis Hunter",
+        "position": "WR",
+        "team": "JAC",
+        "avgValue": 1,
+        "draftChance": 20,
+        "tier": "WR Tier 11"
+    },
+    {
+        "WRrank": "#67",
+        "name": "Rashod Bateman",
+        "position": "WR",
+        "team": "BAL",
+        "avgValue": 1,
+        "draftChance": 20,
+        "tier": "WR Tier 11"
+    },
+    {
+        "WRrank": "#68",
+        "name": "Tyreek Hill",
+        "position": "WR",
+        "team": "FA",
+        "avgValue": 1,
+        "draftChance": 20,
+        "tier": "WR Tier 11"
+    },
+    {
+        "WRrank": "#69",
+        "name": "Jauan Jennings",
+        "position": "WR",
+        "team": "FA",
+        "avgValue": 1,
+        "draftChance": 20,
+        "tier": "WR Tier 11"
+    },
+    {
+        "WRrank": "#70",
+        "name": "Deebo Samuel Sr.",
+        "position": "WR",
+        "team": "FA",
+        "avgValue": 1,
+        "draftChance": 20,
+        "tier": "WR Tier 11"
+    }
+]

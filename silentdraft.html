@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="silentdraft.css">
+    <title>Silent Draft</title>
+</head>
+<body class="silentdraft-page">
+    <div class="header-bar">
+        <div class="draft-controls">
+            <div id="bid-counter" class="header-bid-counter">Total Bids: $0 | Budget: $200 | Remaining: $200</div>
+            <button id="auto-draft-toggle" aria-pressed="false">🤖 Auto Draft: OFF</button>
+        </div>
+        <div class="draft-info">
+            <h1>Silent Draft</h1>
+            <div class="draft-stats">
+                <span id="current-round">Round --/--</span>
+                <span id="timer">10:00</span>
+                <span class="budget-display">Budget: $<span id="your-budget">200</span></span>
+            </div>
+        </div>
+        <div class="submit-area">
+            <button id="submit-bids">Submit Bids</button>
+        </div>
+    </div>
+ 
+    <div class="container">
+        <div class="column" id="left-column">
+            <h2>Draftable Players</h2>
+            <div id="players-list"></div>
+        </div>
+        <div class="column" id="center-column">
+            <h2 id="team-header">My Team</h2>
+            <div id="your-team"></div>
+            <h3 id="bench-title">Bench</h3>
+            <div id="bench-players"></div>
+        </div>
+        <div class="column" id="right-column">
+            <div class="right-view-tabs">
+                <button class="right-view-tab active" data-right-view="budgets">Budgets</button>
+                <button class="right-view-tab" data-right-view="rankings">Rankings</button>
+            </div>
+
+            <div id="right-budgets-view" class="right-view-section">
+                <h2>Budgets</h2>
+                <div id="budgets-list"></div>
+                <ul id="teams-list"></ul>
+            </div>
+
+            <div id="right-rankings-view" class="right-view-section right-view-hidden">
+                <div id="draftroom-rankings" class="draftroom-rankings">
+                    <h3>Rankings</h3>
+                    <div class="draftroom-rankings-tabs">
+                        <button class="draftroom-rankings-tab active" data-rankings-mode="personal">Personal</button>
+                        <button class="draftroom-rankings-tab" data-rankings-mode="default">Default</button>
+                    </div>
+                    <div class="draftroom-rankings-pos-tabs">
+                        <button class="draftroom-rankings-pos-tab active" data-rankings-pos="ALL">ALL</button>
+                        <button class="draftroom-rankings-pos-tab" data-rankings-pos="QB">QB</button>
+                        <button class="draftroom-rankings-pos-tab" data-rankings-pos="RB">RB</button>
+                        <button class="draftroom-rankings-pos-tab" data-rankings-pos="WR">WR</button>
+                        <button class="draftroom-rankings-pos-tab" data-rankings-pos="TE">TE</button>
+                        <button class="draftroom-rankings-pos-tab" data-rankings-pos="K">K</button>
+                        <button class="draftroom-rankings-pos-tab" data-rankings-pos="DEF">DEF</button>
+                    </div>
+                    <div id="draftroom-rankings-list" class="draftroom-rankings-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js" onerror="(function(){var s=document.createElement('script');s.src='https://cdn.socket.io/4.7.2/socket.io.min.js';document.head.appendChild(s);})();"></script>
+    <script src="preferences.js"></script>
+    <script src="silentdraft.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "simple-static-site",
+  "version": "1.0.0",
+  "description": "Static site with Express server to rewrite extensionless routes to .html",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "nodemailer": "^8.0.10",
+    "socket.io": "^4.7.2",
+    "sqlite3": "^6.0.1"
+  }
+}
