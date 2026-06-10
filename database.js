@@ -1,18 +1,51 @@
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+
+let sqlite3 = null;
+let sqliteEnabled = true;
+
+try {
+  sqlite3 = require('sqlite3').verbose();
+} catch (error) {
+  sqliteEnabled = false;
+  console.error('[DATABASE] sqlite3 module failed to load; running without persistent DB:', error.message);
+}
 
 // Database file path
 const dbPath = path.join(__dirname, 'auction_data.db');
 
-// Create database connection
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Error opening database:', err.message);
-  } else {
-    console.log('Connected to SQLite database');
-    initializeDatabase();
+const noopDb = {
+  run(sql, params, callback) {
+    const cb = typeof params === 'function' ? params : callback;
+    if (cb) cb(null);
+  },
+  get(sql, params, callback) {
+    const cb = typeof params === 'function' ? params : callback;
+    if (cb) cb(null, undefined);
+  },
+  all(sql, params, callback) {
+    const cb = typeof params === 'function' ? params : callback;
+    if (cb) cb(null, []);
+  },
+  close(callback) {
+    if (callback) callback(null);
   }
-});
+};
+
+let db = noopDb;
+
+// Create database connection when sqlite is available
+if (sqliteEnabled) {
+  db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+      sqliteEnabled = false;
+      db = noopDb;
+      console.error('[DATABASE] Error opening SQLite database; switching to in-memory no-op mode:', err.message);
+    } else {
+      console.log('Connected to SQLite database');
+      initializeDatabase();
+    }
+  });
+}
 
 // Initialize database tables
 function initializeDatabase() {
@@ -372,7 +405,7 @@ function bulkLogIndividualBids(bidDataArray) {
 
     const sql = `
       INSERT INTO individual_bids
-      (draft_id, round_number, player_id, player_name, player_position, bidder_team, bid_amount, is_winning, is_second_highest)
+      (draft_id, round_number, player_id, player_name, player_position, bidder_team, bid_amount, is_winning_bid, is_second_highest)
       VALUES ${placeholders}
     `;
 
