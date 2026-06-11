@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+function initSilentDraft() {
     const DRAFTROOM_RANKINGS_MODE_KEY = 'draftroomRankingsMode';
     const DRAFTROOM_RIGHT_VIEW_KEY = 'draftroomRightView';
     const STARRED_PLAYERS_KEY = 'rankingsStarredPlayers';
@@ -3976,4 +3976,10 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
         // Still try to initialize even if players fail to load
         initializeDraft();
     });
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSilentDraft);
+} else {
+    initSilentDraft();
+}
