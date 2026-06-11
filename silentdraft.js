@@ -2645,6 +2645,9 @@ const otherTeams = teams.filter(t => t.name !== username && t.roster.length < ro
         // Return all round players, not just the visible ones from DOM
         return window.currentRoundPlayers || window.syncedRoundPlayers || [];
     }
+    function getYourTeam() {
+        return teams.find(t => t.name === username) || null;
+    }
 
     function advanceDraftAfterRound() {
         if (isDraftEnding) {
@@ -2683,7 +2686,7 @@ const otherTeams = teams.filter(t => t.name !== username && t.roster.length < ro
                         const posA = positionOrder[a.position] || 99;
                         const posB = positionOrder[b.position] || 99;
                         if (posA !== posB) {
-                            return posA - posB;
+                    const yourTeam = getYourTeam();
                         }
                         return a.positionRank - b.positionRank;
                     });
