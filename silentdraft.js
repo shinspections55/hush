@@ -1600,7 +1600,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Submit Bids button
         const submitBidsButton = document.getElementById('submit-bids');
         if (submitBidsButton) {
-            submitBidsButton.disabled = teams.find(t => t.name === username).roster.length >= rosterSize;
+            const yourTeam = teams.find(t => t.name === username);
+            submitBidsButton.disabled = (yourTeam ? yourTeam.roster.length : 0) >= rosterSize;
             submitBidsButton.onclick = () => {
                 const yourTeam = teams.find(t => t.name === username);
                 if (!yourTeam) return;
@@ -1676,7 +1677,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Budget
         const budgetElem = document.getElementById('your-budget');
         if (budgetElem) {
-            budgetElem.textContent = teams.find(t => t.name === username).budget.toString();
+            const yourTeam = teams.find(t => t.name === username);
+            budgetElem.textContent = yourTeam ? yourTeam.budget.toString() : '0';
         }
 
         // Teams list
@@ -2133,6 +2135,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const yourTeam = teams.find(t => t.name === username);
+        if (!yourTeam) {
+            console.warn('[silentdraft] submitBids aborted: user team not found');
+            return;
+        }
         if (yourTeam.roster.length >= rosterSize) {
             alert('Your roster is full!');
             return;
