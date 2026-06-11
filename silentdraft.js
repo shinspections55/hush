@@ -585,10 +585,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleRoundTimerExpired() {
+        if (window.__silentDraftTimerExpiredHandled) {
+            return;
+        }
+        window.__silentDraftTimerExpiredHandled = true;
         console.log('[silentdraft] Timer expired - auto-submitting bids for this round');
 
         // Act like this user pressed Submit Bids.
-        submitBids();
+        submitBids({ forceAutoSubmit: true, fromTimer: true });
 
         // Host finalizes timer expiry by forcing any missing submissions server-side.
         if (window.isHost && window.draftSocket && currentDraftCode) {
@@ -2117,8 +2121,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Submit all bids for the round
-    function submitBids() {
-        if (!autoDraftEnabled) {
+    function submitBids(options = {}) {
+        const forceAutoSubmit = !!(options && options.forceAutoSubmit);
+
+        if (!autoDraftEnabled && !forceAutoSubmit) {
             const submitBtn = document.getElementById('submit-bids');
             if (submitBtn && typeof submitBtn.onclick === 'function') {
                 submitBtn.onclick();
@@ -2605,6 +2611,8 @@ const otherTeams = teams.filter(t => t.name !== username && t.roster.length < ro
                 clearInterval(timerInterval);
                 timerInterval = null;
             }
+
+            window.__silentDraftTimerExpiredHandled = false;
 
             // Handle tied bids with a live auction or similar mechanism
             if (tiedBids.length > 0) {
