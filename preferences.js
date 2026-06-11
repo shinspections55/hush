@@ -16,6 +16,23 @@ try {
   // ignore session restore errors
 }
 
+// Ensure a consistent tab icon across the app without duplicating favicon tags in every HTML file.
+try {
+  const head = document.head || document.getElementsByTagName('head')[0];
+  if (head) {
+    let favicon = head.querySelector('link[rel="icon"]');
+    if (!favicon) {
+      favicon = document.createElement('link');
+      favicon.setAttribute('rel', 'icon');
+      head.appendChild(favicon);
+    }
+    favicon.setAttribute('type', 'image/png');
+    favicon.setAttribute('href', '/HUSHLOGO.png');
+  }
+} catch (_error) {
+  // ignore favicon setup errors
+}
+
 function getUsersPreferenceStore() {
   try {
     const raw = localStorage.getItem('users');
