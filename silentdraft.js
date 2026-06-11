@@ -1317,14 +1317,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             return `
                 <div class="draftroom-rankings-item status-${status}${isStarred ? ' starred' : ''}" data-player-name="${player.name}">
-                    <button class="draft-star-btn${isStarred ? ' active' : ''}" type="button" aria-label="${isStarred ? 'Unstar' : 'Star'} ${player.name}" aria-pressed="${isStarred ? 'true' : 'false'}" title="${isStarred ? 'Starred player' : 'Mark as starred'}">
-                        <svg class="draft-star-icon" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-                            <polygon points="50,4 61,36 96,40 70,62 78,96 50,78 22,96 30,62 4,40 39,36"></polygon>
-                        </svg>
-                    </button>
                     <span class="r-num">${idx + 1}</span>
                     <span class="pos-badge pos-${player.position}">${player.position}</span>
-                        <span class="r-name">${player.name}${owner ? ` <span class="r-owner">→ ${owner}</span>` : ''}</span>
+                    <span class="r-name">${player.name}
+                        <button class="draft-star-btn${isStarred ? ' active' : ''}" type="button" aria-label="${isStarred ? 'Unstar' : 'Star'} ${player.name}" aria-pressed="${isStarred ? 'true' : 'false'}" title="${isStarred ? 'Starred player' : 'Mark as starred'}">
+                            <svg class="draft-star-icon" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                                <polygon points="50,4 61,36 96,40 70,62 78,96 50,78 22,96 30,62 4,40 39,36"></polygon>
+                            </svg>
+                        </button>
+                        ${owner ? ` <span class="r-owner">→ ${owner}</span>` : ''}
+                    </span>
                     <span class="r-av">AV $${player.avgValue}</span>
                 </div>
             `;
@@ -1445,7 +1447,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // Add fade transition to player list
             playerList.style.transition = 'opacity 0.3s ease-in-out';
             playerList.style.opacity = '0';
-            const starredTargets = getStarredDraftTargets();
 
             const yourTeam = teams.find(t => t.name === username);
             const playersPerPage = 12;
@@ -1509,10 +1510,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (playerOwner) {
                     card.classList.add(isCurrentUserTeamName(playerOwner) ? 'user-owned-card' : 'drafted-card');
                 }
-                const isStarred = starredTargets.has(player.name);
-                if (isStarred) {
-                    card.classList.add('starred-target-card');
-                }
                 card.style.cssText = 'opacity: 0; transform: translateY(10px); transition: all 0.3s ease-out; transition-delay: ' + (index * 50) + 'ms;';
 
                 const playerName = player.name || 'Unknown Player';
@@ -1525,7 +1522,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 card.innerHTML = `
                     <div>
-                        <p><button class="draft-star-btn${isStarred ? ' active' : ''}" type="button" aria-label="${isStarred ? 'Unstar' : 'Star'} ${playerName}" aria-pressed="${isStarred ? 'true' : 'false'}" title="${isStarred ? 'Starred player' : 'Mark as starred'}"><svg class="draft-star-icon" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><polygon points="50,4 61,36 96,40 70,62 78,96 50,78 22,96 30,62 4,40 39,36"></polygon></svg></button><span style="font-weight: bold; font-size: 20px; background: #3498db; color: white; padding: 4px 8px; border-radius: 4px; margin-right: 8px; display: inline-block;">${playerPosition}</span> <span style="font-size: 15px;">${playerName}</span> (<span style="font-weight: bold;">${playerTeam}</span>)</p>
+                        <p><span style="font-weight: bold; font-size: 20px; background: #3498db; color: white; padding: 4px 8px; border-radius: 4px; margin-right: 8px; display: inline-block;">${playerPosition}</span> <span style="font-size: 15px;">${playerName}</span> (<span style="font-weight: bold;">${playerTeam}</span>)</p>
                         ${ownershipBadge}
                     </div>
                     <input type="number" placeholder="Your bid" data-player-id="${player.id}" 
@@ -1533,14 +1530,6 @@ document.addEventListener('DOMContentLoaded', () => {
                            min="0" max="${yourTeam ? yourTeam.budget : 200}" 
                            value="${storedBids[player.id] || ''}">
                 `;
-
-                const starBtn = card.querySelector('.draft-star-btn');
-                if (starBtn) {
-                    starBtn.addEventListener('click', (event) => {
-                        event.stopPropagation();
-                        toggleDraftStarredPlayer(playerName);
-                    });
-                }
 
                 playerList.appendChild(card);
             });
