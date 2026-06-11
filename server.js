@@ -6,6 +6,7 @@ const path = require('path');
 const http = require('http');
 const fs = require('fs/promises');
 const crypto = require('crypto');
+const compression = require('compression');
 const nodemailer = require('nodemailer');
 const { Server } = require('socket.io');
 const app = express();
@@ -19,6 +20,8 @@ const { generateServerCPUBids, evaluateBidStrategy } = require('./cpu-silent-auc
 const { runTiedAuctionRound, pickRandomCPU, placeForcedBid, getAggression, decideAction } = require('./cpu-tied-live-auction');
 
 app.use(express.json({ limit: '5mb' }));
+app.disable('x-powered-by');
+app.use(compression({ threshold: 1024 }));
 
 const AUTH_USERS_FILE = path.join(__dirname, 'auth-users.json');
 const RESET_CODE_TTL_MS = 10 * 60 * 1000;
@@ -614,7 +617,19 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(root, { extensions: ['html'] }));
+app.use(express.static(root, {
+  extensions: ['html'],
+  maxAge: '1h',
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+      return;
+    }
+
+    // Cache static assets briefly to reduce repeat load time without making updates hard to pick up.
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+  }
+}));
 
 // Avoid noisy browser 404s when no favicon asset is present.
 app.get('/favicon.ico', (req, res) => {
