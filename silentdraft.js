@@ -10,8 +10,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let isDraftEnding = false;
 
     // Roster constraints are configurable from lobby settings.
-    const DEFAULT_ROSTER_SETTINGS = { QB: 1, WR: 2, RB: 2, TE: 1, FLEX: 1, K: 1, DEF: 1, BN: 13 };
+    const DEFAULT_ROSTER_SETTINGS = { QB: 1, WR: 2, RB: 2, TE: 1, FLEX: 1, SPFLEX: 0, K: 1, DEF: 1, BN: 13 };
     const flexPositions = ['RB', 'WR', 'TE'];
+    const superFlexPositions = ['QB', 'RB', 'WR', 'TE'];
+    
     let rosterSettings = Object.assign({}, DEFAULT_ROSTER_SETTINGS);
     let rosterLimits = {
         QB: { min: 1, max: 14 },
@@ -49,11 +51,12 @@ document.addEventListener('DOMContentLoaded', () => {
             RB: parseRosterNumber(merged.RB, DEFAULT_ROSTER_SETTINGS.RB, 0, 10),
             TE: parseRosterNumber(merged.TE, DEFAULT_ROSTER_SETTINGS.TE, 0, 8),
             FLEX: parseRosterNumber(merged.FLEX, DEFAULT_ROSTER_SETTINGS.FLEX, 0, 5),
+            SPFLEX: parseRosterNumber(merged.SPFLEX, DEFAULT_ROSTER_SETTINGS.SPFLEX, 0, 5),
             K: parseRosterNumber(merged.K, DEFAULT_ROSTER_SETTINGS.K, 0, 5),
             DEF: parseRosterNumber(merged.DEF, DEFAULT_ROSTER_SETTINGS.DEF, 0, 5),
             BN: parseRosterNumber(merged.BN, DEFAULT_ROSTER_SETTINGS.BN, 0, 20)
         };
-        const total = normalized.QB + normalized.WR + normalized.RB + normalized.TE + normalized.FLEX + normalized.K + normalized.DEF + normalized.BN;
+        const total = normalized.QB + normalized.WR + normalized.RB + normalized.TE + normalized.FLEX + normalized.SPFLEX + normalized.K + normalized.DEF + normalized.BN;
         if (total < 8) {
             normalized.BN += (8 - total);
         }
@@ -63,11 +66,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyRosterSettings(raw) {
         rosterSettings = normalizeRosterSettings(raw);
 
-        const flexAndBench = rosterSettings.FLEX + rosterSettings.BN;
-        rosterSize = rosterSettings.QB + rosterSettings.WR + rosterSettings.RB + rosterSettings.TE + rosterSettings.FLEX + rosterSettings.K + rosterSettings.DEF + rosterSettings.BN;
+        const flexAndBench = rosterSettings.FLEX + rosterSettings.SPFLEX + rosterSettings.BN;
+        rosterSize = rosterSettings.QB + rosterSettings.WR + rosterSettings.RB + rosterSettings.TE + rosterSettings.FLEX + rosterSettings.SPFLEX + rosterSettings.K + rosterSettings.DEF + rosterSettings.BN;
 
         rosterLimits = {
-            QB: { min: rosterSettings.QB, max: rosterSettings.QB + rosterSettings.BN },
+            QB: { min: rosterSettings.QB, max: rosterSettings.QB + rosterSettings.SPFLEX + rosterSettings.BN },
             RB: { min: rosterSettings.RB, max: rosterSettings.RB + flexAndBench },
             WR: { min: rosterSettings.WR, max: rosterSettings.WR + flexAndBench },
             TE: { min: rosterSettings.TE, max: rosterSettings.TE + flexAndBench },
@@ -95,6 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return rosterSettings.FLEX || 0;
     }
 
+    function getSuperFlexRequirementCount() {
+        return rosterSettings.SPFLEX || 0;
+    }
+
     applyRosterSettings(DEFAULT_ROSTER_SETTINGS);
 
     function validateRoster(team) {
@@ -103,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return counts;
         }, {});
         const flexEligibleCount = (positionCounts.RB || 0) + (positionCounts.WR || 0) + (positionCounts.TE || 0);
+        const superFlexEligibleCount = (positionCounts.QB || 0) + (positionCounts.RB || 0) + (positionCounts.WR || 0) + (positionCounts.TE || 0);
         return (
             (positionCounts.QB || 0) >= rosterLimits.QB.min &&
             (positionCounts.RB || 0) >= rosterLimits.RB.min &&
@@ -111,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
             (positionCounts.K || 0) >= rosterLimits.K.min &&
             (positionCounts.DEF || 0) >= rosterLimits.DEF.min &&
             flexEligibleCount >= (rosterLimits.RB.min + rosterLimits.WR.min + rosterLimits.TE.min + getFlexRequirementCount()) &&
+            superFlexEligibleCount >= (rosterLimits.QB.min + rosterLimits.RB.min + rosterLimits.WR.min + rosterLimits.TE.min + getFlexRequirementCount() + getSuperFlexRequirementCount()) &&
             team.roster.length === rosterSize
         );
     }
@@ -276,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.max(0, Math.min(parsed, 9999));
     };
 
-    // Build teams array first - user's team plus lobby members, then fill with generic teams if needed
+        // Build teams array first - user's team plus lobby members, then fill with generic teams if needed
     teams = []; // Reset teams array
     teams.push({ name: username, budget: getStartingBudget(username), roster: [] });
     
@@ -584,6 +593,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function submitCurrentUserBids(options = {}) {
+        const markSubmitted = options.markSubmitted !== false;
+        const submitBidsButton = document.getElementById('submit-bids');
+        const yourTeam = getYourTeam ? getYourTeam() : teams.find(t => t.name === username);
+
+        if (!yourTeam) {
+            console.warn('[silentdraft] submitCurrentUserBids aborted: user team not found');
+            return Promise.resolve(false);
+        }
+
+        if (yourTeam.roster.length >= rosterSize) {
+            return Promise.resolve(false);
+        }
+
+        const roundPlayers = getRoundPlayers();
+        const bidPromises = [];
+
+        roundPlayers.forEach((player) => {
+            let bidAmount = storedBids[player.id] ? parseInt(storedBids[player.id], 10) : 0;
+            if (isNaN(bidAmount) || bidAmount < 0) bidAmount = 0;
+
+            if (window.draftSocket && currentDraftCode) {
+                const promise = new Promise((resolve) => {
+                    window.draftSocket.emit('placeBid', currentDraftCode, player.id, bidAmount, () => resolve());
+                });
+                bidPromises.push(promise);
+            }
+        });
+
+        return Promise.all(bidPromises).then(() => {
+            if (!window.draftSocket || !currentDraftCode) {
+                return false;
+            }
+
+            return new Promise((resolve) => {
+                window.draftSocket.emit('submitBids', currentDraftCode, username, autoDraftEnabled, (response) => {
+                    const ok = !!(response && response.ok);
+                    if (ok && markSubmitted && submitBidsButton) {
+                        submitBidsButton.disabled = true;
+                        submitBidsButton.textContent = 'Bids Submitted';
+                    }
+                    resolve(ok);
+                });
+            });
+        });
+    }
+
     function handleRoundTimerExpired() {
         if (window.__silentDraftTimerExpiredHandled) {
             return;
@@ -591,19 +647,18 @@ document.addEventListener('DOMContentLoaded', () => {
         window.__silentDraftTimerExpiredHandled = true;
         console.log('[silentdraft] Timer expired - auto-submitting bids for this round');
 
-        // Act like this user pressed Submit Bids.
-        submitBids({ forceAutoSubmit: true, fromTimer: true });
-
-        // Host finalizes timer expiry by forcing any missing submissions server-side.
-        if (window.isHost && window.draftSocket && currentDraftCode) {
-            window.draftSocket.emit('forceTimerRoundEnd', currentDraftCode, (response) => {
-                if (response && response.ok) {
-                    console.log('[silentdraft] Host forced timer round end:', response);
-                } else {
-                    console.warn('[silentdraft] forceTimerRoundEnd rejected:', response);
-                }
-            });
-        }
+        // Use the same submission flow as the button, then host forces completion for missing users.
+        submitCurrentUserBids({ markSubmitted: true }).finally(() => {
+            if (window.isHost && window.draftSocket && currentDraftCode) {
+                window.draftSocket.emit('forceTimerRoundEnd', currentDraftCode, (response) => {
+                    if (response && response.ok) {
+                        console.log('[silentdraft] Host forced timer round end:', response);
+                    } else {
+                        console.warn('[silentdraft] forceTimerRoundEnd rejected:', response);
+                    }
+                });
+            }
+        });
     }
 
   // Full player list (top 250 PPR players)
@@ -635,6 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return counts;
         }, {});
         const flexEligibleCount = (positionCounts.RB || 0) + (positionCounts.WR || 0) + (positionCounts.TE || 0);
+        const superFlexEligibleCount = (positionCounts.QB || 0) + (positionCounts.RB || 0) + (positionCounts.WR || 0) + (positionCounts.TE || 0);
         return (
             (positionCounts.QB || 0) >= rosterLimits.QB.min &&
             (positionCounts.RB || 0) >= rosterLimits.RB.min &&
@@ -643,9 +699,9 @@ document.addEventListener('DOMContentLoaded', () => {
             (positionCounts.K || 0) >= rosterLimits.K.min &&
             (positionCounts.DEF || 0) >= rosterLimits.DEF.min &&
             flexEligibleCount >= (rosterLimits.RB.min + rosterLimits.WR.min + rosterLimits.TE.min + getFlexRequirementCount()) &&
+            superFlexEligibleCount >= (rosterLimits.QB.min + rosterLimits.RB.min + rosterLimits.WR.min + rosterLimits.TE.min + getFlexRequirementCount() + getSuperFlexRequirementCount()) &&
             team.roster.length === rosterSize
         );
-    }
     }
 
     function getRemainingUndraftedPlayers(excludePlayers = []) {
@@ -1150,6 +1206,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
+        addSlots('SPFLEX', rosterSettings.SPFLEX || 0, superFlexPositions);
         addSlots('QB', rosterSettings.QB || 0, ['QB']);
         addSlots('WR', rosterSettings.WR || 0, ['WR']);
         addSlots('RB', rosterSettings.RB || 0, ['RB']);
@@ -1321,14 +1378,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             return `
                 <div class="draftroom-rankings-item status-${status}${isStarred ? ' starred' : ''}" data-player-name="${player.name}">
+                    <button class="draft-star-btn${isStarred ? ' active' : ''}" type="button" aria-label="${isStarred ? 'Unstar' : 'Star'} ${player.name}" aria-pressed="${isStarred ? 'true' : 'false'}" title="${isStarred ? 'Starred player' : 'Mark as starred'}">
+                        <svg class="draft-star-icon" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                            <polygon points="50,4 61,36 96,40 70,62 78,96 50,78 22,96 30,62 4,40 39,36"></polygon>
+                        </svg>
+                    </button>
                     <span class="r-num">${idx + 1}</span>
                     <span class="pos-badge pos-${player.position}">${player.position}</span>
                     <span class="r-name">${player.name}
-                        <button class="draft-star-btn${isStarred ? ' active' : ''}" type="button" aria-label="${isStarred ? 'Unstar' : 'Star'} ${player.name}" aria-pressed="${isStarred ? 'true' : 'false'}" title="${isStarred ? 'Starred player' : 'Mark as starred'}">
-                            <svg class="draft-star-icon" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-                                <polygon points="50,4 61,36 96,40 70,62 78,96 50,78 22,96 30,62 4,40 39,36"></polygon>
-                            </svg>
-                        </button>
                         ${owner ? ` <span class="r-owner">→ ${owner}</span>` : ''}
                     </span>
                     <span class="r-av">AV $${player.avgValue}</span>
@@ -1603,72 +1660,35 @@ document.addEventListener('DOMContentLoaded', () => {
             const yourTeam = teams.find(t => t.name === username);
             submitBidsButton.disabled = (yourTeam ? yourTeam.roster.length : 0) >= rosterSize;
             submitBidsButton.onclick = () => {
-                const yourTeam = teams.find(t => t.name === username);
-                if (!yourTeam) return;
-                
-                // First, collect and send all bids to server
-                const roundPlayers = getRoundPlayers();
-                const bidPromises = [];
-                
-                roundPlayers.forEach(player => {
-                    // Use stored bids instead of DOM inputs, since not all players may be visible
-                    let bidAmount = storedBids[player.id] ? parseInt(storedBids[player.id]) : 0;
-                    
-                    if (isNaN(bidAmount) || bidAmount < 0) bidAmount = 0;
-                    
-                    // Always send current state so cleared inputs remove stale server bids.
-                    if (window.draftSocket && currentDraftCode) {
-                        const promise = new Promise((resolve) => {
-                            window.draftSocket.emit('placeBid', currentDraftCode, player.id, bidAmount, (response) => {
-                                if (response && response.ok) {
-                                    console.log(`[silentdraft] Bid sent: ${player.name} = $${bidAmount}`);
-                                }
-                                resolve();
-                            });
-                        });
-                        bidPromises.push(promise);
-                    }
-                });
-                
-                // Wait for all bids to be sent, then notify submission complete
-                Promise.all(bidPromises).then(() => {
-                    if (window.draftSocket && currentDraftCode) {
-                        window.draftSocket.emit('submitBids', currentDraftCode, username, autoDraftEnabled, (response) => {
-                            if (response && response.ok) {
-                                console.log('[silentdraft] All bids submitted and recorded');
-                                
-                                // Play success sound
-                                try {
-                                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                                    const oscillator1 = audioContext.createOscillator();
-                                    const oscillator2 = audioContext.createOscillator();
-                                    const gainNode = audioContext.createGain();
-                                    
-                                    oscillator1.connect(gainNode);
-                                    oscillator2.connect(gainNode);
-                                    gainNode.connect(audioContext.destination);
-                                    
-                                    // Two-tone success chime
-                                    oscillator1.frequency.value = 800;
-                                    oscillator2.frequency.value = 1000;
-                                    oscillator1.type = 'sine';
-                                    oscillator2.type = 'sine';
-                                    
-                                    gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
-                                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-                                    
-                                    oscillator1.start(audioContext.currentTime);
-                                    oscillator2.start(audioContext.currentTime + 0.1);
-                                    oscillator1.stop(audioContext.currentTime + 0.3);
-                                    oscillator2.stop(audioContext.currentTime + 0.4);
-                                } catch (e) {
-                                    console.log('[silentdraft] Audio not supported');
-                                }
-                                
-                                submitBidsButton.disabled = true;
-                                submitBidsButton.textContent = 'Bids Submitted';
-                            }
-                        });
+                submitCurrentUserBids({ markSubmitted: true }).then((ok) => {
+                    if (!ok) return;
+
+                    // Play success sound
+                    try {
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator1 = audioContext.createOscillator();
+                        const oscillator2 = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+
+                        oscillator1.connect(gainNode);
+                        oscillator2.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+
+                        // Two-tone success chime
+                        oscillator1.frequency.value = 800;
+                        oscillator2.frequency.value = 1000;
+                        oscillator1.type = 'sine';
+                        oscillator2.type = 'sine';
+
+                        gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+                        oscillator1.start(audioContext.currentTime);
+                        oscillator2.start(audioContext.currentTime + 0.1);
+                        oscillator1.stop(audioContext.currentTime + 0.3);
+                        oscillator2.stop(audioContext.currentTime + 0.4);
+                    } catch (e) {
+                        console.log('[silentdraft] Audio not supported');
                     }
                 });
             };
@@ -3162,6 +3182,8 @@ const otherTeams = teams.filter(t => t.name !== username && t.roster.length < ro
     }
 
     function startRound() {
+        window.__silentDraftTimerExpiredHandled = false;
+
         // Show round banner
         showRoundBanner(currentRound);
         
