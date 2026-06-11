@@ -2,7 +2,7 @@
 window.initializeLobby = function initializeLobby(opts){
   const DEFAULT_DRAFT_BENCH = 13;
   const DEFAULT_BENCH_CUT_TARGET = 5;
-  const DEFAULT_ROSTER_SETTINGS = { QB: 1, WR: 2, RB: 2, TE: 1, FLEX: 1, K: 1, DEF: 1, BN: DEFAULT_DRAFT_BENCH };
+  const DEFAULT_ROSTER_SETTINGS = { QB: 1, WR: 2, RB: 2, TE: 1, FLEX: 1, SPFLEX: 0, K: 1, DEF: 1, BN: DEFAULT_DRAFT_BENCH };
   const DEFAULT_START_BUDGET = 200;
 
   function toRosterInt(value, fallback, min, max) {
@@ -19,11 +19,12 @@ window.initializeLobby = function initializeLobby(opts){
       RB: toRosterInt(merged.RB, DEFAULT_ROSTER_SETTINGS.RB, 0, 10),
       TE: toRosterInt(merged.TE, DEFAULT_ROSTER_SETTINGS.TE, 0, 8),
       FLEX: toRosterInt(merged.FLEX, DEFAULT_ROSTER_SETTINGS.FLEX, 0, 5),
+      SPFLEX: toRosterInt(merged.SPFLEX, DEFAULT_ROSTER_SETTINGS.SPFLEX, 0, 5),
       K: toRosterInt(merged.K, DEFAULT_ROSTER_SETTINGS.K, 0, 5),
       DEF: toRosterInt(merged.DEF, DEFAULT_ROSTER_SETTINGS.DEF, 0, 5),
       BN: toRosterInt(merged.BN, DEFAULT_ROSTER_SETTINGS.BN, 0, 20)
     };
-    const total = normalized.QB + normalized.WR + normalized.RB + normalized.TE + normalized.FLEX + normalized.K + normalized.DEF + normalized.BN;
+    const total = normalized.QB + normalized.WR + normalized.RB + normalized.TE + normalized.FLEX + normalized.SPFLEX + normalized.K + normalized.DEF + normalized.BN;
     if (total < 8) {
       normalized.BN += (8 - total);
     }
@@ -88,6 +89,7 @@ window.initializeLobby = function initializeLobby(opts){
     RB: document.getElementById('rosterRB'),
     TE: document.getElementById('rosterTE'),
     FLEX: document.getElementById('rosterFLEX'),
+    SPFLEX: document.getElementById('rosterSPFLEX'),
     K: document.getElementById('rosterK'),
     DEF: document.getElementById('rosterDEF'),
     BN: document.getElementById('rosterBN')
@@ -574,6 +576,7 @@ window.initializeLobby = function initializeLobby(opts){
         RB: rosterInputMap.RB ? rosterInputMap.RB.value : undefined,
         TE: rosterInputMap.TE ? rosterInputMap.TE.value : undefined,
         FLEX: rosterInputMap.FLEX ? rosterInputMap.FLEX.value : undefined,
+        SPFLEX: rosterInputMap.SPFLEX ? rosterInputMap.SPFLEX.value : undefined,
         K: rosterInputMap.K ? rosterInputMap.K.value : undefined,
         DEF: rosterInputMap.DEF ? rosterInputMap.DEF.value : undefined,
         BN: DEFAULT_DRAFT_BENCH

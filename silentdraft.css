@@ -134,6 +134,7 @@ body.color-blind {
 
 .container {
     display: flex;
+    --left-right-width-shift: 30px;
     gap: 12px;
     max-width: 1800px;
     margin: 0 auto;
@@ -155,15 +156,15 @@ body.color-blind {
 }
 
 #left-column {
-    flex: 2.5;
+    flex: 2.5 1 calc((100% - 24px) * 0.5 - var(--left-right-width-shift));
 }
 
 #center-column {
-    flex: 1.5;
+    flex: 1.5 1 calc((100% - 24px) * 0.3);
 }
 
 #right-column {
-    flex: 1;
+    flex: 1 1 calc((100% - 24px) * 0.2 + var(--left-right-width-shift));
     display: flex;
     flex-direction: column;
     position: relative;
