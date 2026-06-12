@@ -626,6 +626,11 @@ app.use(express.static(root, {
       return;
     }
 
+    if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+      return;
+    }
+
     // Cache static assets briefly to reduce repeat load time without making updates hard to pick up.
     res.setHeader('Cache-Control', 'public, max-age=3600');
   }
@@ -1928,9 +1933,9 @@ io.on('connection', (socket) => {
 
   // Generic state update - still supported but server won't accept member lists blindly
   socket.on('updateDraft', (code, state) => {
-    // merge only non-members fields (type, capacity, public, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget)
+    // merge only non-members fields (type, capacity, public, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes)
     drafts[code] = drafts[code] || { members: [], type: null, capacity: null, public: false };
-    const allowed = (({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget }) => ({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget }))(state || {});
+    const allowed = (({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes }) => ({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes }))(state || {});
     // apply allowed fields
     if(typeof allowed.type !== 'undefined') drafts[code].type = allowed.type;
     if(typeof allowed.capacity !== 'undefined') drafts[code].capacity = allowed.capacity;
@@ -1940,22 +1945,39 @@ io.on('connection', (socket) => {
     if(typeof allowed.customBudgets !== 'undefined') drafts[code].customBudgets = allowed.customBudgets;
     if(typeof allowed.rosterSettings !== 'undefined') drafts[code].rosterSettings = allowed.rosterSettings;
     if(typeof allowed.benchCutTarget !== 'undefined') drafts[code].benchCutTarget = allowed.benchCutTarget;
+    if(typeof allowed.roundTimerMinutes !== 'undefined') drafts[code].roundTimerMinutes = allowed.roundTimerMinutes;
     console.log(`[updateDraft] ${code} capacity=${drafts[code].capacity} members=${drafts[code].members.length}`);
     io.to(code).emit('draftUpdate', drafts[code]);
     // Also push roster/bench changes to any active draft room (draft_<code>)
-    if(typeof allowed.rosterSettings !== 'undefined' || typeof allowed.benchCutTarget !== 'undefined') {
+    if(typeof allowed.rosterSettings !== 'undefined' || typeof allowed.benchCutTarget !== 'undefined' || typeof allowed.roundTimerMinutes !== 'undefined') {
+      const roundTimerMinutes = Number.parseInt(drafts[code].roundTimerMinutes, 10);
+      const normalizedRoundTimerMinutes = Number.isFinite(roundTimerMinutes) ? Math.max(3, Math.min(roundTimerMinutes, 10)) : 10;
+      if (drafts[code].draftState) {
+        drafts[code].draftState.roundTimer = normalizedRoundTimerMinutes * 60;
+        drafts[code].draftState.roundTimerMinutes = normalizedRoundTimerMinutes;
+      }
       io.to(`draft_${code}`).emit('rosterSettingsUpdated', {
         rosterSettings: drafts[code].rosterSettings,
-        benchCutTarget: drafts[code].benchCutTarget
+        benchCutTarget: drafts[code].benchCutTarget,
+        roundTimerMinutes: normalizedRoundTimerMinutes
       });
     }
   });
 
   // Host starts the draft - notify all members to navigate to draft page
-  socket.on('startDraft', (code, draftType, cb) => {
-    console.log(`[startDraft] ${code} type=${draftType} by ${socket.data.username}`);
+  socket.on('startDraft', (code, draftType, roundTimerMinutesOrCb, cbMaybe) => {
+    const parsedRoundTimerMinutes = Number.parseInt(roundTimerMinutesOrCb, 10);
+    const roundTimerMinutes = Number.isFinite(parsedRoundTimerMinutes)
+      ? Math.max(3, Math.min(parsedRoundTimerMinutes, 10))
+      : undefined;
+    const cb = typeof roundTimerMinutesOrCb === 'function' ? roundTimerMinutesOrCb : cbMaybe;
+    console.log(`[startDraft] ${code} type=${draftType} by ${socket.data.username} rawTimerArg=${roundTimerMinutesOrCb}`);
     // Verify the requester is the host (first member)
     if(drafts[code] && drafts[code].members && drafts[code].members[0] === socket.data.username){
+      if (typeof roundTimerMinutes !== 'undefined') {
+        drafts[code].roundTimerMinutes = roundTimerMinutes;
+      }
+      console.log(`[startDraft] ${code} resolved roundTimerMinutes=${drafts[code].roundTimerMinutes}`);
       // Mark draft as started and store the draft type
       drafts[code].started = true;
       drafts[code].type = draftType;
@@ -1993,16 +2015,24 @@ io.on('connection', (socket) => {
     socket.data.username = username;
     console.log(`[joinActiveDraft] ${username} joined active draft ${code}`);
     
+    const roundTimerMinutes = Number.isFinite(Number.parseInt(drafts[code] && drafts[code].roundTimerMinutes, 10))
+      ? Math.max(3, Math.min(Number.parseInt(drafts[code].roundTimerMinutes, 10), 10))
+      : 10;
+
     // Initialize draft state if not exists
     if(!drafts[code].draftState) {
       drafts[code].draftState = {
         currentRound: 1,
-        roundTimer: 600,
+        roundTimer: roundTimerMinutes * 60,
+        roundTimerMinutes,
         currentPlayers: [], // The 10 players for the current round
         completedRounds: [],
         bids: {}, // playerId: { teamName: bidAmount }
         autoDraftStatus: {} // teamName: boolean
       };
+    } else {
+      drafts[code].draftState.roundTimer = roundTimerMinutes * 60;
+      drafts[code].draftState.roundTimerMinutes = roundTimerMinutes;
     }
 
     if (!drafts[code].draftState.autoDraftStatus) {
@@ -2154,6 +2184,9 @@ io.on('connection', (socket) => {
     const autoDraftStatus = drafts[code].draftState.autoDraftStatus || {};
     const requiredManualMembers = allMembers.filter(member => !autoDraftStatus[member]);
     const submittedCount = drafts[code].draftState.submittedMembers.filter(member => requiredManualMembers.includes(member)).length;
+    console.log('[submitBids][debug] submittedMembers:', drafts[code].draftState.submittedMembers);
+    console.log('[submitBids][debug] requiredManualMembers:', requiredManualMembers);
+    console.log('[submitBids][debug] current bids snapshot:', JSON.stringify(drafts[code].draftState.bids || {}, null, 2));
     
     console.log(`[submitBids] ${submittedCount}/${requiredManualMembers.length} manual members have submitted`);
     
@@ -2193,6 +2226,12 @@ io.on('connection', (socket) => {
     const missingMembers = requiredManualMembers.filter(
       member => !draft.draftState.submittedMembers.includes(member)
     );
+
+    console.log('[forceTimerRoundEnd][debug] requester:', requester);
+    console.log('[forceTimerRoundEnd][debug] requiredManualMembers:', requiredManualMembers);
+    console.log('[forceTimerRoundEnd][debug] alreadySubmitted:', draft.draftState.submittedMembers);
+    console.log('[forceTimerRoundEnd][debug] missingMembers:', missingMembers);
+    console.log('[forceTimerRoundEnd][debug] bids snapshot before force:', JSON.stringify(draft.draftState.bids || {}, null, 2));
 
     // Mark all missing required members as submitted.
     missingMembers.forEach(member => {
@@ -2244,6 +2283,9 @@ io.on('connection', (socket) => {
     const requiredManualMembers = allMembers.filter(member => !autoDraftStatus[member]);
     const submittedMembers = drafts[code].draftState.submittedMembers || [];
     const submittedRequiredCount = submittedMembers.filter(member => requiredManualMembers.includes(member)).length;
+    console.log('[processRound][debug] requiredManualMembers:', requiredManualMembers);
+    console.log('[processRound][debug] submittedMembers:', submittedMembers);
+    console.log('[processRound][debug] server bids at process start:', JSON.stringify(drafts[code].draftState.bids || {}, null, 2));
     if (submittedRequiredCount < requiredManualMembers.length) {
       console.log(`[processRound] Not all required members have submitted bids yet (${submittedRequiredCount}/${requiredManualMembers.length})`);
       if(cb) cb({ ok: false, reason: 'not_all_submitted' });
@@ -2419,8 +2461,12 @@ io.on('connection', (socket) => {
   socket.on('startNextRound', (code, cb) => {
     const username = socket.data.username;
     if(drafts[code] && drafts[code].members && drafts[code].members[0] === username){
+      const roundTimerMinutes = Number.isFinite(Number.parseInt(drafts[code].roundTimerMinutes, 10))
+        ? Math.max(3, Math.min(Number.parseInt(drafts[code].roundTimerMinutes, 10), 10))
+        : 10;
       drafts[code].draftState.currentRound++;
-      drafts[code].draftState.roundTimer = 600;
+      drafts[code].draftState.roundTimer = roundTimerMinutes * 60;
+      drafts[code].draftState.roundTimerMinutes = roundTimerMinutes;
       drafts[code].draftState.bids = {};
       drafts[code].draftState.recentAcquisitions = {}; // Clear recent acquisitions for new round
       

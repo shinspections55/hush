@@ -94,7 +94,20 @@
                     <label>DEF <input id="rosterDEF" type="number" min="0" max="5" step="1" value="1"></label>
                     <label>BN <input id="rosterBN" type="number" min="0" max="13" step="1" value="5"></label>
                   </div>
-                  <button id="applyRosterBtn" type="button" class="type-btn">Apply Roster</button>
+                  <div class="capacity-controls">
+                    <label for="roundTimerMinutes" class="type-display">Round Timer:</label>
+                    <select id="roundTimerMinutes" class="type-btn" aria-label="Select round timer minutes">
+                      <option value="3">3 minutes</option>
+                      <option value="4">4 minutes</option>
+                      <option value="5">5 minutes</option>
+                      <option value="6">6 minutes</option>
+                      <option value="7">7 minutes</option>
+                      <option value="8">8 minutes</option>
+                      <option value="9">9 minutes</option>
+                      <option value="10">10 minutes</option>
+                    </select>
+                  </div>
+                  <button id="applyRosterBtn" type="button" class="type-btn">Save Changes</button>
                 </div>
                 <div id="rosterSummary" class="roster-summary"></div>
                 <div class="lobby-controls custom-budgets-controls" id="customBudgetControls">
@@ -134,7 +147,7 @@
       document.head.appendChild(s);
     })();
   </script>
-  <script src="lobby.js"></script>
-  <script src="lobby-public.js"></script>
+  <script src="lobby.js?v=20260611c"></script>
+  <script src="lobby-public.js?v=20260611c"></script>
 </body>
 </html>

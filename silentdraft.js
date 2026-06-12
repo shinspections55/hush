@@ -5,7 +5,8 @@ function initSilentDraft() {
     const DRAFT_TEMP_STARRED_KEY = 'rankingsDraftStarredPlayers';
     let currentRound = 1;
     const totalRounds = 10;
-    const roundDuration = 600; // 10 minutes in seconds
+    const DEFAULT_ROUND_TIMER_MINUTES = 3;
+    let roundDuration = DEFAULT_ROUND_TIMER_MINUTES * 60;
     let timerInterval = null;
     let isDraftEnding = false;
 
@@ -89,6 +90,25 @@ function initSilentDraft() {
         const parsed = Number.parseInt(value, 10);
         if (Number.isNaN(parsed)) return DEFAULT_BENCH_CUT_TARGET;
         return Math.max(0, Math.min(parsed, MAX_DRAFT_BENCH));
+    }
+
+    function normalizeRoundTimerMinutes(value) {
+        const parsed = Number.parseInt(value, 10);
+        if (Number.isNaN(parsed)) return DEFAULT_ROUND_TIMER_MINUTES;
+        return Math.max(3, Math.min(parsed, 10));
+    }
+
+    function applyRoundTimerMinutes(value) {
+        const minutes = normalizeRoundTimerMinutes(value);
+        console.log('[silentdraft] applyRoundTimerMinutes called with:', value, 'resolved minutes:', minutes, 'timerIntervalActive:', !!timerInterval);
+        roundDuration = minutes * 60;
+
+        const timerElement = document.getElementById('timer');
+        if (timerElement && !timerInterval) {
+            timerElement.textContent = `${minutes}:00`;
+        }
+
+        return minutes;
     }
 
     function getFlexRequirementCount() {
@@ -190,6 +210,7 @@ function initSilentDraft() {
                     // Resolve roster settings: prefer server value, fall back to localStorage
                     let resolvedRosterSettings = response.draft.rosterSettings;
                     let resolvedBenchCutTarget = response.draft.benchCutTarget;
+                    let resolvedRoundTimerMinutes = response.draft.roundTimerMinutes;
                     try {
                         const localRaw = localStorage.getItem('drafts');
                         const localDrafts = localRaw ? JSON.parse(localRaw) : {};
@@ -201,6 +222,9 @@ function initSilentDraft() {
                         if (typeof resolvedBenchCutTarget === 'undefined' && typeof localDraft.benchCutTarget !== 'undefined') {
                             resolvedBenchCutTarget = localDraft.benchCutTarget;
                         }
+                        if (typeof resolvedRoundTimerMinutes === 'undefined' && typeof localDraft.roundTimerMinutes !== 'undefined') {
+                            resolvedRoundTimerMinutes = localDraft.roundTimerMinutes;
+                        }
                     } catch (e) { /* ignore */ }
 
                     // Persist resolved values back to localStorage and update server if needed
@@ -211,10 +235,12 @@ function initSilentDraft() {
                         if (response.draft.capacity) drafts[currentDraftCode].capacity = response.draft.capacity;
                         drafts[currentDraftCode].rosterSettings = normalizeRosterSettings(resolvedRosterSettings);
                         drafts[currentDraftCode].benchCutTarget = normalizeBenchCutTarget(resolvedBenchCutTarget);
+                        drafts[currentDraftCode].roundTimerMinutes = normalizeRoundTimerMinutes(resolvedRoundTimerMinutes);
                         localStorage.setItem('drafts', JSON.stringify(drafts));
                     } catch (e) { /* ignore */ }
 
                     benchCutTarget = normalizeBenchCutTarget(resolvedBenchCutTarget);
+                    applyRoundTimerMinutes(resolvedRoundTimerMinutes);
                     applyRosterSettings(resolvedRosterSettings);
                     buildTeamsAndStartDraft();
                 } else {
@@ -242,6 +268,8 @@ function initSilentDraft() {
                 if (currentDraft) {
                     benchCutTarget = normalizeBenchCutTarget(currentDraft.benchCutTarget);
                 }
+                applyRoundTimerMinutes(currentDraft && currentDraft.roundTimerMinutes);
+                applyRoundTimerMinutes(currentDraft && currentDraft.roundTimerMinutes);
                 applyRosterSettings(currentDraft && currentDraft.rosterSettings);
             }
         }
@@ -475,6 +503,10 @@ function initSilentDraft() {
             if (draftState && draftState.rosterSettings) {
                 applyRosterSettings(draftState.rosterSettings);
             }
+            if (draftState && typeof draftState.roundTimerMinutes !== 'undefined') {
+                console.log('[silentdraft] draftStateSync applying roundTimerMinutes:', draftState.roundTimerMinutes);
+                applyRoundTimerMinutes(draftState.roundTimerMinutes);
+            }
             autoDraftEnabled = !!autoDraftStatusByTeam[username];
             updateAutoDraftToggleUI();
             // If there are current players already set, use them
@@ -524,6 +556,19 @@ function initSilentDraft() {
                 benchCutTarget = normalizeBenchCutTarget(data.benchCutTarget);
                 settingsChanged = true;
             }
+            if (typeof data.roundTimerMinutes !== 'undefined') {
+                console.log('[silentdraft] rosterSettingsUpdated applying roundTimerMinutes:', data.roundTimerMinutes);
+                applyRoundTimerMinutes(data.roundTimerMinutes);
+                try {
+                    const draftsRaw = localStorage.getItem('drafts');
+                    const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
+                    if (drafts[currentDraftCode]) {
+                        drafts[currentDraftCode].roundTimerMinutes = normalizeRoundTimerMinutes(data.roundTimerMinutes);
+                        localStorage.setItem('drafts', JSON.stringify(drafts));
+                    }
+                } catch (e) { /* ignore */ }
+                settingsChanged = true;
+            }
             if (settingsChanged) {
                 renderRosterRequirementsSummary();
                 updateUI(getRoundPlayers());
@@ -551,6 +596,87 @@ function initSilentDraft() {
             notification.style.opacity = '0';
             setTimeout(() => document.body.removeChild(notification), 500);
         }, 3000);
+    }
+
+    function lockRoundBidsUI(labelText = 'Bids Submitted') {
+        document.querySelectorAll('input[data-player-id]').forEach(input => {
+            input.disabled = true;
+        });
+
+        const submitBtn = document.getElementById('submit-bids');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = labelText;
+        }
+    }
+
+    function syncCurrentRoundBidsToServer() {
+        if (!(window.draftSocket && currentDraftCode)) {
+            console.warn('[silentdraft] syncCurrentRoundBidsToServer aborted: socket unavailable');
+            return Promise.resolve(false);
+        }
+
+        const roundPlayers = getRoundPlayers();
+        const bidSnapshot = roundPlayers.map(player => ({
+            playerId: player.id,
+            playerName: player.name,
+            storedBid: storedBids[player.id] ? parseInt(storedBids[player.id], 10) || 0 : 0
+        }));
+        console.log('[silentdraft][debug] syncCurrentRoundBidsToServer snapshot:', bidSnapshot);
+        const bidPromises = roundPlayers.map(player => {
+            let bidAmount = storedBids[player.id] ? parseInt(storedBids[player.id], 10) : 0;
+            if (Number.isNaN(bidAmount) || bidAmount < 0) bidAmount = 0;
+
+            return new Promise(resolve => {
+                window.draftSocket.emit('placeBid', currentDraftCode, player.id, bidAmount, (response) => {
+                    if (response && response.ok) {
+                        console.log(`[silentdraft] Bid sent: ${player.name} = $${bidAmount}`);
+                    }
+                    resolve();
+                });
+            });
+        });
+
+        return Promise.all(bidPromises).then(() => true);
+    }
+
+    function submitCurrentRoundBidsToServer(options = {}) {
+        const lockUI = options.lockUI !== false;
+        const lockLabel = options.lockLabel || 'Bids Submitted';
+        const forceWhenRosterFull = !!options.forceWhenRosterFull;
+
+        const yourTeam = teams.find(t => t.name === username);
+        if (!yourTeam) {
+            console.warn('[silentdraft] submitCurrentRoundBidsToServer aborted: user team not found');
+            return Promise.resolve(false);
+        }
+
+        if (!forceWhenRosterFull && yourTeam.roster.length >= rosterSize) {
+            alert('Your roster is full!');
+            return Promise.resolve(false);
+        }
+
+        if (!(window.draftSocket && currentDraftCode)) {
+            console.warn('[silentdraft] submitCurrentRoundBidsToServer aborted: socket unavailable');
+            return Promise.resolve(false);
+        }
+
+        return syncCurrentRoundBidsToServer().then(() => (
+            new Promise(resolve => {
+                window.draftSocket.emit('submitBids', currentDraftCode, username, autoDraftEnabled, (response) => {
+                    if (response && response.ok) {
+                        console.log('[silentdraft] All bids submitted and recorded');
+                        if (lockUI) {
+                            lockRoundBidsUI(lockLabel);
+                        }
+                        resolve(true);
+                    } else {
+                        console.warn('[silentdraft] submitBids rejected:', response);
+                        resolve(false);
+                    }
+                });
+            })
+        ));
     }
     
     // Process round on server (called when all submitted or timer expires)
@@ -589,22 +715,33 @@ function initSilentDraft() {
             return;
         }
         window.__silentDraftTimerExpiredHandled = true;
-        console.log('[silentdraft] Timer expired - auto-submitting bids for this round');
+        console.log('[silentdraft] Timer expired - forcing submission for members who have not submitted');
+        console.log('[silentdraft][debug] timer expiry context:', {
+            username,
+            isHost: !!window.isHost,
+            currentDraftCode,
+            roundPlayers: getRoundPlayers().map(player => ({ id: player.id, name: player.name })),
+            storedBids: Object.assign({}, storedBids)
+        });
+        lockRoundBidsUI('Time Up - Bids Locked');
 
-        // Act like this user pressed Submit Bids.
-        submitBids({ forceAutoSubmit: true, fromTimer: true });
-
-        // Host finalizes timer expiry by forcing any missing submissions server-side.
-        if (window.isHost && window.draftSocket && currentDraftCode) {
-            window.draftSocket.emit('forceTimerRoundEnd', currentDraftCode, (response) => {
-                if (response && response.ok) {
-                    console.log('[silentdraft] Host forced timer round end:', response);
-                } else {
-                    console.warn('[silentdraft] forceTimerRoundEnd rejected:', response);
-                }
-            });
-        }
+        syncCurrentRoundBidsToServer().finally(() => {
+            if (window.isHost && window.draftSocket && currentDraftCode) {
+                setTimeout(() => {
+                    console.log('[silentdraft][debug] host emitting forceTimerRoundEnd');
+                    window.draftSocket.emit('forceTimerRoundEnd', currentDraftCode, (response) => {
+                        if (response && response.ok) {
+                            console.log('[silentdraft] Host forced timer round end:', response);
+                        } else {
+                            console.warn('[silentdraft] forceTimerRoundEnd rejected:', response);
+                        }
+                    });
+                }, 400);
+            }
+        });
     }
+
+    window.handleRoundTimerExpired = handleRoundTimerExpired;
 
   // Full player list (top 250 PPR players)
 
@@ -1321,14 +1458,14 @@ function initSilentDraft() {
 
             return `
                 <div class="draftroom-rankings-item status-${status}${isStarred ? ' starred' : ''}" data-player-name="${player.name}">
+                    <button class="draft-star-btn${isStarred ? ' active' : ''}" type="button" aria-label="${isStarred ? 'Unstar' : 'Star'} ${player.name}" aria-pressed="${isStarred ? 'true' : 'false'}" title="${isStarred ? 'Starred player' : 'Mark as starred'}">
+                        <svg class="draft-star-icon" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                            <polygon points="50,4 61,36 96,40 70,62 78,96 50,78 22,96 30,62 4,40 39,36"></polygon>
+                        </svg>
+                    </button>
                     <span class="r-num">${idx + 1}</span>
                     <span class="pos-badge pos-${player.position}">${player.position}</span>
                     <span class="r-name">${player.name}
-                        <button class="draft-star-btn${isStarred ? ' active' : ''}" type="button" aria-label="${isStarred ? 'Unstar' : 'Star'} ${player.name}" aria-pressed="${isStarred ? 'true' : 'false'}" title="${isStarred ? 'Starred player' : 'Mark as starred'}">
-                            <svg class="draft-star-icon" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-                                <polygon points="50,4 61,36 96,40 70,62 78,96 50,78 22,96 30,62 4,40 39,36"></polygon>
-                            </svg>
-                        </button>
                         ${owner ? ` <span class="r-owner">→ ${owner}</span>` : ''}
                     </span>
                     <span class="r-av">AV $${player.avgValue}</span>
@@ -1578,12 +1715,20 @@ function initSilentDraft() {
                 input.addEventListener('input', (e) => {
                     const playerId = parseInt(e.target.dataset.playerId);
                     storedBids[playerId] = e.target.value;
+                    const bidAmount = parseInt(e.target.value, 10) || 0;
+
+                    if (window.draftSocket && currentDraftCode) {
+                        window.draftSocket.emit('placeBid', currentDraftCode, playerId, bidAmount, (response) => {
+                            if (response && response.ok) {
+                                console.log(`[silentdraft] Live bid synced: player ${playerId} = $${bidAmount}`);
+                            }
+                        });
+                    }
                     
                     // Update bid counter
                     updateBidCounter();
                     
                     // Check for overbid
-                    const bidAmount = parseInt(e.target.value) || 0;
                     const yourTeam = teams.find(t => t.name === username);
                     if (yourTeam && bidAmount > yourTeam.budget) {
                         e.target.classList.add('overbid');
@@ -3177,6 +3322,9 @@ const otherTeams = teams.filter(t => t.name !== username && t.roster.length < ro
             }
             timer = roundDuration;
             const timerElement = document.getElementById('timer');
+            if (timerElement) {
+                timerElement.textContent = `${Math.floor(timer / 60)}:${String(timer % 60).padStart(2, '0')}`;
+            }
         
         // Host generates and broadcasts players, non-hosts wait for synced players
         if (window.isHost) {
@@ -3265,7 +3413,7 @@ const otherTeams = teams.filter(t => t.name !== username && t.roster.length < ro
                     timerInterval = null;
                     // Timer expired - trigger round processing on server
                     console.log('[silentdraft] Timer expired, processing round');
-                    handleRoundTimerExpired();
+                    window.handleRoundTimerExpired();
                 }
             }
         }, 1000);
@@ -3280,6 +3428,9 @@ const otherTeams = teams.filter(t => t.name !== username && t.roster.length < ro
 
     function resumeTimer() {
         const timerElement = document.getElementById('timer');
+        if (timerElement) {
+            timerElement.textContent = `${Math.floor(timer / 60)}:${String(timer % 60).padStart(2, '0')}`;
+        }
         timerInterval = setInterval(() => {
             if (!isPaused) {
                 let minutes = Math.floor(timer / 60);
@@ -3292,7 +3443,7 @@ const otherTeams = teams.filter(t => t.name !== username && t.roster.length < ro
                     clearInterval(timerInterval);
                     timerInterval = null;
                     // Timer expired - trigger round processing
-                    handleRoundTimerExpired();
+                    window.handleRoundTimerExpired();
                 }
             }
         }, 1000);

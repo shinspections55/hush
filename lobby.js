@@ -2,6 +2,7 @@
 window.initializeLobby = function initializeLobby(opts){
   const DEFAULT_DRAFT_BENCH = 13;
   const DEFAULT_BENCH_CUT_TARGET = 5;
+  const DEFAULT_ROUND_TIMER_MINUTES = 10;
   const DEFAULT_ROSTER_SETTINGS = { QB: 1, WR: 2, RB: 2, TE: 1, FLEX: 1, SPFLEX: 0, K: 1, DEF: 1, BN: DEFAULT_DRAFT_BENCH };
   const DEFAULT_START_BUDGET = 200;
 
@@ -47,6 +48,12 @@ window.initializeLobby = function initializeLobby(opts){
     return Math.max(0, Math.min(parsed, DEFAULT_DRAFT_BENCH));
   }
 
+  function normalizeRoundTimerMinutes(value, fallback = DEFAULT_ROUND_TIMER_MINUTES) {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isNaN(parsed)) return fallback;
+    return Math.max(3, Math.min(parsed, 10));
+  }
+
   function normalizeCustomBudgets(raw, members) {
     const source = (raw && typeof raw === 'object') ? raw : {};
     const out = {};
@@ -77,6 +84,7 @@ window.initializeLobby = function initializeLobby(opts){
   const rosterControls = document.getElementById('rosterControls');
   const rosterSummary = document.getElementById('rosterSummary');
   const applyRosterBtn = document.getElementById('applyRosterBtn');
+  const roundTimerMinutesInput = document.getElementById('roundTimerMinutes');
   const customBudgetControls = document.getElementById('customBudgetControls');
   const toggleBudgetPanelBtn = document.getElementById('toggleBudgetPanelBtn');
   const customBudgetPanel = document.getElementById('customBudgetPanel');
@@ -97,6 +105,7 @@ window.initializeLobby = function initializeLobby(opts){
   const startDraftBtn = document.getElementById('startDraftBtn');
   const hostBanner = document.getElementById('hostBanner');
   const dismissBanner = document.getElementById('dismissBanner');
+  let rosterAutosaveTimer = null;
   // closed overlay elements (may be present in page)
   let closedOverlay = document.getElementById('closedOverlay');
   let closedReturnBtn = document.getElementById('closedReturnBtn');
@@ -174,6 +183,7 @@ window.initializeLobby = function initializeLobby(opts){
     const rosterSettings = normalizeRosterSettings(drafts[code].rosterSettings);
     rosterSettings.BN = DEFAULT_DRAFT_BENCH;
     const benchCutTarget = normalizeBenchCutTarget(drafts[code].benchCutTarget, DEFAULT_BENCH_CUT_TARGET);
+    const roundTimerMinutes = normalizeRoundTimerMinutes(drafts[code].roundTimerMinutes, DEFAULT_ROUND_TIMER_MINUTES);
     const hadSameRoster = JSON.stringify(drafts[code].rosterSettings || {}) === JSON.stringify(rosterSettings);
     if (!hadSameRoster) {
       drafts[code].rosterSettings = rosterSettings;
@@ -185,6 +195,11 @@ window.initializeLobby = function initializeLobby(opts){
       localStorage.setItem('drafts', JSON.stringify(drafts));
       try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
     }
+    if (drafts[code].roundTimerMinutes !== roundTimerMinutes) {
+      drafts[code].roundTimerMinutes = roundTimerMinutes;
+      localStorage.setItem('drafts', JSON.stringify(drafts));
+      try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
+    }
     Object.entries(rosterInputMap).forEach(([key, input]) => {
       if (!input) return;
       if (key === 'BN') {
@@ -193,6 +208,9 @@ window.initializeLobby = function initializeLobby(opts){
         input.value = String(rosterSettings[key]);
       }
     });
+    if (roundTimerMinutesInput) {
+      roundTimerMinutesInput.value = String(roundTimerMinutes);
+    }
 
     const normalizedCustomBudgets = normalizeCustomBudgets(drafts[code].customBudgets, members);
     const hadSameBudgets = JSON.stringify(drafts[code].customBudgets || {}) === JSON.stringify(normalizedCustomBudgets);
@@ -249,6 +267,7 @@ window.initializeLobby = function initializeLobby(opts){
       if (applyCapacityBtn) applyCapacityBtn.disabled = true;
       if (applyRosterBtn) applyRosterBtn.disabled = true;
       Object.values(rosterInputMap).forEach(input => { if (input) input.disabled = true; });
+      if (roundTimerMinutesInput) roundTimerMinutesInput.disabled = true;
       if (leaveBtn) leaveBtn.disabled = false;
 
       // show a one-time alert to the user in addition to the overlay
@@ -267,6 +286,7 @@ window.initializeLobby = function initializeLobby(opts){
       if (capacitySelect) capacitySelect.disabled = false;
       if (applyCapacityBtn) applyCapacityBtn.disabled = false;
       Object.values(rosterInputMap).forEach(input => { if (input) input.disabled = false; });
+      if (roundTimerMinutesInput) roundTimerMinutesInput.disabled = false;
     }
     // notify host when full (show banner once until dismissed)
     const full = cap && members.length >= cap;
@@ -514,6 +534,7 @@ window.initializeLobby = function initializeLobby(opts){
     const disableControls = !isHost || isClosed;
     if (applyRosterBtn) applyRosterBtn.disabled = disableControls;
     Object.values(rosterInputMap).forEach(input => { if (input) input.disabled = disableControls; });
+    if (roundTimerMinutesInput) roundTimerMinutesInput.disabled = disableControls;
     if (rosterControls) {
       rosterControls.classList.toggle('host-readonly', disableControls);
     }
@@ -561,51 +582,82 @@ window.initializeLobby = function initializeLobby(opts){
     });
   }
 
+  function saveRosterChanges(options = {}) {
+    const draftsRaw = localStorage.getItem('drafts');
+    const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
+    const members = (drafts[code] && drafts[code].members) ? drafts[code].members : [];
+    const isHost = members.length && members[0] === user;
+    if (!isHost) {
+      if (options.showAlert !== false) alert('Only the host can change roster settings');
+      return false;
+    }
+
+    drafts[code] = drafts[code] || { members: [] };
+    drafts[code].rosterSettings = normalizeRosterSettings({
+      QB: rosterInputMap.QB ? rosterInputMap.QB.value : undefined,
+      WR: rosterInputMap.WR ? rosterInputMap.WR.value : undefined,
+      RB: rosterInputMap.RB ? rosterInputMap.RB.value : undefined,
+      TE: rosterInputMap.TE ? rosterInputMap.TE.value : undefined,
+      FLEX: rosterInputMap.FLEX ? rosterInputMap.FLEX.value : undefined,
+      SPFLEX: rosterInputMap.SPFLEX ? rosterInputMap.SPFLEX.value : undefined,
+      K: rosterInputMap.K ? rosterInputMap.K.value : undefined,
+      DEF: rosterInputMap.DEF ? rosterInputMap.DEF.value : undefined,
+      BN: DEFAULT_DRAFT_BENCH
+    });
+    drafts[code].rosterSettings.BN = DEFAULT_DRAFT_BENCH;
+    drafts[code].benchCutTarget = normalizeBenchCutTarget(
+      rosterInputMap.BN ? rosterInputMap.BN.value : undefined,
+      DEFAULT_BENCH_CUT_TARGET
+    );
+    drafts[code].roundTimerMinutes = normalizeRoundTimerMinutes(
+      roundTimerMinutesInput ? roundTimerMinutesInput.value : undefined,
+      DEFAULT_ROUND_TIMER_MINUTES
+    );
+    localStorage.setItem('drafts', JSON.stringify(drafts));
+    try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) { console.warn('updateDraft emit failed', e); }
+    refreshMembers();
+    updateRosterControlsState();
+
+    if (applyRosterBtn) {
+      const defaultLabel = 'Save Changes';
+      const nextLabel = options.auto ? 'Saved' : 'Saved!';
+      applyRosterBtn.textContent = nextLabel;
+      applyRosterBtn.style.background = '#22c55e';
+      applyRosterBtn.style.color = '#fff';
+      applyRosterBtn.style.transition = 'background 0.4s, color 0.4s';
+      setTimeout(() => {
+        applyRosterBtn.textContent = defaultLabel;
+        applyRosterBtn.style.background = '';
+        applyRosterBtn.style.color = '';
+      }, options.auto ? 900 : 1500);
+    }
+
+    return true;
+  }
+
+  function queueRosterAutosave() {
+    if (rosterAutosaveTimer) {
+      clearTimeout(rosterAutosaveTimer);
+    }
+    rosterAutosaveTimer = setTimeout(() => {
+      rosterAutosaveTimer = null;
+      saveRosterChanges({ auto: true, showAlert: false });
+    }, 500);
+  }
+
   if (applyRosterBtn) {
     applyRosterBtn.addEventListener('click', () => {
-      const draftsRaw = localStorage.getItem('drafts');
-      const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
-      const members = (drafts[code] && drafts[code].members) ? drafts[code].members : [];
-      const isHost = members.length && members[0] === user;
-      if (!isHost) { alert('Only the host can change roster settings'); return; }
-
-      drafts[code] = drafts[code] || { members: [] };
-      drafts[code].rosterSettings = normalizeRosterSettings({
-        QB: rosterInputMap.QB ? rosterInputMap.QB.value : undefined,
-        WR: rosterInputMap.WR ? rosterInputMap.WR.value : undefined,
-        RB: rosterInputMap.RB ? rosterInputMap.RB.value : undefined,
-        TE: rosterInputMap.TE ? rosterInputMap.TE.value : undefined,
-        FLEX: rosterInputMap.FLEX ? rosterInputMap.FLEX.value : undefined,
-        SPFLEX: rosterInputMap.SPFLEX ? rosterInputMap.SPFLEX.value : undefined,
-        K: rosterInputMap.K ? rosterInputMap.K.value : undefined,
-        DEF: rosterInputMap.DEF ? rosterInputMap.DEF.value : undefined,
-        BN: DEFAULT_DRAFT_BENCH
-      });
-      drafts[code].rosterSettings.BN = DEFAULT_DRAFT_BENCH;
-      drafts[code].benchCutTarget = normalizeBenchCutTarget(
-        rosterInputMap.BN ? rosterInputMap.BN.value : undefined,
-        DEFAULT_BENCH_CUT_TARGET
-      );
-      localStorage.setItem('drafts', JSON.stringify(drafts));
-      try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) { console.warn('updateDraft emit failed', e); }
-      refreshMembers();
-      updateRosterControlsState();
-      // Flash button green to confirm
-      if (applyRosterBtn) {
-        const origText = applyRosterBtn.textContent;
-        const origBg = applyRosterBtn.style.background;
-        const origColor = applyRosterBtn.style.color;
-        applyRosterBtn.textContent = '✓ Applied!';
-        applyRosterBtn.style.background = '#22c55e';
-        applyRosterBtn.style.color = '#fff';
-        applyRosterBtn.style.transition = 'background 0.4s, color 0.4s';
-        setTimeout(() => {
-          applyRosterBtn.textContent = origText;
-          applyRosterBtn.style.background = origBg;
-          applyRosterBtn.style.color = origColor;
-        }, 1500);
-      }
+      saveRosterChanges({ auto: false, showAlert: true });
     });
+  }
+
+  Object.values(rosterInputMap).forEach((input) => {
+    if (!input) return;
+    input.addEventListener('input', queueRosterAutosave);
+    input.addEventListener('change', queueRosterAutosave);
+  });
+  if (roundTimerMinutesInput) {
+    roundTimerMinutesInput.addEventListener('change', queueRosterAutosave);
   }
 
   if (toggleBudgetPanelBtn && customBudgetPanel) {
@@ -674,6 +726,22 @@ window.initializeLobby = function initializeLobby(opts){
         alert('Only the host can start the draft');
         return;
       }
+
+      drafts[code] = drafts[code] || { members: [] };
+      drafts[code].roundTimerMinutes = normalizeRoundTimerMinutes(
+        roundTimerMinutesInput ? roundTimerMinutesInput.value : undefined,
+        DEFAULT_ROUND_TIMER_MINUTES
+      );
+      const selectedRoundTimerMinutes = drafts[code].roundTimerMinutes;
+      console.log('[lobby] startDraft selectedRoundTimerMinutes:', selectedRoundTimerMinutes, 'draft state:', drafts[code]);
+      localStorage.setItem('drafts', JSON.stringify(drafts));
+      try {
+        if (socket) {
+          socket.emit('updateDraft', code, drafts[code]);
+        }
+      } catch (e) {
+        console.warn('updateDraft emit failed', e);
+      }
       
       // Get selected draft type from radio buttons
       const selectedType = Array.from(draftTypeRadios).find(r => r.checked)?.value || 'silent';
@@ -683,7 +751,8 @@ window.initializeLobby = function initializeLobby(opts){
       
       // Notify server to start draft for all other members
       if (socket) {
-        socket.emit('startDraft', code, selectedType, (resp) => {
+        console.log('[lobby] emitting startDraft with timer:', selectedRoundTimerMinutes);
+        socket.emit('startDraft', code, selectedType, selectedRoundTimerMinutes, (resp) => {
           if (resp && resp.ok) {
             console.log('Draft start broadcasted to all members');
           }
