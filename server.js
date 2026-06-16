@@ -1565,12 +1565,6 @@ let currentDraftId = null;
 
 // Helper function: Check if player can be added to roster
 function isValidRosterAddition(team, player, rosterLimits) {
-  const counts = team.roster.reduce((c, p) => {
-    c[p.position] = (c[p.position] || 0) + 1;
-    return c;
-  }, {});
-  
-  if ((counts[player.position] || 0) >= rosterLimits[player.position].max) return false;
   return true;
 }
 
@@ -1933,9 +1927,9 @@ io.on('connection', (socket) => {
 
   // Generic state update - still supported but server won't accept member lists blindly
   socket.on('updateDraft', (code, state) => {
-    // merge only non-members fields (type, capacity, public, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes)
+    // merge only non-members fields (type, capacity, public, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder)
     drafts[code] = drafts[code] || { members: [], type: null, capacity: null, public: false };
-    const allowed = (({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes }) => ({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes }))(state || {});
+    const allowed = (({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder }) => ({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder }))(state || {});
     // apply allowed fields
     if(typeof allowed.type !== 'undefined') drafts[code].type = allowed.type;
     if(typeof allowed.capacity !== 'undefined') drafts[code].capacity = allowed.capacity;
@@ -1946,10 +1940,12 @@ io.on('connection', (socket) => {
     if(typeof allowed.rosterSettings !== 'undefined') drafts[code].rosterSettings = allowed.rosterSettings;
     if(typeof allowed.benchCutTarget !== 'undefined') drafts[code].benchCutTarget = allowed.benchCutTarget;
     if(typeof allowed.roundTimerMinutes !== 'undefined') drafts[code].roundTimerMinutes = allowed.roundTimerMinutes;
+    if(typeof allowed.ajDraftMode !== 'undefined') drafts[code].ajDraftMode = !!allowed.ajDraftMode;
+    if(typeof allowed.ajRoundOrder !== 'undefined') drafts[code].ajRoundOrder = Array.isArray(allowed.ajRoundOrder) ? allowed.ajRoundOrder.slice(0, 10) : undefined;
     console.log(`[updateDraft] ${code} capacity=${drafts[code].capacity} members=${drafts[code].members.length}`);
     io.to(code).emit('draftUpdate', drafts[code]);
     // Also push roster/bench changes to any active draft room (draft_<code>)
-    if(typeof allowed.rosterSettings !== 'undefined' || typeof allowed.benchCutTarget !== 'undefined' || typeof allowed.roundTimerMinutes !== 'undefined') {
+    if(typeof allowed.rosterSettings !== 'undefined' || typeof allowed.benchCutTarget !== 'undefined' || typeof allowed.roundTimerMinutes !== 'undefined' || typeof allowed.ajDraftMode !== 'undefined' || typeof allowed.ajRoundOrder !== 'undefined') {
       const roundTimerMinutes = Number.parseInt(drafts[code].roundTimerMinutes, 10);
       const normalizedRoundTimerMinutes = Number.isFinite(roundTimerMinutes) ? Math.max(3, Math.min(roundTimerMinutes, 10)) : 10;
       if (drafts[code].draftState) {
@@ -1959,7 +1955,9 @@ io.on('connection', (socket) => {
       io.to(`draft_${code}`).emit('rosterSettingsUpdated', {
         rosterSettings: drafts[code].rosterSettings,
         benchCutTarget: drafts[code].benchCutTarget,
-        roundTimerMinutes: normalizedRoundTimerMinutes
+        roundTimerMinutes: normalizedRoundTimerMinutes,
+        ajDraftMode: !!drafts[code].ajDraftMode,
+        ajRoundOrder: Array.isArray(drafts[code].ajRoundOrder) ? drafts[code].ajRoundOrder.slice(0, 10) : undefined
       });
     }
   });
@@ -3167,7 +3165,7 @@ io.on('connection', (socket) => {
 
   // Handle bench cuts from draft summary page
   socket.on('cutPlayers', (data, cb) => {
-    const { draftCode, teamName, cutIds, cutNames } = data || {};
+    const { draftCode, teamName, cutIds, cutNames, cutSelections } = data || {};
     const draft = drafts[draftCode];
 
     if (!draft) {
@@ -3190,9 +3188,10 @@ io.on('connection', (socket) => {
       return;
     }
 
+    const hasCutSelections = Array.isArray(cutSelections) && cutSelections.length > 0;
     const hasCutIds = Array.isArray(cutIds) && cutIds.length > 0;
     const hasCutNames = Array.isArray(cutNames) && cutNames.length > 0;
-    if (!hasCutIds && !hasCutNames) {
+    if (!hasCutSelections && !hasCutIds && !hasCutNames) {
       if (cb) cb({ ok: false, reason: 'invalid_cut_ids' });
       return;
     }
@@ -3266,45 +3265,85 @@ io.on('connection', (socket) => {
     }
 
     const normalizeName = (name) => String(name || '').trim().toLowerCase();
-    const benchIds = new Set(
-      bench
+    const rosterIds = new Set(
+      team.roster
         .map(p => Number(p.id))
         .filter(id => Number.isFinite(id))
     );
-    const benchNames = new Set(
-      bench
+    const rosterNames = new Set(
+      team.roster
         .map(p => normalizeName(p.name))
         .filter(Boolean)
     );
 
-    const validCutIds = hasCutIds
-      ? [...new Set(cutIds.map(Number))].filter(id => Number.isFinite(id) && benchIds.has(id))
-      : [];
-    const validCutNames = hasCutNames
-      ? [...new Set(cutNames.map(normalizeName))].filter(name => benchNames.has(name))
+    const normalizedSelections = hasCutSelections
+      ? cutSelections.map(selection => ({
+          id: Number(selection && selection.id),
+          name: normalizeName(selection && selection.name)
+        }))
       : [];
 
-    // Count selected bench players by bench row, so an id+name match for the same
-    // player is counted once (not twice).
-    const validCutsCount = bench.filter(p => {
+    const validSelectionKeys = hasCutSelections
+      ? [...new Set(normalizedSelections
+          .filter(selection => (Number.isFinite(selection.id) && rosterIds.has(selection.id)) || (selection.name && rosterNames.has(selection.name)))
+          .map(selection => Number.isFinite(selection.id) && rosterIds.has(selection.id)
+            ? `id:${selection.id}`
+            : `name:${selection.name}`))]
+      : [];
+    const validCutIds = !hasCutSelections && hasCutIds
+      ? [...new Set(cutIds.map(Number))].filter(id => Number.isFinite(id) && rosterIds.has(id))
+      : [];
+    const validCutNames = !hasCutSelections && hasCutNames
+      ? [...new Set(cutNames.map(normalizeName))].filter(name => rosterNames.has(name))
+      : [];
+
+    // Count selected players by roster row. When structured selections are provided,
+    // prefer id matches and use name fallback only for rows without a valid id.
+    const validCutsCount = team.roster.filter(p => {
       const pid = Number(p.id);
       const pname = normalizeName(p.name);
-      const cutById = Number.isFinite(pid) && validCutIds.includes(pid);
-      const cutByName = pname && validCutNames.includes(pname);
-      return cutById || cutByName;
+      const cutByStructuredSelection = hasCutSelections
+        ? ((Number.isFinite(pid) && validSelectionKeys.includes(`id:${pid}`)) || (!Number.isFinite(pid) && pname && validSelectionKeys.includes(`name:${pname}`)))
+        : false;
+      const cutById = !hasCutSelections && Number.isFinite(pid) && validCutIds.includes(pid);
+      const cutByName = !hasCutSelections && pname && validCutNames.includes(pname);
+      const matched = cutByStructuredSelection || cutById || cutByName;
+      return matched;
     }).length;
 
+    const debugPayload = {
+      teamName,
+      requiredCuts,
+      requestedSelectionCount: hasCutSelections ? cutSelections.length : Math.max(validCutIds.length, validCutNames.length),
+      matchedSelectionCount: validCutsCount,
+      rosterSize: team.roster.length,
+      benchSize: bench.length,
+      benchCutTarget,
+      maxTotalPlayers,
+      overTotal,
+      overBench,
+      validSelectionKeys,
+      validCutIds,
+      validCutNames,
+      rosterPlayers: team.roster.map(p => ({ id: p.id, name: p.name, position: p.position }))
+    };
+
+    console.log('[cutPlayers] validation debug', JSON.stringify(debugPayload, null, 2));
+
     if (validCutsCount !== requiredCuts) {
-      if (cb) cb({ ok: false, reason: `must_cut_exactly_${requiredCuts}_bench_players` });
+      if (cb) cb({ ok: false, reason: `must_cut_exactly_${requiredCuts}_players`, debug: debugPayload });
       return;
     }
 
     team.roster = team.roster.filter(p => {
       const pid = Number(p.id);
       const pname = normalizeName(p.name);
-      const cutById = Number.isFinite(pid) && validCutIds.includes(pid);
-      const cutByName = pname && validCutNames.includes(pname);
-      return !(cutById || cutByName);
+      const cutByStructuredSelection = hasCutSelections
+        ? ((Number.isFinite(pid) && validSelectionKeys.includes(`id:${pid}`)) || (!Number.isFinite(pid) && pname && validSelectionKeys.includes(`name:${pname}`)))
+        : false;
+      const cutById = !hasCutSelections && Number.isFinite(pid) && validCutIds.includes(pid);
+      const cutByName = !hasCutSelections && pname && validCutNames.includes(pname);
+      return !(cutByStructuredSelection || cutById || cutByName);
     });
 
     if (draft.draftState && Array.isArray(draft.draftState.teams)) {

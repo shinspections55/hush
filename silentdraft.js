@@ -35,6 +35,25 @@ function initSilentDraft() {
         K: 1,
         DEF: 1
     };
+    const AJ_ROUND_CODES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+    const AJ_REVERSED_START_POSITIONS = new Set(['WR', 'TE', 'K']);
+    let ajDraftModeEnabled = false;
+    let ajRoundOrder = AJ_ROUND_CODES.slice();
+    const PAGE_SIZE = 12;
+    const PAGE1_REQUIREMENTS = [
+        { pos: 'QB', min: 2 },
+        { pos: 'RB', min: 2 },
+        { pos: 'WR', min: 2 },
+        { pos: 'TE', min: 1 },
+        { pos: 'K', min: 1 },
+        { pos: 'DEF', min: 1 }
+    ];
+    const PAGE2_REQUIREMENTS = [
+        { pos: 'QB', min: 1 },
+        { pos: 'RB', min: 1 },
+        { pos: 'WR', min: 1 },
+        { pos: 'TE', min: 1 }
+    ];
 
     function parseRosterNumber(value, fallback, min, max) {
         const parsed = Number.parseInt(value, 10);
@@ -211,6 +230,8 @@ function initSilentDraft() {
                     let resolvedRosterSettings = response.draft.rosterSettings;
                     let resolvedBenchCutTarget = response.draft.benchCutTarget;
                     let resolvedRoundTimerMinutes = response.draft.roundTimerMinutes;
+                    let resolvedAjDraftMode = response.draft.ajDraftMode;
+                    let resolvedAjRoundOrder = response.draft.ajRoundOrder;
                     try {
                         const localRaw = localStorage.getItem('drafts');
                         const localDrafts = localRaw ? JSON.parse(localRaw) : {};
@@ -225,6 +246,12 @@ function initSilentDraft() {
                         if (typeof resolvedRoundTimerMinutes === 'undefined' && typeof localDraft.roundTimerMinutes !== 'undefined') {
                             resolvedRoundTimerMinutes = localDraft.roundTimerMinutes;
                         }
+                        if (typeof resolvedAjDraftMode === 'undefined' && typeof localDraft.ajDraftMode !== 'undefined') {
+                            resolvedAjDraftMode = localDraft.ajDraftMode;
+                        }
+                        if (typeof resolvedAjRoundOrder === 'undefined' && typeof localDraft.ajRoundOrder !== 'undefined') {
+                            resolvedAjRoundOrder = localDraft.ajRoundOrder;
+                        }
                     } catch (e) { /* ignore */ }
 
                     // Persist resolved values back to localStorage and update server if needed
@@ -236,10 +263,14 @@ function initSilentDraft() {
                         drafts[currentDraftCode].rosterSettings = normalizeRosterSettings(resolvedRosterSettings);
                         drafts[currentDraftCode].benchCutTarget = normalizeBenchCutTarget(resolvedBenchCutTarget);
                         drafts[currentDraftCode].roundTimerMinutes = normalizeRoundTimerMinutes(resolvedRoundTimerMinutes);
+                        drafts[currentDraftCode].ajDraftMode = Boolean(resolvedAjDraftMode);
+                        drafts[currentDraftCode].ajRoundOrder = normalizeAjRoundOrder(resolvedAjRoundOrder);
                         localStorage.setItem('drafts', JSON.stringify(drafts));
                     } catch (e) { /* ignore */ }
 
                     benchCutTarget = normalizeBenchCutTarget(resolvedBenchCutTarget);
+                    ajDraftModeEnabled = Boolean(resolvedAjDraftMode);
+                    ajRoundOrder = normalizeAjRoundOrder(resolvedAjRoundOrder);
                     applyRoundTimerMinutes(resolvedRoundTimerMinutes);
                     applyRosterSettings(resolvedRosterSettings);
                     buildTeamsAndStartDraft();
@@ -267,6 +298,8 @@ function initSilentDraft() {
                 }
                 if (currentDraft) {
                     benchCutTarget = normalizeBenchCutTarget(currentDraft.benchCutTarget);
+                    ajDraftModeEnabled = Boolean(currentDraft.ajDraftMode);
+                    ajRoundOrder = normalizeAjRoundOrder(currentDraft.ajRoundOrder);
                 }
                 applyRoundTimerMinutes(currentDraft && currentDraft.roundTimerMinutes);
                 applyRoundTimerMinutes(currentDraft && currentDraft.roundTimerMinutes);
@@ -548,6 +581,12 @@ function initSilentDraft() {
                         if (typeof data.benchCutTarget !== 'undefined') {
                             drafts[currentDraftCode].benchCutTarget = data.benchCutTarget;
                         }
+                        if (typeof data.ajDraftMode !== 'undefined') {
+                            drafts[currentDraftCode].ajDraftMode = !!data.ajDraftMode;
+                        }
+                        if (typeof data.ajRoundOrder !== 'undefined') {
+                            drafts[currentDraftCode].ajRoundOrder = normalizeAjRoundOrder(data.ajRoundOrder);
+                        }
                         localStorage.setItem('drafts', JSON.stringify(drafts));
                     }
                 } catch (e) { /* ignore */ }
@@ -578,6 +617,26 @@ function initSilentDraft() {
     
     // Helper to show bid submission notifications (silent auction - no details)
     function showSubmissionNotification(teamName) {
+            if (typeof data.ajDraftMode !== 'undefined') {
+                ajDraftModeEnabled = Boolean(data.ajDraftMode);
+                try {
+                    const draftsData = localStorage.getItem('drafts') || '{}';
+                    const drafts = JSON.parse(draftsData);
+                    if (!drafts[currentDraftCode]) drafts[currentDraftCode] = {};
+                    drafts[currentDraftCode].ajDraftMode = ajDraftModeEnabled;
+                    localStorage.setItem('drafts', JSON.stringify(drafts));
+                } catch (e) { /* ignore */ }
+            }
+            if (typeof data.ajRoundOrder !== 'undefined') {
+                ajRoundOrder = normalizeAjRoundOrder(data.ajRoundOrder);
+                try {
+                    const draftsData = localStorage.getItem('drafts') || '{}';
+                    const drafts = JSON.parse(draftsData);
+                    if (!drafts[currentDraftCode]) drafts[currentDraftCode] = {};
+                    drafts[currentDraftCode].ajRoundOrder = ajRoundOrder.slice();
+                    localStorage.setItem('drafts', JSON.stringify(drafts));
+                } catch (e) { /* ignore */ }
+            }
         const notification = document.createElement('div');
         notification.style.position = 'fixed';
         notification.style.top = '20px';
@@ -648,11 +707,6 @@ function initSilentDraft() {
         const yourTeam = teams.find(t => t.name === username);
         if (!yourTeam) {
             console.warn('[silentdraft] submitCurrentRoundBidsToServer aborted: user team not found');
-            return Promise.resolve(false);
-        }
-
-        if (!forceWhenRosterFull && yourTeam.roster.length >= rosterSize) {
-            alert('Your roster is full!');
             return Promise.resolve(false);
         }
 
@@ -751,17 +805,6 @@ function initSilentDraft() {
 
     // Check if adding a player is valid for a team's roster
     function isValidRosterAddition(team, player) {
-        if (team.roster.length >= rosterSize) {
-            return false;
-        }
-        const positionCounts = team.roster.reduce((counts, p) => {
-            counts[p.position] = (counts[p.position] || 0) + 1;
-            return counts;
-        }, {});
-        const currentCount = positionCounts[player.position] || 0;
-        if (currentCount >= rosterLimits[player.position].max) {
-            return false;
-        }
         return true;
     }
 
@@ -780,7 +823,7 @@ function initSilentDraft() {
             (positionCounts.K || 0) >= rosterLimits.K.min &&
             (positionCounts.DEF || 0) >= rosterLimits.DEF.min &&
             flexEligibleCount >= (rosterLimits.RB.min + rosterLimits.WR.min + rosterLimits.TE.min + getFlexRequirementCount()) &&
-            team.roster.length === rosterSize
+            team.roster.length >= rosterSize
         );
     }
     }
@@ -809,6 +852,158 @@ function initSilentDraft() {
 
     function canSelectPlayerForCurrentRound(player, excludePlayers = [], currentSelected = []) {
         return getMaxSelectionsForCurrentRound(player.position, excludePlayers, currentSelected) > 0;
+    }
+
+    function normalizeAjRoundOrder(raw) {
+        if (!Array.isArray(raw)) return AJ_ROUND_CODES.slice();
+        const normalized = raw
+            .map(code => String(code || '').trim().toUpperCase())
+            .filter(code => AJ_ROUND_CODES.includes(code));
+        const deduped = [];
+        normalized.forEach(code => {
+            if (!deduped.includes(code)) deduped.push(code);
+        });
+        AJ_ROUND_CODES.forEach(code => {
+            if (!deduped.includes(code)) deduped.push(code);
+        });
+        return deduped.slice(0, AJ_ROUND_CODES.length);
+    }
+
+    function getCurrentAjRoundCode() {
+        return ajRoundOrder[Math.max(0, currentRound - 1)] || AJ_ROUND_CODES[Math.max(0, currentRound - 1)] || AJ_ROUND_CODES[0];
+    }
+
+    function getPlayerRankSortValue(player) {
+        const positionRank = Number.parseInt(player && player.positionRank, 10);
+        if (Number.isFinite(positionRank)) return positionRank;
+        const prerank = Number.parseInt(player && player.prerank, 10);
+        if (Number.isFinite(prerank)) return prerank;
+        return 9999;
+    }
+
+    function comparePlayersForAjSlot(a, b) {
+        const positionDelta = getPlayerRankSortValue(a) - getPlayerRankSortValue(b);
+        if (positionDelta !== 0) return positionDelta;
+        const overallDelta = (Number.parseInt(a && a.prerank, 10) || 9999) - (Number.parseInt(b && b.prerank, 10) || 9999);
+        if (overallDelta !== 0) return overallDelta;
+        return String(a && a.name || '').localeCompare(String(b && b.name || ''));
+    }
+
+    function getAjSlotAssignment(positionRank, position = '') {
+        const normalizedRank = Math.max(1, Number.parseInt(positionRank, 10) || 1);
+        const zeroBasedRank = normalizedRank - 1;
+        const blockIndex = Math.floor(zeroBasedRank / 10);
+        const offset = zeroBasedRank % 10;
+        const normalizedPosition = String(position || '').toUpperCase();
+        const startsReversed = AJ_REVERSED_START_POSITIONS.has(normalizedPosition);
+        const isPageOneBlock = startsReversed ? (blockIndex % 2 === 1) : (blockIndex % 2 === 0);
+        const roundIndex = isPageOneBlock ? offset : (AJ_ROUND_CODES.length - 1 - offset);
+        const page = isPageOneBlock ? 1 : 2;
+        return {
+            round: roundIndex + 1,
+            page,
+            code: `${AJ_ROUND_CODES[roundIndex]}${page}`
+        };
+    }
+
+    function annotateAjSlot(player) {
+        if (!player) return player;
+        const assignment = getAjSlotAssignment(player.positionRank, player.position);
+        player.ajSlotCode = assignment.code;
+        player.ajRoundNumber = assignment.round;
+        player.ajPageNumber = assignment.page;
+        return player;
+    }
+
+    function countPlayersByPosition(selectedPlayers, position) {
+        return selectedPlayers.filter(player => player.position === position).length;
+    }
+
+    function getBestAvailablePlayers(excludePlayers = [], filterFn = null) {
+        return getRemainingUndraftedPlayers(excludePlayers)
+            .filter(player => canSelectPlayerForCurrentRound(player, excludePlayers, []))
+            .filter(player => !filterFn || filterFn(player))
+            .sort(comparePlayersForAjSlot);
+    }
+
+    function pickPlayersForMinimum(position, countNeeded, selectedPlayers, preferredPool, fallbackPool) {
+        const picks = [];
+        const tryPools = [preferredPool, fallbackPool];
+
+        for (const pool of tryPools) {
+            for (const player of pool) {
+                if (picks.length >= countNeeded) break;
+                if (player.position !== position) continue;
+                if (selectedPlayers.includes(player) || picks.includes(player)) continue;
+                if (!canSelectPlayerForCurrentRound(player, selectedPlayers.concat(picks), [])) continue;
+                picks.push(player);
+            }
+            if (picks.length >= countNeeded) break;
+        }
+
+        return picks;
+    }
+
+    function buildAjPagePlayers(roundCode, pageNumber, pageSize, excludePlayers, requirements) {
+        const availablePlayers = getRemainingUndraftedPlayers(excludePlayers)
+            .filter(player => canSelectPlayerForCurrentRound(player, excludePlayers, []));
+        const assignedPlayers = availablePlayers
+            .filter(player => {
+                const assignment = getAjSlotAssignment(player.positionRank, player.position);
+                return assignment.code === `${roundCode}${pageNumber}`;
+            })
+            .sort(comparePlayersForAjSlot);
+
+        let selectedPlayers = assignedPlayers.slice(0, pageSize);
+
+        requirements.forEach(({ pos, min }) => {
+            const currentCount = countPlayersByPosition(selectedPlayers, pos);
+            const missing = Math.max(0, min - currentCount);
+            if (missing === 0) return;
+
+            const fallbackPool = availablePlayers
+                .filter(player => !selectedPlayers.includes(player))
+                .sort(comparePlayersForAjSlot);
+            const additions = pickPlayersForMinimum(pos, missing, selectedPlayers, assignedPlayers, fallbackPool);
+
+            additions.forEach(player => {
+                if (selectedPlayers.length < pageSize) {
+                    selectedPlayers.push(player);
+                    return;
+                }
+
+                const replacement = selectedPlayers
+                    .map((selectedPlayer, index) => ({ selectedPlayer, index }))
+                    .filter(entry => countPlayersByPosition(selectedPlayers, entry.selectedPlayer.position) > ((requirements.find(req => req.pos === entry.selectedPlayer.position) || {}).min || 0))
+                    .sort((a, b) => comparePlayersForAjSlot(b.selectedPlayer, a.selectedPlayer))[0];
+
+                if (replacement) {
+                    selectedPlayers[replacement.index] = player;
+                }
+            });
+
+            selectedPlayers = selectedPlayers.sort(comparePlayersForAjSlot).slice(0, pageSize);
+        });
+
+        if (selectedPlayers.length < pageSize) {
+            const fillers = getBestAvailablePlayers(excludePlayers.concat(selectedPlayers), player => !selectedPlayers.includes(player));
+            for (const player of fillers) {
+                if (selectedPlayers.length >= pageSize) break;
+                selectedPlayers.push(player);
+            }
+        }
+
+        return selectedPlayers
+            .sort(comparePlayersForAjSlot)
+            .slice(0, pageSize)
+            .map(annotateAjSlot);
+    }
+
+    function getAjRoundPlayers() {
+        const roundCode = getCurrentAjRoundCode();
+        const page1Players = buildAjPagePlayers(roundCode, 1, PAGE_SIZE, [], PAGE1_REQUIREMENTS);
+        const page2Players = buildAjPagePlayers(roundCode, 2, PAGE_SIZE, page1Players, PAGE2_REQUIREMENTS);
+        return page1Players.concat(page2Players);
     }
 
     // Get random players for the round with balanced positions and mixed ranks
@@ -1745,8 +1940,7 @@ function initSilentDraft() {
         // Submit Bids button
         const submitBidsButton = document.getElementById('submit-bids');
         if (submitBidsButton) {
-            const yourTeam = teams.find(t => t.name === username);
-            submitBidsButton.disabled = (yourTeam ? yourTeam.roster.length : 0) >= rosterSize;
+            submitBidsButton.disabled = false;
             submitBidsButton.onclick = () => {
                 const yourTeam = teams.find(t => t.name === username);
                 if (!yourTeam) return;
@@ -1842,7 +2036,7 @@ function initSilentDraft() {
                 const header = document.createElement('div');
                 header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
                 header.innerHTML = `
-                    <span>${team.name} - $${team.budget} (${team.roster.length}/${rosterSize}) ${autoDraftStatusByTeam[team.name] ? '<span style="display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.5);color:#93c5fd;">AUTO</span>' : ''}</span>
+                    <span>${team.name} - $${team.budget} (${team.roster.length} players) ${autoDraftStatusByTeam[team.name] ? '<span style="display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.5);color:#93c5fd;">AUTO</span>' : ''}</span>
                     <span class="dropdown-arrow" style="font-size:12px;transition:transform 0.2s;">▼</span>
                 `;
                 teamItem.appendChild(header);
@@ -2142,8 +2336,7 @@ function initSilentDraft() {
     function generateClientCPUBids(teams, roundPlayers, username, rosterSize, currentRound, totalRounds) {
         // --- Enhanced Independent CPU Bidding ---
         // Each CPU team independently decides which players to bid on, based on roster needs
-        let maxRosterSize = rosterSize + 3;
-        let cpuTeams = teams.filter(t => t.name !== username && t.roster.length < maxRosterSize);
+        let cpuTeams = teams.filter(t => t.name !== username);
         let cpuBids = {};
         const tierContext = buildCpuTierContext(roundPlayers);
         // Assign each CPU team a random 'aggressiveness' factor for this round (lowered)
@@ -2238,10 +2431,6 @@ function initSilentDraft() {
                 baseBid = Math.round(baseBid * cpuAggressiveness[team.name]);
                 baseBid += Math.floor(Math.random() * 2);
                 baseBid += Math.floor(Math.random() * 2) * (Math.random() < 0.5 ? 1 : -1);
-                // If roster is full, bid low for bench filling
-                if (team.roster.length >= rosterSize) {
-                    baseBid = Math.floor(Math.random() * 3) + 1;
-                }
                 baseBid = Math.min(baseBid, team.budget);
                 if (baseBid > 0) {
                     if (!cpuBids[team.name]) cpuBids[team.name] = [];
@@ -2284,11 +2473,6 @@ function initSilentDraft() {
             console.warn('[silentdraft] submitBids aborted: user team not found');
             return;
         }
-        if (yourTeam.roster.length >= rosterSize) {
-            alert('Your roster is full!');
-            return;
-        }
-
         const roundPlayers = getRoundPlayers();
         let results = [];
         let anyValidBid = false;
@@ -2297,8 +2481,7 @@ function initSilentDraft() {
 
         // --- Enhanced Independent CPU Bidding ---
         // Each CPU team independently decides which players to bid on, based on roster needs
-        let maxRosterSize = rosterSize + 3;
-        let cpuTeams = teams.filter(t => t.name !== username && t.roster.length < maxRosterSize);
+        let cpuTeams = teams.filter(t => t.name !== username);
         let cpuBids = {};
         const tierContext = buildCpuTierContext(roundPlayers);
         // Assign each CPU team a random 'aggressiveness' factor for this round (lowered)
@@ -2445,10 +2628,6 @@ function initSilentDraft() {
                 baseBid = Math.round(baseBid * cpuAggressiveness[team.name]);
                 baseBid += Math.floor(Math.random() * 2);
                 baseBid += Math.floor(Math.random() * 2) * (Math.random() < 0.5 ? 1 : -1);
-                // If roster is full, bid low for bench filling
-                if (team.roster.length >= rosterSize) {
-                    baseBid = Math.floor(Math.random() * 3) + 1;
-                }
                 baseBid = Math.min(baseBid, team.budget);
                 if (baseBid > 0) {
                     if (!cpuBids[team.name]) cpuBids[team.name] = [];
@@ -2523,7 +2702,7 @@ function initSilentDraft() {
                 window.draftSocket.emit('placeBid', currentDraftCode, player.id, 0, () => {});
             }
 // Simulate CPU bidding
-const otherTeams = teams.filter(t => t.name !== username && t.roster.length < rosterSize && isValidRosterAddition(t, player));
+const otherTeams = teams.filter(t => t.name !== username && isValidRosterAddition(t, player));
             const prioritizedTeams = otherTeams.filter(t => {
                 const counts = t.roster.reduce((c, p) => {
                     c[p.position] = (c[p.position] || 0) + 1;
@@ -2575,7 +2754,7 @@ const otherTeams = teams.filter(t => t.name !== username && t.roster.length < ro
             }
 
             // Budget management: scale bid if team is running low
-            let picksLeft = rosterSize - biddingTeam.roster.length;
+            let picksLeft = Math.max(1, totalRounds - currentRound + 1);
             let budgetPerPick = biddingTeam.budget / Math.max(1, picksLeft);
             if (baseBid > budgetPerPick * 1.5) {
                 baseBid = Math.max(Math.round(budgetPerPick * (1.1 + Math.random() * 0.2)), band.min);
@@ -2800,7 +2979,7 @@ const otherTeams = teams.filter(t => t.name !== username && t.roster.length < ro
             return;
         }
 
-        if (currentRound >= totalRounds || teams.every(t => t.roster.length >= rosterSize)) {
+        if (currentRound >= totalRounds) {
             endDraft();
             return;
         }
@@ -3316,7 +3495,7 @@ const otherTeams = teams.filter(t => t.name !== username && t.roster.length < ro
                 clearInterval(timerInterval);
                 timerInterval = null;
             }
-            if (currentRound > totalRounds || teams.every(t => t.roster.length >= rosterSize)) {
+            if (currentRound > totalRounds) {
                 endDraft();
                 return;
             }
@@ -3328,48 +3507,53 @@ const otherTeams = teams.filter(t => t.name !== username && t.roster.length < ro
         
         // Host generates and broadcasts players, non-hosts wait for synced players
         if (window.isHost) {
-            // Host generates round players with 12 per page and 4 forced extra slots.
-            const page1Core = ensureRequiredPositionsInPool(getRandomPlayers(10), ['K', 'DEF']);
-            const page2Core = getBalancedPagePlayers(10, page1Core);
-            const baseRoundPlayers = page1Core.concat(page2Core);
-            const forcedExtras = getRoundExtras(['K', 'DEF', 'RB', 'WR'], baseRoundPlayers);
+            let roundPlayers = [];
+            if (ajDraftModeEnabled) {
+                roundPlayers = getAjRoundPlayers();
+            } else {
+                // Host generates round players with 12 per page and 4 forced extra slots.
+                const page1Core = ensureRequiredPositionsInPool(getRandomPlayers(10), ['K', 'DEF']);
+                const page2Core = getBalancedPagePlayers(10, page1Core);
+                const baseRoundPlayers = page1Core.concat(page2Core);
+                const forcedExtras = getRoundExtras(['K', 'DEF', 'RB', 'WR'], baseRoundPlayers);
 
-            const page1Players = [...page1Core];
-            const page2Players = [...page2Core];
+                const page1Players = [...page1Core];
+                const page2Players = [...page2Core];
 
-            const rbExtra = forcedExtras.find(player => player.position === 'RB');
-            const wrExtra = forcedExtras.find(player => player.position === 'WR');
-            const kExtra = forcedExtras.find(player => player.position === 'K');
-            const defExtra = forcedExtras.find(player => player.position === 'DEF');
+                const rbExtra = forcedExtras.find(player => player.position === 'RB');
+                const wrExtra = forcedExtras.find(player => player.position === 'WR');
+                const kExtra = forcedExtras.find(player => player.position === 'K');
+                const defExtra = forcedExtras.find(player => player.position === 'DEF');
 
-            if (rbExtra) page1Players.push(rbExtra);
-            if (wrExtra) page1Players.push(wrExtra);
-            if (kExtra) page2Players.push(kExtra);
-            if (defExtra) page2Players.push(defExtra);
+                if (rbExtra) page1Players.push(rbExtra);
+                if (wrExtra) page1Players.push(wrExtra);
+                if (kExtra) page2Players.push(kExtra);
+                if (defExtra) page2Players.push(defExtra);
 
-            const pickFallback = (exclude) => {
-                const pool = getRemainingUndraftedPlayers(exclude)
-                    .filter(player => (
-                        player.position !== 'K' &&
-                        player.position !== 'DEF' &&
-                        canSelectPlayerForCurrentRound(player, exclude, [])
-                    ));
-                return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
-            };
+                const pickFallback = (exclude) => {
+                    const pool = getRemainingUndraftedPlayers(exclude)
+                        .filter(player => (
+                            player.position !== 'K' &&
+                            player.position !== 'DEF' &&
+                            canSelectPlayerForCurrentRound(player, exclude, [])
+                        ));
+                    return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+                };
 
-            while (page1Players.length < 12) {
-                const fallback = pickFallback(page1Players.concat(page2Players));
-                if (!fallback) break;
-                page1Players.push(fallback);
+                while (page1Players.length < 12) {
+                    const fallback = pickFallback(page1Players.concat(page2Players));
+                    if (!fallback) break;
+                    page1Players.push(fallback);
+                }
+
+                while (page2Players.length < 12) {
+                    const fallback = pickFallback(page1Players.concat(page2Players));
+                    if (!fallback) break;
+                    page2Players.push(fallback);
+                }
+
+                roundPlayers = page1Players.concat(page2Players);
             }
-
-            while (page2Players.length < 12) {
-                const fallback = pickFallback(page1Players.concat(page2Players));
-                if (!fallback) break;
-                page2Players.push(fallback);
-            }
-
-            const roundPlayers = page1Players.concat(page2Players);
             
             // Mark all selected players as shown so they don't appear in future rounds
             roundPlayers.forEach(player => player.shown = true);
@@ -3879,14 +4063,16 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
         });
 
         const page1List = page1Results.length > 0 ? page1Results.map(item => {
-            const bidDetails = item.allBids ? item.allBids
-                .sort((a, b) => b.amount - a.amount) // Sort by bid amount descending
-                .map(bid => 
+            const visibleBids = Array.isArray(item.result?.allBids)
+                ? item.result.allBids.filter(bid => bid.amount > 0).sort((a, b) => b.amount - a.amount)
+                : [];
+            const bidDetails = visibleBids.length > 0
+                ? visibleBids.map(bid => 
                 `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.1);">
                     <span>${bid.teamName}:</span>
                     <span style="font-weight:bold;">$${bid.amount}</span>
                 </div>`
-            ).join('') : 'No bids';
+            ).join('') : 'No bids received';
             
             return `<div style="margin:4px 0;padding:6px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:13px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -3899,14 +4085,16 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
             </div>`;
         }).join('') : '<p>No results for Page 1.</p>';
         const page2List = page2Results.length > 0 ? page2Results.map(item => {
-            const bidDetails = item.allBids ? item.allBids
-                .sort((a, b) => b.amount - a.amount) // Sort by bid amount descending
-                .map(bid => 
+            const visibleBids = Array.isArray(item.result?.allBids)
+                ? item.result.allBids.filter(bid => bid.amount > 0).sort((a, b) => b.amount - a.amount)
+                : [];
+            const bidDetails = visibleBids.length > 0
+                ? visibleBids.map(bid => 
                 `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.1);">
                     <span>${bid.teamName}:</span>
                     <span style="font-weight:bold;">$${bid.amount}</span>
                 </div>`
-            ).join('') : 'No bids';
+            ).join('') : 'No bids received';
             
             return `<div style="margin:4px 0;padding:6px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:13px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;">

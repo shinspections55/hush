@@ -24,18 +24,81 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const summaryRosterSettings = getSummaryRosterSettings();
-    const maxBenchPlayers = getBenchCutTarget();
-    const starterSlotCount = getSlotBlueprint(summaryRosterSettings).length;
-    const maxTotalPlayers = starterSlotCount + maxBenchPlayers;
+    let summaryRosterSettings = getSummaryRosterSettings();
+    let maxBenchPlayers = getBenchCutTarget();
+    let starterSlotCount = getSlotBlueprint(summaryRosterSettings).length;
+    let maxTotalPlayers = starterSlotCount + maxBenchPlayers;
 
-    updateSummaryMeta();
-    renderTeamButtons();
-
-    if (draftSummary.teams.length > 0) {
-        selectedTeamName = draftSummary.teams[0].name;
-        renderSelectedTeam();
+    function refreshSummaryLimits() {
+        summaryRosterSettings = getSummaryRosterSettings();
+        maxBenchPlayers = getBenchCutTarget();
+        starterSlotCount = getSlotBlueprint(summaryRosterSettings).length;
+        maxTotalPlayers = starterSlotCount + maxBenchPlayers;
     }
+
+    function renderSummaryView() {
+        updateSummaryMeta();
+        renderTeamButtons();
+
+        if (!selectedTeamName && draftSummary.teams.length > 0) {
+            selectedTeamName = draftSummary.teams[0].name;
+        }
+
+        if (selectedTeamName) {
+            renderSelectedTeam();
+        }
+    }
+
+    function normalizeSummaryTeam(team) {
+        return {
+            name: team.name,
+            budgetRemaining: Number.isFinite(team.budgetRemaining) ? team.budgetRemaining : Number(team.budget || 0),
+            roster: Array.isArray(team.roster)
+                ? team.roster.map(player => ({
+                    id: player.id,
+                    name: player.name,
+                    position: player.position,
+                    bid: player.bid,
+                    prerank: player.prerank
+                }))
+                : []
+        };
+    }
+
+    function syncSummaryFromServer(onComplete) {
+        if (!socket || !draftSummary || !draftSummary.draftCode) {
+            onComplete();
+            return;
+        }
+
+        socket.emit('getDraftState', draftSummary.draftCode, (response) => {
+            if (response && response.ok && response.draft) {
+                const serverDraft = response.draft;
+                const serverTeams = (serverDraft.draftState && Array.isArray(serverDraft.draftState.teams))
+                    ? serverDraft.draftState.teams
+                    : (Array.isArray(serverDraft.teams) ? serverDraft.teams : null);
+
+                if (Array.isArray(serverTeams) && serverTeams.length > 0) {
+                    draftSummary.teams = serverTeams.map(normalizeSummaryTeam);
+                }
+
+                if (serverDraft.rosterSettings) {
+                    draftSummary.rosterSettings = Object.assign({}, serverDraft.rosterSettings);
+                }
+
+                if (typeof serverDraft.benchCutTarget !== 'undefined') {
+                    draftSummary.benchCutTarget = serverDraft.benchCutTarget;
+                }
+
+                refreshSummaryLimits();
+                persistSummary();
+            }
+
+            onComplete();
+        });
+    }
+
+    refreshSummaryLimits();
 
     if (socket && draftSummary.draftCode) {
         socket.emit('joinDraftRoom', draftSummary.draftCode, username);
@@ -46,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             team.roster = Array.isArray(data.newRoster) ? data.newRoster : team.roster;
             persistSummary();
+            refreshSummaryLimits();
             renderTeamButtons();
 
             if (!selectedTeamName || selectedTeamName === data.teamName) {
@@ -53,6 +117,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderSelectedTeam();
             }
         });
+
+        syncSummaryFromServer(renderSummaryView);
+    } else {
+        renderSummaryView();
     }
 
     function loadSummary() {
@@ -174,10 +242,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         lineupGrid.innerHTML = slots.map(slot => renderLineupRow(slot.label, slot.player)).join('');
 
-        renderBenchSection(team, bench, requiredCuts, isCurrentUserTeam);
+        renderBenchSection(team, slots, bench, requiredCuts, isCurrentUserTeam);
     }
 
-    function renderBenchSection(team, bench, requiredCuts, isCurrentUserTeam) {
+    function renderBenchSection(team, slots, bench, requiredCuts, isCurrentUserTeam) {
+        const benchIdSet = new Set(
+            (bench || [])
+                .map(player => Number(player.id))
+                .filter(id => Number.isFinite(id))
+        );
+
         const buildBenchRows = (withCheckboxes = false) => {
             if (bench.length === 0) {
                 return '<div class="bench-empty">No bench players.</div>';
@@ -210,6 +284,52 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join('');
         };
 
+        const renderCutCheckboxRow = (player, slotLabel, isBenchPlayer) => {
+            const warningText = isBenchPlayer ? '' : '<span class="warning cut-inline-warning">Starter cut requires confirmation</span>';
+            return `
+                <label class="bench-item bench-item-cut">
+                    <span class="bench-main">
+                        <span class="bench-pos">${escapeHtml(slotLabel || player.position || 'N/A')}</span>
+                        <span class="bench-player">${escapeHtml(player.name || 'Unknown')} - $${Number(player.bid || 0)}</span>
+                        <span class="bench-rank">Rank ${Number(player.prerank || 999)}</span>
+                        ${warningText}
+                    </span>
+                    <input
+                        class="bench-cut-toggle"
+                        type="checkbox"
+                        name="cut"
+                        value="${escapeHtml(player.id !== undefined && player.id !== null ? String(player.id) : '')}"
+                        data-player-name="${escapeHtml(player.name || 'Unknown')}"
+                        data-bench-player="${isBenchPlayer ? 'true' : 'false'}"
+                        aria-label="Cut ${escapeHtml(player.name || 'Unknown')}"
+                    >
+                </label>
+            `;
+        };
+
+        const buildStarterCutRows = () => {
+            const slottedPlayers = Array.isArray(slots) ? slots.filter(slot => slot.player) : [];
+            if (slottedPlayers.length === 0) {
+                return '<div class="bench-empty">No starter slots filled.</div>';
+            }
+
+            return slottedPlayers
+                .map(slot => renderCutCheckboxRow(slot.player, slot.label, false))
+                .join('');
+        };
+
+        const buildBenchCutRows = () => {
+            if (bench.length === 0) {
+                return '<div class="bench-empty">No bench players.</div>';
+            }
+
+            return bench
+                .slice()
+                .sort((a, b) => Number(a.prerank || 999) - Number(b.prerank || 999))
+                .map(player => renderCutCheckboxRow(player, player.position, true))
+                .join('');
+        };
+
         const benchListHtml = `<div class="bench-list">${buildBenchRows(false)}</div>`;
 
         if (requiredCuts <= 0) {
@@ -230,16 +350,41 @@ document.addEventListener('DOMContentLoaded', () => {
         benchContainer.innerHTML = `
             <div class="cut-panel">
                 <h4>Cut Players Required</h4>
-                <p>Select exactly <strong>${requiredCuts}</strong> player(s) to cut. Rule: max ${maxTotalPlayers} total players and max ${maxBenchPlayers} bench players.</p>
+                <p>Select exactly <strong>${requiredCuts}</strong> player(s) to cut from anywhere on your roster. Rule: max ${maxTotalPlayers} total players and max ${maxBenchPlayers} bench players.</p>
                 <form id="cut-bench-form">
-                    <div class="bench-list">${buildBenchRows(true)}</div>
+                    <div class="cut-form-section">
+                        <div class="cut-form-heading">Starting Lineup</div>
+                        <div class="bench-list">${buildStarterCutRows()}</div>
+                    </div>
+                    <div class="cut-form-section">
+                        <div class="cut-form-heading">Bench By Default Top Ranking</div>
+                        <div class="bench-list">${buildBenchCutRows()}</div>
+                    </div>
                     <button type="submit" class="account-btn cut-btn">Confirm Cuts</button>
                 </form>
+            </div>
+            <div class="cut-panel">
+                <h4>Bench View</h4>
+                ${benchListHtml}
             </div>
         `;
 
         const form = document.getElementById('cut-bench-form');
         if (!form) return;
+
+        form.querySelectorAll('input[name="cut"]').forEach(input => {
+            input.addEventListener('change', () => {
+                if (!input.checked || input.dataset.benchPlayer === 'true') {
+                    return;
+                }
+
+                const playerName = String(input.dataset.playerName || 'this starter');
+                const confirmed = window.confirm(`Cut ${playerName} even though they are currently in a starting lineup spot?`);
+                if (!confirmed) {
+                    input.checked = false;
+                }
+            });
+        });
 
         form.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -256,6 +401,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectedNames = selectedInputs
                 .map(el => String(el.dataset.playerName || '').trim())
                 .filter(Boolean);
+            const cutSelections = selectedInputs.map(el => ({
+                id: Number(el.value),
+                name: String(el.dataset.playerName || '').trim()
+            }));
+
+            console.log('[draft-summary] submitting cuts', {
+                teamName: team.name,
+                requiredCuts,
+                selectedCount: selectedInputs.length,
+                selectedIds,
+                selectedNames,
+                cutSelections
+            });
 
             if (!socket) {
                 alert('Realtime connection is not available. Please refresh and try again.');
@@ -269,15 +427,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 draftCode: draftSummary.draftCode,
                 teamName: team.name,
                 cutIds: selectedIds,
-                cutNames: selectedNames
+                cutNames: selectedNames,
+                cutSelections
             }, (response) => {
                 if (button) button.disabled = false;
                 if (!response || !response.ok) {
                     const reason = response && response.reason ? response.reason : 'unknown_error';
+                    console.warn('[draft-summary] cutPlayers failed', response);
                     if (typeof reason === 'string' && reason.startsWith('must_cut_exactly_')) {
                         const parts = reason.split('_');
                         const required = parts[3] || requiredCuts;
-                        alert(`Cut failed: you must select exactly ${required} bench player(s).`);
+                        const debug = response && response.debug
+                            ? `\n\nDebug: required=${response.debug.requiredCuts}, selected=${response.debug.requestedSelectionCount}, matched=${response.debug.matchedSelectionCount}, roster=${response.debug.rosterSize}, bench=${response.debug.benchSize}`
+                            : '';
+                        alert(`Cut failed: you must select exactly ${required} player(s).${debug}`);
                     } else {
                         alert(`Cut failed: ${reason}`);
                     }

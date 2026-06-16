@@ -100,22 +100,7 @@ function getBidRange(position, avgValue, useServerRanges = false) {
 }
 
 function isValidRosterAddition(team, player, rosterLimits = null, maxRosterSize = null) {
-  const roster = team?.roster || [];
-
-  if (typeof maxRosterSize === 'number' && roster.length >= maxRosterSize) {
-    return false;
-  }
-
-  if (!rosterLimits || !rosterLimits[player.position]) {
-    return true;
-  }
-
-  const counts = roster.reduce((positionCounts, rosterPlayer) => {
-    positionCounts[rosterPlayer.position] = (positionCounts[rosterPlayer.position] || 0) + 1;
-    return positionCounts;
-  }, {});
-
-  return (counts[player.position] || 0) < rosterLimits[player.position].max;
+  return true;
 }
 
 const defaultRosterTargets = {
@@ -1002,9 +987,9 @@ function generateClientCPUBids(teams, roundPlayers, username, rosterSize, curren
 // Server-side CPU bidding for silent auctions (from server.js)
 async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize, rosterLimits, humanMembers, roundNumber) {
   try {
-    // Filter to only CPU teams (teams not controlled by human members), allow bench filling
+    // Filter to only CPU teams (teams not controlled by human members).
     const maxRosterSize = getMaxRosterSize(rosterSize);
-    const cpuTeams = teams.filter(t => !humanMembers.includes(t.name) && t.roster.length < maxRosterSize);
+    const cpuTeams = teams.filter(t => !humanMembers.includes(t.name));
     const cpuBids = {};
 
     console.log(`[generateCPUBids] Human members: ${humanMembers.join(', ')}`);

@@ -785,6 +785,7 @@ input[type=text],input[type=password],input[type=email],input[type=tel]{padding:
 .admin-drag-handle{font-size:1rem;opacity:0.8;cursor:grab}
 .admin-rank-player-name{display:block;min-width:0;font-size:0.95rem;line-height:1.2;font-weight:700;color:#f8fbff}
 .admin-rank-player-meta{font-size:0.82rem;color:#b7c5d5;white-space:nowrap}
+.admin-aj-slot-badge{display:inline-flex;align-items:center;justify-content:center;min-width:34px;padding:2px 6px;border-radius:999px;background:rgba(143,178,217,0.2);border:1px solid rgba(200,220,244,0.28);color:#eef6ff;font-weight:700;letter-spacing:0.03em}
 .admin-top-row-details{display:flex;flex-direction:column;gap:6px;min-width:0}
 .admin-top-rank-label{font-size:0.78rem;color:#d8e2ec;font-weight:700;text-transform:uppercase;letter-spacing:0.04em}
 .admin-player-value-edits{display:flex;align-items:center;gap:10px;flex-wrap:wrap}

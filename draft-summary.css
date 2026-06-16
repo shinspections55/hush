@@ -230,6 +230,23 @@
     color: #f8fafc;
 }
 
+.cut-form-section {
+    margin-bottom: 12px;
+}
+
+.cut-form-heading {
+    margin-bottom: 6px;
+    color: #f8fafc;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.cut-inline-warning {
+    margin-top: 0;
+    white-space: nowrap;
+}
+
 .cut-option {
     display: block;
     margin-bottom: 8px;

@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
   const BOARD_POSITIONS = ['TOP', ...POSITIONS];
   const ADMIN_TIER_INSERT_MODE_KEY = 'adminRankingsTierInsertMode';
+  const AJ_ROUND_CODES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+  const AJ_REVERSED_START_POSITIONS = new Set(['WR', 'TE', 'K']);
 
   const keyInput = document.getElementById('adminKeyInput');
   const connectForm = document.getElementById('adminConnectForm');
@@ -14,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const metricUptime = document.getElementById('metricUptime');
   const metricTotalRequests = document.getElementById('metricTotalRequests');
   const metricAuthUsers = document.getElementById('metricAuthUsers');
+  const metricPremiumUsers = document.getElementById('metricPremiumUsers');
   const metricDefaultRankings = document.getElementById('metricDefaultRankings');
   const methodChart = document.getElementById('adminMethodChart');
   const statusChart = document.getElementById('adminStatusChart');
@@ -300,6 +303,19 @@ document.addEventListener('DOMContentLoaded', () => {
     return Number.isNaN(date.getTime()) ? 'Unknown' : date.toLocaleString();
   }
 
+  function getAjSlotCode(position, rankNumber) {
+    const normalizedPosition = String(position || '').trim().toUpperCase();
+    const normalizedRank = Math.max(1, Number.parseInt(rankNumber, 10) || 1);
+    const zeroBasedRank = normalizedRank - 1;
+    const blockIndex = Math.floor(zeroBasedRank / 10);
+    const offset = zeroBasedRank % 10;
+    const startsReversed = AJ_REVERSED_START_POSITIONS.has(normalizedPosition);
+    const isPageOneBlock = startsReversed ? (blockIndex % 2 === 1) : (blockIndex % 2 === 0);
+    const roundIndex = isPageOneBlock ? offset : (AJ_ROUND_CODES.length - 1 - offset);
+    const page = isPageOneBlock ? 1 : 2;
+    return `${AJ_ROUND_CODES[roundIndex]}${page}`;
+  }
+
   function setOverviewMode(rawMode) {
     showingRawOverview = !!rawMode;
     overviewOutput.classList.toggle('hidden', !showingRawOverview);
@@ -359,6 +375,9 @@ document.addEventListener('DOMContentLoaded', () => {
     metricUptime.textContent = formatUptime(system.uptimeSeconds || 0);
     metricTotalRequests.textContent = formatNumber(traffic.totalRequests || 0);
     metricAuthUsers.textContent = formatNumber(system.authUsersCount || 0);
+    if (metricPremiumUsers) {
+      metricPremiumUsers.textContent = '0';
+    }
     metricDefaultRankings.textContent = formatNumber(system.defaultRankingsCount || 0);
   }
 
@@ -612,12 +631,14 @@ document.addEventListener('DOMContentLoaded', () => {
     row.className = 'admin-ranking-player-row';
     row.draggable = true;
     row.dataset.index = String(index);
+    const rowPosition = player.position || activePosition;
+    const ajSlotCode = !isTopView() ? getAjSlotCode(rowPosition, index + 1) : '';
     if (isTopView()) {
       row.innerHTML = `
         <span class="admin-drag-handle" aria-hidden="true">⠿</span>
         <span class="admin-rank-player-name">${escapeHtml(player.name || 'Unknown Player')}</span>
         <div class="admin-top-row-details">
-          <span class="admin-rank-player-meta">#${index + 1} | ${escapeHtml(player.position || activePosition)}</span>
+          <span class="admin-rank-player-meta">#${index + 1} | ${escapeHtml(rowPosition)}</span>
           <label class="admin-av-edit admin-team-edit">
             <span>Team</span>
             <input type="text" class="admin-team-input" maxlength="5" value="${escapeHtml(player.team || '')}" placeholder="FA">
@@ -631,7 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <span class="admin-drag-handle" aria-hidden="true">⠿</span>
         <span class="admin-rank-player-name">${escapeHtml(player.name || 'Unknown Player')}</span>
         <div class="admin-top-row-details">
-          <span class="admin-rank-player-meta">#${index + 1} | ${escapeHtml(player.position || activePosition)}</span>
+          <span class="admin-rank-player-meta">#${index + 1} | ${escapeHtml(rowPosition)} | <span class="admin-aj-slot-badge">${ajSlotCode}</span></span>
           <label class="admin-av-edit admin-team-edit">
             <span>Team</span>
             <input type="text" class="admin-team-input" maxlength="5" value="${escapeHtml(player.team || '')}" placeholder="FA">

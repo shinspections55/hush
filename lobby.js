@@ -54,6 +54,15 @@ window.initializeLobby = function initializeLobby(opts){
     return Math.max(3, Math.min(parsed, 10));
   }
 
+  function buildAjRoundOrder() {
+    const order = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    return order;
+  }
+
   function normalizeCustomBudgets(raw, members) {
     const source = (raw && typeof raw === 'object') ? raw : {};
     const out = {};
@@ -85,6 +94,7 @@ window.initializeLobby = function initializeLobby(opts){
   const rosterSummary = document.getElementById('rosterSummary');
   const applyRosterBtn = document.getElementById('applyRosterBtn');
   const roundTimerMinutesInput = document.getElementById('roundTimerMinutes');
+  const ajDraftModeInput = document.getElementById('ajDraftMode');
   const customBudgetControls = document.getElementById('customBudgetControls');
   const toggleBudgetPanelBtn = document.getElementById('toggleBudgetPanelBtn');
   const customBudgetPanel = document.getElementById('customBudgetPanel');
@@ -184,6 +194,7 @@ window.initializeLobby = function initializeLobby(opts){
     rosterSettings.BN = DEFAULT_DRAFT_BENCH;
     const benchCutTarget = normalizeBenchCutTarget(drafts[code].benchCutTarget, DEFAULT_BENCH_CUT_TARGET);
     const roundTimerMinutes = normalizeRoundTimerMinutes(drafts[code].roundTimerMinutes, DEFAULT_ROUND_TIMER_MINUTES);
+    const ajDraftMode = Boolean(drafts[code].ajDraftMode);
     const hadSameRoster = JSON.stringify(drafts[code].rosterSettings || {}) === JSON.stringify(rosterSettings);
     if (!hadSameRoster) {
       drafts[code].rosterSettings = rosterSettings;
@@ -200,6 +211,11 @@ window.initializeLobby = function initializeLobby(opts){
       localStorage.setItem('drafts', JSON.stringify(drafts));
       try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
     }
+    if (Boolean(drafts[code].ajDraftMode) !== ajDraftMode) {
+      drafts[code].ajDraftMode = ajDraftMode;
+      localStorage.setItem('drafts', JSON.stringify(drafts));
+      try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
+    }
     Object.entries(rosterInputMap).forEach(([key, input]) => {
       if (!input) return;
       if (key === 'BN') {
@@ -210,6 +226,9 @@ window.initializeLobby = function initializeLobby(opts){
     });
     if (roundTimerMinutesInput) {
       roundTimerMinutesInput.value = String(roundTimerMinutes);
+    }
+    if (ajDraftModeInput) {
+      ajDraftModeInput.checked = ajDraftMode;
     }
 
     const normalizedCustomBudgets = normalizeCustomBudgets(drafts[code].customBudgets, members);
@@ -268,6 +287,7 @@ window.initializeLobby = function initializeLobby(opts){
       if (applyRosterBtn) applyRosterBtn.disabled = true;
       Object.values(rosterInputMap).forEach(input => { if (input) input.disabled = true; });
       if (roundTimerMinutesInput) roundTimerMinutesInput.disabled = true;
+      if (ajDraftModeInput) ajDraftModeInput.disabled = true;
       if (leaveBtn) leaveBtn.disabled = false;
 
       // show a one-time alert to the user in addition to the overlay
@@ -287,6 +307,7 @@ window.initializeLobby = function initializeLobby(opts){
       if (applyCapacityBtn) applyCapacityBtn.disabled = false;
       Object.values(rosterInputMap).forEach(input => { if (input) input.disabled = false; });
       if (roundTimerMinutesInput) roundTimerMinutesInput.disabled = false;
+      if (ajDraftModeInput) ajDraftModeInput.disabled = false;
     }
     // notify host when full (show banner once until dismissed)
     const full = cap && members.length >= cap;
@@ -535,6 +556,7 @@ window.initializeLobby = function initializeLobby(opts){
     if (applyRosterBtn) applyRosterBtn.disabled = disableControls;
     Object.values(rosterInputMap).forEach(input => { if (input) input.disabled = disableControls; });
     if (roundTimerMinutesInput) roundTimerMinutesInput.disabled = disableControls;
+    if (ajDraftModeInput) ajDraftModeInput.disabled = disableControls;
     if (rosterControls) {
       rosterControls.classList.toggle('host-readonly', disableControls);
     }
@@ -613,6 +635,13 @@ window.initializeLobby = function initializeLobby(opts){
       roundTimerMinutesInput ? roundTimerMinutesInput.value : undefined,
       DEFAULT_ROUND_TIMER_MINUTES
     );
+    drafts[code].ajDraftMode = Boolean(ajDraftModeInput && ajDraftModeInput.checked);
+    drafts[code].ajRoundOrder = drafts[code].ajDraftMode
+      ? (Array.isArray(drafts[code].ajRoundOrder) && drafts[code].ajRoundOrder.length === 10 ? drafts[code].ajRoundOrder : buildAjRoundOrder())
+      : undefined;
+    if (!drafts[code].ajDraftMode) {
+      delete drafts[code].ajRoundOrder;
+    }
     localStorage.setItem('drafts', JSON.stringify(drafts));
     try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) { console.warn('updateDraft emit failed', e); }
     refreshMembers();
@@ -658,6 +687,9 @@ window.initializeLobby = function initializeLobby(opts){
   });
   if (roundTimerMinutesInput) {
     roundTimerMinutesInput.addEventListener('change', queueRosterAutosave);
+  }
+  if (ajDraftModeInput) {
+    ajDraftModeInput.addEventListener('change', queueRosterAutosave);
   }
 
   if (toggleBudgetPanelBtn && customBudgetPanel) {
@@ -732,6 +764,13 @@ window.initializeLobby = function initializeLobby(opts){
         roundTimerMinutesInput ? roundTimerMinutesInput.value : undefined,
         DEFAULT_ROUND_TIMER_MINUTES
       );
+      drafts[code].ajDraftMode = Boolean(ajDraftModeInput && ajDraftModeInput.checked);
+      drafts[code].ajRoundOrder = drafts[code].ajDraftMode
+        ? buildAjRoundOrder()
+        : undefined;
+      if (!drafts[code].ajDraftMode) {
+        delete drafts[code].ajRoundOrder;
+      }
       const selectedRoundTimerMinutes = drafts[code].roundTimerMinutes;
       console.log('[lobby] startDraft selectedRoundTimerMinutes:', selectedRoundTimerMinutes, 'draft state:', drafts[code]);
       localStorage.setItem('drafts', JSON.stringify(drafts));
