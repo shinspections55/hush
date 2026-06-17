@@ -289,7 +289,7 @@ function setUserThemePreference(username, theme) {
       '  flex-direction: column;',
       '  align-items: center;',
       '  justify-content: center;',
-      '  gap: 10px;',
+      '  gap: 0;',
       '  opacity: 0;',
       '  transform: translateY(8px) scale(0.92);',
       '  animation: hushLogoReveal 3s ease forwards;',
@@ -324,15 +324,6 @@ function setUserThemePreference(username, theme) {
       '  animation: hushMetalSweep 3s ease forwards;',
       '  pointer-events: none;',
       '}',
-      '.hush-app-splash-title {',
-      '  margin: 0;',
-      '  font-size: clamp(26px, 5.6vw, 42px);',
-      '  letter-spacing: 0.24em;',
-      '  color: #dfeaf4;',
-      '  text-shadow: 0 0 18px rgba(119, 177, 224, 0.26);',
-      '  opacity: 0;',
-      '  animation: hushTitleIn 3s ease forwards;',
-      '}',
       '@keyframes hushSmokeDrift {',
       '  0% { opacity: 0; transform: translate(-18%, 22%) scale(0.9); }',
       '  26.67% { opacity: 0.62; transform: translate(-7%, 9%) scale(1.01); }',
@@ -366,11 +357,6 @@ function setUserThemePreference(username, theme) {
       '  73.33% { transform: translateX(185%) skewX(-8deg); opacity: 0.94; }',
       '  100% { transform: translateX(185%) skewX(-8deg); opacity: 0; }',
       '}',
-      '@keyframes hushTitleIn {',
-      '  0%, 50% { opacity: 0; transform: translateY(8px); }',
-      '  73.33% { opacity: 1; transform: translateY(0); }',
-      '  100% { opacity: 1; transform: translateY(0); }',
-      '}',
       '@supports (-webkit-touch-callout: none) {',
       '  .hush-app-splash-metal { background: linear-gradient(106deg, rgba(255,255,255,0) 20%, rgba(255,255,255,0.96) 48%, rgba(255,255,255,0) 70%); }',
       '  .hush-app-splash-logo { filter: drop-shadow(0 14px 34px rgba(148, 206, 247, 0.42)); }',
@@ -380,7 +366,7 @@ function setUserThemePreference(username, theme) {
       '  to { opacity: 0; visibility: hidden; }',
       '}',
       '@media (prefers-reduced-motion: reduce) {',
-      '  .hush-app-splash-smoke, .hush-app-splash-smoke::before, .hush-app-splash-smoke::after, .hush-app-splash-glow, .hush-app-splash-logo-wrap, .hush-app-splash-metal, .hush-app-splash-laces, .hush-app-splash-title { animation: none; opacity: 1; transform: none; }',
+      '  .hush-app-splash-smoke, .hush-app-splash-smoke::before, .hush-app-splash-smoke::after, .hush-app-splash-glow, .hush-app-splash-logo-wrap, .hush-app-splash-metal, .hush-app-splash-laces { animation: none; opacity: 1; transform: none; }',
       '}'
     ].join('\n');
     document.head.appendChild(style);
@@ -407,7 +393,6 @@ function setUserThemePreference(username, theme) {
       '    <div class="hush-app-splash-laces"></div>',
       '    <div class="hush-app-splash-metal"></div>',
       '  </div>',
-      '  <h1 class="hush-app-splash-title">HUSH</h1>',
       '</div>'
     ].join('');
 
