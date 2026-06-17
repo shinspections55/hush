@@ -1063,7 +1063,7 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .header-bar {
     z-index: 12025;
     min-height: var(--draft-app-header-height);
     display: grid;
-    grid-template-columns: minmax(0, 1.9fr) auto auto;
+    grid-template-columns: minmax(124px, 1fr) minmax(88px, auto) minmax(108px, auto);
     align-items: start;
     gap: 10px;
     padding: calc(8px + env(safe-area-inset-top)) 10px 26px 10px;
@@ -1095,12 +1095,13 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .header-bid-coun
     padding: 5px 8px;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    text-overflow: clip;
     text-align: center;
     margin: 0;
     z-index: 1;
     border-radius: 7px;
     background: rgba(11, 11, 13, 0.78);
+    white-space: nowrap;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #auto-draft-toggle {
@@ -1113,6 +1114,7 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #auto-draft-togg
     font-weight: 700;
     border-radius: 10px;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info {
@@ -1130,6 +1132,7 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info .dra
     display: inline-flex;
     align-items: baseline;
     gap: 8px;
+    white-space: nowrap;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info #current-round {
@@ -1142,6 +1145,8 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info #tim
     font-size: 20px;
     line-height: 1;
     color: #f3fbff;
+    display: inline-block;
+    min-width: 52px;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .submit-area {
@@ -1154,6 +1159,7 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #submit-bids {
     font-size: 12px;
     border-radius: 10px;
     min-height: 42px;
+    min-width: 104px;
     white-space: nowrap;
 }
 

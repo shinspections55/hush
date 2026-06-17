@@ -1512,6 +1512,25 @@ function initSilentDraft() {
     }
 
     // Update bid counter
+    function fitHeaderBidCounterSingleLine() {
+        const bidCounter = document.getElementById('bid-counter');
+        if (!bidCounter) return;
+
+        // Reset to max readable size, then shrink only as needed.
+        let fontSize = 11;
+        bidCounter.style.fontSize = `${fontSize}px`;
+        bidCounter.style.letterSpacing = '0';
+
+        while (fontSize > 8 && bidCounter.scrollWidth > bidCounter.clientWidth) {
+            fontSize -= 0.5;
+            bidCounter.style.fontSize = `${fontSize}px`;
+        }
+
+        if (bidCounter.scrollWidth > bidCounter.clientWidth) {
+            bidCounter.style.letterSpacing = '-0.02em';
+        }
+    }
+
     function updateBidCounter() {
         const bidCounter = document.getElementById('bid-counter');
         if (!bidCounter) return;
@@ -1536,6 +1555,8 @@ function initSilentDraft() {
         } else {
             bidCounter.style.color = '#28a745'; // Green for good
         }
+
+        fitHeaderBidCounterSingleLine();
     }
 
     function getDraftRoomPlayerStatus(playerName) {
@@ -2297,6 +2318,10 @@ function initSilentDraft() {
 
             // Initial update of bid counter
             updateBidCounter();
+
+            // Keep the header totals on one line across tiny phone widths.
+            window.addEventListener('resize', fitHeaderBidCounterSingleLine);
+            window.addEventListener('orientationchange', fitHeaderBidCounterSingleLine);
         }
 
         // Submit Bids button
