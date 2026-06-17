@@ -340,6 +340,7 @@ window.initializeLobby = function initializeLobby(opts){
     const alreadyNotified = sessionStorage.getItem(notifiedKey);
     if(isHost && full && !alreadyNotified){ if(hostBanner){ hostBanner.style.display = 'block'; } sessionStorage.setItem(notifiedKey, '1'); }
     if(!full){ if(hostBanner){ hostBanner.style.display = 'none'; } sessionStorage.removeItem(notifiedKey); }
+    updateStartDraftControlState();
   }
 
   function renderCustomBudgetInputs(members, budgets, editable) {
@@ -621,6 +622,17 @@ window.initializeLobby = function initializeLobby(opts){
     }
   }
 
+  function updateStartDraftControlState(){
+    if (!startDraftBtn) return;
+    const draftsRaw = localStorage.getItem('drafts');
+    const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
+    const isHost = isCurrentUserHost(drafts[code]);
+    const isClosed = Boolean(drafts[code] && drafts[code].closed);
+    const hideStart = !isHost || isClosed;
+    startDraftBtn.classList.toggle('hidden', hideStart);
+    startDraftBtn.disabled = hideStart;
+  }
+
   if (applyCapacityBtn) {
     applyCapacityBtn.addEventListener('click', () => {
       const draftsRaw = localStorage.getItem('drafts');
@@ -775,6 +787,7 @@ window.initializeLobby = function initializeLobby(opts){
   updateCapacityControls();
   updateRosterControlsState();
   updateCustomBudgetControlsState();
+  updateStartDraftControlState();
 
   if(dismissBanner){ dismissBanner.addEventListener('click', ()=>{ if(hostBanner) hostBanner.style.display = 'none'; sessionStorage.setItem(`notified_full_${code}`,'1'); }); }
 

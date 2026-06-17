@@ -88,6 +88,14 @@
         </div>
     </div>
 
+    <nav id="silentdraft-app-nav" class="silentdraft-app-nav" aria-label="Draft sections" hidden>
+        <button type="button" class="silentdraft-app-nav-btn" data-sd-section="players">Players</button>
+        <button type="button" class="silentdraft-app-nav-btn" data-sd-section="roster">Roster</button>
+        <button type="button" class="silentdraft-app-nav-btn" data-sd-section="budgets">Budgets</button>
+        <button type="button" class="silentdraft-app-nav-btn" data-sd-section="rankings">Rankings</button>
+        <button type="button" class="silentdraft-app-nav-btn" data-sd-section="chat">Chat <span id="app-chat-badge" class="chat-tab-badge" hidden>0</span></button>
+    </nav>
+
     <script src="/socket.io/socket.io.js" onerror="(function(){var s=document.createElement('script');s.src='https://cdn.socket.io/4.7.2/socket.io.min.js';document.head.appendChild(s);})();"></script>
     <script src="preferences.js?v=20260611c"></script>
     <script src="silentdraft.js?v=20260616h"></script>

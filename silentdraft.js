@@ -1,6 +1,7 @@
 function initSilentDraft() {
     const DRAFTROOM_RANKINGS_MODE_KEY = 'draftroomRankingsMode';
     const DRAFTROOM_RIGHT_VIEW_KEY = 'draftroomRightView';
+    const DRAFT_APP_SECTION_VIEW_KEY = 'draftAppSectionView';
     const STARRED_PLAYERS_KEY = 'rankingsStarredPlayers';
     const DRAFT_TEMP_STARRED_KEY = 'rankingsDraftStarredPlayers';
     let currentRound = 1;
@@ -176,6 +177,8 @@ function initSilentDraft() {
     let players = [];
     let draftRoomRankingsMode = 'personal';
     let draftRoomRightViewMode = 'budgets';
+    let draftAppSectionViewMode = 'players';
+    let draftAppSectionNavEnabled = false;
     let draftRoomRankingsPosition = 'ALL';
     let draftChatMessages = [];
     const DRAFT_CHAT_MAX_LENGTH = 240;
@@ -388,6 +391,15 @@ function initSilentDraft() {
     } catch (e) {
         draftRoomRightViewMode = 'budgets';
     }
+
+    try {
+        const savedSection = localStorage.getItem(DRAFT_APP_SECTION_VIEW_KEY);
+        if (savedSection === 'players' || savedSection === 'roster' || savedSection === 'budgets' || savedSection === 'rankings' || savedSection === 'chat') {
+            draftAppSectionViewMode = savedSection;
+        }
+    } catch (e) {
+        draftAppSectionViewMode = 'players';
+    }
     
     console.log('[silentdraft] All draft members:', allDraftMembers);
     console.log('[silentdraft] Draft host name:', draftHostName);
@@ -395,6 +407,7 @@ function initSilentDraft() {
     console.log('[silentdraft] Is host:', window.isHost);
     setupRightViewTabs();
     applyRightViewMode();
+    setupDraftAppSectionNav();
     setupDraftRoomRankingsTabs();
     setupDraftRoomRankingsPositionTabs();
     renderDraftRoomRankings();
@@ -1783,6 +1796,101 @@ function initSilentDraft() {
             badge.hidden = true;
             badge.textContent = '0';
         }
+        updateDraftAppChatBadge();
+    }
+
+    function updateDraftAppChatBadge() {
+        const appBadge = document.getElementById('app-chat-badge');
+        if (!appBadge) return;
+        if (draftChatUnreadCount > 0) {
+            appBadge.hidden = false;
+            appBadge.textContent = draftChatUnreadCount > 99 ? '99+' : String(draftChatUnreadCount);
+        } else {
+            appBadge.hidden = true;
+            appBadge.textContent = '0';
+        }
+    }
+
+    function isDraftAppSectionNavSupported() {
+        const isInstalled = document.body && document.body.classList.contains('pwa-installed');
+        const isCompact = window.matchMedia && window.matchMedia('(max-width: 900px)').matches;
+        return Boolean(isInstalled && isCompact);
+    }
+
+    function applyDraftAppSectionMode(section, options = {}) {
+        const mode = (section === 'roster' || section === 'budgets' || section === 'rankings' || section === 'chat') ? section : 'players';
+        draftAppSectionViewMode = mode;
+
+        if (mode === 'budgets' || mode === 'rankings' || mode === 'chat') {
+            draftRoomRightViewMode = mode;
+            try {
+                localStorage.setItem(DRAFTROOM_RIGHT_VIEW_KEY, draftRoomRightViewMode);
+            } catch (e) {
+                // ignore
+            }
+            applyRightViewMode();
+        }
+
+        if (document.body && draftAppSectionNavEnabled) {
+            document.body.setAttribute('data-draft-app-section', draftAppSectionViewMode);
+        }
+
+        const navButtons = document.querySelectorAll('.silentdraft-app-nav-btn');
+        navButtons.forEach((button) => {
+            button.classList.toggle('is-active', button.dataset.sdSection === draftAppSectionViewMode);
+        });
+
+        if (mode === 'chat') {
+            setTimeout(() => {
+                const chatInput = document.getElementById('draft-chat-input');
+                if (chatInput) chatInput.focus();
+            }, 60);
+        }
+
+        if (options.persist !== false) {
+            try {
+                localStorage.setItem(DRAFT_APP_SECTION_VIEW_KEY, draftAppSectionViewMode);
+            } catch (e) {
+                // ignore
+            }
+        }
+    }
+
+    function refreshDraftAppSectionNavState() {
+        const nav = document.getElementById('silentdraft-app-nav');
+        if (!nav || !document.body) return;
+
+        const enabled = isDraftAppSectionNavSupported();
+        draftAppSectionNavEnabled = enabled;
+        nav.hidden = !enabled;
+        document.body.classList.toggle('silentdraft-app-nav-enabled', enabled);
+
+        if (!enabled) {
+            document.body.removeAttribute('data-draft-app-section');
+            return;
+        }
+
+        applyDraftAppSectionMode(draftAppSectionViewMode, { persist: false });
+        updateDraftAppChatBadge();
+    }
+
+    function setupDraftAppSectionNav() {
+        const nav = document.getElementById('silentdraft-app-nav');
+        if (!nav) return;
+
+        nav.querySelectorAll('.silentdraft-app-nav-btn').forEach((button) => {
+            button.addEventListener('click', () => {
+                const requested = button.dataset.sdSection;
+                applyDraftAppSectionMode(requested, { persist: true });
+            });
+        });
+
+        if (draftAppSectionViewMode === 'budgets' || draftAppSectionViewMode === 'rankings' || draftAppSectionViewMode === 'chat') {
+            draftRoomRightViewMode = draftAppSectionViewMode;
+        }
+
+        refreshDraftAppSectionNavState();
+        window.addEventListener('resize', refreshDraftAppSectionNavState);
     }
 
     function applyRightViewMode() {
@@ -1824,6 +1932,8 @@ function initSilentDraft() {
             const chatInput = document.getElementById('draft-chat-input');
             if (chatInput) chatInput.focus();
         }
+
+        updateDraftAppChatBadge();
     }
 
     function formatDraftChatTime(timestamp) {

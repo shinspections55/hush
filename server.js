@@ -2023,28 +2023,30 @@ io.on('connection', (socket) => {
       : undefined;
     const cb = typeof roundTimerMinutesOrCb === 'function' ? roundTimerMinutesOrCb : cbMaybe;
     console.log(`[startDraft] ${code} type=${draftType} by ${socket.data.username} rawTimerArg=${roundTimerMinutesOrCb}`);
-    // Verify the requester is the host (first member)
-    if(drafts[code] && drafts[code].members && drafts[code].members[0] === socket.data.username){
+    // Verify the requester is the host (use explicit host field with fallback)
+    const draft = drafts[code];
+    const host = draft && (draft.host || (Array.isArray(draft.members) && draft.members[0]));
+    if(draft && host && host === socket.data.username){
       if (typeof roundTimerMinutes !== 'undefined') {
-        drafts[code].roundTimerMinutes = roundTimerMinutes;
+        draft.roundTimerMinutes = roundTimerMinutes;
       }
-      console.log(`[startDraft] ${code} resolved roundTimerMinutes=${drafts[code].roundTimerMinutes}`);
+      console.log(`[startDraft] ${code} resolved roundTimerMinutes=${draft.roundTimerMinutes}`);
       // Mark draft as started and store the draft type
-      drafts[code].started = true;
-      drafts[code].type = draftType;
-      drafts[code].startedAt = Date.now();
+      draft.started = true;
+      draft.type = draftType;
+      draft.startedAt = Date.now();
       
       // Get all sockets in this room
       const roomSockets = io.sockets.adapter.rooms.get(code);
       console.log(`[startDraft] Broadcasting to ${roomSockets ? roomSockets.size : 0} sockets in room ${code}`);
-      console.log(`[startDraft] Members in draft: ${drafts[code].members.join(', ')}`);
+      console.log(`[startDraft] Members in draft: ${(draft.members || []).join(', ')}`);
       
       // Broadcast to all members in the room (including host)
       io.to(code).emit('draftStarted', draftType);
       console.log(`[startDraft] Broadcast sent`);
       if(cb) cb({ ok: true });
     } else {
-      console.log(`[startDraft] denied - ${socket.data.username} is not the host`);
+      console.log(`[startDraft] denied - ${socket.data.username} is not the host (${host || 'unknown'})`);
       if(cb) cb({ ok: false, reason: 'not_host' });
     }
   });

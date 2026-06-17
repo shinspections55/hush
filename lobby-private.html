@@ -153,6 +153,10 @@
       
       function loadLobbyScripts(){
         console.log('Loading lobby scripts...');
+        var prefs = document.createElement('script');
+        prefs.async = false;
+        prefs.src = 'preferences.js';
+        document.head.appendChild(prefs);
         var lobby = document.createElement('script');
         lobby.async = false;
         lobby.src = 'lobby.js?v=20260616a';
