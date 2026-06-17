@@ -514,31 +514,35 @@ function initSilentDraft() {
             const header = document.querySelector('.header-bar');
             const targetContainer = header ? (header.querySelector('.draft-controls') || header) : document.body;
 
-            indicator.style.display = 'inline-flex';
-            indicator.style.alignItems = 'center';
-            indicator.style.padding = '6px 10px';
+            indicator.style.display = 'inline-block';
+            indicator.style.width = '10px';
+            indicator.style.height = '10px';
             indicator.style.borderRadius = '999px';
-            indicator.style.fontSize = '12px';
-            indicator.style.fontWeight = '700';
-            indicator.style.letterSpacing = '0.2px';
-            indicator.style.border = '1px solid transparent';
-            indicator.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
+            indicator.style.border = '1px solid rgba(255,255,255,0.45)';
+            indicator.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.12)';
             indicator.style.marginLeft = '10px';
             indicator.style.cursor = 'default';
+            indicator.style.flexShrink = '0';
+
+            indicator.setAttribute('role', 'status');
+            indicator.setAttribute('aria-live', 'polite');
 
             targetContainer.appendChild(indicator);
         }
 
         if (isConnected) {
-            indicator.textContent = 'Socket connected';
-            indicator.style.background = 'rgba(22, 163, 74, 0.18)';
-            indicator.style.color = '#064e3b';
-            indicator.style.borderColor = 'rgba(34, 197, 94, 0.25)';
+            indicator.textContent = '';
+            indicator.style.background = '#22c55e';
+            indicator.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.12), 0 0 8px rgba(34,197,94,0.55)';
+            indicator.setAttribute('aria-label', 'Socket connected');
+            indicator.title = 'Socket connected';
         } else {
-            indicator.textContent = detailText || 'Socket disconnected - reconnecting';
-            indicator.style.background = 'rgba(220, 38, 38, 0.12)';
-            indicator.style.color = '#88111a';
-            indicator.style.borderColor = 'rgba(248, 113, 113, 0.35)';
+            const statusText = detailText || 'Socket disconnected - reconnecting';
+            indicator.textContent = '';
+            indicator.style.background = '#ef4444';
+            indicator.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.12), 0 0 8px rgba(239,68,68,0.55)';
+            indicator.setAttribute('aria-label', statusText);
+            indicator.title = statusText;
         }
     }
     
