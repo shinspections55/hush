@@ -16,19 +16,18 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     window.navigator.standalone === true
   );
 
-  let resolvedUser = sessionStorage.getItem('username');
-  if (!resolvedUser) {
-    try {
-      const currentUser = await requireCurrentUser();
-      const profile = syncSessionFromUser(currentUser);
-      resolvedUser = profile && profile.username ? profile.username : '';
-    } catch (_error) {
-      if (!isInstalledApp) {
-        window.location.href = 'index.html';
-        return;
-      }
-      resolvedUser = '';
+  let resolvedUser = '';
+  try {
+    const currentUser = await requireCurrentUser();
+    const profile = syncSessionFromUser(currentUser);
+    resolvedUser = profile && profile.username ? profile.username : '';
+  } catch (_error) {
+    clearAuthSession();
+    if (!isInstalledApp) {
+      window.location.href = 'index.html';
+      return;
     }
+    resolvedUser = '';
   }
 
   const user = resolvedUser;
@@ -51,8 +50,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   const downloadAppBtn = document.getElementById('downloadAppBtn');
   const appHomeLoginGate = document.getElementById('appHomeLoginGate');
   const appHomeLoginForm = document.getElementById('appHomeLoginForm');
-  const appHomeEmailInput = document.getElementById('appHomeEmail');
-  const appHomePasswordInput = document.getElementById('appHomePassword');
   const draftActionRow = document.querySelector('#draftActions .dashboard-cta-row');
 
   if(!user){
@@ -62,54 +59,33 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       return;
     }
 
-    if (appHomeEmailInput) {
-      appHomeEmailInput.disabled = true;
-      appHomeEmailInput.autocomplete = 'off';
-    }
-    if (appHomePasswordInput) {
-      appHomePasswordInput.disabled = true;
-      appHomePasswordInput.autocomplete = 'off';
-    }
-
-    const revealAppLoginGate = () => {
-      if (greeting) greeting.textContent = 'Welcome to Hush';
-      if (welcomeText) welcomeText.textContent = 'Sign in to unlock drafts, rankings, wallet, and account features in the app.';
-      if (walletBalanceEl) walletBalanceEl.classList.add('hidden');
-      if (accountBtn) accountBtn.classList.add('hidden');
-      if (accountMenu) accountMenu.classList.remove('show');
-      if (draftActionRow) draftActionRow.classList.add('hidden');
-      if (appHomeLoginGate) appHomeLoginGate.classList.remove('hidden');
-      if (appHomeEmailInput) {
-        appHomeEmailInput.disabled = false;
-        appHomeEmailInput.autocomplete = 'email';
-      }
-      if (appHomePasswordInput) {
-        appHomePasswordInput.disabled = false;
-        appHomePasswordInput.autocomplete = 'current-password';
-      }
-
-      try {
-        const alertKey = 'appHomeLoginPromptShown';
-        if (!sessionStorage.getItem(alertKey)) {
-          alert('Please sign in to continue.');
-          sessionStorage.setItem(alertKey, '1');
-        }
-      } catch (_error) {
-        // ignore storage errors
-      }
-    };
-
-    if (window.__hushSplashComplete) {
-      revealAppLoginGate();
-    } else {
-      window.addEventListener('hush:splash-complete', revealAppLoginGate, { once: true });
-    }
-
     if (appHomeLoginForm) {
+      // Keep auth fields out of DOM during splash to avoid iOS autofill/FaceID prompts.
+      appHomeLoginForm.innerHTML = '';
+    }
+
+    const buildAndBindAppLoginForm = () => {
+      if (!appHomeLoginForm) return null;
+      if (appHomeLoginForm.dataset.ready === '1') {
+        return {
+          emailInput: appHomeLoginForm.querySelector('#appHomeEmail'),
+          passwordInput: appHomeLoginForm.querySelector('#appHomePassword')
+        };
+      }
+
+      appHomeLoginForm.innerHTML = [
+        '<input id="appHomeEmail" type="email" name="email" placeholder="Email address" autocomplete="email" required>',
+        '<input id="appHomePassword" type="password" name="password" placeholder="Password" autocomplete="current-password" required>',
+        '<button type="submit" class="btn btn-signup">Sign In</button>'
+      ].join('');
+
+      const emailInput = appHomeLoginForm.querySelector('#appHomeEmail');
+      const passwordInput = appHomeLoginForm.querySelector('#appHomePassword');
+
       appHomeLoginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const email = String(appHomeEmailInput && appHomeEmailInput.value || '').trim();
-        const password = String(appHomePasswordInput && appHomePasswordInput.value || '');
+        const email = String(emailInput && emailInput.value || '').trim();
+        const password = String(passwordInput && passwordInput.value || '');
         if (!email || !email.includes('@')) {
           alert('Enter a valid email address.');
           return;
@@ -129,6 +105,40 @@ document.addEventListener('DOMContentLoaded', async ()=>{
           alert(formatAuthError(error, 'Sign in failed.'));
         }
       });
+
+      appHomeLoginForm.dataset.ready = '1';
+      return { emailInput, passwordInput };
+    };
+
+    const revealAppLoginGate = () => {
+      const formControls = buildAndBindAppLoginForm();
+      if (greeting) greeting.textContent = 'Welcome to Hush';
+      if (welcomeText) welcomeText.textContent = 'Sign in to unlock drafts, rankings, wallet, and account features in the app.';
+      if (walletBalanceEl) walletBalanceEl.classList.add('hidden');
+      if (accountBtn) accountBtn.classList.add('hidden');
+      if (accountMenu) accountMenu.classList.remove('show');
+      if (draftActionRow) draftActionRow.classList.add('hidden');
+      if (appHomeLoginGate) appHomeLoginGate.classList.remove('hidden');
+      if (formControls && formControls.emailInput) formControls.emailInput.disabled = false;
+      if (formControls && formControls.passwordInput) formControls.passwordInput.disabled = false;
+
+      try {
+        const alertKey = 'appHomeLoginPromptShown';
+        if (!sessionStorage.getItem(alertKey)) {
+          alert('Please sign in to continue.');
+          sessionStorage.setItem(alertKey, '1');
+        }
+      } catch (_error) {
+        // ignore storage errors
+      }
+    };
+
+    if (window.__hushSplashComplete) {
+      revealAppLoginGate();
+    } else {
+      window.addEventListener('hush:splash-complete', revealAppLoginGate, { once: true });
+      // Safety net for missed splash event in cached/edge app states.
+      setTimeout(revealAppLoginGate, 3800);
     }
 
     return;
