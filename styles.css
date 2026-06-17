@@ -347,6 +347,80 @@
     box-shadow: 0 10px 30px rgba(3,5,9,0.18);
 }
 
+/* Installed app mode: cleaner mobile app-style dashboard header */
+body.pwa-installed.dashboard-page .account-menu-stack {
+    display: none !important;
+}
+
+body.pwa-installed.dashboard-page .dashboard-header {
+    position: sticky;
+    top: 0;
+    z-index: 55;
+    padding: 10px 14px;
+    min-height: 58px;
+    border-bottom: 1px solid rgba(170, 183, 200, 0.28);
+    box-shadow: 0 8px 18px rgba(3, 5, 9, 0.22);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+}
+
+body.pwa-installed.dashboard-page .dashboard-header-left {
+    min-width: 0;
+}
+
+body.pwa-installed.dashboard-page .dashboard-header-logo {
+    height: 34px;
+    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.2));
+}
+
+body.pwa-installed.dashboard-page .dashboard-header-center {
+    justify-content: flex-start;
+    padding-left: 10px;
+}
+
+body.pwa-installed.dashboard-page .dashboard-header-title {
+    font-size: 1.03rem;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body.pwa-installed.dashboard-page .dashboard-header-right {
+    gap: 8px;
+}
+
+body.pwa-installed.dashboard-page .dashboard-header .wallet-balance {
+    margin-right: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(170, 183, 200, 0.4);
+    background: rgba(8, 18, 30, 0.45);
+    color: #e6f2fb;
+}
+
+@media (max-width: 700px) {
+    body.pwa-installed.dashboard-page .dashboard-header {
+        flex-direction: row;
+        align-items: center;
+        padding: calc(8px + env(safe-area-inset-top)) 12px 8px 12px;
+    }
+
+    body.pwa-installed.dashboard-page .dashboard-header-center {
+        margin: 0;
+    }
+
+    body.pwa-installed.dashboard-page .dashboard-header-title {
+        font-size: 0.94rem;
+    }
+
+    body.pwa-installed.dashboard-page .dashboard-header-logo {
+        height: 30px;
+    }
+}
+
 body.dashboard-light-mode {
     background-color: #f4efe7;
     background-image: linear-gradient(rgba(255,255,255,0.72), rgba(255,255,255,0.72)), url("HUSHWHITE.png");

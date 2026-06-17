@@ -80,6 +80,9 @@ function setUserThemePreference(username, theme) {
 
 // PWA app shell: show app-only navigation and controls when running installed.
 (function initPwaAppShell() {
+  var APP_LAST_ROUTE_KEY = 'hushLastAppRoute';
+  var APP_SPLASH_SEEN_KEY = 'hushAppSplashSeen';
+
   function isInstalledPwa() {
     try {
       var standaloneDisplay = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
@@ -109,6 +112,232 @@ function setUserThemePreference(username, theme) {
   function isDraftRoute(pathname) {
     var route = String(pathname || '').toLowerCase();
     return route.endsWith('/silentdraft.html') || route.endsWith('/rounds3draft.html');
+  }
+
+  function routePathname(routeValue) {
+    var route = String(routeValue || '');
+    if (!route) return '';
+    var withoutQuery = route.split('?')[0];
+    return withoutQuery.split('#')[0];
+  }
+
+  function getCurrentRoute() {
+    var path = currentPathname();
+    var search = '';
+    var hash = '';
+    try {
+      search = String(window.location.search || '');
+      hash = String(window.location.hash || '');
+    } catch (_error) {
+      // ignore
+    }
+    return path + search + hash;
+  }
+
+  function rememberCurrentRoute() {
+    try {
+      var route = getCurrentRoute();
+      var path = routePathname(route);
+      if (!path || isGuestLikeRoute(path)) return;
+      localStorage.setItem(APP_LAST_ROUTE_KEY, route);
+    } catch (_error) {
+      // ignore route persistence errors
+    }
+  }
+
+  function resolveLaunchRoute(currentRoute) {
+    try {
+      var currentPath = routePathname(currentRoute);
+      var onDashboard = /\/dashboard\.html$/i.test(currentPath);
+      var saved = String(localStorage.getItem(APP_LAST_ROUTE_KEY) || '').trim();
+      if (!saved) return '';
+      var savedPath = routePathname(saved);
+      if (!savedPath || isGuestLikeRoute(savedPath)) return '';
+      if (saved === currentRoute) return '';
+      if (onDashboard) {
+        return saved;
+      }
+      return '';
+    } catch (_error) {
+      return '';
+    }
+  }
+
+  function addSplashStyles() {
+    if (document.getElementById('hushAppSplashStyles')) return;
+    var style = document.createElement('style');
+    style.id = 'hushAppSplashStyles';
+    style.textContent = [
+      '.hush-app-splash {',
+      '  position: fixed;',
+      '  inset: 0;',
+      '  z-index: 22000;',
+      '  display: flex;',
+      '  align-items: center;',
+      '  justify-content: center;',
+      '  overflow: hidden;',
+      '  background: radial-gradient(circle at 50% 40%, rgba(29, 72, 120, 0.22) 0%, rgba(2, 6, 23, 0.985) 52%, #020617 100%);',
+      '}',
+      '.hush-app-splash.is-exit { animation: hushSplashFadeOut 380ms ease forwards; }',
+      '.hush-app-splash-smoke, .hush-app-splash-smoke::before, .hush-app-splash-smoke::after {',
+      '  content: "";',
+      '  position: absolute;',
+      '  width: 75vmax;',
+      '  height: 75vmax;',
+      '  border-radius: 50%;',
+      '  filter: blur(42px);',
+      '  opacity: 0;',
+      '  background: radial-gradient(circle, rgba(151, 179, 204, 0.24) 0%, rgba(95, 122, 148, 0.09) 45%, rgba(2, 6, 23, 0) 72%);',
+      '  animation: hushSmokeDrift 3s ease-out forwards;',
+      '}',
+      '.hush-app-splash-smoke { transform: translate(-18%, 22%); }',
+      '.hush-app-splash-smoke::before { transform: translate(24%, -34%) scale(0.88); animation-delay: 160ms; }',
+      '.hush-app-splash-smoke::after { transform: translate(-26%, -38%) scale(1.05); animation-delay: 260ms; }',
+      '.hush-app-splash-glow {',
+      '  position: absolute;',
+      '  width: 224px;',
+      '  height: 224px;',
+      '  border-radius: 50%;',
+      '  background: radial-gradient(circle, rgba(92, 168, 232, 0.62) 0%, rgba(37, 91, 143, 0.22) 42%, rgba(2, 6, 23, 0) 70%);',
+      '  opacity: 0;',
+      '  animation: hushGlowPulse 3s ease forwards;',
+      '}',
+      '.hush-app-splash-logo-wrap {',
+      '  position: relative;',
+      '  display: flex;',
+      '  flex-direction: column;',
+      '  align-items: center;',
+      '  justify-content: center;',
+      '  gap: 10px;',
+      '  opacity: 0;',
+      '  transform: translateY(8px) scale(0.92);',
+      '  animation: hushLogoReveal 3s ease forwards;',
+      '}',
+      '.hush-app-splash-logo {',
+      '  width: min(36vw, 166px);',
+      '  max-width: 166px;',
+      '  min-width: 104px;',
+      '  filter: drop-shadow(0 10px 30px rgba(129, 189, 237, 0.34));',
+      '}',
+      '.hush-app-splash-laces {',
+      '  position: absolute;',
+      '  width: min(22vw, 98px);',
+      '  height: 14px;',
+      '  top: 50%;',
+      '  left: 50%;',
+      '  transform: translate(-50%, -50%);',
+      '  border-radius: 999px;',
+      '  background: repeating-linear-gradient(90deg, rgba(212, 231, 246, 0.04) 0 7px, rgba(212, 231, 246, 0.78) 7px 9px);',
+      '  box-shadow: 0 0 0 rgba(120, 185, 236, 0);',
+      '  opacity: 0;',
+      '  mix-blend-mode: screen;',
+      '  animation: hushLacesIn 3s ease forwards;',
+      '}',
+      '.hush-app-splash-metal {',
+      '  position: absolute;',
+      '  inset: 0;',
+      '  border-radius: 16px;',
+      '  background: linear-gradient(105deg, rgba(255,255,255,0) 22%, rgba(255,255,255,0.88) 47%, rgba(255,255,255,0) 68%);',
+      '  mix-blend-mode: screen;',
+      '  transform: translateX(-170%) skewX(-8deg);',
+      '  animation: hushMetalSweep 3s ease forwards;',
+      '  pointer-events: none;',
+      '}',
+      '.hush-app-splash-title {',
+      '  margin: 0;',
+      '  font-size: clamp(26px, 5.6vw, 42px);',
+      '  letter-spacing: 0.24em;',
+      '  color: #dfeaf4;',
+      '  text-shadow: 0 0 18px rgba(119, 177, 224, 0.26);',
+      '  opacity: 0;',
+      '  animation: hushTitleIn 3s ease forwards;',
+      '}',
+      '@keyframes hushSmokeDrift {',
+      '  0% { opacity: 0; transform: translate(-18%, 22%) scale(0.9); }',
+      '  26.67% { opacity: 0.62; transform: translate(-7%, 9%) scale(1.01); }',
+      '  50% { opacity: 0.55; transform: translate(0%, 0%) scale(1.08); }',
+      '  73.33% { opacity: 0.26; transform: translate(7%, -9%) scale(1.14); }',
+      '  100% { opacity: 0; transform: translate(12%, -16%) scale(1.18); }',
+      '}',
+      '@keyframes hushGlowPulse {',
+      '  0% { opacity: 0; transform: scale(0.78); }',
+      '  26.67% { opacity: 0.82; transform: scale(1.01); }',
+      '  50% { opacity: 0.62; transform: scale(1.06); }',
+      '  73.33% { opacity: 0.5; transform: scale(1.1); }',
+      '  88% { opacity: 0.94; transform: scale(1.03); }',
+      '  100% { opacity: 0.34; transform: scale(1.17); }',
+      '}',
+      '@keyframes hushLogoReveal {',
+      '  0% { opacity: 0; transform: translateY(8px) scale(0.9); }',
+      '  26.67% { opacity: 0; transform: translateY(8px) scale(0.9); }',
+      '  50% { opacity: 0.98; transform: translateY(0) scale(1); }',
+      '  100% { opacity: 1; transform: translateY(0) scale(1); }',
+      '}',
+      '@keyframes hushLacesIn {',
+      '  0%, 26.67% { opacity: 0; box-shadow: 0 0 0 rgba(120, 185, 236, 0); }',
+      '  36% { opacity: 0.95; box-shadow: 0 0 16px rgba(120, 185, 236, 0.72); }',
+      '  50% { opacity: 0.55; box-shadow: 0 0 8px rgba(120, 185, 236, 0.36); }',
+      '  73.33%, 100% { opacity: 0; box-shadow: 0 0 0 rgba(120, 185, 236, 0); }',
+      '}',
+      '@keyframes hushMetalSweep {',
+      '  0%, 50% { transform: translateX(-185%) skewX(-8deg); opacity: 0; }',
+      '  58% { opacity: 1; }',
+      '  73.33% { transform: translateX(185%) skewX(-8deg); opacity: 0.94; }',
+      '  100% { transform: translateX(185%) skewX(-8deg); opacity: 0; }',
+      '}',
+      '@keyframes hushTitleIn {',
+      '  0%, 50% { opacity: 0; transform: translateY(8px); }',
+      '  73.33% { opacity: 1; transform: translateY(0); }',
+      '  100% { opacity: 1; transform: translateY(0); }',
+      '}',
+      '@supports (-webkit-touch-callout: none) {',
+      '  .hush-app-splash-metal { background: linear-gradient(106deg, rgba(255,255,255,0) 20%, rgba(255,255,255,0.96) 48%, rgba(255,255,255,0) 70%); }',
+      '  .hush-app-splash-logo { filter: drop-shadow(0 14px 34px rgba(148, 206, 247, 0.42)); }',
+      '}',
+      '@keyframes hushSplashFadeOut {',
+      '  from { opacity: 1; }',
+      '  to { opacity: 0; visibility: hidden; }',
+      '}',
+      '@media (prefers-reduced-motion: reduce) {',
+      '  .hush-app-splash-smoke, .hush-app-splash-smoke::before, .hush-app-splash-smoke::after, .hush-app-splash-glow, .hush-app-splash-logo-wrap, .hush-app-splash-metal, .hush-app-splash-laces, .hush-app-splash-title { animation: none; opacity: 1; transform: none; }',
+      '}'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  function showAppSplash(onFinish) {
+    addSplashStyles();
+    if (document.getElementById('hushAppSplash')) {
+      if (typeof onFinish === 'function') onFinish();
+      return;
+    }
+
+    var splash = document.createElement('div');
+    splash.id = 'hushAppSplash';
+    splash.className = 'hush-app-splash';
+    splash.setAttribute('aria-hidden', 'true');
+    splash.innerHTML = [
+      '<div class="hush-app-splash-smoke"></div>',
+      '<div class="hush-app-splash-glow"></div>',
+      '<div class="hush-app-splash-logo-wrap">',
+      '  <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;">',
+      '    <img class="hush-app-splash-logo" src="/HUSHLOGO.png" alt="">',
+      '    <div class="hush-app-splash-laces"></div>',
+      '    <div class="hush-app-splash-metal"></div>',
+      '  </div>',
+      '  <h1 class="hush-app-splash-title">HUSH</h1>',
+      '</div>'
+    ].join('');
+
+    document.body.appendChild(splash);
+
+    setTimeout(function () {
+      splash.classList.add('is-exit');
+      setTimeout(function () {
+        if (splash.parentNode) splash.parentNode.removeChild(splash);
+        if (typeof onFinish === 'function') onFinish();
+      }, 420);
+    }, 3000);
   }
 
   function addShellStyles() {
@@ -383,6 +612,35 @@ function setUserThemePreference(username, theme) {
     if (document.body) {
       document.body.classList.add('pwa-installed');
     }
+    var currentRoute = getCurrentRoute();
+    var launchRoute = resolveLaunchRoute(currentRoute);
+
+    var hasSeenSplash = false;
+    try {
+      hasSeenSplash = sessionStorage.getItem(APP_SPLASH_SEEN_KEY) === '1';
+    } catch (_error) {
+      hasSeenSplash = false;
+    }
+
+    if (!hasSeenSplash) {
+      try {
+        sessionStorage.setItem(APP_SPLASH_SEEN_KEY, '1');
+      } catch (_error) {
+        // ignore
+      }
+      showAppSplash(function () {
+        if (launchRoute) {
+          window.location.href = launchRoute;
+          return;
+        }
+        rememberCurrentRoute();
+      });
+    } else {
+      rememberCurrentRoute();
+    }
+
+    window.addEventListener('pagehide', rememberCurrentRoute);
+
     if (isDraftRoute(path)) {
       return;
     }
