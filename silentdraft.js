@@ -10,6 +10,94 @@ function initSilentDraft() {
     let roundDuration = DEFAULT_ROUND_TIMER_MINUTES * 60;
     let timerInterval = null;
     let isDraftEnding = false;
+    let draftAudioContext = null;
+    let draftAudioReady = false;
+    let lastCountdownCueKey = '';
+
+    function getDraftAudioContext() {
+        try {
+            if (!draftAudioContext) {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return null;
+                draftAudioContext = new Ctx();
+            }
+            return draftAudioContext;
+        } catch (_error) {
+            return null;
+        }
+    }
+
+    function unlockDraftAudio() {
+        const ctx = getDraftAudioContext();
+        if (!ctx) return;
+        if (ctx.state === 'suspended') {
+            ctx.resume().then(() => {
+                draftAudioReady = true;
+            }).catch(() => {
+                draftAudioReady = false;
+            });
+            return;
+        }
+        draftAudioReady = true;
+    }
+
+    function setupDraftAudioUnlock() {
+        const unlockOnce = () => {
+            unlockDraftAudio();
+            if (draftAudioReady) {
+                document.removeEventListener('pointerdown', unlockOnce, true);
+                document.removeEventListener('touchstart', unlockOnce, true);
+                document.removeEventListener('keydown', unlockOnce, true);
+            }
+        };
+
+        document.addEventListener('pointerdown', unlockOnce, true);
+        document.addEventListener('touchstart', unlockOnce, true);
+        document.addEventListener('keydown', unlockOnce, true);
+    }
+
+    function playDraftTone(frequency, durationSeconds, volume) {
+        const ctx = getDraftAudioContext();
+        if (!ctx || ctx.state !== 'running') return;
+
+        try {
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            oscillator.type = 'sine';
+            oscillator.frequency.value = frequency;
+
+            const now = ctx.currentTime;
+            gainNode.gain.setValueAtTime(volume, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds);
+
+            oscillator.start(now);
+            oscillator.stop(now + durationSeconds);
+        } catch (_error) {
+            // ignore audio playback errors
+        }
+    }
+
+    function playCountdownCue(secondsRemaining) {
+        const second = Number.parseInt(secondsRemaining, 10);
+        if (!Number.isFinite(second)) return;
+        if (second > 10 || second < 0) return;
+
+        const cueKey = `${currentRound}-${second}`;
+        if (cueKey === lastCountdownCueKey) return;
+        lastCountdownCueKey = cueKey;
+
+        // Countdown: short beeps for 10..1, longer final tone at 0.
+        if (second === 0) {
+            playDraftTone(420, 0.35, 0.12);
+        } else if (second <= 3) {
+            playDraftTone(980, 0.11, 0.08);
+        } else {
+            playDraftTone(760, 0.08, 0.06);
+        }
+    }
 
     // Roster constraints are configurable from lobby settings.
     const DEFAULT_ROSTER_SETTINGS = { QB: 1, WR: 2, RB: 2, TE: 1, FLEX: 1, K: 1, DEF: 1, BN: 13 };
@@ -136,6 +224,7 @@ function initSilentDraft() {
     }
 
     applyRosterSettings(DEFAULT_ROSTER_SETTINGS);
+    setupDraftAudioUnlock();
 
     function validateRoster(team) {
         const positionCounts = team.roster.reduce((counts, p) => {
@@ -3959,6 +4048,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     }
 
     function startRound() {
+        lastCountdownCueKey = '';
         // Show round banner
         showRoundBanner(currentRound);
         
@@ -4064,6 +4154,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 if (timerElement) {
                     timerElement.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
                 }
+                playCountdownCue(timer);
                 timer--;
                 if (timer < 0) {
                     clearInterval(timerInterval);
@@ -4101,6 +4192,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 if (timerElement) {
                     timerElement.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
                 }
+                playCountdownCue(timer);
                 timer--;
                 if (timer < 0) {
                     clearInterval(timerInterval);
