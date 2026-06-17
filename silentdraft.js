@@ -2307,10 +2307,15 @@ function initSilentDraft() {
                 const yourTeam = teams.find(t => t.name === username);
                 if (!yourTeam) return;
 
+                if (!(window.draftSocket && currentDraftCode)) {
+                    showNotification('Not connected to draft server. Please wait for reconnect.');
+                    return;
+                }
+
                 const isForceAutoSubmit = submitBidsButton.dataset.forceAutoSubmit === '1';
                 if (autoDraftEnabled && !isForceAutoSubmit) {
-                    showNotification('Auto Draft is ON. You submit last automatically. Turn Auto Draft OFF to submit now.');
-                    return;
+                    // In app layout the auto-draft toggle may be hidden; allow manual submit tap.
+                    showNotification('Auto Draft is ON. Submitting your bids now.');
                 }
                 
                 // First, collect and send all bids to server
