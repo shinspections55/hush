@@ -1,12 +1,21 @@
 import {
+  browserLocalPersistence,
   clearAuthSession,
+  formatAuthError,
   requireCurrentUser,
+  setPersistence,
+  signInWithEmailAndPassword,
   signOut,
   syncSessionFromUser,
   auth
 } from './firebase-auth.js';
 
 document.addEventListener('DOMContentLoaded', async ()=>{
+  const isInstalledApp = (
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+    window.navigator.standalone === true
+  );
+
   let resolvedUser = sessionStorage.getItem('username');
   if (!resolvedUser) {
     try {
@@ -14,8 +23,11 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       const profile = syncSessionFromUser(currentUser);
       resolvedUser = profile && profile.username ? profile.username : '';
     } catch (_error) {
-      window.location.href = 'index.html';
-      return;
+      if (!isInstalledApp) {
+        window.location.href = 'index.html';
+        return;
+      }
+      resolvedUser = '';
     }
   }
 
@@ -37,10 +49,63 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   const newsFeedStatus = document.getElementById('newsFeedStatus');
   const newsFeedList = document.getElementById('newsFeedList');
   const downloadAppBtn = document.getElementById('downloadAppBtn');
+  const appHomeLoginGate = document.getElementById('appHomeLoginGate');
+  const appHomeLoginForm = document.getElementById('appHomeLoginForm');
+  const appHomeEmailInput = document.getElementById('appHomeEmail');
+  const appHomePasswordInput = document.getElementById('appHomePassword');
+  const draftActionRow = document.querySelector('#draftActions .dashboard-cta-row');
 
   if(!user){
-    // not logged in, redirect back to login
-    window.location.href = 'index.html';
+    if (!isInstalledApp) {
+      // not logged in, redirect back to login for website mode
+      window.location.href = 'index.html';
+      return;
+    }
+
+    if (greeting) greeting.textContent = 'Welcome to Hush';
+    if (welcomeText) welcomeText.textContent = 'Sign in to unlock drafts, rankings, wallet, and account features in the app.';
+    if (walletBalanceEl) walletBalanceEl.classList.add('hidden');
+    if (accountBtn) accountBtn.classList.add('hidden');
+    if (accountMenu) accountMenu.classList.remove('show');
+    if (draftActionRow) draftActionRow.classList.add('hidden');
+    if (appHomeLoginGate) appHomeLoginGate.classList.remove('hidden');
+
+    try {
+      const alertKey = 'appHomeLoginPromptShown';
+      if (!sessionStorage.getItem(alertKey)) {
+        alert('Please sign in to continue.');
+        sessionStorage.setItem(alertKey, '1');
+      }
+    } catch (_error) {
+      // ignore storage errors
+    }
+
+    if (appHomeLoginForm) {
+      appHomeLoginForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const email = String(appHomeEmailInput && appHomeEmailInput.value || '').trim();
+        const password = String(appHomePasswordInput && appHomePasswordInput.value || '');
+        if (!email || !email.includes('@')) {
+          alert('Enter a valid email address.');
+          return;
+        }
+        if (!password) {
+          alert('Enter your password.');
+          return;
+        }
+
+        try {
+          if (!auth) throw new Error('Firebase Auth is not configured yet.');
+          await setPersistence(auth, browserLocalPersistence);
+          const credential = await signInWithEmailAndPassword(auth, email, password);
+          syncSessionFromUser(credential.user);
+          window.location.href = 'dashboard.html#home';
+        } catch (error) {
+          alert(formatAuthError(error, 'Sign in failed.'));
+        }
+      });
+    }
+
     return;
   }
   if (greeting) greeting.textContent = `Welcome, ${user}!`;

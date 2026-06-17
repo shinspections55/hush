@@ -44,6 +44,15 @@
     <section class="dashboard-three-column">
       <article class="dashboard-column-card dashboard-column-left" id="draftActions">
         <p id="welcomeText">This is your dashboard. Use the account menu to manage your account, sign out, or open your rankings.</p>
+        <section id="appHomeLoginGate" class="app-home-login-gate hidden" aria-live="polite">
+          <h3>Sign In To Continue</h3>
+          <p>You're in app mode. Sign in to draft, use rankings, and sync your account.</p>
+          <form id="appHomeLoginForm" class="app-home-login-form">
+            <input id="appHomeEmail" type="email" name="email" placeholder="Email address" autocomplete="email" required>
+            <input id="appHomePassword" type="password" name="password" placeholder="Password" autocomplete="current-password" required>
+            <button type="submit" class="btn btn-signup">Sign In</button>
+          </form>
+        </section>
         <div class="dashboard-cta-row">
           <a href="#" id="joinDraft" class="cta cta-secondary">Join a Draft</a>
           <a href="#" id="joinPrivate" class="cta cta-secondary">Join a Private Draft</a>

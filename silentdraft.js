@@ -1813,8 +1813,7 @@ function initSilentDraft() {
 
     function isDraftAppSectionNavSupported() {
         const isInstalled = document.body && document.body.classList.contains('pwa-installed');
-        const isCompact = window.matchMedia && window.matchMedia('(max-width: 900px)').matches;
-        return Boolean(isInstalled && isCompact);
+        return Boolean(isInstalled);
     }
 
     function applyDraftAppSectionMode(section, options = {}) {

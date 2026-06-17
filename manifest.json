@@ -4,7 +4,7 @@
   "description": "Silent draft fantasy football league management platform",
   "display": "standalone",
   "scope": "/",
-  "start_url": "/",
+  "start_url": "/dashboard.html#home",
   "theme_color": "#0F2F44",
   "background_color": "#0F2F44",
   "orientation": "portrait-primary",

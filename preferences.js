@@ -114,6 +114,40 @@ function setUserThemePreference(username, theme) {
     return route.endsWith('/silentdraft.html') || route.endsWith('/rounds3draft.html');
   }
 
+  function enforceAppViewportLock() {
+    try {
+      var head = document.head || document.getElementsByTagName('head')[0];
+      if (!head) return;
+
+      var viewport = head.querySelector('meta[name="viewport"]');
+      if (!viewport) {
+        viewport = document.createElement('meta');
+        viewport.setAttribute('name', 'viewport');
+        head.appendChild(viewport);
+      }
+
+      viewport.setAttribute(
+        'content',
+        'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover'
+      );
+
+      if (document.documentElement) {
+        document.documentElement.style.touchAction = 'manipulation';
+      }
+
+      // iOS Safari specific pinch-zoom prevention in standalone mode.
+      var preventGestureZoom = function (event) {
+        event.preventDefault();
+      };
+
+      document.addEventListener('gesturestart', preventGestureZoom, { passive: false });
+      document.addEventListener('gesturechange', preventGestureZoom, { passive: false });
+      document.addEventListener('gestureend', preventGestureZoom, { passive: false });
+    } catch (_error) {
+      // ignore viewport lock failures
+    }
+  }
+
   function routePathname(routeValue) {
     var route = String(routeValue || '');
     if (!route) return '';
@@ -148,16 +182,8 @@ function setUserThemePreference(username, theme) {
   function resolveLaunchRoute(currentRoute) {
     try {
       var currentPath = routePathname(currentRoute);
-      var onDashboard = /\/dashboard\.html$/i.test(currentPath);
-      var saved = String(localStorage.getItem(APP_LAST_ROUTE_KEY) || '').trim();
-      if (!saved) return '';
-      var savedPath = routePathname(saved);
-      if (!savedPath || isGuestLikeRoute(savedPath)) return '';
-      if (saved === currentRoute) return '';
-      if (onDashboard) {
-        return saved;
-      }
-      return '';
+      if (/\/dashboard\.html$/i.test(currentPath)) return '';
+      return 'dashboard.html#home';
     } catch (_error) {
       return '';
     }
@@ -345,6 +371,10 @@ function setUserThemePreference(username, theme) {
     var style = document.createElement('style');
     style.id = 'pwaShellStyles';
     style.textContent = [
+      ':root { --app-safe-top: env(safe-area-inset-top); --app-safe-right: env(safe-area-inset-right); --app-safe-bottom: env(safe-area-inset-bottom); --app-safe-left: env(safe-area-inset-left); }',
+      'html.pwa-installed, body.pwa-installed { width: 100%; max-width: 100%; min-height: 100svh; min-height: 100dvh; overflow-x: hidden; }',
+      'body.pwa-installed { padding-left: var(--app-safe-left); padding-right: var(--app-safe-right); box-sizing: border-box; }',
+      'body.pwa-installed .page, body.pwa-installed .container, body.pwa-installed .dashboard-main-centered { box-sizing: border-box; max-width: 100%; }',
       '.pwa-installed body, body.pwa-installed { padding-bottom: calc(86px + env(safe-area-inset-bottom)); }',
       '.pwa-bottom-nav {',
       '  position: fixed;',
@@ -612,6 +642,9 @@ function setUserThemePreference(username, theme) {
     if (document.body) {
       document.body.classList.add('pwa-installed');
     }
+
+    enforceAppViewportLock();
+
     var currentRoute = getCurrentRoute();
     var launchRoute = resolveLaunchRoute(currentRoute);
 
