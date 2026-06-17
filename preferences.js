@@ -82,6 +82,7 @@ function setUserThemePreference(username, theme) {
 (function initPwaAppShell() {
   var APP_LAST_ROUTE_KEY = 'hushLastAppRoute';
   var APP_SPLASH_SEEN_KEY = 'hushAppSplashSeen';
+  var launchBlackoutEl = null;
 
   function isInstalledPwa() {
     try {
@@ -92,6 +93,53 @@ function setUserThemePreference(username, theme) {
       return false;
     }
   }
+
+  function ensureLaunchBlackoutStyles() {
+    if (document.getElementById('hushLaunchBlackoutStyles')) return;
+    var style = document.createElement('style');
+    style.id = 'hushLaunchBlackoutStyles';
+    style.textContent = [
+      'html.pwa-launch-blackout, html.pwa-launch-blackout body { background: #000 !important; }',
+      '#hushLaunchBlackout {',
+      '  position: fixed;',
+      '  inset: 0;',
+      '  z-index: 21990;',
+      '  background: #000;',
+      '  opacity: 1;',
+      '  pointer-events: none;',
+      '}'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  function mountLaunchBlackoutElement() {
+    if (launchBlackoutEl || !document.body) return;
+    launchBlackoutEl = document.createElement('div');
+    launchBlackoutEl.id = 'hushLaunchBlackout';
+    launchBlackoutEl.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(launchBlackoutEl);
+  }
+
+  function primeLaunchBlackout() {
+    if (!isInstalledPwa()) return;
+    ensureLaunchBlackoutStyles();
+    document.documentElement.classList.add('pwa-launch-blackout');
+    if (document.body) {
+      mountLaunchBlackoutElement();
+      return;
+    }
+    document.addEventListener('DOMContentLoaded', mountLaunchBlackoutElement, { once: true });
+  }
+
+  function clearLaunchBlackout() {
+    document.documentElement.classList.remove('pwa-launch-blackout');
+    if (launchBlackoutEl && launchBlackoutEl.parentNode) {
+      launchBlackoutEl.parentNode.removeChild(launchBlackoutEl);
+    }
+    launchBlackoutEl = null;
+  }
+
+  primeLaunchBlackout();
 
   function isGuestLikeRoute(pathname) {
     var route = String(pathname || '').toLowerCase();
@@ -333,6 +381,7 @@ function setUserThemePreference(username, theme) {
 
   function showAppSplash(onFinish) {
     addSplashStyles();
+    mountLaunchBlackoutElement();
     if (document.getElementById('hushAppSplash')) {
       if (typeof onFinish === 'function') onFinish();
       return;
@@ -361,6 +410,7 @@ function setUserThemePreference(username, theme) {
       splash.classList.add('is-exit');
       setTimeout(function () {
         if (splash.parentNode) splash.parentNode.removeChild(splash);
+        clearLaunchBlackout();
         if (typeof onFinish === 'function') onFinish();
       }, 420);
     }, 3000);
@@ -669,6 +719,7 @@ function setUserThemePreference(username, theme) {
         rememberCurrentRoute();
       });
     } else {
+      clearLaunchBlackout();
       rememberCurrentRoute();
     }
 
