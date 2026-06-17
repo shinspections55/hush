@@ -1077,8 +1077,7 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-controls 
     min-width: 0;
     gap: 8px;
     align-items: center;
-    position: relative;
-    z-index: 2;
+    position: static;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #pause-draft {
@@ -1087,9 +1086,11 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #pause-draft {
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .header-bid-counter {
     position: absolute;
-    left: 10px;
-    right: 10px;
-    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 4px;
+    width: max-content;
+    max-width: calc(100% - 16px);
     font-size: 11px;
     line-height: 1.2;
     padding: 5px 8px;
@@ -1280,11 +1281,12 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .right-view-sect
     }
 
     body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .header-bid-counter {
-        left: 8px;
-        right: 8px;
-        bottom: 5px;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 3px;
         padding: 4px 6px;
         line-height: 1.1;
         font-size: 10px;
+        max-width: calc(100% - 12px);
     }
 }
