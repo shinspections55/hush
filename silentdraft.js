@@ -170,12 +170,17 @@ function initSilentDraft() {
     // Get lobby members from server for synchronized state
     let lobbyMembers = [];
     let allDraftMembers = []; // Full member list to determine host
+    let draftHostName = null;
     
     // Global players array loaded from JSON files
     let players = [];
     let draftRoomRankingsMode = 'personal';
     let draftRoomRightViewMode = 'budgets';
     let draftRoomRankingsPosition = 'ALL';
+    let draftChatMessages = [];
+    const DRAFT_CHAT_MAX_LENGTH = 240;
+    const DRAFT_CHAT_MAX_MESSAGES = 200;
+    let draftChatUnreadCount = 0;
     
     // Load players from JSON files
     async function loadPlayers() {
@@ -222,7 +227,9 @@ function initSilentDraft() {
             const socket = io();
             socket.emit('getDraftState', currentDraftCode, (response) => {
                 if (response && response.ok && response.draft && response.draft.members) {
+                    draftHostName = response.draft.host || response.draft.members[0] || null;
                     console.log('[silentdraft] Loaded draft state from server:', response.draft.members);
+                    console.log('[silentdraft] Resolved draft host:', draftHostName);
                     // Use server's member list as the source of truth
                     allDraftMembers = response.draft.members; // Keep full list for host check
                     lobbyMembers = response.draft.members.filter(member => member !== username);
@@ -273,16 +280,19 @@ function initSilentDraft() {
                     ajRoundOrder = normalizeAjRoundOrder(resolvedAjRoundOrder);
                     applyRoundTimerMinutes(resolvedRoundTimerMinutes);
                     applyRosterSettings(resolvedRosterSettings);
+                    updatePauseButtonVisibility();
                     buildTeamsAndStartDraft();
                 } else {
                     console.warn('[silentdraft] Failed to load from server, falling back to localStorage');
                     loadFromLocalStorage();
+                    updatePauseButtonVisibility();
                     buildTeamsAndStartDraft();
                 }
             });
         } else {
             console.warn('[silentdraft] No draft code or socket.io, using localStorage');
             loadFromLocalStorage();
+            updatePauseButtonVisibility();
             buildTeamsAndStartDraft();
         }
     }
@@ -355,8 +365,9 @@ function initSilentDraft() {
     window.draftSocket = null;
     window.syncedRoundPlayers = null; // Store synced players from server
     window.currentRoundPlayers = null; // Track current round players for pagination
-    // Determine if current user is the host (first member in the draft)
-    window.isHost = (allDraftMembers.length > 0 && allDraftMembers[0] === username);
+    // Determine if current user is the host using the server-provided host when available.
+    window.isHost = Boolean((draftHostName && draftHostName === username) || (!draftHostName && allDraftMembers.length > 0 && allDraftMembers[0] === username));
+    updatePauseButtonVisibility();
     draftRoomRankingsMode = 'personal';
     draftRoomRightViewMode = 'budgets';
 
@@ -371,7 +382,7 @@ function initSilentDraft() {
 
     try {
         const savedRightView = localStorage.getItem(DRAFTROOM_RIGHT_VIEW_KEY);
-        if (savedRightView === 'rankings' || savedRightView === 'budgets') {
+        if (savedRightView === 'rankings' || savedRightView === 'budgets' || savedRightView === 'chat') {
             draftRoomRightViewMode = savedRightView;
         }
     } catch (e) {
@@ -379,6 +390,7 @@ function initSilentDraft() {
     }
     
     console.log('[silentdraft] All draft members:', allDraftMembers);
+    console.log('[silentdraft] Draft host name:', draftHostName);
     console.log('[silentdraft] Current user:', username);
     console.log('[silentdraft] Is host:', window.isHost);
     setupRightViewTabs();
@@ -386,6 +398,8 @@ function initSilentDraft() {
     setupDraftRoomRankingsTabs();
     setupDraftRoomRankingsPositionTabs();
     renderDraftRoomRankings();
+    setupDraftChat();
+    renderDraftChatMessages();
 
     function updateSocketConnectionIndicator(isConnected, detailText) {
         const indicatorId = 'socket-connection-indicator';
@@ -484,6 +498,7 @@ function initSilentDraft() {
                 console.log('[silentdraft] Ignoring allBidsSubmitted while draft ending');
                 return;
             }
+            clearAutoDraftSoloGraceWindow();
             console.log('[silentdraft] All members have submitted - showing processing modal and starting round processing');
             showProcessingBidsModal();
             processRoundOnServer();
@@ -506,6 +521,7 @@ function initSilentDraft() {
                 console.log('[silentdraft] Ignoring roundResults while draft ending');
                 return;
             }
+            clearAutoDraftSoloGraceWindow();
             console.log('[silentdraft] Round results received from server:', results.length, 'results');
             console.log('[silentdraft] Full results data:', JSON.stringify(results, null, 2));
             hideProcessingBidsModal();
@@ -533,6 +549,8 @@ function initSilentDraft() {
         window.draftSocket.on('draftStateSync', (draftState) => {
             console.log('[silentdraft] Draft state synced:', draftState);
             autoDraftStatusByTeam = draftState.autoDraftStatus || autoDraftStatusByTeam;
+            draftChatMessages = Array.isArray(draftState.chatMessages) ? draftState.chatMessages.slice(-200) : draftChatMessages;
+            renderDraftChatMessages();
             if (draftState && draftState.rosterSettings) {
                 applyRosterSettings(draftState.rosterSettings);
             }
@@ -556,6 +574,11 @@ function initSilentDraft() {
             autoDraftEnabled = !!autoDraftStatusByTeam[username];
             updateAutoDraftToggleUI();
             updateUI(getRoundPlayers());
+            if (autoDraftEnabled) {
+                scheduleAutoDraftSoloGraceWindow();
+            } else {
+                clearAutoDraftSoloGraceWindow();
+            }
         });
 
         window.draftSocket.on('autoDraftStatusChanged', (payload) => {
@@ -563,6 +586,11 @@ function initSilentDraft() {
             autoDraftEnabled = !!autoDraftStatusByTeam[username];
             updateAutoDraftToggleUI();
             updateUI(getRoundPlayers());
+            if (autoDraftEnabled) {
+                scheduleAutoDraftSoloGraceWindow();
+            } else {
+                clearAutoDraftSoloGraceWindow();
+            }
         });
 
         // Live roster settings update from lobby host
@@ -612,6 +640,19 @@ function initSilentDraft() {
                 renderRosterRequirementsSummary();
                 updateUI(getRoundPlayers());
             }
+        });
+
+        window.draftSocket.on('draftChatMessage', (payload) => {
+            if (!payload || typeof payload.text !== 'string') return;
+            draftChatMessages.push(payload);
+            if (draftChatMessages.length > DRAFT_CHAT_MAX_MESSAGES) {
+                draftChatMessages = draftChatMessages.slice(-DRAFT_CHAT_MAX_MESSAGES);
+            }
+            if (draftRoomRightViewMode !== 'chat') {
+                draftChatUnreadCount += 1;
+                updateDraftChatUnreadBadge();
+            }
+            renderDraftChatMessages();
         });
     }
     
@@ -1719,7 +1760,8 @@ function initSilentDraft() {
 
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
-                draftRoomRightViewMode = tab.dataset.rightView === 'rankings' ? 'rankings' : 'budgets';
+                const requested = tab.dataset.rightView;
+                draftRoomRightViewMode = (requested === 'rankings' || requested === 'chat') ? requested : 'budgets';
                 try {
                     localStorage.setItem(DRAFTROOM_RIGHT_VIEW_KEY, draftRoomRightViewMode);
                 } catch (e) {
@@ -1730,12 +1772,27 @@ function initSilentDraft() {
         });
     }
 
+    function updateDraftChatUnreadBadge() {
+        const badge = document.getElementById('chat-tab-badge');
+        if (!badge) return;
+
+        if (draftChatUnreadCount > 0) {
+            badge.hidden = false;
+            badge.textContent = draftChatUnreadCount > 99 ? '99+' : String(draftChatUnreadCount);
+        } else {
+            badge.hidden = true;
+            badge.textContent = '0';
+        }
+    }
+
     function applyRightViewMode() {
         const budgetsView = document.getElementById('right-budgets-view');
         const rankingsView = document.getElementById('right-rankings-view');
+        const chatView = document.getElementById('right-chat-view');
         const tabs = document.querySelectorAll('.right-view-tab');
         const showBudgets = draftRoomRightViewMode === 'budgets';
         const showRankings = draftRoomRightViewMode === 'rankings';
+        const showChat = draftRoomRightViewMode === 'chat';
 
         tabs.forEach(tab => {
             tab.classList.toggle('active', tab.dataset.rightView === draftRoomRightViewMode);
@@ -1751,10 +1808,113 @@ function initSilentDraft() {
             rankingsView.classList.toggle('right-view-hidden', !showRankings);
             rankingsView.style.display = showRankings ? 'flex' : 'none';
         }
+        if (chatView) {
+            chatView.hidden = !showChat;
+            chatView.classList.toggle('right-view-hidden', !showChat);
+            chatView.style.display = showChat ? 'flex' : 'none';
+        }
 
         if (showRankings) {
             renderDraftRoomRankings();
         }
+        if (showChat) {
+            draftChatUnreadCount = 0;
+            updateDraftChatUnreadBadge();
+            renderDraftChatMessages();
+            const chatInput = document.getElementById('draft-chat-input');
+            if (chatInput) chatInput.focus();
+        }
+    }
+
+    function formatDraftChatTime(timestamp) {
+        const safe = Number.parseInt(timestamp, 10);
+        const value = Number.isFinite(safe) ? safe : Date.now();
+        const dt = new Date(value);
+        const hours = String(dt.getHours()).padStart(2, '0');
+        const minutes = String(dt.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+    }
+
+    function renderDraftChatMessages() {
+        const list = document.getElementById('draft-chat-list');
+        if (!list) return;
+
+        list.innerHTML = '';
+
+        if (!draftChatMessages || draftChatMessages.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'draft-chat-empty';
+            empty.textContent = 'No chat messages yet. Start the conversation.';
+            list.appendChild(empty);
+            return;
+        }
+
+        draftChatMessages.slice(-DRAFT_CHAT_MAX_MESSAGES).forEach((message) => {
+            const row = document.createElement('div');
+            row.className = 'draft-chat-item';
+
+            const meta = document.createElement('div');
+            meta.className = 'draft-chat-meta';
+
+            const author = document.createElement('span');
+            author.className = 'draft-chat-author';
+            author.textContent = String(message.username || 'Member');
+
+            const time = document.createElement('span');
+            time.className = 'draft-chat-time';
+            time.textContent = formatDraftChatTime(message.timestamp);
+
+            const text = document.createElement('div');
+            text.className = 'draft-chat-text';
+            text.textContent = String(message.text || '');
+
+            meta.appendChild(author);
+            meta.appendChild(time);
+            row.appendChild(meta);
+            row.appendChild(text);
+            list.appendChild(row);
+        });
+
+        list.scrollTop = list.scrollHeight;
+    }
+
+    function setupDraftChat() {
+        const form = document.getElementById('draft-chat-form');
+        const input = document.getElementById('draft-chat-input');
+        const sendButton = document.getElementById('draft-chat-send');
+        if (!form || !input || !sendButton) return;
+
+        updateDraftChatUnreadBadge();
+
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                form.requestSubmit();
+            }
+        });
+
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const raw = String(input.value || '').trim();
+            if (!raw) return;
+            const text = raw.slice(0, DRAFT_CHAT_MAX_LENGTH);
+
+            if (!(window.draftSocket && currentDraftCode)) {
+                showNotification('Chat unavailable: not connected.');
+                return;
+            }
+
+            sendButton.disabled = true;
+            window.draftSocket.emit('sendDraftChatMessage', currentDraftCode, text, (response) => {
+                sendButton.disabled = false;
+                if (!response || !response.ok) {
+                    showNotification('Unable to send chat message.');
+                    return;
+                }
+                input.value = '';
+                input.focus();
+            });
+        });
     }
 
     // Update UI
@@ -1944,6 +2104,12 @@ function initSilentDraft() {
             submitBidsButton.onclick = () => {
                 const yourTeam = teams.find(t => t.name === username);
                 if (!yourTeam) return;
+
+                const isForceAutoSubmit = submitBidsButton.dataset.forceAutoSubmit === '1';
+                if (autoDraftEnabled && !isForceAutoSubmit) {
+                    showNotification('Auto Draft is ON. You submit last automatically. Turn Auto Draft OFF to submit now.');
+                    return;
+                }
                 
                 // First, collect and send all bids to server
                 const roundPlayers = getRoundPlayers();
@@ -2005,7 +2171,8 @@ function initSilentDraft() {
                                 }
                                 
                                 submitBidsButton.disabled = true;
-                                submitBidsButton.textContent = 'Bids Submitted';
+                                submitBidsButton.textContent = isForceAutoSubmit ? 'Auto Submitted' : 'Bids Submitted';
+                                clearAutoDraftSoloGraceWindow();
                             }
                         });
                     }
@@ -3242,12 +3409,32 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     let isPaused = false;
     let pausedTimer = 0;
     let autoDraftEnabled = false;
+    let autoDraftSoloGraceTimeoutId = null;
+    let autoDraftSoloGraceIntervalId = null;
 
     // Attach event listeners to existing buttons in header
     const nextRoundButton = document.getElementById('next-round');
     const pauseButton = document.getElementById('pause-draft');
     const restartButton = document.getElementById('restart-draft');
     const autoDraftToggleButton = document.getElementById('auto-draft-toggle');
+
+    function updatePauseButtonVisibility() {
+        if (!pauseButton) return;
+        if (window.isHost) {
+            pauseButton.classList.remove('host-only-control');
+            pauseButton.style.display = '';
+            pauseButton.disabled = false;
+            pauseButton.textContent = isPaused ? '▶ Resume Draft' : '⏸ Pause Draft';
+            console.log('[silentdraft] Pause button shown for host');
+        } else {
+            pauseButton.classList.add('host-only-control');
+            pauseButton.style.display = 'none';
+            pauseButton.disabled = true;
+            console.log('[silentdraft] Pause button hidden for non-host');
+        }
+    }
+
+    updatePauseButtonVisibility();
 
     function updateAutoDraftToggleUI() {
         if (!autoDraftToggleButton) return;
@@ -3261,6 +3448,12 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             autoDraftEnabled = !autoDraftEnabled;
             updateAutoDraftToggleUI();
             showNotification(`Auto Draft ${autoDraftEnabled ? 'enabled' : 'disabled'}`);
+
+            if (autoDraftEnabled) {
+                scheduleAutoDraftSoloGraceWindow();
+            } else {
+                clearAutoDraftSoloGraceWindow();
+            }
 
             if (window.draftSocket && currentDraftCode) {
                 window.draftSocket.emit('setAutoDraftStatus', currentDraftCode, username, autoDraftEnabled, () => {});
@@ -3329,17 +3522,193 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         }, 2200);
     }
 
+    function clearAutoDraftSoloGraceWindow() {
+        if (autoDraftSoloGraceTimeoutId) {
+            clearTimeout(autoDraftSoloGraceTimeoutId);
+            autoDraftSoloGraceTimeoutId = null;
+        }
+        if (autoDraftSoloGraceIntervalId) {
+            clearInterval(autoDraftSoloGraceIntervalId);
+            autoDraftSoloGraceIntervalId = null;
+        }
+
+        const submitBtn = document.getElementById('submit-bids');
+        if (submitBtn && !submitBtn.disabled && String(submitBtn.textContent || '').startsWith('Auto submit in')) {
+            submitBtn.textContent = 'Submit Bids';
+        }
+    }
+
+    function scheduleAutoDraftSoloGraceWindow() {
+        clearAutoDraftSoloGraceWindow();
+
+        // Solo draft + auto draft ON: 10-second grace period to disable auto draft.
+        if (!autoDraftEnabled || !Array.isArray(allDraftMembers) || allDraftMembers.length !== 1) {
+            return;
+        }
+
+        const submitBtn = document.getElementById('submit-bids');
+        if (!submitBtn || submitBtn.disabled || typeof submitBtn.onclick !== 'function') {
+            return;
+        }
+
+        let remaining = 10;
+        submitBtn.textContent = `Auto submit in ${remaining}s`;
+
+        autoDraftSoloGraceIntervalId = setInterval(() => {
+            if (!autoDraftEnabled || isDraftEnding) {
+                return;
+            }
+            remaining -= 1;
+            if (remaining > 0 && !submitBtn.disabled) {
+                submitBtn.textContent = `Auto submit in ${remaining}s`;
+            }
+        }, 1000);
+
+        autoDraftSoloGraceTimeoutId = setTimeout(() => {
+            clearAutoDraftSoloGraceWindow();
+            if (!autoDraftEnabled || isDraftEnding || isPaused) {
+                return;
+            }
+            if (!submitBtn.disabled && typeof submitBtn.onclick === 'function') {
+                console.log('[silentdraft] Solo auto draft grace ended - auto submitting bids');
+                submitBtn.dataset.forceAutoSubmit = '1';
+                try {
+                    submitBtn.onclick();
+                } finally {
+                    delete submitBtn.dataset.forceAutoSubmit;
+                }
+            }
+        }, 10000);
+    }
+
+    let pauseLockOverlay = null;
+    let pauseControlSnapshot = null;
+    let wasTimerRunningBeforePause = false;
+
+    function getPauseLockTargets() {
+        return Array.from(document.querySelectorAll('button, input, select, textarea')).filter(el => {
+            if (!el || el.id === 'pause-draft') return false;
+            if (el.closest('#draft-pause-overlay')) return false;
+            return true;
+        });
+    }
+
+    function applyDraftPauseLock(data) {
+        wasTimerRunningBeforePause = !!timerInterval;
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+
+        if (!pauseControlSnapshot) {
+            pauseControlSnapshot = new Map();
+            getPauseLockTargets().forEach(el => {
+                pauseControlSnapshot.set(el, !!el.disabled);
+            });
+        }
+
+        getPauseLockTargets().forEach(el => {
+            el.disabled = true;
+        });
+
+        if (!pauseLockOverlay) {
+            pauseLockOverlay = document.createElement('div');
+            pauseLockOverlay.id = 'draft-pause-overlay';
+            pauseLockOverlay.style.position = 'fixed';
+            pauseLockOverlay.style.inset = '0';
+            pauseLockOverlay.style.zIndex = '10002';
+            pauseLockOverlay.style.background = 'rgba(2, 6, 23, 0.75)';
+            pauseLockOverlay.style.backdropFilter = 'blur(4px)';
+            pauseLockOverlay.style.display = 'flex';
+            pauseLockOverlay.style.alignItems = 'center';
+            pauseLockOverlay.style.justifyContent = 'center';
+            pauseLockOverlay.style.textAlign = 'center';
+            pauseLockOverlay.style.padding = '24px';
+
+            const card = document.createElement('div');
+            card.style.maxWidth = '520px';
+            card.style.width = '100%';
+            card.style.background = 'rgba(15, 23, 42, 0.96)';
+            card.style.border = '1px solid rgba(148, 163, 184, 0.35)';
+            card.style.borderRadius = '14px';
+            card.style.boxShadow = '0 20px 48px rgba(0,0,0,0.45)';
+            card.style.padding = '22px 20px';
+            card.style.color = '#f8fafc';
+            card.innerHTML = '<h3 style="margin:0 0 10px 0;font-size:20px;">Draft Paused</h3><p id="draft-pause-overlay-msg" style="margin:0;font-size:14px;color:#cbd5e1;">Waiting for host to resume...</p>';
+            pauseLockOverlay.appendChild(card);
+            document.body.appendChild(pauseLockOverlay);
+        }
+
+        const msg = document.getElementById('draft-pause-overlay-msg');
+        if (msg) {
+            const pausedBy = data && data.pausedBy ? data.pausedBy : 'Host';
+            msg.textContent = `${pausedBy} paused the draft. Waiting for resume...`;
+        }
+
+        if (pauseButton && window.isHost) {
+            pauseButton.disabled = false;
+            pauseButton.style.position = 'relative';
+            pauseButton.style.zIndex = '10003';
+        }
+    }
+
+    function clearDraftPauseLock() {
+        if (pauseControlSnapshot) {
+            pauseControlSnapshot.forEach((wasDisabled, el) => {
+                if (el && el.isConnected) {
+                    el.disabled = wasDisabled;
+                }
+            });
+            pauseControlSnapshot = null;
+        }
+
+        if (pauseLockOverlay && pauseLockOverlay.parentNode) {
+            pauseLockOverlay.parentNode.removeChild(pauseLockOverlay);
+        }
+        pauseLockOverlay = null;
+
+        if (pauseButton) {
+            pauseButton.style.zIndex = '';
+            pauseButton.style.position = '';
+        }
+    }
+
     if (pauseButton) {
         pauseButton.addEventListener('click', () => {
+            if (!window.isHost) {
+                return;
+            }
             if (!isPaused) {
+                // Optimistically switch host control to Resume immediately for fast feedback.
+                isPaused = true;
+                updatePauseButtonVisibility();
+
                 // Pause - emit to server to broadcast to all participants
                 if (window.draftSocket) {
-                    window.draftSocket.emit('pauseDraft', currentDraftCode, username);
+                    window.draftSocket.emit('pauseDraft', currentDraftCode, username, (response) => {
+                        if (!response || !response.ok) {
+                            // Roll back UI if server rejects pause.
+                            isPaused = false;
+                            updatePauseButtonVisibility();
+                            showNotification('Unable to pause draft.');
+                        }
+                    });
                 }
             } else {
+                // Optimistically switch host control back to Pause immediately.
+                isPaused = false;
+                updatePauseButtonVisibility();
+
                 // Resume - emit to server to broadcast to all participants
                 if (window.draftSocket) {
-                    window.draftSocket.emit('resumeDraft', currentDraftCode, username);
+                    window.draftSocket.emit('resumeDraft', currentDraftCode, username, (response) => {
+                        if (!response || !response.ok) {
+                            // Roll back UI if server rejects resume.
+                            isPaused = true;
+                            updatePauseButtonVisibility();
+                            showNotification('Unable to resume draft.');
+                        }
+                    });
                 }
             }
         });
@@ -3353,17 +3722,11 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             if (pauseButton) {
                 pauseButton.textContent = '▶ Resume Draft';
             }
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-            }
-            // Disable bid inputs
-            document.querySelectorAll('input[data-player-id]').forEach(input => input.disabled = true);
-            const submitBtn = document.getElementById('submit-bids');
-            if (submitBtn) submitBtn.disabled = true;
+            applyDraftPauseLock(data);
             
             // Show notification
-            showNotification(`Draft paused by ${data.pausedBy}`);
+            const pausedBy = data && data.pausedBy ? data.pausedBy : 'Host';
+            showNotification(`${pausedBy} paused the draft.`);
         });
 
         // Listen for resume events from other participants
@@ -3372,16 +3735,17 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             if (pauseButton) {
                 pauseButton.textContent = '⏸ Pause Draft';
             }
-            // Enable bid inputs
-            document.querySelectorAll('input[data-player-id]').forEach(input => input.disabled = false);
-            const submitBtn = document.getElementById('submit-bids');
-            if (submitBtn) submitBtn.disabled = false;
+            clearDraftPauseLock();
             
             // Show notification
-            showNotification(`Draft resumed by ${data.resumedBy}`);
+            const resumedBy = data && data.resumedBy ? data.resumedBy : 'Host';
+            showNotification(`${resumedBy} resumed the draft.`);
             
             // Resume timer
-            resumeTimer();
+            if (wasTimerRunningBeforePause) {
+                resumeTimer();
+            }
+            wasTimerRunningBeforePause = false;
         });
 
         if (restartButton) {
@@ -3601,6 +3965,9 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 }
             }
         }, 1000);
+
+        // In solo auto-draft mode, give a short window to disable auto before final auto-submit.
+        scheduleAutoDraftSoloGraceWindow();
         }, 2300); // Wait for banner to show (2s display + 300ms animation)
     }
     
@@ -3611,6 +3978,9 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     }
 
     function resumeTimer() {
+        if (isPaused || isDraftEnding || timerInterval || timer < 0) {
+            return;
+        }
         const timerElement = document.getElementById('timer');
         if (timerElement) {
             timerElement.textContent = `${Math.floor(timer / 60)}:${String(timer % 60).padStart(2, '0')}`;
@@ -4158,6 +4528,19 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
             if (statusEl) {
                 statusEl.textContent = data.message;
             }
+
+            // Ensure this client always sees their accepted state, even if click/UI timing varies.
+            if (data && data.username === username) {
+                const acceptBtn = document.getElementById('accept-results-btn');
+                if (acceptBtn) {
+                    acceptBtn.disabled = true;
+                    acceptBtn.style.background = '#95a5a6';
+                    acceptBtn.textContent = 'Accepted ✓';
+                }
+                if (statusEl) {
+                    statusEl.textContent = `You accepted. ${data.message}`;
+                }
+            }
         };
         
         // Handler for all members accepted
@@ -4170,6 +4553,12 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
             const statusEl = document.getElementById('waiting-status');
             if (statusEl) {
                 statusEl.textContent = 'All members accepted!';
+            }
+            
+            // Clear any pending timeout
+            if (window.roundResultsTimeoutId) {
+                clearTimeout(window.roundResultsTimeoutId);
+                window.roundResultsTimeoutId = null;
             }
             
             // Clean up listeners
@@ -4186,6 +4575,21 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
         // Attach listeners
         window.draftSocket.on('memberAcceptedResults', memberAcceptedHandler);
         window.draftSocket.once('allMembersAccepted', allAcceptedHandler);
+        
+        // Failsafe timeout: if allMembersAccepted doesn't arrive within 3 minutes, close modal anyway
+        // This prevents modals from being stuck if the event is lost due to network issues
+        window.roundResultsTimeoutId = setTimeout(() => {
+            console.warn('[silentdraft] WARNING: Round results modal timeout - allMembersAccepted event not received within 3 minutes');
+            window.draftSocket.off('memberAcceptedResults', memberAcceptedHandler);
+            window.draftSocket.off('allMembersAccepted', allAcceptedHandler);
+            
+            if (resultsDiv && resultsDiv.parentNode) {
+                resultsDiv.parentNode.removeChild(resultsDiv);
+            }
+            
+            // Call onComplete anyway to keep draft moving
+            onComplete();
+        }, 180000);
 
         // Use setTimeout to ensure button is fully rendered before attaching handler
         setTimeout(() => {
@@ -4229,21 +4633,56 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
                     this.disabled = true;
                     this.style.background = '#95a5a6';
                     this.textContent = 'Accepted ✓';
+
+                    const statusEl = document.getElementById('waiting-status');
+                    if (statusEl) {
+                        statusEl.textContent = 'You accepted. Waiting for other members...';
+                    }
                     
                     // Notify server that this member accepted
                     if (window.draftSocket && currentDraftCode) {
                         console.log('[silentdraft] Emitting acceptRoundResults for:', username);
+                        
+                        // Set a timeout for the callback in case server doesn't respond
+                        const callbackTimeout = setTimeout(() => {
+                            console.warn('[silentdraft] WARNING: acceptRoundResults callback timeout - no response from server within 10s');
+                        }, 10000);
+                        
                         window.draftSocket.emit('acceptRoundResults', currentDraftCode, username, (response) => {
+                            clearTimeout(callbackTimeout);
                             if (response && response.ok) {
-                                console.log('[silentdraft] Acceptance recorded');
+                                console.log('[silentdraft] Acceptance recorded successfully');
                             } else {
-                                console.log('[silentdraft] Acceptance failed:', response);
+                                console.error('[silentdraft] Acceptance failed:', response);
+                                // Re-enable button on error
+                                this.disabled = false;
+                                this.style.background = '#2ecc71';
+                                this.textContent = 'Accept & Continue';
                             }
                         });
                     } else {
-                        console.log('[silentdraft] Cannot emit - socket:', !!window.draftSocket, 'code:', currentDraftCode);
+                        console.error('[silentdraft] Cannot emit - socket:', !!window.draftSocket, 'code:', currentDraftCode);
+                        // Re-enable button
+                        this.disabled = false;
+                        this.style.background = '#2ecc71';
+                        this.textContent = 'Accept & Continue';
                     }
                 });
+
+                // Auto Draft users should auto-accept round results without manual click.
+                if (autoDraftEnabled) {
+                    const statusEl = document.getElementById('waiting-status');
+                    if (statusEl) {
+                        statusEl.textContent = 'Auto Draft is ON. Accepting results automatically...';
+                    }
+
+                    setTimeout(() => {
+                        if (!acceptBtn.disabled) {
+                            console.log('[silentdraft] Auto Draft ON - auto accepting round results');
+                            acceptBtn.click();
+                        }
+                    }, 250);
+                }
             } else {
                 console.error('[silentdraft] Accept button not found in DOM!');
             }

@@ -27,6 +27,7 @@
           <div id="memberCountBadge" class="member-count-badge hush-silver">Users in Lobby: 0</div>
         </div>
         <p id="draftCode" class="hush-silver">Code: </p>
+        <p id="hostDisplay" class="lobby-host-display hush-silver">Host: --</p>
         <div class="lobby-layout">
           <div class="lobby-members-column">
             <h3 class="hush-silver">Members</h3>
@@ -153,14 +154,17 @@
       function loadLobbyScripts(){
         console.log('Loading lobby scripts...');
         var lobby = document.createElement('script');
-        lobby.src = 'lobby.js?v=20260611c';
-        lobby.onload = function(){ console.log('✓ Loaded lobby.js'); };
+        lobby.async = false;
+        lobby.src = 'lobby.js?v=20260616a';
+        lobby.onload = function(){
+          console.log('✓ Loaded lobby.js');
+          var lobbyPrivate = document.createElement('script');
+          lobbyPrivate.async = false;
+          lobbyPrivate.src = 'lobby-private.js?v=20260616a';
+          lobbyPrivate.onload = function(){ console.log('✓ Loaded lobby-private.js'); };
+          document.head.appendChild(lobbyPrivate);
+        };
         document.head.appendChild(lobby);
-        
-        var lobbyPrivate = document.createElement('script');
-        lobbyPrivate.src = 'lobby-private.js?v=20260611c';
-        lobbyPrivate.onload = function(){ console.log('✓ Loaded lobby-private.js'); };
-        document.head.appendChild(lobbyPrivate);
       }
     })();
   </script>

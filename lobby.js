@@ -79,6 +79,7 @@ window.initializeLobby = function initializeLobby(opts){
 
   const draftTitle = document.getElementById('draftTitle');
   const draftCode = document.getElementById('draftCode');
+  const hostDisplay = document.getElementById('hostDisplay');
   const memberCountBadge = document.getElementById('memberCountBadge');
   const memberList = document.getElementById('memberList');
   const leaveBtn = document.getElementById('leaveBtn');
@@ -131,13 +132,37 @@ window.initializeLobby = function initializeLobby(opts){
     console.debug('[lobby] drafts (raw):', localStorage.getItem('drafts'));
   }catch(e){ console.warn('[lobby] storage access failed', e); }
 
+  function resolveDraftHost(draft) {
+    if (!draft || typeof draft !== 'object') return null;
+    if (draft.host) return draft.host;
+    if (Array.isArray(draft.members) && draft.members.length > 0) return draft.members[0];
+    return null;
+  }
+
+  function isCurrentUserHost(draft) {
+    const host = resolveDraftHost(draft);
+    return Boolean(host && host === user);
+  }
+
   function refreshMembers(){
     const draftsRaw = localStorage.getItem('drafts');
     const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
     const members = (drafts[code] && drafts[code].members) ? drafts[code].members : [];
     const isClosed = Boolean(drafts[code] && drafts[code].closed);
-    const host = members.length ? members[0] : null;
-    const isHost = host === user;
+    const host = resolveDraftHost(drafts[code]);
+    const isHost = isCurrentUserHost(drafts[code]);
+
+    if (hostDisplay) {
+      hostDisplay.textContent = host ? `Host: ${host}` : 'Host: --';
+    }
+
+    if (drafts[code] && host && drafts[code].host !== host) {
+      drafts[code].host = host;
+      localStorage.setItem('drafts', JSON.stringify(drafts));
+    }
+
+    console.log('[lobby] Host resolved from server/state:', host);
+
     memberList.innerHTML = '';
     
     // Get draft order assignments if they exist
@@ -442,6 +467,16 @@ window.initializeLobby = function initializeLobby(opts){
       socket.on('connect', () => {
         console.log('[lobby] Socket connected for user:', user, 'joining room:', code);
         socket.emit('joinDraftRoom', code, user);
+        socket.emit('getDraftState', code, (response) => {
+          if (response && response.ok && response.draft) {
+            const draftsRaw = localStorage.getItem('drafts');
+            const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
+            drafts[code] = Object.assign(drafts[code] || {}, response.draft);
+            localStorage.setItem('drafts', JSON.stringify(drafts));
+            console.log('[lobby] Hydrated draft state from server. Host:', resolveDraftHost(response.draft));
+            refreshMembers();
+          }
+        });
       });
       
       socket.on('draftUpdate', (serverDraft) => { 
@@ -471,8 +506,7 @@ window.initializeLobby = function initializeLobby(opts){
     radio.addEventListener('change', () => {
       const draftsRaw = localStorage.getItem('drafts');
       const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
-      const members = (drafts[code] && drafts[code].members) ? drafts[code].members : [];
-      const isHost = members.length && members[0] === user;
+      const isHost = isCurrentUserHost(drafts[code]);
       
       if (!isHost) {
         alert('Only the host can change the draft type');
@@ -499,7 +533,7 @@ window.initializeLobby = function initializeLobby(opts){
       const draftsRaw = localStorage.getItem('drafts');
       const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
       const members = (drafts[code] && drafts[code].members) ? drafts[code].members : [];
-      const isHost = members.length && members[0] === user;
+      const isHost = isCurrentUserHost(drafts[code]);
       
       if (!isHost) {
         alert('Only the host can change the draft order');
@@ -544,13 +578,12 @@ window.initializeLobby = function initializeLobby(opts){
   // set capacity (host only)
   if(setCapacityBtn){ /* no-op placeholder reserved for legacy button */ }
   // show/hide capacity controls depending on host
-  function updateCapacityControls(){ const draftsRaw = localStorage.getItem('drafts'); const drafts = draftsRaw ? JSON.parse(draftsRaw) : {}; const members = (drafts[code] && drafts[code].members) ? drafts[code].members : []; const isHost = members.length && members[0]===user; if(capacityControls){ capacityControls.classList.toggle('hidden', !isHost); } }
+  function updateCapacityControls(){ const draftsRaw = localStorage.getItem('drafts'); const drafts = draftsRaw ? JSON.parse(draftsRaw) : {}; const isHost = isCurrentUserHost(drafts[code]); if(capacityControls){ capacityControls.classList.toggle('hidden', !isHost); } }
 
   function updateRosterControlsState(){
     const draftsRaw = localStorage.getItem('drafts');
     const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
-    const members = (drafts[code] && drafts[code].members) ? drafts[code].members : [];
-    const isHost = members.length && members[0] === user;
+    const isHost = isCurrentUserHost(drafts[code]);
     const isClosed = Boolean(drafts[code] && drafts[code].closed);
     const disableControls = !isHost || isClosed;
     if (applyRosterBtn) applyRosterBtn.disabled = disableControls;
@@ -568,7 +601,7 @@ window.initializeLobby = function initializeLobby(opts){
     const members = (drafts[code] && drafts[code].members) ? drafts[code].members : [];
     const cap = (drafts[code] && drafts[code].capacity) ? Number(drafts[code].capacity) : 10;
     const isFull = members.length >= cap;
-    const isHost = members.length && members[0] === user;
+    const isHost = isCurrentUserHost(drafts[code]);
     const isClosed = Boolean(drafts[code] && drafts[code].closed);
     const disableControls = !isHost || isClosed || !isFull;
     if (customBudgetControls) customBudgetControls.classList.toggle('host-readonly', disableControls);
@@ -592,8 +625,7 @@ window.initializeLobby = function initializeLobby(opts){
     applyCapacityBtn.addEventListener('click', () => {
       const draftsRaw = localStorage.getItem('drafts');
       const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
-      const members = (drafts[code] && drafts[code].members) ? drafts[code].members : [];
-      const isHost = members.length && members[0] === user;
+      const isHost = isCurrentUserHost(drafts[code]);
       if (!isHost) { alert('Only the host can set capacity'); return; }
       const val = capacitySelect.value;
       drafts[code].capacity = parseInt(val) || 10;
@@ -608,7 +640,7 @@ window.initializeLobby = function initializeLobby(opts){
     const draftsRaw = localStorage.getItem('drafts');
     const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
     const members = (drafts[code] && drafts[code].members) ? drafts[code].members : [];
-    const isHost = members.length && members[0] === user;
+    const isHost = isCurrentUserHost(drafts[code]);
     if (!isHost) {
       if (options.showAlert !== false) alert('Only the host can change roster settings');
       return false;
@@ -703,7 +735,7 @@ window.initializeLobby = function initializeLobby(opts){
       const draftsRaw = localStorage.getItem('drafts');
       const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
       const members = (drafts[code] && drafts[code].members) ? drafts[code].members : [];
-      const isHost = members.length && members[0] === user;
+      const isHost = isCurrentUserHost(drafts[code]);
       if (!isHost) { alert('Only the host can set custom budgets'); return; }
       drafts[code] = drafts[code] || { members: [] };
       const nextBudgets = normalizeCustomBudgets(drafts[code].customBudgets, members);
@@ -728,7 +760,7 @@ window.initializeLobby = function initializeLobby(opts){
       const draftsRaw = localStorage.getItem('drafts');
       const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
       const members = (drafts[code] && drafts[code].members) ? drafts[code].members : [];
-      const isHost = members.length && members[0] === user;
+      const isHost = isCurrentUserHost(drafts[code]);
       if (!isHost) { alert('Only the host can reset custom budgets'); return; }
       drafts[code] = drafts[code] || { members: [] };
       drafts[code].customBudgets = normalizeCustomBudgets({}, members);
@@ -751,8 +783,7 @@ window.initializeLobby = function initializeLobby(opts){
     startDraftBtn.addEventListener('click', () => {
       const draftsRaw = localStorage.getItem('drafts');
       const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
-      const members = (drafts[code] && drafts[code].members) ? drafts[code].members : [];
-      const isHost = members.length && members[0] === user;
+      const isHost = isCurrentUserHost(drafts[code]);
       
       if (!isHost) {
         alert('Only the host can start the draft');

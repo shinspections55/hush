@@ -11,6 +11,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('registerForm');
   if (!form) return;
 
+  form.querySelectorAll('[data-password-toggle]').forEach((button) => {
+    const field = button.closest('.password-field');
+    const input = field ? field.querySelector('input[type="password"], input[type="text"]') : null;
+    if (!input) return;
+
+    button.addEventListener('click', () => {
+      const shouldShow = input.type === 'password';
+      input.type = shouldShow ? 'text' : 'password';
+      button.textContent = shouldShow ? 'Hide' : 'Show';
+      button.setAttribute('aria-label', shouldShow ? 'Hide password' : 'Show password');
+    });
+  });
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 

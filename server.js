@@ -292,6 +292,44 @@ async function writePositionRankingsData(position, players) {
   return normalizedPlayers;
 }
 
+async function rebuildDefaultRankingsFromPositionFiles() {
+  const positionLists = await Promise.all(
+    Array.from(VALID_POSITIONS).map((position) => readPositionRankingsData(position))
+  );
+
+  const mergedPlayers = positionLists
+    .flatMap((rankingsData) => rankingsData.players || [])
+    .map((player, index) => ({
+      ...player,
+      _sourceIndex: index,
+      _positionRank: toNumber(player.rank, 999999)
+    }));
+
+  const dedupedPlayers = [];
+  const seenNames = new Set();
+  mergedPlayers.forEach((player) => {
+    const key = String(player.name || '').trim().toLowerCase();
+    if (!key || seenNames.has(key)) return;
+    seenNames.add(key);
+    dedupedPlayers.push(player);
+  });
+
+  const sortedPlayers = dedupedPlayers.sort((a, b) => {
+    const avgValueDelta = toNumber(b.avgValue, 0) - toNumber(a.avgValue, 0);
+    if (avgValueDelta !== 0) return avgValueDelta;
+
+    const draftChanceDelta = toNumber(b.draftChance, 0) - toNumber(a.draftChance, 0);
+    if (draftChanceDelta !== 0) return draftChanceDelta;
+
+    const positionRankDelta = toNumber(a._positionRank, 999999) - toNumber(b._positionRank, 999999);
+    if (positionRankDelta !== 0) return positionRankDelta;
+
+    return toNumber(a._sourceIndex, 999999) - toNumber(b._sourceIndex, 999999);
+  }).map(({ _sourceIndex, _positionRank, rank, draftChance, img, ...player }) => player);
+
+  return writeDefaultRankingsData(sortedPlayers);
+}
+
 function normalizeRankingPlayer(rawPlayer, index = 0) {
   const normalizedPos = normalizePosition(rawPlayer.position);
   if (!normalizedPos) return null;
@@ -1251,6 +1289,11 @@ app.get('/api/admin/traffic', requireAdminDebugKey, (req, res) => {
 app.get('/api/admin/system-status', requireAdminDebugKey, async (req, res) => {
   try {
     const users = await readAuthUsers();
+    const uniqueEmails = new Set(
+      Object.values(users)
+        .map((user) => normalizeEmail(user && user.email))
+        .filter(Boolean)
+    );
     const rankingsData = await readDefaultRankingsData();
 
     const smtpConfigured = !!(
@@ -1272,6 +1315,7 @@ app.get('/api/admin/system-status', requireAdminDebugKey, async (req, res) => {
       uptimeSeconds: Math.floor(process.uptime()),
       memoryUsage: process.memoryUsage(),
       authUsersCount: Object.keys(users).length,
+      authEmailsCount: uniqueEmails.size,
       defaultRankingsCount: rankingsData.players.length,
       defaultRankingsSource: rankingsData.sourceFile,
       smtpConfigured,
@@ -1443,6 +1487,7 @@ app.post('/api/admin/rankings/position/:position/save', requireAdminDebugKey, as
     }
 
     const saved = await writePositionRankingsData(req.params.position, players);
+    await rebuildDefaultRankingsFromPositionFiles();
     const meta = getPositionFileMeta(req.params.position);
     return res.json({
       ok: true,
@@ -1484,6 +1529,7 @@ app.post('/api/admin/rankings/position/:position/add', requireAdminDebugKey, asy
     });
 
     const saved = await writePositionRankingsData(position, rankingsData.players);
+    await rebuildDefaultRankingsFromPositionFiles();
     return res.json({ ok: true, count: saved.length });
   } catch (error) {
     console.error('[ADMIN] Add position rankings player error:', error);
@@ -1512,6 +1558,7 @@ app.post('/api/admin/rankings/position/:position/remove', requireAdminDebugKey, 
     }
 
     const saved = await writePositionRankingsData(position, filtered);
+    await rebuildDefaultRankingsFromPositionFiles();
     return res.json({ ok: true, count: saved.length });
   } catch (error) {
     console.error('[ADMIN] Remove position rankings player error:', error);
@@ -1832,6 +1879,9 @@ io.on('connection', (socket) => {
   // join room and receive current state
   socket.on('joinDraftRoom', (code, username) => {
     socket.join(code);
+    if (drafts[code] && !drafts[code].host && drafts[code].members && drafts[code].members.length > 0) {
+      drafts[code].host = drafts[code].members[0];
+    }
     // Store username in socket data
     if (username) {
       socket.data.username = username;
@@ -1845,6 +1895,7 @@ io.on('connection', (socket) => {
   socket.on('createAndJoinDraft', (code, state, username, cb) => {
     drafts[code] = Object.assign(drafts[code] || {}, state || {});
     drafts[code].members = drafts[code].members || [];
+    if (!drafts[code].host) drafts[code].host = username;
     // Set default capacity if not specified
     if (!drafts[code].capacity) drafts[code].capacity = 10;
   // clear any previous closed flag when a host (creator) makes/joins a draft
@@ -1873,6 +1924,7 @@ io.on('connection', (socket) => {
   
   // If draft doesn't exist yet, this is the first person creating it
   drafts[code] = drafts[code] || { members: [], type: null, capacity: 10, public: false };
+  if (!drafts[code].host) drafts[code].host = username;
   
   // If draft was closed but a previous member is rejoining, reopen it
   if(drafts[code].closed && drafts[code].members.includes(username)){ 
@@ -1918,6 +1970,7 @@ io.on('connection', (socket) => {
       if(wasHost){
         // mark draft closed so new joins are rejected and notify remaining clients
         drafts[code].closed = true;
+        drafts[code].host = null;
       }
       io.to(code).emit('draftUpdate', drafts[code]);
     }
@@ -2000,6 +2053,10 @@ io.on('connection', (socket) => {
   socket.on('getDraftState', (code, cb) => {
     console.log(`[getDraftState] ${code} requested by ${socket.data.username}`);
     if(drafts[code]){
+      if (!drafts[code].host && drafts[code].members && drafts[code].members.length > 0) {
+        drafts[code].host = drafts[code].members[0];
+      }
+      console.log(`[getDraftState] ${code} host=${drafts[code].host || drafts[code].members?.[0] || 'unknown'} members=${(drafts[code].members || []).join(', ')}`);
       if(cb) cb({ ok: true, draft: drafts[code] });
     } else {
       if(cb) cb({ ok: false, reason: 'not_found' });
@@ -2026,7 +2083,8 @@ io.on('connection', (socket) => {
         currentPlayers: [], // The 10 players for the current round
         completedRounds: [],
         bids: {}, // playerId: { teamName: bidAmount }
-        autoDraftStatus: {} // teamName: boolean
+        autoDraftStatus: {}, // teamName: boolean
+        chatMessages: []
       };
     } else {
       drafts[code].draftState.roundTimer = roundTimerMinutes * 60;
@@ -2035,6 +2093,10 @@ io.on('connection', (socket) => {
 
     if (!drafts[code].draftState.autoDraftStatus) {
       drafts[code].draftState.autoDraftStatus = {};
+    }
+
+    if (!Array.isArray(drafts[code].draftState.chatMessages)) {
+      drafts[code].draftState.chatMessages = [];
     }
 
     // Default each joining user to OFF until they explicitly toggle ON.
@@ -2086,6 +2148,45 @@ io.on('connection', (socket) => {
       io.to(`draft_${code}`).emit('allBidsSubmitted');
     }
 
+    if (cb) cb({ ok: true });
+  });
+
+  socket.on('sendDraftChatMessage', (code, text, cb) => {
+    const draft = drafts[code];
+    const username = socket.data.username;
+
+    if (!draft || !draft.draftState) {
+      if (cb) cb({ ok: false, reason: 'draft_not_found' });
+      return;
+    }
+
+    if (!username || !Array.isArray(draft.members) || !draft.members.includes(username)) {
+      if (cb) cb({ ok: false, reason: 'not_in_draft' });
+      return;
+    }
+
+    const trimmed = String(text || '').trim();
+    if (!trimmed) {
+      if (cb) cb({ ok: false, reason: 'empty_message' });
+      return;
+    }
+
+    const normalized = trimmed.slice(0, 240);
+    const payload = {
+      username,
+      text: normalized,
+      timestamp: Date.now()
+    };
+
+    if (!Array.isArray(draft.draftState.chatMessages)) {
+      draft.draftState.chatMessages = [];
+    }
+    draft.draftState.chatMessages.push(payload);
+    if (draft.draftState.chatMessages.length > 200) {
+      draft.draftState.chatMessages = draft.draftState.chatMessages.slice(-200);
+    }
+
+    io.to(`draft_${code}`).emit('draftChatMessage', payload);
     if (cb) cb({ ok: true });
   });
 
@@ -2425,6 +2526,10 @@ io.on('connection', (socket) => {
       const lastResults = drafts[code].draftState.lastRoundResults;
       console.log(`[acceptRoundResults] lastResults structure:`, JSON.stringify(lastResults, null, 2));
       
+      // Always emit allMembersAccepted to close the results modal
+      // (auctions will be handled separately via liveAuctionStarted event)
+      io.to(`draft_${code}`).emit('allMembersAccepted');
+      
       if (lastResults && lastResults.tiedBids && lastResults.tiedBids.length > 0) {
         console.log(`[acceptRoundResults] Found ${lastResults.tiedBids.length} tied bids, will start auctions automatically`);
         try {
@@ -2437,13 +2542,9 @@ io.on('connection', (socket) => {
         } catch (err) {
           console.error(`[acceptRoundResults] ERROR starting auction:`, err);
           console.error(err.stack);
-          // Proceed to next round on error
-          io.to(`draft_${code}`).emit('allMembersAccepted');
         }
       } else {
         console.log(`[acceptRoundResults] No tied bids detected, proceeding to next round`);
-        // No ties, proceed to next round
-        io.to(`draft_${code}`).emit('allMembersAccepted');
       }
       
       // Reset tracking for next round
@@ -3145,16 +3246,48 @@ io.on('connection', (socket) => {
     if (cb) cb({ ok: true });
   });
 
-  socket.on('pauseDraft', (code, username) => {
-    console.log(`[Pause] ${username} paused draft ${code}`);
-    // Broadcast pause to all participants in this draft
-    io.to(`draft_${code}`).emit('draftPaused', { pausedBy: username });
+  socket.on('pauseDraft', (code, _username, cb) => {
+    const requester = socket.data.username;
+    const draft = drafts[code];
+    const host = draft && draft.members && draft.members[0];
+
+    if (!draft) {
+      if (cb) cb({ ok: false, reason: 'draft_not_found' });
+      return;
+    }
+
+    if (requester !== host) {
+      console.warn(`[Pause] denied for ${requester} on ${code} (host: ${host})`);
+      if (cb) cb({ ok: false, reason: 'not_host' });
+      return;
+    }
+
+    console.log(`[Pause] ${requester} paused draft ${code}`);
+    // Broadcast pause to all participants in this draft.
+    io.to(`draft_${code}`).emit('draftPaused', { pausedBy: requester });
+    if (cb) cb({ ok: true });
   });
 
-  socket.on('resumeDraft', (code, username) => {
-    console.log(`[Resume] ${username} resumed draft ${code}`);
-    // Broadcast resume to all participants in this draft
-    io.to(`draft_${code}`).emit('draftResumed', { resumedBy: username });
+  socket.on('resumeDraft', (code, _username, cb) => {
+    const requester = socket.data.username;
+    const draft = drafts[code];
+    const host = draft && draft.members && draft.members[0];
+
+    if (!draft) {
+      if (cb) cb({ ok: false, reason: 'draft_not_found' });
+      return;
+    }
+
+    if (requester !== host) {
+      console.warn(`[Resume] denied for ${requester} on ${code} (host: ${host})`);
+      if (cb) cb({ ok: false, reason: 'not_host' });
+      return;
+    }
+
+    console.log(`[Resume] ${requester} resumed draft ${code}`);
+    // Broadcast resume to all participants in this draft.
+    io.to(`draft_${code}`).emit('draftResumed', { resumedBy: requester });
+    if (cb) cb({ ok: true });
   });
 
   socket.on('restartDraft', (code, username) => {

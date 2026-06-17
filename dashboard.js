@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   const completedDraftsMenu = document.getElementById('completedDraftsMenu');
   const newsFeedStatus = document.getElementById('newsFeedStatus');
   const newsFeedList = document.getElementById('newsFeedList');
+  const downloadAppBtn = document.getElementById('downloadAppBtn');
 
   if(!user){
     // not logged in, redirect back to login
@@ -44,6 +45,38 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   }
   if (greeting) greeting.textContent = `Welcome, ${user}!`;
   if (welcomeText) welcomeText.textContent = 'This is your dashboard. Use the account menu to manage your account, sign out, or open your rankings.';
+
+  // PWA Install Prompt Handler
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredPrompt = event;
+    console.log('[PWA] Install prompt available');
+    if (downloadAppBtn) {
+      downloadAppBtn.classList.remove('download-app-hidden');
+    }
+  });
+
+  window.addEventListener('appinstalled', () => {
+    console.log('[PWA] App installed');
+    deferredPrompt = null;
+    if (downloadAppBtn) {
+      downloadAppBtn.classList.add('download-app-hidden');
+    }
+  });
+
+  if (downloadAppBtn) {
+    downloadAppBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) {
+        console.warn('[PWA] Install prompt not available');
+        return;
+      }
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`[PWA] User response to install prompt: ${outcome}`);
+      deferredPrompt = null;
+    });
+  }
 
   let dashboardTheme = 'dark';
 

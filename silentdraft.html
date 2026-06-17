@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0F2F44">
+    <meta name="description" content="Hush - Silent draft fantasy football league management">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/icon-192x192.png">
     <link rel="stylesheet" href="silentdraft.css">
     <title>Silent Draft</title>
 </head>
@@ -11,6 +16,7 @@
         <div class="draft-controls">
             <div id="bid-counter" class="header-bid-counter">Total Bids: $0 | Budget: $200 | Remaining: $200</div>
             <button id="auto-draft-toggle" aria-pressed="false">🤖 Auto Draft: OFF</button>
+            <button id="pause-draft" class="host-only-control" type="button" aria-label="Pause draft">⏸ Pause Draft</button>
         </div>
         <div class="draft-info">
             <h1>Silent Draft</h1>
@@ -40,6 +46,7 @@
             <div class="right-view-tabs">
                 <button class="right-view-tab active" data-right-view="budgets">Budgets</button>
                 <button class="right-view-tab" data-right-view="rankings">Rankings</button>
+                <button class="right-view-tab" data-right-view="chat">Chat <span id="chat-tab-badge" class="chat-tab-badge" hidden>0</span></button>
             </div>
 
             <div id="right-budgets-view" class="right-view-section">
@@ -67,11 +74,33 @@
                     <div id="draftroom-rankings-list" class="draftroom-rankings-list"></div>
                 </div>
             </div>
+
+            <div id="right-chat-view" class="right-view-section right-view-hidden" hidden>
+                <div class="draftroom-chat">
+                    <h3>Lobby Chat</h3>
+                    <div id="draft-chat-list" class="draft-chat-list" aria-live="polite"></div>
+                    <form id="draft-chat-form" class="draft-chat-form">
+                        <textarea id="draft-chat-input" maxlength="240" placeholder="Message the lobby..." autocomplete="off" rows="2"></textarea>
+                        <button id="draft-chat-send" type="submit">Send</button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js" onerror="(function(){var s=document.createElement('script');s.src='https://cdn.socket.io/4.7.2/socket.io.min.js';document.head.appendChild(s);})();"></script>
     <script src="preferences.js?v=20260611c"></script>
-    <script src="silentdraft.js?v=20260611d"></script>
-</body>
+    <script src="silentdraft.js?v=20260616h"></script>
+    <script>
+        // Register service worker for PWA support
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('[PWA] Service Worker registered:', registration);
+                })
+                .catch(error => {
+                    console.warn('[PWA] Service Worker registration failed:', error);
+                });
+        }
+    </script></body>
 </html>

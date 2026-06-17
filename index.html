@@ -3,6 +3,11 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="theme-color" content="#0F2F44">
+    <meta name="description" content="Hush - Silent draft fantasy football league management">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/icon-192x192.png">
     <title>Signup — Account System</title>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -15,15 +20,18 @@
         <div class="container">
             <section class="box">
                 <h2>Create Account</h2>
-                <p style="margin:0 0 12px 0;color:var(--muted);">Use the full registration page to create your account.</p>
-                <a class="btn btn-signup" href="register.html" style="display:inline-block;text-decoration:none;padding:10px 14px;border-radius:8px;">Create an account</a>
+                <p class="account-intro-copy">Use the full registration page to create your account.</p>
+                <a class="btn btn-signup account-intro-link" href="register.html">Create an account</a>
             </section>
 
             <section class="box">
                 <h2>Login</h2>
                 <form id="loginForm">
                     <input type="email" name="email" placeholder="Email address" autocomplete="email" required>
-                    <input type="password" name="password" placeholder="Password" required>
+                    <div class="password-field">
+                        <input type="password" name="password" placeholder="Password" autocomplete="current-password" required>
+                        <button type="button" class="password-toggle" data-password-toggle aria-label="Show password">Show</button>
+                    </div>
                     <label class="form-inline-checkbox" for="rememberPassword">
                         <input type="checkbox" id="rememberPassword" name="rememberPassword">
                         Keep me signed in on this browser
@@ -38,5 +46,17 @@
     <script src="firebase-config.js"></script>
     <script src="preferences.js"></script>
     <script type="module" src="scripts.js"></script>
+    <script>
+        // Register service worker for PWA support
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('[PWA] Service Worker registered:', registration);
+                })
+                .catch(error => {
+                    console.warn('[PWA] Service Worker registration failed:', error);
+                });
+        }
+    </script>
 </body>
 </html>

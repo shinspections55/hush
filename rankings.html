@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0F2F44">
+  <meta name="description" content="Hush - Silent draft fantasy football league management">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
+  <link rel="apple-touch-icon" href="/icon-192x192.png">
   <title>My Rankings</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -121,5 +126,17 @@
 
   <script src="preferences.js"></script>
   <script src="rankings.js"></script>
+  <script>
+    // Register service worker for PWA support
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(registration => {
+          console.log('[PWA] Service Worker registered:', registration);
+        })
+        .catch(error => {
+          console.warn('[PWA] Service Worker registration failed:', error);
+        });
+    }
+  </script>
 </body>
 </html>

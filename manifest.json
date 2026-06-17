@@ -1,0 +1,72 @@
+{
+  "name": "Hush Fantasy Football",
+  "short_name": "Hush",
+  "description": "Silent draft fantasy football league management platform",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
+  "theme_color": "#0F2F44",
+  "background_color": "#0F2F44",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["sports"],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Join Draft",
+      "short_name": "Draft",
+      "description": "Join or create a silent draft",
+      "url": "/?action=draft",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "View Rankings",
+      "short_name": "Rankings",
+      "description": "Check player rankings and tiers",
+      "url": "/rankings.html",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

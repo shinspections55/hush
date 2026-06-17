@@ -3,6 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0F2F44">
+  <meta name="description" content="Hush - Silent draft fantasy football league management">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
+  <link rel="apple-touch-icon" href="/icon-192x192.png">
   <title>Dashboard</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -27,6 +32,7 @@
           <button id="completedDraftsBtn">Completed Drafts</button>
           <button id="openWallet">Wallet</button>
           <a href="rankings.html?draftView=off" id="myRankingsMenu" class="account-menu-link"><span>My Rankings</span></a>
+          <button id="downloadAppBtn" class="download-app-btn download-app-hidden">📱 Download App</button>
           <button id="logoutBtn">Log out</button>
         </div>
       </div>
@@ -72,5 +78,17 @@
   <script src="firebase-config.js"></script>
   <script src="preferences.js"></script>
   <script type="module" src="dashboard.js"></script>
+  <script>
+    // Register service worker for PWA support
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(registration => {
+          console.log('[PWA] Service Worker registered:', registration);
+        })
+        .catch(error => {
+          console.warn('[PWA] Service Worker registration failed:', error);
+        });
+    }
+  </script>
 </body>
 </html>

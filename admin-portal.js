@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const metricUptime = document.getElementById('metricUptime');
   const metricTotalRequests = document.getElementById('metricTotalRequests');
   const metricAuthUsers = document.getElementById('metricAuthUsers');
+  const metricSignedUpEmails = document.getElementById('metricSignedUpEmails');
   const metricPremiumUsers = document.getElementById('metricPremiumUsers');
   const metricDefaultRankings = document.getElementById('metricDefaultRankings');
   const methodChart = document.getElementById('adminMethodChart');
@@ -375,6 +376,9 @@ document.addEventListener('DOMContentLoaded', () => {
     metricUptime.textContent = formatUptime(system.uptimeSeconds || 0);
     metricTotalRequests.textContent = formatNumber(traffic.totalRequests || 0);
     metricAuthUsers.textContent = formatNumber(system.authUsersCount || 0);
+    if (metricSignedUpEmails) {
+      metricSignedUpEmails.textContent = formatNumber(system.authEmailsCount || 0);
+    }
     if (metricPremiumUsers) {
       metricPremiumUsers.textContent = '0';
     }

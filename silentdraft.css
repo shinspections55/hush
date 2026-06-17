@@ -9,6 +9,12 @@
     --draft-bottom-gap: 14px;
 }
 
+html {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
 body {
     margin: 0;
     font-family: 'Cinzel', 'Times New Roman', serif;
@@ -18,8 +24,14 @@ body {
     background-position: center top;
     background-size: cover;
     color: var(--accent);
-    height: 100vh;
+    height: 100%;
+    min-height: 100svh;
+    min-height: 100dvh;
     overflow: hidden;
+    overscroll-behavior: none;
+    position: fixed;
+    inset: 0;
+    width: 100%;
 }
 
 body.color-blind {
@@ -70,6 +82,10 @@ body.color-blind {
     border-radius: 8px;
     box-shadow: 0 3px 12px rgba(52, 152, 219, 0.3);
     transition: all 0.2s ease;
+}
+
+.host-only-control {
+    display: none;
 }
 
 .draft-controls button:hover {
@@ -140,7 +156,7 @@ body.color-blind {
     margin: 0 auto;
     padding: 10px 16px;
     padding-bottom: var(--draft-bottom-gap);
-    height: calc(100vh - 90px - var(--draft-bottom-gap));
+    height: calc(100% - 90px - var(--draft-bottom-gap));
 }
 
 .column {
@@ -153,6 +169,7 @@ body.color-blind {
     border: 1px solid var(--hush-steel)33;
     overflow-y: auto;
     height: 100%;
+    overscroll-behavior: contain;
 }
 
 #left-column {
@@ -196,6 +213,22 @@ body.color-blind {
     background: var(--hush-steel)22;
     border-color: var(--hush-steel);
     color: var(--hush-ice);
+}
+
+.chat-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    margin-left: 6px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #dc2626;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
 }
 
 body.color-blind .right-view-tab {
@@ -808,6 +841,125 @@ body.color-blind .draftroom-rankings-item .r-av {
     text-decoration: line-through;
     color: #666;
     opacity: 0.6;
+}
+
+.draftroom-chat {
+    margin-top: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 10px;
+}
+
+.draftroom-chat h3 {
+    margin: 0;
+    font-size: 15px;
+}
+
+.draft-chat-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.18);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.draft-chat-empty {
+    color: #9aa0a6;
+    font-size: 12px;
+    padding: 8px;
+}
+
+.draft-chat-item {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 6px 8px;
+}
+
+.draft-chat-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 3px;
+}
+
+.draft-chat-author {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--hush-silver);
+}
+
+.draft-chat-time {
+    font-size: 10px;
+    color: #94a3b8;
+}
+
+.draft-chat-text {
+    font-size: 13px;
+    color: var(--hush-ice);
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.draft-chat-form {
+    display: flex;
+    gap: 8px;
+}
+
+#draft-chat-input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--hush-steel)55;
+    border-radius: 8px;
+    background: #0f1a2b;
+    color: var(--hush-ice);
+    font-size: 13px;
+    padding: 9px 10px;
+    resize: vertical;
+    min-height: 42px;
+    max-height: 120px;
+    font-family: inherit;
+}
+
+#draft-chat-input:focus {
+    outline: none;
+    border-color: var(--hush-steel);
+    box-shadow: 0 0 0 3px var(--hush-steel)22;
+}
+
+#draft-chat-send {
+    border: 1px solid var(--hush-steel)55;
+    border-radius: 8px;
+    background: rgba(52, 152, 219, 0.2);
+    color: var(--hush-ice);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 9px 12px;
+    cursor: pointer;
+}
+
+#draft-chat-send:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+body.color-blind .draftroom-chat,
+body.color-blind .draft-chat-list,
+body.color-blind .draft-chat-item {
+    background: rgba(13, 27, 45, 0.96);
+    border-color: rgba(110, 129, 155, 0.72);
+    box-shadow: 0 8px 18px rgba(3, 5, 9, 0.12);
 }
 
 #team-header {

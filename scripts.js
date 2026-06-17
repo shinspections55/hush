@@ -13,6 +13,23 @@ document.addEventListener('DOMContentLoaded', ()=>{
   const login = document.getElementById('loginForm');
   const rememberCheckbox = document.getElementById('rememberPassword');
 
+  function initializePasswordToggles(root = document) {
+    root.querySelectorAll('[data-password-toggle]').forEach((button) => {
+      const field = button.closest('.password-field');
+      const input = field ? field.querySelector('input[type="password"], input[type="text"]') : null;
+      if (!input) return;
+
+      button.addEventListener('click', () => {
+        const shouldShow = input.type === 'password';
+        input.type = shouldShow ? 'text' : 'password';
+        button.textContent = shouldShow ? 'Hide' : 'Show';
+        button.setAttribute('aria-label', shouldShow ? 'Hide password' : 'Show password');
+      });
+    });
+  }
+
+  initializePasswordToggles();
+
   const rememberedEmail = localStorage.getItem('rememberedEmail') || localStorage.getItem('lastSignedInEmail') || '';
   if (login && rememberedEmail) {
     const emailInput = login.querySelector('input[name="email"]');
