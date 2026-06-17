@@ -122,6 +122,7 @@ function setUserThemePreference(username, theme) {
 
   function primeLaunchBlackout() {
     if (!isInstalledPwa()) return;
+    window.__hushSplashComplete = false;
     ensureLaunchBlackoutStyles();
     document.documentElement.classList.add('pwa-launch-blackout');
     if (document.body) {
@@ -137,6 +138,12 @@ function setUserThemePreference(username, theme) {
       launchBlackoutEl.parentNode.removeChild(launchBlackoutEl);
     }
     launchBlackoutEl = null;
+    window.__hushSplashComplete = true;
+    try {
+      window.dispatchEvent(new CustomEvent('hush:splash-complete'));
+    } catch (_error) {
+      // ignore custom event errors
+    }
   }
 
   primeLaunchBlackout();

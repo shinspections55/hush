@@ -62,22 +62,47 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       return;
     }
 
-    if (greeting) greeting.textContent = 'Welcome to Hush';
-    if (welcomeText) welcomeText.textContent = 'Sign in to unlock drafts, rankings, wallet, and account features in the app.';
-    if (walletBalanceEl) walletBalanceEl.classList.add('hidden');
-    if (accountBtn) accountBtn.classList.add('hidden');
-    if (accountMenu) accountMenu.classList.remove('show');
-    if (draftActionRow) draftActionRow.classList.add('hidden');
-    if (appHomeLoginGate) appHomeLoginGate.classList.remove('hidden');
+    if (appHomeEmailInput) {
+      appHomeEmailInput.disabled = true;
+      appHomeEmailInput.autocomplete = 'off';
+    }
+    if (appHomePasswordInput) {
+      appHomePasswordInput.disabled = true;
+      appHomePasswordInput.autocomplete = 'off';
+    }
 
-    try {
-      const alertKey = 'appHomeLoginPromptShown';
-      if (!sessionStorage.getItem(alertKey)) {
-        alert('Please sign in to continue.');
-        sessionStorage.setItem(alertKey, '1');
+    const revealAppLoginGate = () => {
+      if (greeting) greeting.textContent = 'Welcome to Hush';
+      if (welcomeText) welcomeText.textContent = 'Sign in to unlock drafts, rankings, wallet, and account features in the app.';
+      if (walletBalanceEl) walletBalanceEl.classList.add('hidden');
+      if (accountBtn) accountBtn.classList.add('hidden');
+      if (accountMenu) accountMenu.classList.remove('show');
+      if (draftActionRow) draftActionRow.classList.add('hidden');
+      if (appHomeLoginGate) appHomeLoginGate.classList.remove('hidden');
+      if (appHomeEmailInput) {
+        appHomeEmailInput.disabled = false;
+        appHomeEmailInput.autocomplete = 'email';
       }
-    } catch (_error) {
-      // ignore storage errors
+      if (appHomePasswordInput) {
+        appHomePasswordInput.disabled = false;
+        appHomePasswordInput.autocomplete = 'current-password';
+      }
+
+      try {
+        const alertKey = 'appHomeLoginPromptShown';
+        if (!sessionStorage.getItem(alertKey)) {
+          alert('Please sign in to continue.');
+          sessionStorage.setItem(alertKey, '1');
+        }
+      } catch (_error) {
+        // ignore storage errors
+      }
+    };
+
+    if (window.__hushSplashComplete) {
+      revealAppLoginGate();
+    } else {
+      window.addEventListener('hush:splash-complete', revealAppLoginGate, { once: true });
     }
 
     if (appHomeLoginForm) {
