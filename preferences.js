@@ -677,7 +677,13 @@ function setUserThemePreference(username, theme) {
 
   function boot() {
     var path = currentPathname();
-    if (!isInstalledPwa() || isGuestLikeRoute(path)) {
+    if (!isInstalledPwa()) {
+      clearLaunchBlackout();
+      return;
+    }
+
+    if (isGuestLikeRoute(path)) {
+      clearLaunchBlackout();
       return;
     }
     document.documentElement.classList.add('pwa-installed');
