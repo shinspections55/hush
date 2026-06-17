@@ -2067,10 +2067,27 @@ io.on('connection', (socket) => {
 
   // Join the active draft room for real-time bidding
   socket.on('joinActiveDraft', (code, username) => {
+    if (!drafts[code]) {
+      console.warn(`[joinActiveDraft] Draft not found for code ${code}`);
+      return;
+    }
+
+    const providedName = String(username || '').trim();
+    const normalizedProvidedName = providedName.toLowerCase();
+    let resolvedUsername = providedName;
+    if (Array.isArray(drafts[code].members)) {
+      const matchedMember = drafts[code].members.find((member) => (
+        String(member || '').trim().toLowerCase() === normalizedProvidedName
+      ));
+      if (matchedMember) {
+        resolvedUsername = matchedMember;
+      }
+    }
+
     socket.join(`draft_${code}`);
     socket.data.activeDraftCode = code;
-    socket.data.username = username;
-    console.log(`[joinActiveDraft] ${username} joined active draft ${code}`);
+    socket.data.username = resolvedUsername;
+    console.log(`[joinActiveDraft] ${resolvedUsername} joined active draft ${code}`);
     
     const roundTimerMinutes = Number.isFinite(Number.parseInt(drafts[code] && drafts[code].roundTimerMinutes, 10))
       ? Math.max(3, Math.min(Number.parseInt(drafts[code].roundTimerMinutes, 10), 10))
@@ -2102,8 +2119,8 @@ io.on('connection', (socket) => {
     }
 
     // Default each joining user to OFF until they explicitly toggle ON.
-    if (typeof drafts[code].draftState.autoDraftStatus[username] === 'undefined') {
-      drafts[code].draftState.autoDraftStatus[username] = false;
+    if (typeof drafts[code].draftState.autoDraftStatus[resolvedUsername] === 'undefined') {
+      drafts[code].draftState.autoDraftStatus[resolvedUsername] = false;
     }
     
     // Send current draft state to the joining player
@@ -2155,14 +2172,19 @@ io.on('connection', (socket) => {
 
   socket.on('sendDraftChatMessage', (code, text, cb) => {
     const draft = drafts[code];
-    const username = socket.data.username;
+    const username = String(socket.data.username || '').trim();
 
     if (!draft || !draft.draftState) {
       if (cb) cb({ ok: false, reason: 'draft_not_found' });
       return;
     }
 
-    if (!username || !Array.isArray(draft.members) || !draft.members.includes(username)) {
+    const normalizedUsername = username.toLowerCase();
+    const matchedMember = Array.isArray(draft.members)
+      ? draft.members.find((member) => String(member || '').trim().toLowerCase() === normalizedUsername)
+      : null;
+
+    if (!username || !matchedMember) {
       if (cb) cb({ ok: false, reason: 'not_in_draft' });
       return;
     }
@@ -2175,7 +2197,7 @@ io.on('connection', (socket) => {
 
     const normalized = trimmed.slice(0, 240);
     const payload = {
-      username,
+      username: matchedMember,
       text: normalized,
       timestamp: Date.now()
     };
