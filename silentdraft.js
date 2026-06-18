@@ -14,6 +14,8 @@ function initSilentDraft() {
     let draftAudioReady = false;
     let lastCountdownCueKey = '';
     let draftWakeLock = null;
+    let draftAudioKeepAliveNode = null;
+    let draftAudioKeepAliveGain = null;
 
     function getDraftAudioContext() {
         try {
@@ -34,6 +36,7 @@ function initSilentDraft() {
         if (ctx.state === 'suspended') {
             ctx.resume().then(() => {
                 draftAudioReady = true;
+                startDraftAudioKeepAlive();
                 requestDraftWakeLock();
             }).catch(() => {
                 draftAudioReady = false;
@@ -41,7 +44,43 @@ function initSilentDraft() {
             return;
         }
         draftAudioReady = true;
+        startDraftAudioKeepAlive();
         requestDraftWakeLock();
+    }
+
+    function startDraftAudioKeepAlive() {
+        const ctx = getDraftAudioContext();
+        if (!ctx || draftAudioKeepAliveNode) return;
+
+        try {
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            oscillator.frequency.value = 30;
+            oscillator.type = 'sine';
+            gainNode.gain.value = 0.00001;
+            oscillator.start();
+
+            draftAudioKeepAliveNode = oscillator;
+            draftAudioKeepAliveGain = gainNode;
+        } catch (_error) {
+            draftAudioKeepAliveNode = null;
+            draftAudioKeepAliveGain = null;
+        }
+    }
+
+    function stopDraftAudioKeepAlive() {
+        try {
+            if (draftAudioKeepAliveNode) {
+                draftAudioKeepAliveNode.stop();
+            }
+        } catch (_error) {
+            // ignore keep-alive stop errors
+        } finally {
+            draftAudioKeepAliveNode = null;
+            draftAudioKeepAliveGain = null;
+        }
     }
 
     async function requestDraftWakeLock() {
@@ -88,6 +127,7 @@ function initSilentDraft() {
                 unlockDraftAudio();
                 requestDraftWakeLock();
             } else {
+                stopDraftAudioKeepAlive();
                 releaseDraftWakeLock();
             }
         });
