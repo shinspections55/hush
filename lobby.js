@@ -374,6 +374,53 @@ window.initializeLobby = function initializeLobby(opts){
     }
     
     console.log('[lobby] Starting countdown...');
+
+    let countdownAudioContext = null;
+    let countdownAudioKeepAlive = null;
+
+    function getCountdownAudioContext() {
+      try {
+        if (!countdownAudioContext) {
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          if (!Ctx) return null;
+          countdownAudioContext = new Ctx();
+        }
+        return countdownAudioContext;
+      } catch (_error) {
+        return null;
+      }
+    }
+
+    function startCountdownAudioKeepAlive() {
+      const ctx = getCountdownAudioContext();
+      if (!ctx || countdownAudioKeepAlive) return;
+
+      try {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        oscillator.frequency.value = 30;
+        oscillator.type = 'sine';
+        gainNode.gain.value = 0.00001;
+        oscillator.start();
+        countdownAudioKeepAlive = oscillator;
+      } catch (_error) {
+        countdownAudioKeepAlive = null;
+      }
+    }
+
+    function stopCountdownAudioKeepAlive() {
+      try {
+        if (countdownAudioKeepAlive) {
+          countdownAudioKeepAlive.stop();
+        }
+      } catch (_error) {
+        // ignore keep-alive stop errors
+      } finally {
+        countdownAudioKeepAlive = null;
+      }
+    }
     
     // Create countdown overlay
     const overlay = document.createElement('div');
@@ -403,21 +450,38 @@ window.initializeLobby = function initializeLobby(opts){
     // Function to play beep sound
     function playBeep(frequency = 800, duration = 150) {
       try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = frequency;
-        oscillator.type = 'sine';
-        
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + duration / 1000);
+        const audioContext = getCountdownAudioContext();
+        if (!audioContext) return;
+
+        const scheduleTone = () => {
+          if (audioContext.state !== 'running') return;
+
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+
+          oscillator.frequency.value = frequency;
+          oscillator.type = 'sine';
+
+          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+
+          oscillator.start(audioContext.currentTime);
+          oscillator.stop(audioContext.currentTime + duration / 1000);
+        };
+
+        if (audioContext.state === 'suspended') {
+          audioContext.resume().then(() => {
+            startCountdownAudioKeepAlive();
+            scheduleTone();
+          }).catch(() => {});
+          return;
+        }
+
+        startCountdownAudioKeepAlive();
+        scheduleTone();
       } catch (e) {
         console.log('[lobby] Audio not supported:', e);
       }
@@ -445,6 +509,7 @@ window.initializeLobby = function initializeLobby(opts){
         playBeep(1200, 300);
         console.log('[lobby] Redirecting to draft...');
         setTimeout(() => {
+          stopCountdownAudioKeepAlive();
           // Redirect to appropriate draft page
           if (draftType === 'silent') {
             window.location.href = 'silentdraft.html';
