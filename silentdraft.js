@@ -4701,6 +4701,10 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
         let resultsDiv = document.createElement('div');
         resultsDiv.id = 'round-results-modal';
     resultsDiv.className = 'round-results-modal';
+    const setRoundResultsChromeVisible = (visible) => {
+        document.body.classList.toggle('round-results-active', visible);
+    };
+    setRoundResultsChromeVisible(true);
     resultsDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;transform:none;background:rgba(15,15,15,0.98);border:none;border-radius:0;padding:calc(14px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom)) 14px;z-index:10000;color:#f5f5f7;box-shadow:none;width:100vw;height:100dvh;max-width:none;max-height:none;display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;';
         
         // Build displayResults and group by page
@@ -4897,6 +4901,7 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
                 if (resultsDiv && resultsDiv.parentNode) {
                     resultsDiv.parentNode.removeChild(resultsDiv);
                 }
+                setRoundResultsChromeVisible(false);
                 onComplete();
             }, 1000);
         };
@@ -4915,6 +4920,7 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
             if (resultsDiv && resultsDiv.parentNode) {
                 resultsDiv.parentNode.removeChild(resultsDiv);
             }
+            setRoundResultsChromeVisible(false);
             
             // Call onComplete anyway to keep draft moving
             onComplete();

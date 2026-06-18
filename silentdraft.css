@@ -1337,6 +1337,17 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .right-view-sect
     flex-shrink: 0;
 }
 
+body.round-results-active .header-bar,
+body.round-results-active .silentdraft-app-nav {
+    display: none !important;
+}
+
+body.round-results-active .container {
+    margin-top: 0 !important;
+    height: 100dvh !important;
+    padding-bottom: 0 !important;
+}
+
 @media (max-width: 720px) {
     #round-results-modal {
         padding: calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom)) 12px !important;
