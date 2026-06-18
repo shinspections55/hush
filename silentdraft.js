@@ -355,7 +355,7 @@ function initSilentDraft() {
     
     // Global players array loaded from JSON files
     let players = [];
-    let draftRoomRankingsMode = 'personal';
+    let draftRoomRankingsMode = 'default';
     let draftRoomRightViewMode = 'budgets';
     let draftAppSectionViewMode = 'players';
     let draftAppSectionNavEnabled = false;
@@ -551,16 +551,14 @@ function initSilentDraft() {
     // Determine if current user is the host using the server-provided host when available.
     window.isHost = Boolean((draftHostName && draftHostName === username) || (!draftHostName && allDraftMembers.length > 0 && allDraftMembers[0] === username));
     updatePauseButtonVisibility();
-    draftRoomRankingsMode = 'personal';
+    const hasPersonalRankings = hasDraftRoomPersonalRankings();
+    draftRoomRankingsMode = hasPersonalRankings ? 'personal' : 'default';
     draftRoomRightViewMode = 'budgets';
 
     try {
-        const savedMode = localStorage.getItem(DRAFTROOM_RANKINGS_MODE_KEY);
-        if (savedMode === 'default' || savedMode === 'personal') {
-            draftRoomRankingsMode = savedMode;
-        }
+        localStorage.setItem(DRAFTROOM_RANKINGS_MODE_KEY, draftRoomRankingsMode);
     } catch (e) {
-        draftRoomRankingsMode = 'personal';
+        draftRoomRankingsMode = hasPersonalRankings ? 'personal' : 'default';
     }
 
     try {
@@ -1677,6 +1675,28 @@ function initSilentDraft() {
                 team: p.team || '—',
                 avgValue: p.avgValue || p.value || 0,
             }));
+    }
+
+    function hasDraftRoomPersonalRankings() {
+        try {
+            const raw = localStorage.getItem('userRankings');
+            if (!raw) return false;
+
+            const parsed = JSON.parse(raw);
+            const tiersHavePlayers = (tiers) => {
+                return (Array.isArray(tiers) ? tiers : []).some((tier) => {
+                    return Array.isArray(tier.players) && tier.players.some((player) => player && player.name);
+                });
+            };
+
+            if (parsed && parsed.boardsByPos && typeof parsed.boardsByPos === 'object') {
+                return Object.values(parsed.boardsByPos).some(tiersHavePlayers);
+            }
+
+            return tiersHavePlayers(parsed && parsed.tiers);
+        } catch (e) {
+            return false;
+        }
     }
 
     function getDraftRoomPersonalRankings() {
