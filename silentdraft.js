@@ -97,30 +97,35 @@ function initSilentDraft() {
         const ctx = getDraftAudioContext();
         if (!ctx) return;
 
+        const scheduleTone = () => {
+            try {
+                if (ctx.state !== 'running') return;
+
+                const oscillator = ctx.createOscillator();
+                const gainNode = ctx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(ctx.destination);
+
+                oscillator.type = 'sine';
+                oscillator.frequency.value = frequency;
+
+                const now = ctx.currentTime;
+                gainNode.gain.setValueAtTime(volume, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds);
+
+                oscillator.start(now);
+                oscillator.stop(now + durationSeconds);
+            } catch (_error) {
+                // ignore audio playback errors
+            }
+        };
+
         if (ctx.state === 'suspended') {
-            ctx.resume().catch(() => {});
+            ctx.resume().then(scheduleTone).catch(() => {});
+            return;
         }
 
-        if (ctx.state !== 'running') return;
-
-        try {
-            const oscillator = ctx.createOscillator();
-            const gainNode = ctx.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(ctx.destination);
-
-            oscillator.type = 'sine';
-            oscillator.frequency.value = frequency;
-
-            const now = ctx.currentTime;
-            gainNode.gain.setValueAtTime(volume, now);
-            gainNode.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds);
-
-            oscillator.start(now);
-            oscillator.stop(now + durationSeconds);
-        } catch (_error) {
-            // ignore audio playback errors
-        }
+        scheduleTone();
     }
 
     function playCountdownCue(secondsRemaining) {
