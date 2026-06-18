@@ -58,7 +58,13 @@ function initSilentDraft() {
 
     function playDraftTone(frequency, durationSeconds, volume) {
         const ctx = getDraftAudioContext();
-        if (!ctx || ctx.state !== 'running') return;
+        if (!ctx) return;
+
+        if (ctx.state === 'suspended') {
+            ctx.resume().catch(() => {});
+        }
+
+        if (ctx.state !== 'running') return;
 
         try {
             const oscillator = ctx.createOscillator();
@@ -89,9 +95,12 @@ function initSilentDraft() {
         if (cueKey === lastCountdownCueKey) return;
         lastCountdownCueKey = cueKey;
 
-        // Countdown: short beeps for 10..1, longer final tone at 0.
+        // Countdown: short beeps for 10..1, distinct double-beep at 5, longer final tone at 0.
         if (second === 0) {
             playDraftTone(420, 0.35, 0.12);
+        } else if (second === 5) {
+            playDraftTone(880, 0.09, 0.08);
+            setTimeout(() => playDraftTone(880, 0.09, 0.08), 130);
         } else if (second <= 3) {
             playDraftTone(980, 0.11, 0.08);
         } else {
