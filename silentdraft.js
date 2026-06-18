@@ -13,6 +13,7 @@ function initSilentDraft() {
     let draftAudioContext = null;
     let draftAudioReady = false;
     let lastCountdownCueKey = '';
+    let draftWakeLock = null;
 
     function getDraftAudioContext() {
         try {
@@ -33,12 +34,39 @@ function initSilentDraft() {
         if (ctx.state === 'suspended') {
             ctx.resume().then(() => {
                 draftAudioReady = true;
+                requestDraftWakeLock();
             }).catch(() => {
                 draftAudioReady = false;
             });
             return;
         }
         draftAudioReady = true;
+        requestDraftWakeLock();
+    }
+
+    async function requestDraftWakeLock() {
+        try {
+            if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+            if (draftWakeLock) return;
+            draftWakeLock = await navigator.wakeLock.request('screen');
+            draftWakeLock.addEventListener('release', () => {
+                draftWakeLock = null;
+            });
+        } catch (_error) {
+            draftWakeLock = null;
+        }
+    }
+
+    async function releaseDraftWakeLock() {
+        try {
+            if (draftWakeLock) {
+                await draftWakeLock.release();
+            }
+        } catch (_error) {
+            // ignore wake lock release errors
+        } finally {
+            draftWakeLock = null;
+        }
     }
 
     function setupDraftAudioUnlock() {
@@ -54,6 +82,14 @@ function initSilentDraft() {
         document.addEventListener('pointerdown', unlockOnce, true);
         document.addEventListener('touchstart', unlockOnce, true);
         document.addEventListener('keydown', unlockOnce, true);
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                unlockDraftAudio();
+            } else {
+                releaseDraftWakeLock();
+            }
+        });
     }
 
     function playDraftTone(frequency, durationSeconds, volume) {
