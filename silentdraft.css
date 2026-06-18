@@ -1314,3 +1314,40 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .right-view-sect
         max-width: calc(100% - 12px);
     }
 }
+
+@media (width: 390px) and (height: 844px) {
+    body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled {
+        --draft-app-header-height: calc(66px + env(safe-area-inset-top));
+    }
+
+    body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .header-bar {
+        gap: 4px;
+        padding: calc(5px + env(safe-area-inset-top)) 8px 10px 8px;
+    }
+
+    body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .header-bid-counter {
+        bottom: 0;
+        padding: 3px 5px;
+        font-size: 9px;
+        max-width: calc(100% - 8px);
+    }
+
+    body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #auto-draft-toggle,
+    body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #keep-awake-toggle,
+    body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #submit-bids {
+        min-height: 32px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+        font-size: 9px;
+        border-radius: 8px;
+    }
+
+    body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info #timer {
+        min-width: 46px;
+        font-size: 17px;
+    }
+
+    body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info #current-round {
+        font-size: 9px;
+    }
+}
