@@ -4700,12 +4700,33 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
 function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
         let resultsDiv = document.createElement('div');
         resultsDiv.id = 'round-results-modal';
-    resultsDiv.className = 'round-results-modal';
-    const setRoundResultsChromeVisible = (visible) => {
-        document.body.classList.toggle('round-results-active', visible);
-    };
-    setRoundResultsChromeVisible(true);
-    resultsDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;transform:none;background:rgba(15,15,15,0.98);border:none;border-radius:0;padding:calc(14px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom)) 14px;z-index:10000;color:#f5f5f7;box-shadow:none;width:100vw;height:100dvh;max-width:none;max-height:none;display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;';
+        resultsDiv.className = 'round-results-modal';
+        const chromeElements = [
+            document.querySelector('.header-bar'),
+            document.querySelector('.silentdraft-app-nav')
+        ].filter(Boolean);
+        const setRoundResultsChromeVisible = (visible) => {
+            document.body.classList.toggle('round-results-active', visible);
+
+            chromeElements.forEach((el) => {
+                if (visible) {
+                    if (!Object.prototype.hasOwnProperty.call(el.dataset, 'roundResultsPrevDisplay')) {
+                        el.dataset.roundResultsPrevDisplay = el.style.display || '';
+                    }
+                    el.style.display = 'none';
+                    return;
+                }
+
+                if (Object.prototype.hasOwnProperty.call(el.dataset, 'roundResultsPrevDisplay')) {
+                    el.style.display = el.dataset.roundResultsPrevDisplay;
+                    delete el.dataset.roundResultsPrevDisplay;
+                } else {
+                    el.style.display = '';
+                }
+            });
+        };
+        setRoundResultsChromeVisible(true);
+        resultsDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;transform:none;background:rgba(15,15,15,0.98);border:none;border-radius:0;padding:calc(14px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom)) 14px;z-index:10000;color:#f5f5f7;box-shadow:none;width:100vw;height:100dvh;max-width:none;max-height:none;display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;';
         
         // Build displayResults and group by page
         const displayResults = [];
