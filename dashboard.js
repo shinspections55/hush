@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
           await setPersistence(auth, browserLocalPersistence);
           const credential = await signInWithEmailAndPassword(auth, email, password);
           syncSessionFromUser(credential.user);
-          window.location.href = 'dashboard.html#home';
+          window.location.replace(`dashboard.html?login=${Date.now()}#home`);
         } catch (error) {
           alert(formatAuthError(error, 'Sign in failed.'));
         }
