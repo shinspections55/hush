@@ -4700,7 +4700,8 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
 function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
         let resultsDiv = document.createElement('div');
         resultsDiv.id = 'round-results-modal';
-        resultsDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(15,15,15,0.98);border:2px solid #2ecc71;border-radius:12px;padding:20px;z-index:10000;color:#f5f5f7;box-shadow:0 8px 32px rgba(0,0,0,0.8);max-width:1200px;width:95%;max-height:85vh;display:flex;flex-direction:column;';
+    resultsDiv.className = 'round-results-modal';
+    resultsDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;transform:none;background:rgba(15,15,15,0.98);border:none;border-radius:0;padding:calc(14px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom)) 14px;z-index:10000;color:#f5f5f7;box-shadow:none;width:100vw;height:100dvh;max-width:none;max-height:none;display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;';
         
         // Build displayResults and group by page
         const displayResults = [];
@@ -4770,12 +4771,12 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
                 </div>`
             ).join('') : 'No bids received';
             
-            return `<div style="margin:4px 0;padding:6px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:13px;">
+            return `<div class="round-results-item" style="margin:4px 0;padding:6px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:13px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
                     <span>${item.text}</span>
-                    <button class="bid-details-btn" data-player-id="${item.playerId}" style="background:#3498db;color:#fff;border:none;border-radius:3px;padding:2px 6px;font-size:11px;cursor:pointer;">Bids ▼</button>
+                    <button class="bid-details-btn round-results-bid-btn" data-player-id="${item.playerId}" style="background:#3498db;color:#fff;border:none;border-radius:3px;padding:2px 6px;font-size:11px;cursor:pointer;">Bids ▼</button>
                 </div>
-                <div class="bid-details" style="display:none;margin-top:8px;padding:8px;background:rgba(0,0,0,0.3);border-radius:4px;max-height:150px;overflow-y:auto;">
+                <div class="bid-details round-results-bid-details" style="display:none;margin-top:8px;padding:8px;background:rgba(0,0,0,0.3);border-radius:4px;max-height:150px;overflow-y:auto;">
                     ${bidDetails}
                 </div>
             </div>`;
@@ -4792,31 +4793,33 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
                 </div>`
             ).join('') : 'No bids received';
             
-            return `<div style="margin:4px 0;padding:6px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:13px;">
+            return `<div class="round-results-item" style="margin:4px 0;padding:6px 8px;background:rgba(255,255,255,0.05);border-radius:4px;font-size:13px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
                     <span>${item.text}</span>
-                    <button class="bid-details-btn" data-player-id="${item.playerId}" style="background:#3498db;color:#fff;border:none;border-radius:3px;padding:2px 6px;font-size:11px;cursor:pointer;">Bids ▼</button>
+                    <button class="bid-details-btn round-results-bid-btn" data-player-id="${item.playerId}" style="background:#3498db;color:#fff;border:none;border-radius:3px;padding:2px 6px;font-size:11px;cursor:pointer;">Bids ▼</button>
                 </div>
-                <div class="bid-details" style="display:none;margin-top:8px;padding:8px;background:rgba(0,0,0,0.3);border-radius:4px;max-height:150px;overflow-y:auto;">
+                <div class="bid-details round-results-bid-details" style="display:none;margin-top:8px;padding:8px;background:rgba(0,0,0,0.3);border-radius:4px;max-height:150px;overflow-y:auto;">
                     ${bidDetails}
                 </div>
             </div>`;
         }).join('') : '<p>No results for Page 2.</p>';
 
         resultsDiv.innerHTML = `
-            <h3 style="color:#2ecc71;margin:0 0 12px 0;font-size:20px;">Round ${currentRound} Results</h3>
-            <div style="display:flex;gap:20px;flex:1;">
-                <div style="flex:1;display:flex;flex-direction:column;">
-                    <h4 style="color:#3498db;margin:0 0 8px 0;font-size:16px;">Page 1 Results</h4>
-                    <div style="flex:1;overflow-y:auto;margin:8px 0;padding-right:8px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:8px;">${page1List}</div>
+            <h3 class="round-results-title" style="color:#2ecc71;margin:0 0 12px 0;font-size:20px;">Round ${currentRound} Results</h3>
+            <div class="round-results-columns" style="display:flex;gap:20px;flex:1;min-height:0;">
+                <div class="round-results-column" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+                    <h4 class="round-results-section-title" style="color:#3498db;margin:0 0 8px 0;font-size:16px;">Page 1 Results</h4>
+                    <div class="round-results-list" style="flex:1;overflow-y:auto;margin:8px 0;padding-right:8px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:8px;">${page1List}</div>
                 </div>
-                <div style="flex:1;display:flex;flex-direction:column;">
-                    <h4 style="color:#3498db;margin:0 0 8px 0;font-size:16px;">Page 2 Results</h4>
-                    <div style="flex:1;overflow-y:auto;margin:8px 0;padding-right:8px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:8px;">${page2List}</div>
+                <div class="round-results-column" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+                    <h4 class="round-results-section-title" style="color:#3498db;margin:0 0 8px 0;font-size:16px;">Page 2 Results</h4>
+                    <div class="round-results-list" style="flex:1;overflow-y:auto;margin:8px 0;padding-right:8px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:8px;">${page2List}</div>
                 </div>
             </div>
-            <p id="waiting-status" style="color:#3498db;text-align:center;margin:12px 0 8px 0;font-size:14px;">Waiting for all members to accept...</p>
-            <button id="accept-results-btn" style="width:100%;padding:10px 20px;background:#2ecc71;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:15px;">Accept & Continue</button>
+            <div class="round-results-footer" style="margin-top:auto;display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+                <p id="waiting-status" class="round-results-status" style="color:#3498db;text-align:center;margin:0;font-size:14px;">Waiting for all members to accept...</p>
+                <button id="accept-results-btn" class="round-results-accept-btn" style="width:100%;padding:10px 20px;background:#2ecc71;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:15px;">Accept & Continue</button>
+            </div>
         `;
         document.body.appendChild(resultsDiv);
 

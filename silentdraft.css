@@ -1291,6 +1291,155 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .right-view-sect
     }
 }
 
+#round-results-modal {
+    box-sizing: border-box;
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+    overflow: hidden;
+}
+
+#round-results-modal .round-results-columns {
+    min-height: 0;
+}
+
+#round-results-modal .round-results-column {
+    min-width: 0;
+}
+
+#round-results-modal .round-results-list {
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+}
+
+#round-results-modal .round-results-item {
+    font-size: 13px;
+}
+
+#round-results-modal .round-results-bid-btn {
+    min-width: 54px;
+    line-height: 1.1;
+}
+
+#round-results-modal .round-results-status {
+    flex-shrink: 0;
+}
+
+#round-results-modal .round-results-footer {
+    flex-shrink: 0;
+}
+
+#round-results-modal .round-results-accept-btn {
+    flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+    #round-results-modal {
+        padding: calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom)) 12px !important;
+    }
+
+    #round-results-modal .round-results-title {
+        margin-bottom: 10px !important;
+        font-size: 18px !important;
+    }
+
+    #round-results-modal .round-results-columns {
+        flex-direction: column !important;
+        gap: 12px !important;
+        min-height: 0 !important;
+    }
+
+    #round-results-modal .round-results-column {
+        min-height: 0;
+    }
+
+    #round-results-modal .round-results-section-title {
+        font-size: 14px !important;
+        margin-bottom: 6px !important;
+    }
+
+    #round-results-modal .round-results-list {
+        max-height: 26dvh;
+        margin: 6px 0 !important;
+        padding: 6px !important;
+        border-radius: 8px !important;
+    }
+
+    #round-results-modal .round-results-item {
+        padding: 6px 7px !important;
+        font-size: 12px !important;
+    }
+
+    #round-results-modal .round-results-item > div:first-child {
+        gap: 8px;
+        align-items: flex-start !important;
+    }
+
+    #round-results-modal .round-results-item > div:first-child > span {
+        display: block;
+        min-width: 0;
+        padding-right: 6px;
+        line-height: 1.25;
+        word-break: break-word;
+    }
+
+    #round-results-modal .round-results-bid-btn {
+        padding: 4px 7px !important;
+        font-size: 10px !important;
+        border-radius: 6px !important;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
+    #round-results-modal .round-results-bid-details {
+        max-height: 120px !important;
+        padding: 7px !important;
+    }
+
+    #round-results-modal .round-results-status {
+        margin: 10px 0 8px 0 !important;
+        font-size: 12px !important;
+        line-height: 1.25;
+    }
+
+    #round-results-modal .round-results-footer {
+        gap: 6px !important;
+    }
+
+    #round-results-modal .round-results-accept-btn {
+        padding: 12px 16px !important;
+        font-size: 14px !important;
+        border-radius: 10px !important;
+    }
+}
+
+@media (max-width: 390px) {
+    #round-results-modal {
+        padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom)) 10px !important;
+    }
+
+    #round-results-modal .round-results-title {
+        font-size: 17px !important;
+    }
+
+    #round-results-modal .round-results-list {
+        max-height: 24dvh;
+    }
+
+    #round-results-modal .round-results-item {
+        font-size: 11px !important;
+    }
+
+    #round-results-modal .round-results-bid-btn {
+        padding: 3px 6px !important;
+        font-size: 9px !important;
+    }
+}
+
 @media (width: 390px) and (height: 844px) {
     body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled {
         --draft-app-header-height: calc(66px + env(safe-area-inset-top));
