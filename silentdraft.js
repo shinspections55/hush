@@ -14,8 +14,6 @@ function initSilentDraft() {
     let draftAudioReady = false;
     let lastCountdownCueKey = '';
     let draftWakeLock = null;
-    const DRAFT_KEEP_AWAKE_KEY = 'silentDraftKeepAwakeEnabled';
-    let keepAwakeEnabled = false;
 
     function getDraftAudioContext() {
         try {
@@ -36,17 +34,18 @@ function initSilentDraft() {
         if (ctx.state === 'suspended') {
             ctx.resume().then(() => {
                 draftAudioReady = true;
+                requestDraftWakeLock();
             }).catch(() => {
                 draftAudioReady = false;
             });
             return;
         }
         draftAudioReady = true;
+        requestDraftWakeLock();
     }
 
     async function requestDraftWakeLock() {
         try {
-            if (!keepAwakeEnabled) return;
             if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
             if (draftWakeLock) return;
             draftWakeLock = await navigator.wakeLock.request('screen');
@@ -135,14 +134,14 @@ function initSilentDraft() {
 
         // Countdown: short beeps for 10..1, distinct double-beep at 5, longer final tone at 0.
         if (second === 0) {
-            playDraftTone(420, 0.35, 0.12);
+            playDraftTone(420, 0.35, 0.16);
         } else if (second === 5) {
-            playDraftTone(880, 0.09, 0.08);
-            setTimeout(() => playDraftTone(880, 0.09, 0.08), 130);
+            playDraftTone(960, 0.11, 0.18);
+            setTimeout(() => playDraftTone(960, 0.11, 0.18), 130);
         } else if (second <= 3) {
-            playDraftTone(980, 0.11, 0.08);
+            playDraftTone(1040, 0.12, 0.14);
         } else {
-            playDraftTone(760, 0.08, 0.06);
+            playDraftTone(820, 0.09, 0.1);
         }
     }
 
@@ -3696,7 +3695,6 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     const pauseButton = document.getElementById('pause-draft');
     const restartButton = document.getElementById('restart-draft');
     const autoDraftToggleButton = document.getElementById('auto-draft-toggle');
-    const keepAwakeToggleButton = document.getElementById('keep-awake-toggle');
 
     function updatePauseButtonVisibility() {
         if (!pauseButton) return;
@@ -3722,31 +3720,6 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         autoDraftToggleButton.textContent = autoDraftEnabled ? '🤖 Auto Draft: ON' : '🤖 Auto Draft: OFF';
     }
 
-    function loadKeepAwakePreference() {
-        try {
-            keepAwakeEnabled = localStorage.getItem(DRAFT_KEEP_AWAKE_KEY) === '1';
-        } catch (_error) {
-            keepAwakeEnabled = false;
-        }
-    }
-
-    function saveKeepAwakePreference() {
-        try {
-            localStorage.setItem(DRAFT_KEEP_AWAKE_KEY, keepAwakeEnabled ? '1' : '0');
-        } catch (_error) {
-            // ignore storage errors
-        }
-    }
-
-    function updateKeepAwakeToggleUI() {
-        if (!keepAwakeToggleButton) return;
-        keepAwakeToggleButton.setAttribute('aria-pressed', keepAwakeEnabled ? 'true' : 'false');
-        keepAwakeToggleButton.textContent = keepAwakeEnabled ? '☀️ Keep Awake: ON' : '☀️ Keep Awake: OFF';
-    }
-
-    loadKeepAwakePreference();
-    updateKeepAwakeToggleUI();
-
     if (autoDraftToggleButton) {
         updateAutoDraftToggleUI();
         autoDraftToggleButton.addEventListener('click', () => {
@@ -3762,28 +3735,6 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
 
             if (window.draftSocket && currentDraftCode) {
                 window.draftSocket.emit('setAutoDraftStatus', currentDraftCode, username, autoDraftEnabled, () => {});
-            }
-        });
-    }
-
-    if (keepAwakeToggleButton) {
-        keepAwakeToggleButton.addEventListener('click', async () => {
-            keepAwakeEnabled = !keepAwakeEnabled;
-            saveKeepAwakePreference();
-            updateKeepAwakeToggleUI();
-
-            if (keepAwakeEnabled) {
-                await requestDraftWakeLock();
-                if (draftWakeLock) {
-                    showNotification('Keep Awake enabled for this draft.');
-                } else if ('wakeLock' in navigator) {
-                    showNotification('Keep Awake could not be enabled right now. Try again with the screen visible.');
-                } else {
-                    showNotification('Keep Awake is not supported on this phone/browser.');
-                }
-            } else {
-                await releaseDraftWakeLock();
-                showNotification('Keep Awake disabled.');
             }
         });
     }
