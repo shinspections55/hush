@@ -88,6 +88,10 @@ body.color-blind {
     display: none;
 }
 
+#keep-awake-toggle {
+    display: none;
+}
+
 .draft-controls button:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 16px rgba(52, 152, 219, 0.4);
@@ -1118,6 +1122,19 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #auto-draft-togg
     flex-shrink: 0;
 }
 
+body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #keep-awake-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info {
     text-align: center;
     min-width: 0;
@@ -1257,6 +1274,13 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .right-view-sect
     }
 
     body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #auto-draft-toggle {
+        min-height: 34px;
+        padding: 5px 8px;
+        font-size: 10px;
+        border-radius: 9px;
+    }
+
+    body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #keep-awake-toggle {
         min-height: 34px;
         padding: 5px 8px;
         font-size: 10px;
