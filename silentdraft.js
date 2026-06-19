@@ -4404,7 +4404,9 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         console.log('[startLiveAuction] Found player:', player);
 
         console.log('[startLiveAuction] Checking if user is in tie - username:', username, 'tiedTeams:', tied.tiedTeams);
-        const userInTie = tied.tiedTeams.includes(username);
+        const currentUserTeam = teams.find((team) => isCurrentUserTeamName(team.name));
+        const resolvedUsername = currentUserTeam?.name || username;
+        const userInTie = tied.tiedTeams.some((teamName) => isCurrentUserTeamName(teamName));
         console.log('[startLiveAuction] userInTie:', userInTie);
         
         let currentBid = tied.bidAmount;
@@ -4680,7 +4682,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 if (currentWinner === null) {
                     bidAmount.style.color = '#3498db'; // Blue - tied
                     console.log('[updateBidDisplay] Color: BLUE (tied)');
-                } else if (currentWinner === username) {
+                } else if (isCurrentUserTeamName(currentWinner)) {
                     bidAmount.style.color = '#2ecc71'; // Green - winning
                     console.log('[updateBidDisplay] Color: GREEN (winning)');
                 } else {
@@ -4711,9 +4713,14 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 }
                 
                 const newBid = currentBid + 1;
-                const yourTeam = teams.find(t => t.name === username);
+                const yourTeam = currentUserTeam || teams.find((team) => String(team.name || '').trim() === String(resolvedUsername || '').trim());
                 console.log('[upBtn] Current bid:', currentBid, '→ New bid:', newBid);
-                console.log('[upBtn] User budget:', yourTeam.budget);
+                console.log('[upBtn] User budget:', yourTeam ? yourTeam.budget : '(team not found)');
+
+                if (!yourTeam) {
+                    alert('Unable to resolve your team for this auction. Please refresh and rejoin the draft.');
+                    return;
+                }
                 
                 if (newBid > yourTeam.budget) {
                     console.log('[upBtn] Bid exceeds budget, rejecting');

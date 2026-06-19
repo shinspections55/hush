@@ -3038,6 +3038,7 @@ io.on('connection', (socket) => {
   // Place bid in live auction
   socket.on('placeLiveAuctionBid', (code, auctionId, bidAmount, cb) => {
     const username = socket.data.username;
+    const normalizedUsername = String(username || '').trim().toLowerCase();
     console.log(`[placeLiveAuctionBid] ${username} bid $${bidAmount}`);
 
     const autoDraftStatus = drafts[code]?.draftState?.autoDraftStatus || {};
@@ -3051,13 +3052,17 @@ io.on('connection', (socket) => {
       if (cb) cb({ ok: false, reason: 'auction_not_found' });
       return;
     }
+
+    const matchedTeamName = auction.tiedTeams.find((teamName) => (
+      String(teamName || '').trim().toLowerCase() === normalizedUsername
+    ));
     
-    if (!auction.tiedTeams.includes(username)) {
+    if (!matchedTeamName) {
       if (cb) cb({ ok: false, reason: 'not_in_auction' });
       return;
     }
     
-    if (auction.backedOutTeams.includes(username)) {
+    if (auction.backedOutTeams.includes(matchedTeamName)) {
       if (cb) cb({ ok: false, reason: 'backed_out' });
       return;
     }
@@ -3068,7 +3073,7 @@ io.on('connection', (socket) => {
     }
     
     // Check if team has enough budget
-    const team = drafts[code].draftState.teams?.find(t => t.name === username);
+    const team = drafts[code].draftState.teams?.find(t => t.name === matchedTeamName);
     if (team && bidAmount > team.budget) {
       console.log(`[placeLiveAuctionBid] ${username} can't afford $${bidAmount} (budget: $${team.budget})`);
       if (cb) cb({ ok: false, reason: 'insufficient_budget' });
@@ -3077,14 +3082,14 @@ io.on('connection', (socket) => {
     
     // Update auction
     auction.currentBid = bidAmount;
-    auction.currentWinner = username;
-    auction.bids[username] = bidAmount;
+    auction.currentWinner = matchedTeamName;
+    auction.bids[matchedTeamName] = bidAmount;
     auction.timer = 10; // Reset timer
     
     // Broadcast bid
     io.to(`draft_${code}`).emit('liveAuctionBidPlaced', {
       auctionId,
-      bidder: username,
+      bidder: matchedTeamName,
       amount: bidAmount
     });
     
@@ -3234,6 +3239,7 @@ io.on('connection', (socket) => {
   // Back out of auction
   socket.on('backoutLiveAuction', (code, auctionId, cb) => {
     const username = socket.data.username;
+    const normalizedUsername = String(username || '').trim().toLowerCase();
     console.log(`[backoutLiveAuction] ${username} backing out`);
 
     const autoDraftStatus = drafts[code]?.draftState?.autoDraftStatus || {};
@@ -3247,18 +3253,24 @@ io.on('connection', (socket) => {
       if (cb) cb({ ok: false, reason: 'auction_not_found' });
       return;
     }
+
+    const matchedTeamName = auction.tiedTeams.find((teamName) => (
+      String(teamName || '').trim().toLowerCase() === normalizedUsername
+    ));
     
-    if (!auction.tiedTeams.includes(username)) {
+    if (!matchedTeamName) {
       if (cb) cb({ ok: false, reason: 'not_in_auction' });
       return;
     }
     
-    auction.backedOutTeams.push(username);
+    if (!auction.backedOutTeams.includes(matchedTeamName)) {
+      auction.backedOutTeams.push(matchedTeamName);
+    }
     
     // Broadcast backout
     io.to(`draft_${code}`).emit('liveAuctionBackout', {
       auctionId,
-      teamName: username
+      teamName: matchedTeamName
     });
     
     // Check if only one team left
