@@ -24,6 +24,14 @@
                     <h1 class="summary-title">Draft Summary</h1>
                     <div id="summaryMeta" class="summary-meta">Loading draft...</div>
                 </div>
+                <div class="team-nav-wrap">
+                    <label for="teamSelect" class="team-nav-label">View Team</label>
+                    <div class="team-nav-controls">
+                        <button id="teamPrevBtn" class="team-nav-btn" type="button" aria-label="Previous team">&#8592;</button>
+                        <select id="teamSelect" class="team-select" aria-label="Select team"></select>
+                        <button id="teamNextBtn" class="team-nav-btn" type="button" aria-label="Next team">&#8594;</button>
+                    </div>
+                </div>
             </div>
 
             <div class="summary-layout">
@@ -34,11 +42,16 @@
 
                 <section class="summary-panel">
                     <div id="teamHeader"></div>
-                    <h3 class="summary-section-title mt-14">Starting Lineup</h3>
-                    <div id="lineupGrid" class="lineup-grid"></div>
+                    <div id="cutAlertContainer"></div>
+                    <div id="incompleteBannerContainer"></div>
 
-                    <h3 class="summary-section-title mt-16">Bench</h3>
-                    <div id="benchContainer"></div>
+                    <section id="finalRosterSection">
+                        <h3 id="lineupHeading" class="summary-section-title mt-14">Starting Lineup</h3>
+                        <div id="lineupGrid" class="lineup-grid"></div>
+
+                        <h3 id="benchHeading" class="summary-section-title mt-16">Bench</h3>
+                        <div id="benchContainer"></div>
+                    </section>
                 </section>
             </div>
         </section>

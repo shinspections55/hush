@@ -4,7 +4,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_DRAFT_BENCH = 13;
     const summaryMeta = document.getElementById('summaryMeta');
     const teamList = document.getElementById('teamList');
+    const teamPrevBtn = document.getElementById('teamPrevBtn');
+    const teamNextBtn = document.getElementById('teamNextBtn');
+    const teamSelect = document.getElementById('teamSelect');
     const teamHeader = document.getElementById('teamHeader');
+    const cutAlertContainer = document.getElementById('cutAlertContainer');
+    const incompleteBannerContainer = document.getElementById('incompleteBannerContainer');
+    const finalRosterSection = document.getElementById('finalRosterSection');
     const lineupGrid = document.getElementById('lineupGrid');
     const benchContainer = document.getElementById('benchContainer');
 
@@ -39,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderSummaryView() {
         updateSummaryMeta();
         renderTeamButtons();
+        renderTeamSelect();
 
         if (!selectedTeamName && draftSummary.teams.length > 0) {
             selectedTeamName = draftSummary.teams[0].name;
@@ -47,6 +54,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedTeamName) {
             renderSelectedTeam();
         }
+    }
+
+    function selectTeamByOffset(offset) {
+        const teams = Array.isArray(draftSummary.teams) ? draftSummary.teams : [];
+        if (teams.length === 0) return;
+
+        const currentIndex = Math.max(0, teams.findIndex(team => team.name === selectedTeamName));
+        const nextIndex = (currentIndex + offset + teams.length) % teams.length;
+        selectedTeamName = teams[nextIndex].name;
+        renderSelectedTeam();
     }
 
     function normalizeSummaryTeam(team) {
@@ -100,6 +117,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     refreshSummaryLimits();
 
+    if (teamPrevBtn) {
+        teamPrevBtn.addEventListener('click', () => selectTeamByOffset(-1));
+    }
+    if (teamNextBtn) {
+        teamNextBtn.addEventListener('click', () => selectTeamByOffset(1));
+    }
+
     if (socket && draftSummary.draftCode) {
         socket.emit('joinDraftRoom', draftSummary.draftCode, username);
 
@@ -111,6 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
             persistSummary();
             refreshSummaryLimits();
             renderTeamButtons();
+            renderTeamSelect();
 
             if (!selectedTeamName || selectedTeamName === data.teamName) {
                 selectedTeamName = data.teamName;
@@ -218,6 +243,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function renderTeamSelect() {
+        if (!teamSelect) return;
+
+        teamSelect.innerHTML = draftSummary.teams
+            .map(team => {
+                const split = splitRoster(team.roster || [], summaryRosterSettings);
+                const requiredCuts = getRequiredCuts(team.roster || [], split.bench);
+                const suffix = requiredCuts > 0 ? ` (Needs ${requiredCuts} cut${requiredCuts === 1 ? '' : 's'})` : '';
+                return `<option value="${escapeHtml(team.name)}">${escapeHtml(team.name)}${suffix}</option>`;
+            })
+            .join('');
+
+        if (!selectedTeamName && draftSummary.teams.length > 0) {
+            selectedTeamName = draftSummary.teams[0].name;
+        }
+
+        teamSelect.value = selectedTeamName || '';
+        teamSelect.onchange = () => {
+            selectedTeamName = teamSelect.value;
+            renderSelectedTeam();
+        };
+    }
+
     function renderSelectedTeam() {
         const team = draftSummary.teams.find(t => t.name === selectedTeamName);
         if (!team) return;
@@ -229,6 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const { slots, bench } = splitRoster(team.roster || [], summaryRosterSettings);
         const remaining = Number.isFinite(team.budgetRemaining) ? team.budgetRemaining : null;
         const requiredCuts = getRequiredCuts(team.roster || [], bench);
+        const incompleteSlots = slots.filter(slot => !slot.player).map(slot => slot.label);
         const isCurrentUserTeam = team.name === username;
 
         teamHeader.innerHTML = `
@@ -240,49 +289,62 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        lineupGrid.innerHTML = slots.map(slot => renderLineupRow(slot.label, slot.player)).join('');
+        if (teamSelect && teamSelect.value !== team.name) {
+            teamSelect.value = team.name;
+        }
 
-        renderBenchSection(team, slots, bench, requiredCuts, isCurrentUserTeam);
+        cutAlertContainer.innerHTML = '';
+        incompleteBannerContainer.innerHTML = '';
+
+        if (requiredCuts > 0) {
+            renderCutWorkflow(team, slots, bench, requiredCuts, isCurrentUserTeam);
+            finalRosterSection.style.display = 'none';
+        } else {
+            finalRosterSection.style.display = '';
+            lineupGrid.innerHTML = slots.map(slot => renderLineupRow(slot.label, slot.player)).join('');
+            renderBenchSection(bench);
+        }
+
+        if (incompleteSlots.length > 0) {
+            incompleteBannerContainer.innerHTML = `
+                <div class="incomplete-banner">
+                    Roster incomplete: missing starter slots ${escapeHtml(incompleteSlots.join(', '))}.
+                </div>
+            `;
+        }
     }
 
-    function renderBenchSection(team, slots, bench, requiredCuts, isCurrentUserTeam) {
-        const benchIdSet = new Set(
-            (bench || [])
-                .map(player => Number(player.id))
-                .filter(id => Number.isFinite(id))
-        );
+    function renderBenchSection(bench) {
+        if (!Array.isArray(bench) || bench.length === 0) {
+            benchContainer.innerHTML = '<div class="bench-list"><div class="bench-empty">No bench players.</div></div>';
+            return;
+        }
 
-        const buildBenchRows = (withCheckboxes = false) => {
-            if (bench.length === 0) {
-                return '<div class="bench-empty">No bench players.</div>';
-            }
+        benchContainer.innerHTML = `
+            <div class="bench-list">
+                ${bench.map(player => `
+                    <div class="bench-item">
+                        <span class="bench-pos">${escapeHtml(player.position || 'N/A')}</span>
+                        <span class="bench-player">${escapeHtml(player.name || 'Unknown')} - $${Number(player.bid || 0)}</span>
+                        <span class="bench-rank">Rank ${Number(player.prerank || 999)}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
 
-            return bench.map(player => {
-                const baseContent = `
-                    <span class="bench-pos">${escapeHtml(player.position || 'N/A')}</span>
-                    <span class="bench-player">${escapeHtml(player.name || 'Unknown')} - $${Number(player.bid || 0)}</span>
-                    <span class="bench-rank">Rank ${Number(player.prerank || 999)}</span>
-                `;
+    function renderCutWorkflow(team, slots, bench, requiredCuts, isCurrentUserTeam) {
+        cutAlertContainer.innerHTML = `
+            <div class="cut-alert">
+                <h4>Cuts Required Before Final Roster</h4>
+                <p>${escapeHtml(team.name)} must cut ${requiredCuts} player(s) to reach max ${maxTotalPlayers} total players and max ${maxBenchPlayers} bench players.</p>
+            </div>
+        `;
 
-                if (!withCheckboxes) {
-                    return `<div class="bench-item">${baseContent}</div>`;
-                }
-
-                return `
-                    <label class="bench-item bench-item-cut">
-                        <span class="bench-main">${baseContent}</span>
-                        <input
-                            class="bench-cut-toggle"
-                            type="checkbox"
-                            name="cut"
-                            value="${escapeHtml(player.id !== undefined && player.id !== null ? String(player.id) : '')}"
-                            data-player-name="${escapeHtml(player.name || 'Unknown')}"
-                            aria-label="Cut ${escapeHtml(player.name || 'Unknown')}"
-                        >
-                    </label>
-                `;
-            }).join('');
-        };
+        if (!isCurrentUserTeam) {
+            cutAlertContainer.innerHTML += '<div class="roster-hold-note">Final roster display appears after this team completes required cuts.</div>';
+            return;
+        }
 
         const renderCutCheckboxRow = (player, slotLabel, isBenchPlayer) => {
             const warningText = isBenchPlayer ? '' : '<span class="warning cut-inline-warning">Starter cut requires confirmation</span>';
@@ -330,24 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .join('');
         };
 
-        const benchListHtml = `<div class="bench-list">${buildBenchRows(false)}</div>`;
-
-        if (requiredCuts <= 0) {
-            benchContainer.innerHTML = benchListHtml;
-            return;
-        }
-
-        if (!isCurrentUserTeam) {
-            benchContainer.innerHTML = `
-                <div class="cut-panel">
-                    <p class="warning">This team must cut ${requiredCuts} player(s) to reach max ${maxTotalPlayers} total and max ${maxBenchPlayers} bench.</p>
-                </div>
-                ${benchListHtml}
-            `;
-            return;
-        }
-
-        benchContainer.innerHTML = `
+        cutAlertContainer.innerHTML += `
             <div class="cut-panel">
                 <h4>Cut Players Required</h4>
                 <p>Select exactly <strong>${requiredCuts}</strong> player(s) to cut from anywhere on your roster. Rule: max ${maxTotalPlayers} total players and max ${maxBenchPlayers} bench players.</p>
@@ -362,10 +407,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <button type="submit" class="account-btn cut-btn">Confirm Cuts</button>
                 </form>
-            </div>
-            <div class="cut-panel">
-                <h4>Bench View</h4>
-                ${benchListHtml}
             </div>
         `;
 

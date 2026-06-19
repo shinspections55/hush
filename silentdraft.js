@@ -4410,6 +4410,60 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         let currentBid = tied.bidAmount;
         let currentWinner = null;
         let backedOut = false;
+        const suppressedUiState = {
+            pwaSettingsWasOpen: false
+        };
+
+        const suppressConflictingOverlays = () => {
+            const processingModal = document.getElementById('processing-bids-modal');
+            if (processingModal && processingModal.parentNode) {
+                processingModal.parentNode.removeChild(processingModal);
+            }
+
+            const pwaSheet = document.getElementById('pwaSettingsSheet');
+            const pwaBackdrop = document.getElementById('pwaSettingsBackdrop');
+            const settingsOpen = Boolean(
+                (pwaSheet && pwaSheet.classList.contains('is-open')) ||
+                (pwaBackdrop && pwaBackdrop.classList.contains('is-open'))
+            );
+            suppressedUiState.pwaSettingsWasOpen = settingsOpen;
+
+            if (settingsOpen) {
+                if (pwaSheet) pwaSheet.classList.remove('is-open');
+                if (pwaBackdrop) pwaBackdrop.classList.remove('is-open');
+            }
+        };
+
+        const restoreSuppressedOverlays = () => {
+            if (!suppressedUiState.pwaSettingsWasOpen) {
+                return;
+            }
+            const pwaSheet = document.getElementById('pwaSettingsSheet');
+            const pwaBackdrop = document.getElementById('pwaSettingsBackdrop');
+            if (pwaSheet) pwaSheet.classList.add('is-open');
+            if (pwaBackdrop) pwaBackdrop.classList.add('is-open');
+        };
+
+        const removeAuctionUi = () => {
+            const modal = document.getElementById('live-auction-modal');
+            if (modal && modal.parentNode) {
+                modal.parentNode.removeChild(modal);
+            }
+            const backdrop = document.getElementById('live-auction-backdrop');
+            if (backdrop && backdrop.parentNode) {
+                backdrop.parentNode.removeChild(backdrop);
+            }
+            restoreSuppressedOverlays();
+        };
+
+        // Prevent layered overlays from blocking live auction interactions on mobile.
+        removeAuctionUi();
+        suppressConflictingOverlays();
+
+        const auctionBackdrop = document.createElement('div');
+        auctionBackdrop.id = 'live-auction-backdrop';
+        auctionBackdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.62);backdrop-filter:blur(1px);-webkit-backdrop-filter:blur(1px);z-index:9999;touch-action:none;';
+        document.body.appendChild(auctionBackdrop);
 
         // Create auction UI
         const auctionDiv = document.createElement('div');
@@ -4431,7 +4485,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         
         const animationStyle = userInTie ? 'animation: auctionPulse 1s ease-in-out 2;' : '';
         
-        auctionDiv.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(15,15,15,0.98);border:2px solid ${userInTie ? '#2ecc71' : '#3498db'};border-radius:12px;padding:24px;z-index:10000;color:#f5f5f7;box-shadow:0 8px 32px rgba(0,0,0,0.8);min-width:500px;${animationStyle}`;
+        auctionDiv.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(15,15,15,0.98);border:2px solid ${userInTie ? '#2ecc71' : '#3498db'};border-radius:12px;padding:18px;z-index:10000;color:#f5f5f7;box-shadow:0 8px 32px rgba(0,0,0,0.8);width:min(92vw,560px);max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);overflow-y:auto;box-sizing:border-box;touch-action:manipulation;-webkit-overflow-scrolling:touch;${animationStyle}`;
         
         auctionDiv.innerHTML = `
             <div style="background:linear-gradient(135deg,${userInTie ? '#2ecc71,#27ae60' : '#3498db,#2980b9'});padding:16px;border-radius:8px;margin:-24px -24px 20px -24px;">
@@ -4446,7 +4500,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 <p style="color:#95a5a6;font-size:14px;margin:0 0 8px 0;">Current Bid:</p>
                 <div style="display:flex;align-items:center;justify-content:center;gap:20px;">
                     <p id="live-bid-amount" style="font-size:48px;font-weight:bold;margin:0;color:#3498db;">$${currentBid}</p>
-                    ${userInTie ? `<button id="bid-up-btn" style="background:#3498db;color:#fff;border:none;border-radius:50%;width:60px;height:60px;font-size:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:bold;transition:all 0.2s;">↑</button>` : ''}
+                    ${userInTie ? `<button id="bid-up-btn" style="background:#3498db;color:#fff;border:none;border-radius:50%;width:64px;height:64px;font-size:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:bold;transition:all 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;">↑</button>` : ''}
                 </div>
             </div>
             <p id="auction-countdown" style="text-align:center;color:#2ecc71;font-size:18px;font-weight:bold;margin:16px 0;">Time: 10s</p>
@@ -4591,12 +4645,8 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             // Remove modal after showing winner
             setTimeout(() => {
                 console.log('[completeHandler] 5 seconds elapsed, removing winner display');
-                if (auctionDiv && auctionDiv.parentNode) {
-                    auctionDiv.parentNode.removeChild(auctionDiv);
-                    console.log('[completeHandler] Winner display removed');
-                } else {
-                    console.log('[completeHandler] Could not remove - auctionDiv or parent missing');
-                }
+                removeAuctionUi();
+                console.log('[completeHandler] Winner display removed');
             }, 5000);
         };
         window.draftSocket.on('liveAuctionEnded', completeHandler);
@@ -4608,7 +4658,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             // Show message that someone backed out
             const message = document.createElement('p');
             message.style.cssText = 'text-align:center;color:#e74c3c;font-size:14px;margin:8px 0;';
-            message.textContent = `${data.teamName} backed out`;
+            message.textContent = `${data.teamName || data.username || 'A team'} backed out`;
             auctionDiv.appendChild(message);
             
             setTimeout(() => {
@@ -4646,8 +4696,14 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         const upBtn = document.getElementById('bid-up-btn');
         if (upBtn && userInTie) {
             console.log('[upBtn] Up arrow button found and user is in tie');
-            upBtn.onclick = () => {
+            let lastBidAttemptAt = 0;
+            const handleBidUp = () => {
                 console.log('[upBtn] Up arrow clicked!');
+                const now = Date.now();
+                if (now - lastBidAttemptAt < 250) {
+                    return;
+                }
+                lastBidAttemptAt = now;
                 if (backedOut) {
                     console.log('[upBtn] User has backed out, ignoring click');
                     alert('You have backed out of this auction');
@@ -4691,12 +4747,17 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                     upBtn.style.background = '#3498db';
                 }, 500);
             };
+            upBtn.addEventListener('click', handleBidUp);
+            upBtn.addEventListener('touchend', (event) => {
+                event.preventDefault();
+                handleBidUp();
+            }, { passive: false });
         }
 
         // Setup backout radio
         const backoutRadio = document.getElementById('backout-radio');
         if (backoutRadio && userInTie) {
-            backoutRadio.onchange = () => {
+            const handleBackout = () => {
                 if (backoutRadio.checked) {
                     window.draftSocket.emit('backoutLiveAuction', currentDraftCode, auctionId, (response) => {
                         if (response && response.ok) {
@@ -4713,6 +4774,8 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                     });
                 }
             };
+            backoutRadio.addEventListener('change', handleBackout);
+            backoutRadio.addEventListener('click', handleBackout);
         }
     }
 
