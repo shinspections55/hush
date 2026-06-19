@@ -2711,6 +2711,12 @@ io.on('connection', (socket) => {
             const cpuTeam = drafts[code].draftState.teams.find(t => t.name === cpuName);
             if (!cpuTeam) continue;
 
+            if (auction.currentWinner === cpuName) {
+              // Current leader cannot back out; they set the standing top bid.
+              remainingAfterBackout.push(cpuName);
+              continue;
+            }
+
             // Calculate position need
             const rosterCounts = cpuTeam.roster.reduce((c, p) => {
               c[p.position] = (c[p.position] || 0) + 1;
@@ -2765,16 +2771,21 @@ io.on('connection', (socket) => {
 
           // Case 3: all backed out (rare) → randomly assign
           if (remainingAfterBackout.length === 0) {
-            console.log(`[TIE BREAKER] All CPUs backed out, randomly assigning`);
+            console.log(`[TIE BREAKER] All CPUs backed out, forcing one team to remain`);
             const randomWinner = pickRandomCPU(cpuRemaining);
+            if (randomWinner) {
+              auction.backedOutTeams = auction.backedOutTeams.filter(teamName => teamName !== randomWinner);
+              auction.currentWinner = randomWinner;
+            }
             completeLiveAuction(code, auctionId);
             return;
           }
         }
       }
       
-      // CPU AI bidding - use clean tied auction module
-      if (auction.timer > 0 && auction.timer % 2 === 0) {
+      // CPU AI bidding - use clean tied auction module.
+      // Wait until timer is under 5s so users can react before CPUs back out.
+      if (auction.timer > 0 && auction.timer % 2 === 0 && auction.timer < 5) {
         try {
           // Safety checks
           if (!drafts[code] || !drafts[code].draftState || !drafts[code].draftState.teams) {
@@ -2860,6 +2871,9 @@ io.on('connection', (socket) => {
 
           // Update backed out teams
           cpus.filter(c => !c.isIn).forEach(cpu => {
+            if (auction.currentWinner === cpu.name) {
+              return;
+            }
             if (!auction.backedOutTeams.includes(cpu.name)) {
               auction.backedOutTeams.push(cpu.name);
               io.to(`draft_${code}`).emit('liveAuctionBackout', { auctionId, teamName: cpu.name });
@@ -2934,18 +2948,36 @@ io.on('connection', (socket) => {
       
       auction.active = false;
       
-      // Determine winner
-      const remainingTeams = auction.tiedTeams.filter(t => !auction.backedOutTeams.includes(t));
-      let winner = auction.currentWinner;
+      // Determine winner strictly from active teams (teams that did not back out).
+      let remainingTeams = auction.tiedTeams.filter(t => !auction.backedOutTeams.includes(t));
+      let winner = null;
       let winningBid = auction.currentBid;
-      
-      if (remainingTeams.length === 0) {
-        // Everyone backed out - pick random from original
+
+      const activeBidEntries = Object.entries(auction.bids || {})
+        .filter(([teamName]) => remainingTeams.includes(teamName));
+
+      if (activeBidEntries.length > 0) {
+        activeBidEntries.sort((a, b) => (b[1] || 0) - (a[1] || 0));
+        winner = activeBidEntries[0][0];
+        winningBid = Math.max(auction.startBid || 0, activeBidEntries[0][1] || 0);
+      } else if (remainingTeams.length === 1) {
+        winner = remainingTeams[0];
+        winningBid = Math.max(auction.startBid || 0, auction.currentBid || 0);
+      } else if (remainingTeams.length > 1) {
+        if (auction.currentWinner && remainingTeams.includes(auction.currentWinner)) {
+          winner = auction.currentWinner;
+        } else {
+          winner = remainingTeams[Math.floor(Math.random() * remainingTeams.length)];
+        }
+        winningBid = Math.max(auction.startBid || 0, auction.currentBid || 0);
+      } else {
+        // Safety fallback: should be rare (e.g., synchronized all-backout race).
+        // Force one original tied team back in rather than awarding to a backed-out team.
         winner = auction.tiedTeams[Math.floor(Math.random() * auction.tiedTeams.length)];
-        winningBid = auction.startBid || auction.currentBid;
-      } else if (!winner || auction.backedOutTeams.includes(winner)) {
-        // Winner backed out or no one raised bid - pick random from remaining
-        winner = remainingTeams[Math.floor(Math.random() * remainingTeams.length)];
+        auction.backedOutTeams = auction.backedOutTeams.filter(teamName => teamName !== winner);
+        remainingTeams = [winner];
+        winningBid = Math.max(auction.startBid || 0, auction.currentBid || 0);
+        console.warn(`[completeLiveAuction] All teams backed out; forced fallback winner ${winner}`);
       }
       
       console.log(`[completeLiveAuction] Auction ended - Winner: ${winner}, Bid: $${winningBid}`);
@@ -3260,6 +3292,11 @@ io.on('connection', (socket) => {
     
     if (!matchedTeamName) {
       if (cb) cb({ ok: false, reason: 'not_in_auction' });
+      return;
+    }
+
+    if (auction.currentWinner === matchedTeamName) {
+      if (cb) cb({ ok: false, reason: 'leading_bidder_cannot_backout' });
       return;
     }
     

@@ -4358,6 +4358,8 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             return;
         }
 
+        let hasSeenAuctionStart = false;
+
         // Sort tied bids from highest to lowest
         tiedBids.sort((a, b) => b.bidAmount - a.bidAmount);
         console.log('[handleLiveAuction] Sorted tied bids:', tiedBids);
@@ -4368,6 +4370,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             // Check if this auction is one of our tied bids
             const matchingTie = tiedBids.find(t => t.playerId === data.playerId);
             if (matchingTie) {
+                hasSeenAuctionStart = true;
                 console.log('[globalAuctionListener] This is one of our tied bids, setting up UI');
                 startLiveAuction(matchingTie, data.auctionId);
             }
@@ -4383,12 +4386,16 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         
         // Wait for all auctions to complete (server will emit allMembersAccepted when done)
         const allAuctionsCompleteListener = () => {
+            if (!hasSeenAuctionStart) {
+                console.log('[handleLiveAuction] Ignoring pre-auction allMembersAccepted event');
+                return;
+            }
             console.log('[handleLiveAuction] All auctions complete, cleaning up');
             window.currentAuctionCleanup();
             window.draftSocket.off('allMembersAccepted', allAuctionsCompleteListener);
             onComplete();
         };
-        window.draftSocket.once('allMembersAccepted', allAuctionsCompleteListener);
+        window.draftSocket.on('allMembersAccepted', allAuctionsCompleteListener);
         
         console.log('[handleLiveAuction] Global listener set up, waiting for server to start auctions...');
     }
@@ -4412,6 +4419,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         let currentBid = tied.bidAmount;
         let currentWinner = null;
         let backedOut = false;
+        const backedOutTeams = [];
         const suppressedUiState = {
             pwaSettingsWasOpen: false
         };
@@ -4487,7 +4495,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         
         const animationStyle = userInTie ? 'animation: auctionPulse 1s ease-in-out 2;' : '';
         
-        auctionDiv.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(15,15,15,0.98);border:2px solid ${userInTie ? '#2ecc71' : '#3498db'};border-radius:12px;padding:18px;z-index:10000;color:#f5f5f7;box-shadow:0 8px 32px rgba(0,0,0,0.8);width:min(92vw,560px);max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);overflow-y:auto;box-sizing:border-box;touch-action:manipulation;-webkit-overflow-scrolling:touch;${animationStyle}`;
+        auctionDiv.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(15,15,15,0.98);border:2px solid ${userInTie ? '#2ecc71' : '#3498db'};border-radius:12px;padding:18px;z-index:10000;color:#f5f5f7;box-shadow:0 8px 32px rgba(0,0,0,0.8);width:min(92vw,560px);max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);overflow-y:auto;overflow-x:hidden;box-sizing:border-box;touch-action:manipulation;-webkit-overflow-scrolling:touch;${animationStyle}`;
         
         auctionDiv.innerHTML = `
             <div style="background:linear-gradient(135deg,${userInTie ? '#2ecc71,#27ae60' : '#3498db,#2980b9'});padding:16px;border-radius:8px;margin:-24px -24px 20px -24px;">
@@ -4496,7 +4504,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             <div style="background:rgba(52,152,219,0.1);border:2px solid #3498db;border-radius:8px;padding:16px;margin-bottom:20px;">
                 <p style="text-align:center;color:#3498db;font-size:18px;font-weight:bold;margin:0 0 8px 0;">${player.playerName || player.name} (${player.position})</p>
                 <p style="text-align:center;color:#f5f5f7;font-size:16px;margin:0 0 8px 0;">Tied at: <span style="color:#2ecc71;font-weight:bold;">$${tied.bidAmount}</span></p>
-                <p style="text-align:center;color:#95a5a6;font-size:14px;margin:0;">Competing Teams: <span style="color:#f5f5f7;font-weight:600;">${tied.tiedTeams.join(', ')}</span></p>
+                <p style="text-align:center;color:#95a5a6;font-size:14px;margin:0;overflow-wrap:anywhere;word-break:break-word;">Competing Teams: <span style="color:#f5f5f7;font-weight:600;overflow-wrap:anywhere;word-break:break-word;">${tied.tiedTeams.join(', ')}</span></p>
             </div>
             <div style="margin:20px 0;text-align:center;">
                 <p style="color:#95a5a6;font-size:14px;margin:0 0 8px 0;">Current Bid:</p>
@@ -4506,8 +4514,11 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 </div>
             </div>
             <p id="auction-countdown" style="text-align:center;color:#2ecc71;font-size:18px;font-weight:bold;margin:16px 0;">Time: 10s</p>
+            <div id="auction-backout-log" style="margin:10px 0 0 0;padding:10px;background:rgba(231,76,60,0.08);border:1px solid rgba(231,76,60,0.22);border-radius:8px;font-size:13px;color:#f2b8b5;text-align:center;">
+                <strong style="color:#e74c3c;">Backed Out:</strong> None yet
+            </div>
             ${userInTie ? `
-                <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;margin-top:16px;text-align:center;">
+                <div id="backout-control-wrap" style="border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;margin-top:16px;text-align:center;">
                     <label style="display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;padding:12px;background:rgba(231,76,60,0.1);border-radius:8px;">
                         <input type="radio" id="backout-radio" name="backout" style="width:18px;height:18px;cursor:pointer;"/>
                         <span style="color:#e74c3c;font-weight:600;">Back Out of Auction</span>
@@ -4633,34 +4644,62 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             
             console.log('[completeHandler] Showing winner display for 5 seconds');
             console.log('[completeHandler] auctionDiv exists:', !!auctionDiv);
-            
-            // Show winner
-            auctionDiv.innerHTML = `
-                <h3 style="color:#2ecc71;margin-top:0;text-align:center;">Auction Complete!</h3>
-                <p style="text-align:center;color:#f5f5f7;font-size:18px;margin:16px 0;">${player.playerName || player.name}</p>
-                <p style="text-align:center;color:#2ecc71;font-size:24px;font-weight:bold;margin:16px 0;">Winner: ${data.winner}</p>
-                <p style="text-align:center;color:#3498db;font-size:20px;margin:16px 0;">Price: $${data.finalBid}</p>
-            `;
-            
-            console.log('[completeHandler] Winner display HTML set, waiting 5 seconds before removing');
-            
-            // Remove modal after showing winner
-            setTimeout(() => {
-                console.log('[completeHandler] 5 seconds elapsed, removing winner display');
-                removeAuctionUi();
-                console.log('[completeHandler] Winner display removed');
-            }, 5000);
+
+            const backedOutSummary = backedOutTeams.length
+                ? backedOutTeams.join(', ')
+                : '';
+
+            const showWinnerSummary = () => {
+                auctionDiv.innerHTML = `
+                    <h3 style="color:#2ecc71;margin-top:0;text-align:center;">Auction Complete!</h3>
+                    <div style="background:rgba(52,152,219,0.1);border:1px solid rgba(52,152,219,0.35);border-radius:8px;padding:12px;margin:12px 0;">
+                        <p style="text-align:center;color:#f5f5f7;font-size:17px;margin:0 0 8px 0;"><strong>Player:</strong> ${player.playerName || player.name} (${player.position})</p>
+                        <p style="text-align:center;color:#2ecc71;font-size:20px;font-weight:bold;margin:0 0 6px 0;">Winner: ${data.winner}</p>
+                        <p style="text-align:center;color:#3498db;font-size:18px;margin:0;">Price: $${data.finalBid}</p>
+                    </div>
+                `;
+
+                console.log('[completeHandler] Winner display HTML set, waiting 5 seconds before removing');
+                setTimeout(() => {
+                    console.log('[completeHandler] 5 seconds elapsed, removing winner display');
+                    removeAuctionUi();
+                    console.log('[completeHandler] Winner display removed');
+                }, 5000);
+            };
+
+            if (backedOutSummary) {
+                auctionDiv.innerHTML = `
+                    <h3 style="color:#e74c3c;margin-top:0;text-align:center;">Backouts Recorded</h3>
+                    <div style="margin-top:10px;padding:12px;background:rgba(231,76,60,0.08);border:1px solid rgba(231,76,60,0.25);border-radius:8px;">
+                        <p style="text-align:center;color:#e6a7a2;font-size:15px;margin:0;"><strong style="color:#e74c3c;">Backed Out:</strong> ${backedOutSummary}</p>
+                    </div>
+                `;
+                setTimeout(showWinnerSummary, 3000);
+            } else {
+                showWinnerSummary();
+            }
         };
         window.draftSocket.on('liveAuctionEnded', completeHandler);
 
         // Backout listener
         const backoutHandler = (data) => {
             if (data.auctionId !== auctionId) return;
+
+            const backoutTeam = String(data.teamName || data.username || 'A team').trim();
+            if (backoutTeam && !backedOutTeams.includes(backoutTeam)) {
+                backedOutTeams.push(backoutTeam);
+            }
+
+            const backoutLog = document.getElementById('auction-backout-log');
+            if (backoutLog) {
+                const list = backedOutTeams.length ? backedOutTeams.join(', ') : 'None yet';
+                backoutLog.innerHTML = `<strong style="color:#e74c3c;">Backed Out:</strong> ${list}`;
+            }
             
             // Show message that someone backed out
             const message = document.createElement('p');
             message.style.cssText = 'text-align:center;color:#e74c3c;font-size:14px;margin:8px 0;';
-            message.textContent = `${data.teamName || data.username || 'A team'} backed out`;
+            message.textContent = `${backoutTeam} backed out`;
             auctionDiv.appendChild(message);
             
             setTimeout(() => {
@@ -4675,6 +4714,13 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         function updateBidDisplay() {
             console.log('[updateBidDisplay] Updating display - currentBid:', currentBid, 'currentWinner:', currentWinner, 'username:', username);
             const bidAmount = document.getElementById('live-bid-amount');
+            const backoutWrap = document.getElementById('backout-control-wrap');
+            const leading = currentWinner && isCurrentUserTeamName(currentWinner);
+
+            if (backoutWrap) {
+                backoutWrap.style.display = leading ? 'none' : '';
+            }
+
             if (bidAmount) {
                 bidAmount.textContent = `$${currentBid}`;
                 console.log('[updateBidDisplay] Updated bid amount text to:', bidAmount.textContent);

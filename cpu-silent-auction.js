@@ -114,6 +114,11 @@ const defaultRosterTargets = {
 
 const draftRoundCount = 10;
 const minimumCompletedRosterSize = 14;
+const CPU_STAR_TARGET_MIN = 4;
+const CPU_STAR_TARGET_MAX = 6;
+const CPU_STAR_OVERLAP_MIN = 0.12;
+const CPU_STAR_OVERLAP_MAX = 0.22;
+const CPU_STAR_POOL_SIZE = 50;
 const starterMinimumDefaults = {
   QB: 1,
   RB: 2,
@@ -142,6 +147,13 @@ function getEffectiveBudget(team, totalBudgetCommitted = 0, maxRosterSize = 19) 
   const openSlots = getOpenSlots(team, maxRosterSize);
   const reserve = openSlots;
   return Math.max(0, team.budget - totalBudgetCommitted - reserve);
+}
+
+function getBidBudgetForTeam(team, totalBudgetCommitted = 0, maxRosterSize = 19, bypassReserve = false) {
+  if (bypassReserve) {
+    return Math.max(0, (team?.budget || 0) - totalBudgetCommitted);
+  }
+  return getEffectiveBudget(team, totalBudgetCommitted, maxRosterSize);
 }
 
 function getTeamSeed(teamName) {
@@ -515,6 +527,144 @@ function getTeamPlayerNoise(teamName, playerId, roundNumber) {
   return hash / 999;
 }
 
+function getProactivePriorityFloor(roundNumber) {
+  const round = Math.max(1, Math.min(draftRoundCount, Number(roundNumber) || 1));
+  const progress = (round - 1) / Math.max(1, draftRoundCount - 1);
+  // Non-linear ramp: stronger than linear early/mid, with clear late-round urgency peak.
+  const curvedProgress = Math.pow(progress, 0.62);
+  const minFloor = 1.48;
+  const maxFloor = 2.22;
+  return minFloor + ((maxFloor - minFloor) * curvedProgress);
+}
+
+function getPlayerIdKey(playerOrId) {
+  const raw = typeof playerOrId === 'object' ? playerOrId?.id : playerOrId;
+  if (raw === null || typeof raw === 'undefined') return '';
+  return String(raw);
+}
+
+function getTopCpuStarPool(allPlayers = [], poolSize = CPU_STAR_POOL_SIZE) {
+  return [...(allPlayers || [])]
+    .filter(player => player && typeof player.avgValue === 'number')
+    .sort((a, b) => (b.avgValue || 0) - (a.avgValue || 0))
+    .slice(0, Math.max(1, poolSize));
+}
+
+function shuffledCopy(items) {
+  const out = [...(items || [])];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+function rollCpuStarOverlapChance() {
+  const min = Math.max(0, CPU_STAR_OVERLAP_MIN);
+  const max = Math.max(min, CPU_STAR_OVERLAP_MAX);
+  return min + (Math.random() * (max - min));
+}
+
+function initializeCpuStarTargets(cpuTeams, allPlayers, options = {}) {
+  const topPool = getTopCpuStarPool(allPlayers, CPU_STAR_POOL_SIZE);
+  const topPoolIds = topPool.map(player => getPlayerIdKey(player)).filter(Boolean);
+  const assignedByTeam = {};
+  const forceRebuild = !!options.forceRebuild;
+  const overlapChance = typeof options.overlapChance === 'number'
+    ? options.overlapChance
+    : rollCpuStarOverlapChance();
+
+  const assignmentOrder = shuffledCopy(cpuTeams || []);
+
+  assignmentOrder.forEach(team => {
+    const teamName = String(team?.name || '');
+    if (!teamName) return;
+
+    const existing = !forceRebuild && Array.isArray(team.__cpuStarTargetIds)
+      ? team.__cpuStarTargetIds.map(getPlayerIdKey).filter(Boolean)
+      : null;
+
+    if (existing && existing.length > 0) {
+      assignedByTeam[teamName] = new Set(existing);
+      return;
+    }
+
+    const targetCount = CPU_STAR_TARGET_MIN + Math.floor(Math.random() * (CPU_STAR_TARGET_MAX - CPU_STAR_TARGET_MIN + 1));
+    const chosen = [];
+    const chosenSet = new Set();
+
+    const sharedCandidates = Object.values(assignedByTeam).flatMap(set => [...set]);
+
+    while (chosen.length < targetCount) {
+      let pickedId = '';
+
+      if (sharedCandidates.length > 0 && Math.random() < overlapChance) {
+        const overlapId = sharedCandidates[Math.floor(Math.random() * sharedCandidates.length)];
+        if (overlapId && !chosenSet.has(overlapId)) {
+          pickedId = overlapId;
+        }
+      }
+
+      if (!pickedId) {
+        const freshPool = topPoolIds.filter(id => id && !chosenSet.has(id));
+        if (freshPool.length === 0) break;
+        pickedId = freshPool[Math.floor(Math.random() * freshPool.length)];
+      }
+
+      if (!pickedId) break;
+      chosen.push(pickedId);
+      chosenSet.add(pickedId);
+    }
+
+    team.__cpuStarTargetIds = chosen;
+    assignedByTeam[teamName] = new Set(chosen);
+  });
+
+  return {
+    assignedByTeam,
+    overlapChance
+  };
+}
+
+function getCpuStarTargetState(starTargetIds, allPlayers, roundPlayers) {
+  const starIds = starTargetIds instanceof Set ? starTargetIds : new Set();
+  const allById = new Map((allPlayers || []).map(player => [getPlayerIdKey(player), player]));
+
+  const roundAvailableIds = new Set(
+    (roundPlayers || [])
+      .filter(player => player && !player.owner)
+      .map(player => getPlayerIdKey(player))
+      .filter(Boolean)
+  );
+
+  const pending = [];
+  starIds.forEach(playerId => {
+    const player = allById.get(playerId);
+    if (!player || player.owner) return;
+    pending.push(player);
+  });
+
+  const availableNowIds = new Set(
+    pending
+      .filter(player => roundAvailableIds.has(getPlayerIdKey(player)))
+      .map(player => getPlayerIdKey(player))
+      .filter(Boolean)
+  );
+
+  const unavailablePositions = new Set(
+    pending
+      .filter(player => !availableNowIds.has(getPlayerIdKey(player)))
+      .map(player => player.position)
+      .filter(Boolean)
+  );
+
+  return {
+    pendingCount: pending.length,
+    availableNowIds,
+    unavailablePositions
+  };
+}
+
 function selectCpuTargetsForTeam(availablePlayers, maxBids, teamName, roundNumber, playerExposureCounts) {
   const pool = (availablePlayers || []).slice(0, Math.min(14, availablePlayers.length));
   if (pool.length === 0 || maxBids <= 0) {
@@ -586,6 +736,54 @@ function enforcePositionCoverage(selectedPlayers, availablePlayers, requiredPosi
       finalSelection[replacementIndex] = fallback;
       selectedIds.add(fallback.player.id);
       selectedPositions.add(position);
+    }
+  });
+
+  return dedupePlayerEntriesByBestWeight(finalSelection)
+    .sort((a, b) => (b.selectionWeight || 0) - (a.selectionWeight || 0))
+    .slice(0, maxBids);
+}
+
+function enforceStarTargetCoverage(selectedPlayers, availablePlayers, starTargetIds, maxBids) {
+  const starIds = starTargetIds instanceof Set ? starTargetIds : new Set();
+  if (!starIds.size) {
+    return selectedPlayers || [];
+  }
+
+  const finalSelection = [...(selectedPlayers || [])];
+  const selectedIdSet = new Set(finalSelection.map(entry => getPlayerIdKey(entry?.player)).filter(Boolean));
+
+  const availableStarEntries = (availablePlayers || [])
+    .filter(entry => starIds.has(getPlayerIdKey(entry?.player)))
+    .sort((a, b) => (b.selectionWeight || 0) - (a.selectionWeight || 0));
+
+  availableStarEntries.forEach(starEntry => {
+    const starId = getPlayerIdKey(starEntry?.player);
+    if (!starId || selectedIdSet.has(starId)) return;
+
+    if (finalSelection.length < maxBids) {
+      finalSelection.push(starEntry);
+      selectedIdSet.add(starId);
+      return;
+    }
+
+    let replacementIndex = -1;
+    let lowestWeight = Infinity;
+
+    for (let i = 0; i < finalSelection.length; i++) {
+      const candidate = finalSelection[i];
+      const candidateId = getPlayerIdKey(candidate?.player);
+      const candidateWeight = candidate?.selectionWeight || 0;
+      if (starIds.has(candidateId)) continue;
+      if (candidateWeight < lowestWeight) {
+        lowestWeight = candidateWeight;
+        replacementIndex = i;
+      }
+    }
+
+    if (replacementIndex >= 0) {
+      finalSelection[replacementIndex] = starEntry;
+      selectedIdSet.add(starId);
     }
   });
 
@@ -821,9 +1019,14 @@ function getDynamicBidBand(avgValue, roundNumber, strategy) {
 
 function clampBidToDynamicBand(player, bidAmount, roundNumber, strategy, bidRemainingBudget) {
   const band = getDynamicBidBand(player.avgValue, roundNumber, strategy);
-  const baseFloor = Math.max(1, Math.round(player.avgValue * band.minPct));
-  const baseCeiling = Math.max(baseFloor, Math.round(player.avgValue * band.maxPct));
-  const rareCeiling = Math.max(baseCeiling, Math.round(player.avgValue * band.rareMaxPct));
+  const expansionPct = 0.10 + (Math.random() * 0.10);
+  const expandedMinPct = Math.max(0.25, band.minPct * (1 - expansionPct));
+  const expandedMaxPct = band.maxPct * (1 + expansionPct);
+  const expandedRareMaxPct = band.rareMaxPct * (1 + expansionPct);
+
+  const baseFloor = Math.max(1, Math.round(player.avgValue * expandedMinPct));
+  const baseCeiling = Math.max(baseFloor, Math.round(player.avgValue * expandedMaxPct));
+  const rareCeiling = Math.max(baseCeiling, Math.round(player.avgValue * expandedRareMaxPct));
   const ceiling = Math.random() < band.rareChance ? rareCeiling : baseCeiling;
 
   return Math.max(1, Math.min(Math.max(baseFloor, bidAmount), ceiling, bidRemainingBudget));
@@ -836,7 +1039,7 @@ function pullBidTowardAV(player, bidAmount, roundNumber) {
 
   // Gentle center-weighting only — the old 0.68 weight was collapsing all CPUs into a tiny dollar window
   // making integer ties near-certain for high-value players. This is just a soft nudge now.
-  const avWeight = roundNumber <= 3 ? 0.18 : roundNumber <= 7 ? 0.14 : 0.10;
+  const avWeight = roundNumber <= 3 ? 0.11 : roundNumber <= 7 ? 0.08 : 0.05;
   return Math.round((player.avgValue * avWeight) + (bidAmount * (1 - avWeight)));
 }
 
@@ -995,6 +1198,17 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
     console.log(`[generateCPUBids] Human members: ${humanMembers.join(', ')}`);
     console.log(`[generateCPUBids] CPU teams: ${cpuTeams.map(t => t.name).join(', ')}`);
 
+    const draftOverlapChance = rollCpuStarOverlapChance();
+    const starTargetInit = initializeCpuStarTargets(cpuTeams, allPlayers, {
+      overlapChance: draftOverlapChance,
+      forceRebuild: Number(roundNumber) === 1
+    });
+    const cpuStarTargetsByTeam = starTargetInit.assignedByTeam || {};
+
+    if (Number(roundNumber) === 1) {
+      console.log(`[generateCPUBids] CPU star overlap rate this draft: ${(draftOverlapChance * 100).toFixed(1)}%`);
+    }
+
     // Generate dynamic bidding strategies for each CPU team based on situation
     const teamStrategies = {};
     for (const team of cpuTeams) {
@@ -1050,6 +1264,11 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
         // Remove duplicates
         mustFillPositions = [...new Set(mustFillPositions)];
       }
+
+      // Proactive starter-fill pressure runs all draft: keep missing starter slots in focus
+      // until each team fills them, with urgency scaled later in the draft.
+      let proactiveFillPositions = Object.keys(missingByPosition || {});
+      proactiveFillPositions = [...new Set(proactiveFillPositions)];
 
       // --- ENHANCEMENT: Roster balance logic ---
       // If team is unbalanced (e.g., 8 WR, 2 RB), prioritize underrepresented positions
@@ -1120,6 +1339,12 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       const personality = getTeamPersonality(team.name);
       baseAggressiveness = Math.max(0.1, Math.min(0.95, baseAggressiveness * personality.aggression));
 
+      const starredTargetIds = cpuStarTargetsByTeam[team.name] || new Set();
+      const starTargetState = getCpuStarTargetState(starredTargetIds, allPlayers, roundPlayers);
+      if (starTargetState.availableNowIds.size > 0) {
+        baseAggressiveness = Math.min(0.97, baseAggressiveness + 0.05);
+      }
+
       teamStrategies[team.name] = {
         aggressiveness: baseAggressiveness,
         budgetPerRound,
@@ -1136,17 +1361,23 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
         personality,
         positionPriorities,
         mustFillPositions,
+        proactiveFillPositions,
         underrepresentedPositions,
+        starredTargetIds,
+        starredTargetAvailableNowIds: starTargetState.availableNowIds,
+        starredUnavailablePositions: starTargetState.unavailablePositions,
         missingStarterCount: totalMissing,
+        emergencyStarterFillMode: roundsIncludingCurrent <= 3 && mustFillPositions.length > 0,
         spreadFillMode: roundNumber >= 7 && rosterSpotsLeft >= 4,
         fillNeedPositions: [...new Set([
           ...mustFillPositions,
+          ...proactiveFillPositions,
           ...underrepresentedPositions,
           ...(rosterSpotsLeft >= 4 ? ['RB', 'WR', 'TE'] : [])
         ])]
       };
 
-      console.log(`[generateCPUBids] ${team.name} strategy: ${baseAggressiveness.toFixed(2)}x aggressive, $${budgetPerRound.toFixed(0)}/round, ${rosterSpotsLeft} spots left, must-fill: [${mustFillPositions.join(', ')}], underrep: [${underrepresentedPositions.join(', ')}]`);
+      console.log(`[generateCPUBids] ${team.name} strategy: ${baseAggressiveness.toFixed(2)}x aggressive, $${budgetPerRound.toFixed(0)}/round, ${rosterSpotsLeft} spots left, must-fill: [${mustFillPositions.join(', ')}], underrep: [${underrepresentedPositions.join(', ')}], stars: ${starredTargetIds.size}, stars-now: ${starTargetState.availableNowIds.size}`);
     }
 
     const playerExposureCounts = {};
@@ -1158,9 +1389,10 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
 
       // Track total budget committed to bids this round
       let totalBudgetCommitted = 0;
+      const reserveBypass = Number(roundNumber) >= 7 || !!strategy.emergencyStarterFillMode;
 
       // Check if team has any budget left to bid
-      const remainingBudget = getEffectiveBudget(team, totalBudgetCommitted, maxRosterSize);
+      const remainingBudget = getBidBudgetForTeam(team, totalBudgetCommitted, maxRosterSize, reserveBypass);
       if (remainingBudget <= 0) {
         console.log(`[CPU-${team.name}] No budget remaining, skipping bids`);
         continue;
@@ -1172,6 +1404,11 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
         maxRosterSize,
         strategy,
         totalBudgetCommitted
+      };
+
+      const specialistPools = {
+        K: (roundPlayers || []).filter(player => !player?.owner && player.position === 'K').sort((a, b) => (b.avgValue || 0) - (a.avgValue || 0)),
+        DEF: (roundPlayers || []).filter(player => !player?.owner && player.position === 'DEF').sort((a, b) => (b.avgValue || 0) - (a.avgValue || 0))
       };
 
       // --- ENHANCED: Prioritize must-fill positions and roster balance in late rounds ---
@@ -1195,10 +1432,40 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
         })
         .map(player => {
           const teamValue = calculatePlayerValueForTeam(team, player, valuationContext);
+          const playerIdKey = getPlayerIdKey(player);
+          const isStarredTarget = strategy.starredTargetIds?.has(playerIdKey);
+          const holdForUnavailableStar = !isStarredTarget && strategy.starredUnavailablePositions?.has(player.position);
+          const isSpecialist = player.position === 'K' || player.position === 'DEF';
+          const missingStarterAtPosition = (positionCounts[player.position] || 0) < getPositionMinimum(player.position, rosterLimits);
+          let specialistOpportunityMultiplier = 1;
+          let earlySpecialistTarget = false;
+
+          if (isSpecialist && missingStarterAtPosition && roundNumber <= 6) {
+            const pool = specialistPools[player.position] || [];
+            const rankIndex = pool.findIndex(candidate => String(candidate?.id) === String(player?.id));
+            if (rankIndex >= 0 && pool.length > 0) {
+              const topBandCount = Math.max(1, Math.ceil(pool.length * 0.34));
+              const isTopSpecialist = rankIndex < topBandCount;
+              const teamGateRoll = getTeamPlayerNoise(team.name, player.id, roundNumber);
+              const chaseThreshold = roundNumber <= 3 ? 0.68 : 0.58;
+
+              if (isTopSpecialist && teamGateRoll >= chaseThreshold) {
+                specialistOpportunityMultiplier = roundNumber <= 3 ? 1.18 : 1.28;
+                earlySpecialistTarget = true;
+              } else if (!isTopSpecialist) {
+                specialistOpportunityMultiplier = roundNumber <= 3 ? 0.9 : 0.95;
+              }
+            }
+          }
+
           let mustFillPriority = 1;
           // In late rounds, boost must-fill positions
           if ((strategy.mustFillPositions && strategy.mustFillPositions.length > 0) && (strategy.mustFillPositions.includes(player.position))) {
             mustFillPriority = 2.5;
+          }
+          if ((strategy.proactiveFillPositions || []).includes(player.position)) {
+            const proactivePriorityFloor = getProactivePriorityFloor(roundNumber);
+            mustFillPriority = Math.max(mustFillPriority, proactivePriorityFloor);
           }
           // In late rounds, boost underrepresented positions for balance
           if ((strategy.underrepresentedPositions && strategy.underrepresentedPositions.length > 0) && (strategy.underrepresentedPositions.includes(player.position))) {
@@ -1222,20 +1489,32 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
             }
           }
 
+          if (isStarredTarget) {
+            mustFillPriority = Math.max(mustFillPriority, 1.8);
+          } else if (holdForUnavailableStar && !(strategy.mustFillPositions || []).includes(player.position)) {
+            mustFillPriority = Math.min(mustFillPriority, 0.82);
+          }
+
           return {
             player,
             teamValue,
             mustFillPriority,
-            selectionWeight: Math.max(0.25, teamValue * mustFillPriority * (player.avgValue >= 45 ? 1.05 : 1))
+            earlySpecialistTarget,
+            selectionWeight: Math.max(0.25, teamValue * mustFillPriority * specialistOpportunityMultiplier * (player.avgValue >= 45 ? 1.05 : 1) * (isStarredTarget ? 1.2 : 1))
           };
         })
-        .filter(entry => entry.teamValue >= (strategy.mustFillRoster || strategy.spreadFillMode ? 0.2 : 0.75))
+        .filter(entry => {
+          const isMustFillPosition = (strategy.mustFillPositions || []).includes(entry?.player?.position);
+          return isMustFillPosition || entry.teamValue >= (strategy.mustFillRoster || strategy.spreadFillMode ? 0.2 : 0.75);
+        })
         .sort((a, b) => b.selectionWeight - a.selectionWeight);
 
-      // If there are must-fill positions, only bid on those first
+      const priorityFillPositions = [...new Set([...(strategy.mustFillPositions || []), ...(strategy.proactiveFillPositions || [])])];
+
+      // If there are fill-priority positions, bid on those first.
       let availablePlayers;
-      if (!strategy.spreadFillMode && strategy.mustFillPositions && strategy.mustFillPositions.length > 0) {
-        availablePlayers = valuedPlayers.filter(entry => strategy.mustFillPositions.includes(entry.player.position));
+      if (!strategy.spreadFillMode && priorityFillPositions.length > 0) {
+        availablePlayers = valuedPlayers.filter(entry => priorityFillPositions.includes(entry.player.position));
         // If not enough, fill with underrepresented positions
         if (availablePlayers.length < strategy.rosterSpotsLeft && strategy.underrepresentedPositions && strategy.underrepresentedPositions.length > 0) {
           const underrep = valuedPlayers.filter(entry => strategy.underrepresentedPositions.includes(entry.player.position));
@@ -1285,6 +1564,11 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
         maxBids = Math.max(maxBids, minSpreadBids);
       }
 
+      if (strategy.emergencyStarterFillMode) {
+        const emergencyBidCount = Math.min(4, Math.max(2, strategy.mustFillPositions.length + 1));
+        maxBids = Math.max(maxBids, emergencyBidCount);
+      }
+
       maxBids = Math.min(maxBids, availablePlayers.length);
 
       // Diversify targets so CPU teams do not all pile onto the same players.
@@ -1299,21 +1583,34 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       const selectedWithCoverage = enforcePositionCoverage(
         selectedPlayers,
         availablePlayers,
-        strategy.spreadFillMode ? strategy.fillNeedPositions : strategy.mustFillPositions,
+        strategy.spreadFillMode ? strategy.fillNeedPositions : priorityFillPositions,
         maxBids
       );
 
-      selectedWithCoverage.forEach(selected => {
+      const selectedWithStars = enforceStarTargetCoverage(
+        selectedWithCoverage,
+        availablePlayers,
+        strategy.starredTargetIds,
+        maxBids
+      );
+
+      selectedWithStars.forEach(selected => {
         const playerId = selected?.player?.id;
         if (!playerId) return;
         playerExposureCounts[playerId] = (playerExposureCounts[playerId] || 0) + 1;
       });
 
-      for (const selectedPlayer of selectedWithCoverage) {
+      for (const selectedPlayer of selectedWithStars) {
         const player = selectedPlayer.player;
+        const playerIdKey = getPlayerIdKey(player);
+        const isMustFillPosition = (strategy.mustFillPositions || []).includes(player.position);
+        const isStarredTarget = strategy.starredTargetIds?.has(playerIdKey);
+        const holdForUnavailableStar = !isStarredTarget
+          && strategy.starredUnavailablePositions?.has(player.position)
+          && !(strategy.mustFillPositions || []).includes(player.position);
 
         // Check if we still have budget to bid
-        const bidRemainingBudget = getEffectiveBudget(team, totalBudgetCommitted, maxRosterSize);
+        const bidRemainingBudget = getBidBudgetForTeam(team, totalBudgetCommitted, maxRosterSize, reserveBypass);
         if (bidRemainingBudget <= 0) {
           console.log(`[CPU-${team.name}] Ran out of budget during bidding, stopping`);
           break;
@@ -1326,7 +1623,16 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
           strategy,
           totalBudgetCommitted
         });
-        const maxBid = Math.min(Math.round(trueValue), bidRemainingBudget);
+        let maxBid = Math.min(
+          Math.max(Math.round(trueValue), isMustFillPosition ? 1 : 0),
+          bidRemainingBudget
+        );
+
+        const lateRoundFillPush = Number(roundNumber) >= 7 && (strategy.fillNeedPositions || []).includes(player.position);
+        if (lateRoundFillPush) {
+          maxBid = bidRemainingBudget;
+        }
+
         if (maxBid <= 0) {
           continue;
         }
@@ -1336,7 +1642,16 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
         // Use position-specific bid ranges from your original table
         const bidRange = getBidRange(player.position, player.avgValue, true);
         // Use the full range — the Math.min(0.2) cap was collapsing all CPUs into a tiny window causing frequent integer ties
-        let baseMultiplier = bidRange.min + Math.random() * (bidRange.max - bidRange.min);
+        let baseMultiplier;
+        if (isStarredTarget) {
+          const highRangeBias = 0.62 + Math.random() * 0.38;
+          baseMultiplier = bidRange.min + ((bidRange.max - bidRange.min) * highRangeBias);
+        } else if (holdForUnavailableStar) {
+          const lowRangeBias = Math.random() * 0.38;
+          baseMultiplier = bidRange.min + ((bidRange.max - bidRange.min) * lowRangeBias);
+        } else {
+          baseMultiplier = bidRange.min + Math.random() * (bidRange.max - bidRange.min);
+        }
 
         // Add occasional outlier bids for realism, but keep elite prices in bounds.
         if (Math.random() < 0.03) {
@@ -1371,17 +1686,23 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
           situationalMultiplier *= player.avgValue <= 10 ? 1.18 : 1.05;
         }
 
+        if (isStarredTarget) {
+          situationalMultiplier *= 1.08;
+        } else if (holdForUnavailableStar) {
+          situationalMultiplier *= 0.86;
+        }
+
         baseBid = Math.round(baseBid * situationalMultiplier);
 
         // Add randomization for unpredictability
         // Widened for high-value players — ±5% produced only ~6 distinct integers on a $56 player causing constant ties
         let randomFactor;
         if (player.avgValue >= 50) {
-          randomFactor = 0.84 + Math.random() * 0.32; // 0.84–1.16 (~±16%)
+          randomFactor = 0.76 + Math.random() * 0.48; // 0.76–1.24 (~±24%)
         } else if (player.avgValue >= 35) {
-          randomFactor = 0.80 + Math.random() * 0.40; // 0.80–1.20 (~±20%)
+          randomFactor = 0.72 + Math.random() * 0.56; // 0.72–1.28 (~±28%)
         } else {
-          randomFactor = 0.75 + Math.random() * 0.5; // 0.75–1.25 for mid/low-value players
+          randomFactor = 0.68 + Math.random() * 0.64; // 0.68–1.32 for mid/low-value players
         }
         baseBid = Math.round(baseBid * randomFactor);
 
@@ -1409,6 +1730,13 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
           if (slotsLeft >= 4 && !(strategy.mustFillPositions || []).includes(player.position)) {
             baseBid = Math.min(baseBid, maxSingleBid);
           }
+        }
+
+        if (holdForUnavailableStar) {
+          const conservativeCap = player.avgValue >= 10
+            ? Math.max(2, Math.round(player.avgValue * 0.92))
+            : 6;
+          baseBid = Math.min(baseBid, conservativeCap, bidRemainingBudget);
         }
 
         baseBid = softenEliteBid(player, baseBid, strategy);
