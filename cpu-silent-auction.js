@@ -129,7 +129,15 @@ const starterMinimumDefaults = {
 };
 
 function getMaxRosterSize(rosterSize) {
-  return Math.max(1, (rosterSize || 0) + 3);
+  const baseRosterSize = Math.max(1, Number(rosterSize) || minimumCompletedRosterSize);
+  // Keep a small cutdown cushion above configured roster size.
+  return baseRosterSize + 2;
+}
+
+function getTargetRosterSize(rosterSize, maxRosterSize) {
+  const baseRosterSize = Math.max(1, Number(rosterSize) || minimumCompletedRosterSize);
+  // Target is the configured starters + bench total from lobby/server.
+  return Math.min(maxRosterSize, baseRosterSize);
 }
 
 function getRosterPositionCounts(team) {
@@ -923,14 +931,31 @@ function applyLowCostBidShaping(player, bidAmount, strategy, bidRemainingBudget)
   let shapedBid = bidAmount;
   const roundsLeft = strategy?.roundsIncludingCurrent || draftRoundCount;
 
+  if (player.avgValue <= 4) {
+    if (Math.random() < 0.7) {
+      shapedBid = 1;
+    } else {
+      shapedBid = Math.min(shapedBid, 1 + Math.floor(Math.random() * 3)); // 1-3
+    }
+  } else if (player.avgValue <= 8) {
+    if (Math.random() < 0.62) {
+      shapedBid = 4 + Math.floor(Math.random() * 4); // 4-7
+    } else if (Math.random() < 0.22) {
+      shapedBid = 1 + Math.floor(Math.random() * 3); // occasional 1-3
+    }
+  }
+
   if (player.avgValue <= 10) {
     shapedBid = Math.round(shapedBid * (0.76 + Math.random() * 0.18));
 
     // Encourage more realistic cheap-end outcomes for depth and specialists.
     if (player.position === 'K' || player.position === 'DEF') {
       const cheapRoll = Math.random();
-      if (cheapRoll < 0.62) {
+      if (cheapRoll < 0.72) {
         shapedBid = Math.min(shapedBid, 1 + Math.floor(Math.random() * 4)); // 1-4
+        if (Math.random() < 0.34) {
+          shapedBid = 1;
+        }
       }
 
       // Missing starter K/DEF should still be affordable, not panic overbids.
@@ -939,10 +964,26 @@ function applyLowCostBidShaping(player, bidAmount, strategy, bidRemainingBudget)
         shapedBid = Math.min(shapedBid, lateRoundCap);
       }
     } else {
-      if (Math.random() < 0.45) {
+      if (Math.random() < 0.58) {
         shapedBid = Math.min(shapedBid, 1 + Math.floor(Math.random() * 4)); // 1-4
+        if (Math.random() < 0.32) {
+          shapedBid = 1;
+        }
       }
     }
+  }
+
+  // Promote occasional cheap depth shots across the low/mid tier.
+  if (player.avgValue <= 18 && !(strategy?.mustFillPositions || []).includes(player.position)) {
+    if (Math.random() < 0.22) {
+      shapedBid = 1;
+    } else if (Math.random() < 0.28) {
+      shapedBid = Math.min(shapedBid, 1 + Math.floor(Math.random() * 3)); // 1-3
+    }
+  }
+
+  if (player.avgValue <= 25 && !(strategy?.mustFillPositions || []).includes(player.position) && Math.random() < 0.12) {
+    shapedBid = 1;
   }
 
   return Math.max(1, Math.min(shapedBid, bidRemainingBudget));
@@ -994,21 +1035,21 @@ function getDynamicBidBand(avgValue, roundNumber, strategy) {
   const isMidRound = roundNumber >= 4 && roundNumber <= 7;
 
   if (avgValue >= 50) {
-    if (isEarlyRound) return { minPct: 0.82, maxPct: 1.17, rareMaxPct: 1.24, rareChance: 0.025 };
-    if (isMidRound) return { minPct: 0.8, maxPct: 1.2, rareMaxPct: 1.28, rareChance: 0.03 };
-    return { minPct: 0.76, maxPct: 1.24, rareMaxPct: 1.32, rareChance: 0.04 };
+    if (isEarlyRound) return { minPct: 0.72, maxPct: 1.16, rareMaxPct: 1.24, rareChance: 0.03 };
+    if (isMidRound) return { minPct: 0.68, maxPct: 1.19, rareMaxPct: 1.28, rareChance: 0.035 };
+    return { minPct: 0.64, maxPct: 1.22, rareMaxPct: 1.33, rareChance: 0.045 };
   }
 
   if (avgValue >= 35) {
-    if (isEarlyRound) return { minPct: 0.8, maxPct: 1.19, rareMaxPct: 1.27, rareChance: 0.03 };
-    if (isMidRound) return { minPct: 0.78, maxPct: 1.22, rareMaxPct: 1.3, rareChance: 0.04 };
-    return { minPct: 0.74, maxPct: 1.26, rareMaxPct: 1.34, rareChance: 0.05 };
+    if (isEarlyRound) return { minPct: 0.7, maxPct: 1.18, rareMaxPct: 1.27, rareChance: 0.035 };
+    if (isMidRound) return { minPct: 0.66, maxPct: 1.22, rareMaxPct: 1.31, rareChance: 0.045 };
+    return { minPct: 0.62, maxPct: 1.27, rareMaxPct: 1.36, rareChance: 0.055 };
   }
 
   if (avgValue >= 20) {
-    if (isEarlyRound) return { minPct: 0.76, maxPct: 1.2, rareMaxPct: 1.3, rareChance: 0.05 };
-    if (isMidRound) return { minPct: 0.74, maxPct: 1.24, rareMaxPct: 1.34, rareChance: 0.06 };
-    return { minPct: 0.7, maxPct: 1.28, rareMaxPct: 1.38, rareChance: 0.07 };
+    if (isEarlyRound) return { minPct: 0.66, maxPct: 1.2, rareMaxPct: 1.31, rareChance: 0.06 };
+    if (isMidRound) return { minPct: 0.62, maxPct: 1.25, rareMaxPct: 1.35, rareChance: 0.07 };
+    return { minPct: 0.58, maxPct: 1.3, rareMaxPct: 1.4, rareChance: 0.08 };
   }
 
   // Lower-value players need wider practical variance due to small-dollar granularity.
@@ -1037,10 +1078,74 @@ function pullBidTowardAV(player, bidAmount, roundNumber) {
     return bidAmount;
   }
 
-  // Gentle center-weighting only — the old 0.68 weight was collapsing all CPUs into a tiny dollar window
-  // making integer ties near-certain for high-value players. This is just a soft nudge now.
-  const avWeight = roundNumber <= 3 ? 0.11 : roundNumber <= 7 ? 0.08 : 0.05;
-  return Math.round((player.avgValue * avWeight) + (bidAmount * (1 - avWeight)));
+  // Nudge toward a slightly under-AV anchor so winning prices skew below AV more often.
+  const targetAnchor = player.avgValue * (roundNumber <= 3 ? 0.95 : roundNumber <= 7 ? 0.93 : 0.9);
+  const avWeight = roundNumber <= 3 ? 0.16 : roundNumber <= 7 ? 0.13 : 0.1;
+  return Math.round((targetAnchor * avWeight) + (bidAmount * (1 - avWeight)));
+}
+
+function applyAvRangeRandomness(player, bidAmount, roundNumber, bidRemainingBudget) {
+  const av = Math.max(1, Number(player?.avgValue || 1));
+  let lowPct = 0.52;
+  let highPct = 1.3;
+
+  if (av >= 50) {
+    lowPct = 0.68;
+    highPct = 1.2;
+  } else if (av >= 35) {
+    lowPct = 0.62;
+    highPct = 1.24;
+  } else if (av >= 20) {
+    lowPct = 0.56;
+    highPct = 1.28;
+  }
+
+  const low = Math.max(1, Math.round(av * lowPct));
+  const high = Math.max(low, Math.round(av * highPct));
+  const base = Math.max(low, Math.min(high, bidAmount));
+
+  const underBidBias = Math.max(0.45, Math.min(0.82, 0.62 + (roundNumber >= 7 ? 0.08 : 0)));
+  let sampled = base;
+
+  if (Math.random() < underBidBias) {
+    const pullDown = Math.random() * Math.random();
+    sampled = low + Math.round((base - low) * pullDown);
+  } else {
+    const pushUp = Math.random();
+    sampled = base + Math.round((high - base) * pushUp);
+  }
+
+  // Anti-cluster jitter: create more unique integer bids in the same AV band.
+  const jitterMax = av >= 45 ? 4 : av >= 25 ? 3 : 2;
+  const jitter = Math.floor(Math.random() * ((jitterMax * 2) + 1)) - jitterMax;
+  sampled += jitter;
+
+  return Math.max(1, Math.min(sampled, high, bidRemainingBudget));
+}
+
+function diversifyBidAgainstExisting(player, bidAmount, existingBidsByPlayer, bidRemainingBudget) {
+  const playerId = getPlayerIdKey(player);
+  const existing = existingBidsByPlayer[playerId] || [];
+  if (existing.length === 0) {
+    return Math.max(1, Math.min(bidAmount, bidRemainingBudget));
+  }
+
+  let diversifiedBid = bidAmount;
+  const duplicateCount = existing.filter(amount => amount === diversifiedBid).length;
+  const nearbyCount = existing.filter(amount => Math.abs(amount - diversifiedBid) <= 1).length;
+
+  if (duplicateCount > 0 || nearbyCount >= 2) {
+    const av = Math.max(1, Number(player?.avgValue || 1));
+    const spread = av >= 55 ? 9 : av >= 40 ? 7 : av >= 25 ? 5 : 3;
+    const direction = Math.random() < 0.68 ? -1 : 1; // favor slight underbids
+    const jump = 1 + Math.floor(Math.random() * spread);
+    diversifiedBid += (direction * jump);
+  } else if (Math.random() < 0.2) {
+    const micro = 1 + Math.floor(Math.random() * 2);
+    diversifiedBid += (Math.random() < 0.65 ? -micro : micro);
+  }
+
+  return Math.max(1, Math.min(diversifiedBid, bidRemainingBudget));
 }
 
 // Client-side CPU bidding for silent auctions (from silentdraft.js)
@@ -1217,7 +1322,7 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       const rosterSpotsLeft = maxRosterSize - currentRosterSize;
       const roundsLeft = draftRoundCount - roundNumber;
       const roundsIncludingCurrent = Math.max(1, roundsLeft + 1);
-      const targetRosterSize = Math.min(maxRosterSize, minimumCompletedRosterSize);
+      const targetRosterSize = getTargetRosterSize(rosterSize, maxRosterSize);
       const playersNeededForMinimum = Math.max(0, targetRosterSize - currentRosterSize);
       const isBehindMinimumPace = playersNeededForMinimum > roundsIncludingCurrent;
       const isFinalRoundFill = roundNumber >= draftRoundCount && playersNeededForMinimum > 0;
@@ -1367,8 +1472,8 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
         starredTargetAvailableNowIds: starTargetState.availableNowIds,
         starredUnavailablePositions: starTargetState.unavailablePositions,
         missingStarterCount: totalMissing,
-        emergencyStarterFillMode: roundsIncludingCurrent <= 3 && mustFillPositions.length > 0,
-        spreadFillMode: roundNumber >= 7 && rosterSpotsLeft >= 4,
+        emergencyStarterFillMode: roundsIncludingCurrent <= 4 && mustFillPositions.length > 0,
+        spreadFillMode: roundNumber >= 6 && rosterSpotsLeft >= 2,
         fillNeedPositions: [...new Set([
           ...mustFillPositions,
           ...proactiveFillPositions,
@@ -1381,11 +1486,13 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
     }
 
     const playerExposureCounts = {};
+    const existingBidsByPlayer = {};
 
     // Generate bids for each CPU team
     for (const team of cpuTeams) {
       const strategy = teamStrategies[team.name];
       cpuBids[team.name] = [];
+      const positionCounts = getRosterPositionCounts(team);
 
       // Track total budget committed to bids this round
       let totalBudgetCommitted = 0;
@@ -1461,7 +1568,7 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
           let mustFillPriority = 1;
           // In late rounds, boost must-fill positions
           if ((strategy.mustFillPositions && strategy.mustFillPositions.length > 0) && (strategy.mustFillPositions.includes(player.position))) {
-            mustFillPriority = 2.5;
+            mustFillPriority = 3.2;
           }
           if ((strategy.proactiveFillPositions || []).includes(player.position)) {
             const proactivePriorityFloor = getProactivePriorityFloor(roundNumber);
@@ -1557,11 +1664,20 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       // In back-half fill mode, spread cheap shots across multiple needs every round.
       if (strategy.spreadFillMode) {
         const minSpreadBids = Math.min(
-          7,
-          Math.max(4, strategy.rosterSpotsLeft),
+          9,
+          Math.max(5, strategy.rosterSpotsLeft),
           availablePlayers.length
         );
         maxBids = Math.max(maxBids, minSpreadBids);
+      }
+
+      if (roundNumber >= 8 && remainingBudget > 0) {
+        const lateRoundPressureBids = Math.min(
+          10,
+          Math.max(6, strategy.rosterSpotsLeft + 1),
+          availablePlayers.length
+        );
+        maxBids = Math.max(maxBids, lateRoundPressureBids);
       }
 
       if (strategy.emergencyStarterFillMode) {
@@ -1650,7 +1766,8 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
           const lowRangeBias = Math.random() * 0.38;
           baseMultiplier = bidRange.min + ((bidRange.max - bidRange.min) * lowRangeBias);
         } else {
-          baseMultiplier = bidRange.min + Math.random() * (bidRange.max - bidRange.min);
+          const lowBiasRoll = Math.pow(Math.random(), 1.55);
+          baseMultiplier = bidRange.min + ((bidRange.max - bidRange.min) * lowBiasRoll);
         }
 
         // Add occasional outlier bids for realism, but keep elite prices in bounds.
@@ -1694,17 +1811,23 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
 
         baseBid = Math.round(baseBid * situationalMultiplier);
 
-        // Add randomization for unpredictability
-        // Widened for high-value players — ±5% produced only ~6 distinct integers on a $56 player causing constant ties
+        // Add randomization for unpredictability with a wider spread to avoid repetitive clustering.
         let randomFactor;
         if (player.avgValue >= 50) {
-          randomFactor = 0.76 + Math.random() * 0.48; // 0.76–1.24 (~±24%)
+          randomFactor = 0.62 + Math.random() * 0.74; // 0.62–1.36
         } else if (player.avgValue >= 35) {
-          randomFactor = 0.72 + Math.random() * 0.56; // 0.72–1.28 (~±28%)
+          randomFactor = 0.58 + Math.random() * 0.84; // 0.58–1.42
         } else {
-          randomFactor = 0.68 + Math.random() * 0.64; // 0.68–1.32 for mid/low-value players
+          randomFactor = 0.5 + Math.random() * 1.0; // 0.50–1.50 for mid/low-value players
         }
         baseBid = Math.round(baseBid * randomFactor);
+
+        // More often shade non-priority bids below AV to create realistic value hunting.
+        if (!isMustFillPosition && !isStarredTarget && !holdForUnavailableStar) {
+          if (Math.random() < 0.57) {
+            baseBid = Math.round(baseBid * (0.72 + Math.random() * 0.22));
+          }
+        }
 
         if (player.avgValue <= 8) {
           baseBid = Math.round(baseBid * (0.8 + Math.random() * 0.2));
@@ -1714,6 +1837,7 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
         baseBid = clampBidToDynamicBand(player, baseBid, roundNumber, strategy, bidRemainingBudget);
 
         baseBid = applyLowCostBidShaping(player, baseBid, strategy, bidRemainingBudget);
+        baseBid = applyAvRangeRandomness(player, baseBid, roundNumber, bidRemainingBudget);
 
         if (strategy.spreadFillMode && (strategy.fillNeedPositions || []).includes(player.position) && player.avgValue <= 18) {
           const slotsLeft = Math.max(1, getOpenSlots(team, maxRosterSize));
@@ -1761,11 +1885,18 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
           baseBid -= 1;
         }
 
+        baseBid = diversifyBidAgainstExisting(player, baseBid, existingBidsByPlayer, bidRemainingBudget);
+        baseBid = clampBidToDynamicBand(player, baseBid, roundNumber, strategy, bidRemainingBudget);
+        baseBid = Math.min(baseBid, maxBid);
+        baseBid = Math.max(1, baseBid);
+
         // Strategic bid evaluation: Only bid if team believes it can win
         const bidDecision = evaluateBidStrategy(baseBid, player, team, strategy, cpuTeams, roundPlayers, teamStrategies, rosterLimits, maxRosterSize);
 
         if (bidDecision === true) {
           cpuBids[team.name].push({ player, cpuBid: baseBid });
+          if (!existingBidsByPlayer[playerIdKey]) existingBidsByPlayer[playerIdKey] = [];
+          existingBidsByPlayer[playerIdKey].push(baseBid);
           totalBudgetCommitted += baseBid;
           console.log(`[CPU-${team.name}] Bid on ${player.name} ($${baseBid}) - total committed: $${totalBudgetCommitted}`);
         } else if (bidDecision && bidDecision.shouldBid && bidDecision.isCatchBid) {
@@ -1773,6 +1904,8 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
           const catchBid = bidDecision.catchBidAmount;
           if (catchBid <= bidRemainingBudget) {
             cpuBids[team.name].push({ player, cpuBid: catchBid });
+            if (!existingBidsByPlayer[playerIdKey]) existingBidsByPlayer[playerIdKey] = [];
+            existingBidsByPlayer[playerIdKey].push(catchBid);
             totalBudgetCommitted += catchBid;
             console.log(`[CPU-${team.name}] Catch bid on ${player.name} ($${catchBid}) - total committed: $${totalBudgetCommitted}`);
           } else {
@@ -1783,6 +1916,8 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
             const dynamicCap = getSpreadSingleBidCap(team, player, strategy, bidRemainingBudget, maxRosterSize);
             const fallbackBid = Math.max(1, Math.min(dynamicCap, Math.ceil(dynamicCap * 0.65)));
             cpuBids[team.name].push({ player, cpuBid: fallbackBid });
+            if (!existingBidsByPlayer[playerIdKey]) existingBidsByPlayer[playerIdKey] = [];
+            existingBidsByPlayer[playerIdKey].push(fallbackBid);
             totalBudgetCommitted += fallbackBid;
             console.log(`[CPU-${team.name}] Spread-fill fallback bid on ${player.name} ($${fallbackBid}) - total committed: $${totalBudgetCommitted}`);
           } else {
@@ -1828,8 +1963,8 @@ function evaluateBidStrategy(bidAmount, player, team, strategy, allCpuTeams, rem
     let catchBid;
     const roll = Math.random();
 
-    // Sweet spot is 2-6 to reduce tie frequency vs $1.
-    if (roll < 0.04) {
+    // Keep cheap shots common, including more $1 outcomes.
+    if (roll < 0.12) {
       catchBid = 1;
     } else if (roll < 0.96) {
       catchBid = 2 + Math.floor(Math.random() * 5); // 2-6
@@ -1846,6 +1981,10 @@ function evaluateBidStrategy(bidAmount, player, team, strategy, allCpuTeams, rem
     const maxCatchByPlan = Math.max(1, Math.floor(spendableNow * spendCap));
     catchBid = Math.min(catchBid, maxCatchByPlan, spendableNow, 10);
 
+    if (!isElite && !isPremium && Math.random() < 0.2) {
+      catchBid = 1;
+    }
+
     if (catchBid < 1) return null;
     return { shouldBid: true, isCatchBid: true, catchBidAmount: catchBid };
   }
@@ -1854,9 +1993,22 @@ function evaluateBidStrategy(bidAmount, player, team, strategy, allCpuTeams, rem
   const upgradeGap = getUpgradeGap(team, player, rosterLimits);
   const openSlots = Math.max(1, getOpenSlots(team, maxRosterSize));
   const effectiveBudgetNow = getEffectiveBudget(team, 0, maxRosterSize);
+  const roundsIncludingCurrent = strategy?.roundsIncludingCurrent || draftRoundCount;
+  const lateRoundAutoBidMode = roundsIncludingCurrent <= 4 && effectiveBudgetNow > 0;
 
   if ((strategy?.mustFillRoster && player.avgValue <= 14) || missingAtPosition > 0) {
     return true;
+  }
+
+  if (lateRoundAutoBidMode) {
+    const budgetRatio = bidAmount / Math.max(1, team.budget || 1);
+    if (player.avgValue <= 35) {
+      return true;
+    }
+    if (player.avgValue <= 50) {
+      return budgetRatio <= 0.58 || missingAtPosition > 0 || upgradeGap >= 6;
+    }
+    return budgetRatio <= 0.5 || missingAtPosition > 0 || upgradeGap >= 8;
   }
 
   // Back-half roster fill: prefer placing several affordable bids over waiting for one perfect target.

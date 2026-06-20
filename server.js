@@ -2704,8 +2704,10 @@ io.on('connection', (socket) => {
           const player = drafts[code].draftState.allPlayers?.find(p => p.id === auction.playerId);
           const position = player?.position || 'UNK';
 
-          // Each CPU recalculates aggression with current context
+          // Each CPU recalculates aggression with current context.
+          // Stage backouts first so we can guarantee at least one CPU remains.
           const remainingAfterBackout = [];
+          const pendingBackouts = [];
 
           for (const cpuName of cpuRemaining) {
             const cpuTeam = drafts[code].draftState.teams.find(t => t.name === cpuName);
@@ -2746,13 +2748,27 @@ io.on('connection', (socket) => {
             console.log(`[TIE BREAKER] ${cpuName} - Aggression: ${aggression.toFixed(3)}, PositionNeed: ${positionNeed.toFixed(2)} → ${action.toUpperCase()}`);
 
             if (action === 'backout') {
-              console.log(`[TIE BREAKER] ${cpuName} backed out at $${auction.currentBid}`);
-              auction.backedOutTeams.push(cpuName);
-              io.to(`draft_${code}`).emit('liveAuctionBackout', { auctionId, teamName: cpuName });
+              pendingBackouts.push(cpuName);
             } else {
               remainingAfterBackout.push(cpuName);
             }
           }
+
+          if (remainingAfterBackout.length === 0 && pendingBackouts.length > 0) {
+            const forcedStay = pickRandomCPU(pendingBackouts);
+            console.log(`[TIE BREAKER] Preventing full CPU backout; forcing ${forcedStay} to stay in`);
+            remainingAfterBackout.push(forcedStay);
+            const keepIndex = pendingBackouts.indexOf(forcedStay);
+            if (keepIndex !== -1) {
+              pendingBackouts.splice(keepIndex, 1);
+            }
+          }
+
+          pendingBackouts.forEach(cpuName => {
+            console.log(`[TIE BREAKER] ${cpuName} backed out at $${auction.currentBid}`);
+            auction.backedOutTeams.push(cpuName);
+            io.to(`draft_${code}`).emit('liveAuctionBackout', { auctionId, teamName: cpuName });
+          });
 
           // Case 1: one remains → wins
           if (remainingAfterBackout.length === 1) {
@@ -2769,7 +2785,7 @@ io.on('connection', (socket) => {
             return;
           }
 
-          // Case 3: all backed out (rare) → randomly assign
+          // Case 3: safety fallback (should be unreachable after forced-stay guard)
           if (remainingAfterBackout.length === 0) {
             console.log(`[TIE BREAKER] All CPUs backed out, forcing one team to remain`);
             const randomWinner = pickRandomCPU(cpuRemaining);
@@ -2869,16 +2885,27 @@ io.on('connection', (socket) => {
             });
           }
 
-          // Update backed out teams
-          cpus.filter(c => !c.isIn).forEach(cpu => {
-            if (auction.currentWinner === cpu.name) {
-              return;
+          // Update backed out teams, but never allow every CPU to back out in the same tick.
+          const cpuNamesToBackOut = cpus
+            .filter(c => !c.isIn)
+            .map(c => c.name)
+            .filter(cpuName => cpuName !== auction.currentWinner)
+            .filter(cpuName => !auction.backedOutTeams.includes(cpuName));
+
+          const activeCpuBefore = cpuTeams.length;
+          if (activeCpuBefore > 1 && cpuNamesToBackOut.length >= activeCpuBefore) {
+            const forcedStay = pickRandomCPU(cpuNamesToBackOut);
+            const keepIndex = cpuNamesToBackOut.indexOf(forcedStay);
+            if (keepIndex !== -1) {
+              cpuNamesToBackOut.splice(keepIndex, 1);
             }
-            if (!auction.backedOutTeams.includes(cpu.name)) {
-              auction.backedOutTeams.push(cpu.name);
-              io.to(`draft_${code}`).emit('liveAuctionBackout', { auctionId, teamName: cpu.name });
-              console.log(`[CPU AI] ${cpu.name} backed out`);
-            }
+            console.log(`[CPU AI] Preventing full CPU backout; forcing ${forcedStay} to stay in`);
+          }
+
+          cpuNamesToBackOut.forEach(cpuName => {
+            auction.backedOutTeams.push(cpuName);
+            io.to(`draft_${code}`).emit('liveAuctionBackout', { auctionId, teamName: cpuName });
+            console.log(`[CPU AI] ${cpuName} backed out`);
           });
 
           // Check if only 1 team remains
