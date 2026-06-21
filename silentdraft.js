@@ -1184,57 +1184,48 @@ function initSilentDraft() {
 
     function buildAjPagePlayers(roundCode, pageNumber, pageSize, excludePlayers, requirements) {
         const availablePlayers = getRemainingUndraftedPlayers(excludePlayers)
-            .filter(player => canSelectPlayerForCurrentRound(player, excludePlayers, []));
-        const assignedPlayers = availablePlayers
-            .filter(player => {
-                const assignment = getAjSlotAssignment(player.positionRank, player.position);
-                return assignment.code === `${roundCode}${pageNumber}`;
-            })
+            .filter(player => canSelectPlayerForCurrentRound(player, excludePlayers, []))
             .sort(comparePlayersForAjSlot);
 
-        let selectedPlayers = assignedPlayers.slice(0, pageSize);
+        let selectedPlayers = [];
 
+        // Ensure minimum position requirements are met first (randomized selection, not slot-based)
         requirements.forEach(({ pos, min }) => {
-            const currentCount = countPlayersByPosition(selectedPlayers, pos);
-            const missing = Math.max(0, min - currentCount);
-            if (missing === 0) return;
-
-            const fallbackPool = availablePlayers
-                .filter(player => !selectedPlayers.includes(player))
-                .sort(comparePlayersForAjSlot);
-            const additions = pickPlayersForMinimum(pos, missing, selectedPlayers, assignedPlayers, fallbackPool);
-
-            additions.forEach(player => {
+            const posPlayers = availablePlayers.filter(p => 
+                p.position === pos && !selectedPlayers.includes(p)
+            );
+            
+            // Shuffle available players for this position to randomize across pages
+            const shuffledPos = [...posPlayers].sort(() => 0.5 - Math.random());
+            
+            for (let i = 0; i < Math.min(min, shuffledPos.length); i++) {
                 if (selectedPlayers.length < pageSize) {
-                    selectedPlayers.push(player);
-                    return;
+                    selectedPlayers.push(shuffledPos[i]);
                 }
-
-                const replacement = selectedPlayers
-                    .map((selectedPlayer, index) => ({ selectedPlayer, index }))
-                    .filter(entry => countPlayersByPosition(selectedPlayers, entry.selectedPlayer.position) > ((requirements.find(req => req.pos === entry.selectedPlayer.position) || {}).min || 0))
-                    .sort((a, b) => comparePlayersForAjSlot(b.selectedPlayer, a.selectedPlayer))[0];
-
-                if (replacement) {
-                    selectedPlayers[replacement.index] = player;
-                }
-            });
-
-            selectedPlayers = selectedPlayers.sort(comparePlayersForAjSlot).slice(0, pageSize);
+            }
         });
 
+        // Fill remaining slots with best available players (randomized, not slot-based)
         if (selectedPlayers.length < pageSize) {
-            const fillers = getBestAvailablePlayers(excludePlayers.concat(selectedPlayers), player => !selectedPlayers.includes(player));
-            for (const player of fillers) {
+            const remaining = availablePlayers.filter(p => !selectedPlayers.includes(p));
+            const shuffledRemaining = [...remaining].sort(() => 0.5 - Math.random());
+            
+            for (const player of shuffledRemaining) {
                 if (selectedPlayers.length >= pageSize) break;
                 selectedPlayers.push(player);
             }
         }
 
+        // Annotate with actual page/round where they ended up (not rank-based)
         return selectedPlayers
-            .sort(comparePlayersForAjSlot)
             .slice(0, pageSize)
-            .map(annotateAjSlot);
+            .map(player => {
+                if (!player) return player;
+                player.ajSlotCode = `${roundCode}${pageNumber}`;
+                player.ajRoundNumber = AJ_ROUND_CODES.indexOf(roundCode) + 1;
+                player.ajPageNumber = pageNumber;
+                return player;
+            });
     }
 
     function getAjRoundPlayers() {
