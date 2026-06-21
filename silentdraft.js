@@ -603,7 +603,7 @@ function initSilentDraft() {
     // Randomize A-J sheet order if A-J mode is enabled
     if (ajDraftModeEnabled) {
         shuffleAjRoundOrder();
-        console.log('[silentdraft] A-J sheets randomized:', ajRoundOrder.join(', '));
+        console.log('[silentdraft] A-J sheets randomized page1/page2:', ajRoundOrderPage1.join(', '), '/', ajRoundOrderPage2.join(', '));
     }
     
     setupRightViewTabs();
@@ -851,7 +851,7 @@ function initSilentDraft() {
                 // If A-J mode was just enabled, randomize the sheet order
                 if (!wasAjModeEnabled && ajDraftModeEnabled && currentRound === 1) {
                     shuffleAjRoundOrder();
-                    console.log('[silentdraft] A-J mode enabled, sheets randomized:', ajRoundOrder.join(', '));
+                    console.log('[silentdraft] A-J mode enabled, sheets randomized page1/page2:', ajRoundOrderPage1.join(', '), '/', ajRoundOrderPage2.join(', '));
                     settingsChanged = true;
                 }
             }
@@ -1155,55 +1155,25 @@ function initSilentDraft() {
     function normalizeAjRoundOrderPair(p1, p2) {
         const page1 = normalizeAjRoundOrder(p1);
         const page2 = normalizeAjRoundOrder(p2 || []);
-        
-        // Ensure page 2 doesn't have same code at same position as page 1
-        for (let i = 0; i < page1.length; i++) {
-            if (page2[i] === page1[i]) {
-                // Find a code in page2 that's not at position i in page1
-                for (let j = i + 1; j < page2.length; j++) {
-                    if (page2[j] !== page1[i] && page1.indexOf(page2[j]) !== i) {
-                        // Swap to avoid consecutive duplicate
-                        [page2[i], page2[j]] = [page2[j], page2[i]];
-                        break;
-                    }
-                }
-            }
-        }
-        
+
         return { page1, page2 };
     }
 
     function shuffleAjRoundOrder() {
-        // Create page 1 shuffle
+        // Create page 1 shuffle (X-1 assignments)
         const shuffle1 = AJ_ROUND_CODES.slice();
         for (let i = shuffle1.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [shuffle1[i], shuffle1[j]] = [shuffle1[j], shuffle1[i]];
         }
 
-        // Create page 2 shuffle, ensuring no consecutive position has same code (no X-1 and X-1)
-        let shuffle2 = AJ_ROUND_CODES.slice();
-        let attempts = 0;
-        let valid = false;
-        
-        while (!valid && attempts < 100) {
-            // Fisher-Yates shuffle
-            for (let i = shuffle2.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffle2[i], shuffle2[j]] = [shuffle2[j], shuffle2[i]];
-            }
-            
-            // Check: no position should have the same code in both page 1 and page 2
-            valid = true;
-            for (let i = 0; i < shuffle1.length; i++) {
-                if (shuffle1[i] === shuffle2[i]) {
-                    valid = false;
-                    break;
-                }
-            }
-            attempts++;
+        // Create page 2 shuffle (X-2 assignments)
+        const shuffle2 = AJ_ROUND_CODES.slice();
+        for (let i = shuffle2.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffle2[i], shuffle2[j]] = [shuffle2[j], shuffle2[i]];
         }
-        
+
         ajRoundOrderPage1 = shuffle1;
         ajRoundOrderPage2 = shuffle2;
         ajRoundOrder = shuffle1; // Keep for compatibility
@@ -1224,8 +1194,27 @@ function initSilentDraft() {
         }
     }
 
-    function getCurrentAjRoundCode() {
-        return ajRoundOrder[Math.max(0, currentRound - 1)] || AJ_ROUND_CODES[Math.max(0, currentRound - 1)] || AJ_ROUND_CODES[0];
+    function getCurrentAjRoundCode(pageNumber = 1) {
+        const roundIndex = Math.max(0, currentRound - 1);
+        const isPageTwo = Number(pageNumber) === 2;
+        const normalizedPage1 = normalizeAjRoundOrder(ajRoundOrderPage1);
+        const normalizedPage2 = normalizeAjRoundOrder(ajRoundOrderPage2);
+
+        ajRoundOrderPage1 = normalizedPage1;
+        ajRoundOrderPage2 = normalizedPage2;
+        ajRoundOrder = normalizedPage1; // Keep for compatibility
+
+        const order = isPageTwo ? ajRoundOrderPage2 : ajRoundOrderPage1;
+        const usedSet = new Set(order.slice(0, roundIndex).filter(code => AJ_ROUND_CODES.includes(code)));
+        let code = order[roundIndex];
+
+        // Ensure this page does not reuse a previously used sheet before all sheets are exhausted.
+        if (!AJ_ROUND_CODES.includes(code) || usedSet.has(code)) {
+            code = AJ_ROUND_CODES.find(candidate => !usedSet.has(candidate)) || AJ_ROUND_CODES[roundIndex % AJ_ROUND_CODES.length] || AJ_ROUND_CODES[0];
+            order[roundIndex] = code;
+        }
+
+        return code;
     }
 
     function getPlayerRankSortValue(player) {
@@ -1346,9 +1335,8 @@ function initSilentDraft() {
     }
 
     function getAjRoundPlayers() {
-        const roundIndex = Math.max(0, currentRound - 1);
-        const roundCode1 = ajRoundOrderPage1[roundIndex] || AJ_ROUND_CODES[0];
-        const roundCode2 = ajRoundOrderPage2[roundIndex] || AJ_ROUND_CODES[0];
+        const roundCode1 = getCurrentAjRoundCode(1);
+        const roundCode2 = getCurrentAjRoundCode(2);
         const page1Players = buildAjPagePlayers(roundCode1, 1, PAGE_SIZE, [], PAGE1_REQUIREMENTS);
         const page2Players = buildAjPagePlayers(roundCode2, 2, PAGE_SIZE, page1Players, PAGE2_REQUIREMENTS);
         return page1Players.concat(page2Players);
