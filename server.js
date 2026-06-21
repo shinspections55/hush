@@ -1980,9 +1980,9 @@ io.on('connection', (socket) => {
 
   // Generic state update - still supported but server won't accept member lists blindly
   socket.on('updateDraft', (code, state) => {
-    // merge only non-members fields (type, capacity, public, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder)
+    // merge only non-members fields (type, capacity, public, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder, ajRoundOrderPage1, ajRoundOrderPage2)
     drafts[code] = drafts[code] || { members: [], type: null, capacity: null, public: false };
-    const allowed = (({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder }) => ({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder }))(state || {});
+    const allowed = (({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder, ajRoundOrderPage1, ajRoundOrderPage2 }) => ({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder, ajRoundOrderPage1, ajRoundOrderPage2 }))(state || {});
     // apply allowed fields
     if(typeof allowed.type !== 'undefined') drafts[code].type = allowed.type;
     if(typeof allowed.capacity !== 'undefined') drafts[code].capacity = allowed.capacity;
@@ -1994,11 +1994,12 @@ io.on('connection', (socket) => {
     if(typeof allowed.benchCutTarget !== 'undefined') drafts[code].benchCutTarget = allowed.benchCutTarget;
     if(typeof allowed.roundTimerMinutes !== 'undefined') drafts[code].roundTimerMinutes = allowed.roundTimerMinutes;
     if(typeof allowed.ajDraftMode !== 'undefined') drafts[code].ajDraftMode = !!allowed.ajDraftMode;
-    if(typeof allowed.ajRoundOrder !== 'undefined') drafts[code].ajRoundOrder = Array.isArray(allowed.ajRoundOrder) ? allowed.ajRoundOrder.slice(0, 10) : undefined;
+    if(typeof allowed.ajRoundOrderPage1 !== 'undefined') drafts[code].ajRoundOrderPage1 = Array.isArray(allowed.ajRoundOrderPage1) ? allowed.ajRoundOrderPage1.slice(0, 10) : undefined;
+    if(typeof allowed.ajRoundOrderPage2 !== 'undefined') drafts[code].ajRoundOrderPage2 = Array.isArray(allowed.ajRoundOrderPage2) ? allowed.ajRoundOrderPage2.slice(0, 10) : undefined;
     console.log(`[updateDraft] ${code} capacity=${drafts[code].capacity} members=${drafts[code].members.length}`);
     io.to(code).emit('draftUpdate', drafts[code]);
     // Also push roster/bench changes to any active draft room (draft_<code>)
-    if(typeof allowed.rosterSettings !== 'undefined' || typeof allowed.benchCutTarget !== 'undefined' || typeof allowed.roundTimerMinutes !== 'undefined' || typeof allowed.ajDraftMode !== 'undefined' || typeof allowed.ajRoundOrder !== 'undefined') {
+    if(typeof allowed.rosterSettings !== 'undefined' || typeof allowed.benchCutTarget !== 'undefined' || typeof allowed.roundTimerMinutes !== 'undefined' || typeof allowed.ajDraftMode !== 'undefined' || typeof allowed.ajRoundOrderPage1 !== 'undefined' || typeof allowed.ajRoundOrderPage2 !== 'undefined') {
       const roundTimerMinutes = Number.parseInt(drafts[code].roundTimerMinutes, 10);
       const normalizedRoundTimerMinutes = Number.isFinite(roundTimerMinutes) ? Math.max(3, Math.min(roundTimerMinutes, 10)) : 10;
       if (drafts[code].draftState) {
@@ -2010,7 +2011,8 @@ io.on('connection', (socket) => {
         benchCutTarget: drafts[code].benchCutTarget,
         roundTimerMinutes: normalizedRoundTimerMinutes,
         ajDraftMode: !!drafts[code].ajDraftMode,
-        ajRoundOrder: Array.isArray(drafts[code].ajRoundOrder) ? drafts[code].ajRoundOrder.slice(0, 10) : undefined
+        ajRoundOrderPage1: Array.isArray(drafts[code].ajRoundOrderPage1) ? drafts[code].ajRoundOrderPage1.slice(0, 10) : undefined,
+        ajRoundOrderPage2: Array.isArray(drafts[code].ajRoundOrderPage2) ? drafts[code].ajRoundOrderPage2.slice(0, 10) : undefined
       });
     }
   });

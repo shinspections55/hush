@@ -219,6 +219,8 @@ function initSilentDraft() {
     const AJ_REVERSED_START_POSITIONS = new Set(['WR', 'TE', 'K']);
     let ajDraftModeEnabled = false;
     let ajRoundOrder = AJ_ROUND_CODES.slice();
+    let ajRoundOrderPage1 = AJ_ROUND_CODES.slice();
+    let ajRoundOrderPage2 = AJ_ROUND_CODES.slice();
     const PAGE_SIZE = 12;
     const PAGE1_REQUIREMENTS = [
         { pos: 'QB', min: 2 },
@@ -421,7 +423,8 @@ function initSilentDraft() {
                     let resolvedBenchCutTarget = response.draft.benchCutTarget;
                     let resolvedRoundTimerMinutes = response.draft.roundTimerMinutes;
                     let resolvedAjDraftMode = response.draft.ajDraftMode;
-                    let resolvedAjRoundOrder = response.draft.ajRoundOrder;
+                    let resolvedAjRoundOrderPage1 = response.draft.ajRoundOrderPage1;
+                    let resolvedAjRoundOrderPage2 = response.draft.ajRoundOrderPage2;
                     try {
                         const localRaw = localStorage.getItem('drafts');
                         const localDrafts = localRaw ? JSON.parse(localRaw) : {};
@@ -439,8 +442,11 @@ function initSilentDraft() {
                         if (typeof resolvedAjDraftMode === 'undefined' && typeof localDraft.ajDraftMode !== 'undefined') {
                             resolvedAjDraftMode = localDraft.ajDraftMode;
                         }
-                        if (typeof resolvedAjRoundOrder === 'undefined' && typeof localDraft.ajRoundOrder !== 'undefined') {
-                            resolvedAjRoundOrder = localDraft.ajRoundOrder;
+                        if (typeof resolvedAjRoundOrderPage1 === 'undefined' && localDraft.ajRoundOrderPage1) {
+                            resolvedAjRoundOrderPage1 = localDraft.ajRoundOrderPage1;
+                        }
+                        if (typeof resolvedAjRoundOrderPage2 === 'undefined' && localDraft.ajRoundOrderPage2) {
+                            resolvedAjRoundOrderPage2 = localDraft.ajRoundOrderPage2;
                         }
                     } catch (e) { /* ignore */ }
 
@@ -454,13 +460,18 @@ function initSilentDraft() {
                         drafts[currentDraftCode].benchCutTarget = normalizeBenchCutTarget(resolvedBenchCutTarget);
                         drafts[currentDraftCode].roundTimerMinutes = normalizeRoundTimerMinutes(resolvedRoundTimerMinutes);
                         drafts[currentDraftCode].ajDraftMode = Boolean(resolvedAjDraftMode);
-                        drafts[currentDraftCode].ajRoundOrder = normalizeAjRoundOrder(resolvedAjRoundOrder);
+                        const pair = normalizeAjRoundOrderPair(resolvedAjRoundOrderPage1, resolvedAjRoundOrderPage2);
+                        drafts[currentDraftCode].ajRoundOrderPage1 = pair.page1;
+                        drafts[currentDraftCode].ajRoundOrderPage2 = pair.page2;
                         localStorage.setItem('drafts', JSON.stringify(drafts));
                     } catch (e) { /* ignore */ }
 
                     benchCutTarget = normalizeBenchCutTarget(resolvedBenchCutTarget);
                     ajDraftModeEnabled = Boolean(resolvedAjDraftMode);
-                    ajRoundOrder = normalizeAjRoundOrder(resolvedAjRoundOrder);
+                    const pair = normalizeAjRoundOrderPair(resolvedAjRoundOrderPage1, resolvedAjRoundOrderPage2);
+                    ajRoundOrderPage1 = pair.page1;
+                    ajRoundOrderPage2 = pair.page2;
+                    ajRoundOrder = pair.page1; // Keep for compatibility
                     applyRoundTimerMinutes(resolvedRoundTimerMinutes);
                     applyRosterSettings(resolvedRosterSettings);
                     updatePauseButtonVisibility();
@@ -492,7 +503,10 @@ function initSilentDraft() {
                 if (currentDraft) {
                     benchCutTarget = normalizeBenchCutTarget(currentDraft.benchCutTarget);
                     ajDraftModeEnabled = Boolean(currentDraft.ajDraftMode);
-                    ajRoundOrder = normalizeAjRoundOrder(currentDraft.ajRoundOrder);
+                    const pair = normalizeAjRoundOrderPair(currentDraft.ajRoundOrderPage1, currentDraft.ajRoundOrderPage2);
+                    ajRoundOrderPage1 = pair.page1;
+                    ajRoundOrderPage2 = pair.page2;
+                    ajRoundOrder = pair.page1; // Keep for compatibility
                 }
                 applyRoundTimerMinutes(currentDraft && currentDraft.roundTimerMinutes);
                 applyRoundTimerMinutes(currentDraft && currentDraft.roundTimerMinutes);
@@ -818,8 +832,11 @@ function initSilentDraft() {
                         if (typeof data.ajDraftMode !== 'undefined') {
                             drafts[currentDraftCode].ajDraftMode = !!data.ajDraftMode;
                         }
-                        if (typeof data.ajRoundOrder !== 'undefined') {
-                            drafts[currentDraftCode].ajRoundOrder = normalizeAjRoundOrder(data.ajRoundOrder);
+                        if (typeof data.ajRoundOrderPage1 !== 'undefined') {
+                            drafts[currentDraftCode].ajRoundOrderPage1 = normalizeAjRoundOrder(data.ajRoundOrderPage1);
+                        }
+                        if (typeof data.ajRoundOrderPage2 !== 'undefined') {
+                            drafts[currentDraftCode].ajRoundOrderPage2 = normalizeAjRoundOrder(data.ajRoundOrderPage2);
                         }
                         localStorage.setItem('drafts', JSON.stringify(drafts));
                     }
@@ -883,13 +900,23 @@ function initSilentDraft() {
                     localStorage.setItem('drafts', JSON.stringify(drafts));
                 } catch (e) { /* ignore */ }
             }
-            if (typeof data.ajRoundOrder !== 'undefined') {
-                ajRoundOrder = normalizeAjRoundOrder(data.ajRoundOrder);
+            if (typeof data.ajRoundOrderPage1 !== 'undefined') {
+                ajRoundOrderPage1 = normalizeAjRoundOrder(data.ajRoundOrderPage1);
                 try {
                     const draftsData = localStorage.getItem('drafts') || '{}';
                     const drafts = JSON.parse(draftsData);
                     if (!drafts[currentDraftCode]) drafts[currentDraftCode] = {};
-                    drafts[currentDraftCode].ajRoundOrder = ajRoundOrder.slice();
+                    drafts[currentDraftCode].ajRoundOrderPage1 = ajRoundOrderPage1.slice();
+                    localStorage.setItem('drafts', JSON.stringify(drafts));
+                } catch (e) { /* ignore */ }
+            }
+            if (typeof data.ajRoundOrderPage2 !== 'undefined') {
+                ajRoundOrderPage2 = normalizeAjRoundOrder(data.ajRoundOrderPage2);
+                try {
+                    const draftsData = localStorage.getItem('drafts') || '{}';
+                    const drafts = JSON.parse(draftsData);
+                    if (!drafts[currentDraftCode]) drafts[currentDraftCode] = {};
+                    drafts[currentDraftCode].ajRoundOrderPage2 = ajRoundOrderPage2.slice();
                     localStorage.setItem('drafts', JSON.stringify(drafts));
                 } catch (e) { /* ignore */ }
             }
@@ -1125,26 +1152,75 @@ function initSilentDraft() {
         return deduped.slice(0, AJ_ROUND_CODES.length);
     }
 
-    function shuffleAjRoundOrder() {
-        // Fisher-Yates shuffle to randomize the order of A-J sheets
-        const shuffled = ajRoundOrder.slice();
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    function normalizeAjRoundOrderPair(p1, p2) {
+        const page1 = normalizeAjRoundOrder(p1);
+        const page2 = normalizeAjRoundOrder(p2 || []);
+        
+        // Ensure page 2 doesn't have same code at same position as page 1
+        for (let i = 0; i < page1.length; i++) {
+            if (page2[i] === page1[i]) {
+                // Find a code in page2 that's not at position i in page1
+                for (let j = i + 1; j < page2.length; j++) {
+                    if (page2[j] !== page1[i] && page1.indexOf(page2[j]) !== i) {
+                        // Swap to avoid consecutive duplicate
+                        [page2[i], page2[j]] = [page2[j], page2[i]];
+                        break;
+                    }
+                }
+            }
         }
-        ajRoundOrder = shuffled;
+        
+        return { page1, page2 };
+    }
+
+    function shuffleAjRoundOrder() {
+        // Create page 1 shuffle
+        const shuffle1 = AJ_ROUND_CODES.slice();
+        for (let i = shuffle1.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffle1[i], shuffle1[j]] = [shuffle1[j], shuffle1[i]];
+        }
+
+        // Create page 2 shuffle, ensuring no consecutive position has same code (no X-1 and X-1)
+        let shuffle2 = AJ_ROUND_CODES.slice();
+        let attempts = 0;
+        let valid = false;
+        
+        while (!valid && attempts < 100) {
+            // Fisher-Yates shuffle
+            for (let i = shuffle2.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffle2[i], shuffle2[j]] = [shuffle2[j], shuffle2[i]];
+            }
+            
+            // Check: no position should have the same code in both page 1 and page 2
+            valid = true;
+            for (let i = 0; i < shuffle1.length; i++) {
+                if (shuffle1[i] === shuffle2[i]) {
+                    valid = false;
+                    break;
+                }
+            }
+            attempts++;
+        }
+        
+        ajRoundOrderPage1 = shuffle1;
+        ajRoundOrderPage2 = shuffle2;
+        ajRoundOrder = shuffle1; // Keep for compatibility
+        
         try {
             const draftsData = localStorage.getItem('drafts') || '{}';
             const drafts = JSON.parse(draftsData);
             if (drafts[currentDraftCode]) {
-                drafts[currentDraftCode].ajRoundOrder = ajRoundOrder.slice();
+                drafts[currentDraftCode].ajRoundOrderPage1 = ajRoundOrderPage1.slice();
+                drafts[currentDraftCode].ajRoundOrderPage2 = ajRoundOrderPage2.slice();
                 localStorage.setItem('drafts', JSON.stringify(drafts));
             }
         } catch (e) {
             // ignore
         }
         if (window.draftSocket && currentDraftCode) {
-            window.draftSocket.emit('updateAjRoundOrder', currentDraftCode, ajRoundOrder, () => {});
+            window.draftSocket.emit('updateAjRoundOrder', currentDraftCode, { page1: ajRoundOrderPage1, page2: ajRoundOrderPage2 }, () => {});
         }
     }
 
@@ -1270,9 +1346,11 @@ function initSilentDraft() {
     }
 
     function getAjRoundPlayers() {
-        const roundCode = getCurrentAjRoundCode();
-        const page1Players = buildAjPagePlayers(roundCode, 1, PAGE_SIZE, [], PAGE1_REQUIREMENTS);
-        const page2Players = buildAjPagePlayers(roundCode, 2, PAGE_SIZE, page1Players, PAGE2_REQUIREMENTS);
+        const roundIndex = Math.max(0, currentRound - 1);
+        const roundCode1 = ajRoundOrderPage1[roundIndex] || AJ_ROUND_CODES[0];
+        const roundCode2 = ajRoundOrderPage2[roundIndex] || AJ_ROUND_CODES[0];
+        const page1Players = buildAjPagePlayers(roundCode1, 1, PAGE_SIZE, [], PAGE1_REQUIREMENTS);
+        const page2Players = buildAjPagePlayers(roundCode2, 2, PAGE_SIZE, page1Players, PAGE2_REQUIREMENTS);
         return page1Players.concat(page2Players);
     }
 
