@@ -1234,6 +1234,30 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .right-view-sect
     flex: 1;
 }
 
+/* iPad-only app mode: combine Players + Rankings into one split view. */
+@media (min-width: 768px) and (max-width: 1366px) and (pointer: coarse) {
+    body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled.silentdraft-ipad-split .silentdraft-app-nav {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled.silentdraft-ipad-split[data-draft-app-section="players"] .container {
+        display: grid;
+        grid-template-columns: minmax(0, 60%) minmax(0, 40%);
+        gap: 12px;
+    }
+
+    body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled.silentdraft-ipad-split[data-draft-app-section="players"] #left-column,
+    body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled.silentdraft-ipad-split[data-draft-app-section="players"] #right-column {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled.silentdraft-ipad-split[data-draft-app-section="players"] #center-column {
+        display: none;
+    }
+}
+
 @media (min-width: 901px) {
     body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .silentdraft-app-nav {
         max-width: 760px;

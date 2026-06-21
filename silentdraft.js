@@ -572,8 +572,10 @@ function initSilentDraft() {
 
     try {
         const savedSection = localStorage.getItem(DRAFT_APP_SECTION_VIEW_KEY);
-        if (savedSection === 'players' || savedSection === 'roster' || savedSection === 'budgets' || savedSection === 'rankings' || savedSection === 'chat') {
+        if (savedSection === 'players' || savedSection === 'roster' || savedSection === 'budgets' || savedSection === 'chat') {
             draftAppSectionViewMode = savedSection;
+        } else if (savedSection === 'rankings') {
+            draftAppSectionViewMode = 'players';
         }
     } catch (e) {
         draftAppSectionViewMode = 'players';
@@ -2041,11 +2043,34 @@ function initSilentDraft() {
         return Boolean(isInstalled);
     }
 
+    function isIpadDevice() {
+        try {
+            const ua = navigator.userAgent || '';
+            const platform = navigator.platform || '';
+            const maxTouchPoints = Number(navigator.maxTouchPoints || 0);
+            if (/iPad/i.test(ua) || /iPad/i.test(platform)) {
+                return true;
+            }
+            // iPadOS 13+ can report as MacIntel while still being touch-capable.
+            return /MacIntel/i.test(platform) && maxTouchPoints > 1;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function isIpadPlayersSplitEnabled() {
+        return draftAppSectionNavEnabled && isIpadDevice();
+    }
+
     function applyDraftAppSectionMode(section, options = {}) {
-        const mode = (section === 'roster' || section === 'budgets' || section === 'rankings' || section === 'chat') ? section : 'players';
+        const requestedMode = (section === 'roster' || section === 'budgets' || section === 'chat') ? section : 'players';
+        const mode = requestedMode;
         draftAppSectionViewMode = mode;
 
-        if (mode === 'budgets' || mode === 'rankings' || mode === 'chat') {
+        if (isIpadPlayersSplitEnabled() && mode === 'players') {
+            draftRoomRightViewMode = 'rankings';
+            applyRightViewMode();
+        } else if (mode === 'budgets' || mode === 'rankings' || mode === 'chat') {
             draftRoomRightViewMode = mode;
             try {
                 localStorage.setItem(DRAFTROOM_RIGHT_VIEW_KEY, draftRoomRightViewMode);
@@ -2088,6 +2113,7 @@ function initSilentDraft() {
         draftAppSectionNavEnabled = enabled;
         nav.hidden = !enabled;
         document.body.classList.toggle('silentdraft-app-nav-enabled', enabled);
+        document.body.classList.toggle('silentdraft-ipad-split', enabled && isIpadDevice());
 
         if (!enabled) {
             document.body.removeAttribute('data-draft-app-section');
@@ -2109,7 +2135,7 @@ function initSilentDraft() {
             });
         });
 
-        if (draftAppSectionViewMode === 'budgets' || draftAppSectionViewMode === 'rankings' || draftAppSectionViewMode === 'chat') {
+        if (draftAppSectionViewMode === 'budgets' || draftAppSectionViewMode === 'chat') {
             draftRoomRightViewMode = draftAppSectionViewMode;
         }
 
