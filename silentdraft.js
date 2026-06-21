@@ -585,6 +585,13 @@ function initSilentDraft() {
     console.log('[silentdraft] Draft host name:', draftHostName);
     console.log('[silentdraft] Current user:', username);
     console.log('[silentdraft] Is host:', window.isHost);
+    
+    // Randomize A-J sheet order if A-J mode is enabled
+    if (ajDraftModeEnabled) {
+        shuffleAjRoundOrder();
+        console.log('[silentdraft] A-J sheets randomized:', ajRoundOrder.join(', '));
+    }
+    
     setupRightViewTabs();
     applyRightViewMode();
     setupDraftAppSectionNav();
@@ -794,6 +801,8 @@ function initSilentDraft() {
         window.draftSocket.on('rosterSettingsUpdated', (data) => {
             if (!data) return;
             let settingsChanged = false;
+            const wasAjModeEnabled = ajDraftModeEnabled;
+            
             if (data.rosterSettings) {
                 applyRosterSettings(data.rosterSettings);
                 settingsChanged = true;
@@ -819,6 +828,15 @@ function initSilentDraft() {
             if (typeof data.benchCutTarget !== 'undefined') {
                 benchCutTarget = normalizeBenchCutTarget(data.benchCutTarget);
                 settingsChanged = true;
+            }
+            if (typeof data.ajDraftMode !== 'undefined') {
+                ajDraftModeEnabled = !!data.ajDraftMode;
+                // If A-J mode was just enabled, randomize the sheet order
+                if (!wasAjModeEnabled && ajDraftModeEnabled && currentRound === 1) {
+                    shuffleAjRoundOrder();
+                    console.log('[silentdraft] A-J mode enabled, sheets randomized:', ajRoundOrder.join(', '));
+                    settingsChanged = true;
+                }
             }
             if (typeof data.roundTimerMinutes !== 'undefined') {
                 console.log('[silentdraft] rosterSettingsUpdated applying roundTimerMinutes:', data.roundTimerMinutes);
@@ -1105,6 +1123,29 @@ function initSilentDraft() {
             if (!deduped.includes(code)) deduped.push(code);
         });
         return deduped.slice(0, AJ_ROUND_CODES.length);
+    }
+
+    function shuffleAjRoundOrder() {
+        // Fisher-Yates shuffle to randomize the order of A-J sheets
+        const shuffled = ajRoundOrder.slice();
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        ajRoundOrder = shuffled;
+        try {
+            const draftsData = localStorage.getItem('drafts') || '{}';
+            const drafts = JSON.parse(draftsData);
+            if (drafts[currentDraftCode]) {
+                drafts[currentDraftCode].ajRoundOrder = ajRoundOrder.slice();
+                localStorage.setItem('drafts', JSON.stringify(drafts));
+            }
+        } catch (e) {
+            // ignore
+        }
+        if (window.draftSocket && currentDraftCode) {
+            window.draftSocket.emit('updateAjRoundOrder', currentDraftCode, ajRoundOrder, () => {});
+        }
     }
 
     function getCurrentAjRoundCode() {
