@@ -586,10 +586,8 @@ function initSilentDraft() {
 
     try {
         const savedSection = localStorage.getItem(DRAFT_APP_SECTION_VIEW_KEY);
-        if (savedSection === 'players' || savedSection === 'roster' || savedSection === 'budgets' || savedSection === 'chat') {
+        if (savedSection === 'players' || savedSection === 'roster' || savedSection === 'rankings' || savedSection === 'budgets' || savedSection === 'chat') {
             draftAppSectionViewMode = savedSection;
-        } else if (savedSection === 'rankings') {
-            draftAppSectionViewMode = 'players';
         }
     } catch (e) {
         draftAppSectionViewMode = 'players';
@@ -2174,7 +2172,7 @@ function initSilentDraft() {
     }
 
     function applyDraftAppSectionMode(section, options = {}) {
-        const requestedMode = (section === 'roster' || section === 'budgets' || section === 'chat') ? section : 'players';
+        const requestedMode = (section === 'roster' || section === 'rankings' || section === 'budgets' || section === 'chat') ? section : 'players';
         const mode = requestedMode;
         draftAppSectionViewMode = mode;
 
@@ -2231,6 +2229,15 @@ function initSilentDraft() {
             return;
         }
 
+        const rankingsButton = nav.querySelector('[data-sd-section="rankings"]');
+        if (rankingsButton) {
+            const hideRankingsForIpad = isIpadDevice();
+            rankingsButton.hidden = hideRankingsForIpad;
+            if (hideRankingsForIpad && draftAppSectionViewMode === 'rankings') {
+                draftAppSectionViewMode = 'players';
+            }
+        }
+
         applyDraftAppSectionMode(draftAppSectionViewMode, { persist: false });
         updateDraftAppChatBadge();
     }
@@ -2246,7 +2253,7 @@ function initSilentDraft() {
             });
         });
 
-        if (draftAppSectionViewMode === 'budgets' || draftAppSectionViewMode === 'chat') {
+        if (draftAppSectionViewMode === 'rankings' || draftAppSectionViewMode === 'budgets' || draftAppSectionViewMode === 'chat') {
             draftRoomRightViewMode = draftAppSectionViewMode;
         }
 
@@ -4511,6 +4518,18 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         }
 
         let hasSeenAuctionStart = false;
+        let batchCompleted = false;
+        const completedPlayerIds = new Set();
+        const tiedPlayerIds = new Set(tiedBids.map(t => Number.parseInt(t.playerId, 10)));
+        let allAuctionsCompleteListener = null;
+
+        const finishAuctionBatch = () => {
+            if (batchCompleted) return;
+            batchCompleted = true;
+            console.log('[handleLiveAuction] Finishing auction batch');
+            window.currentAuctionCleanup();
+            onComplete();
+        };
 
         // Sort tied bids from highest to lowest
         tiedBids.sort((a, b) => b.bidAmount - a.bidAmount);
@@ -4527,25 +4546,41 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 startLiveAuction(matchingTie, data.auctionId);
             }
         };
+
+        const batchAuctionEndedListener = (data) => {
+            const playerId = Number.parseInt(data && data.playerId, 10);
+            if (!tiedPlayerIds.has(playerId)) return;
+
+            completedPlayerIds.add(playerId);
+            console.log('[handleLiveAuction] Batch ended count:', completedPlayerIds.size, '/', tiedPlayerIds.size);
+
+            if (completedPlayerIds.size >= tiedPlayerIds.size) {
+                finishAuctionBatch();
+            }
+        };
         
         // Store the listener and cleanup function
         window.currentAuctionCleanup = () => {
             console.log('[handleLiveAuction] Cleaning up global auction listener');
             window.draftSocket.off('liveAuctionStarted', globalAuctionListener);
+            window.draftSocket.off('liveAuctionEnded', batchAuctionEndedListener);
+            if (allAuctionsCompleteListener) {
+                window.draftSocket.off('allMembersAccepted', allAuctionsCompleteListener);
+            }
         };
         
         window.draftSocket.on('liveAuctionStarted', globalAuctionListener);
+        window.draftSocket.on('liveAuctionEnded', batchAuctionEndedListener);
         
         // Wait for all auctions to complete (server will emit allMembersAccepted when done)
-        const allAuctionsCompleteListener = () => {
+        allAuctionsCompleteListener = () => {
+            if (batchCompleted) return;
             if (!hasSeenAuctionStart) {
                 console.log('[handleLiveAuction] Ignoring pre-auction allMembersAccepted event');
                 return;
             }
             console.log('[handleLiveAuction] All auctions complete, cleaning up');
-            window.currentAuctionCleanup();
-            window.draftSocket.off('allMembersAccepted', allAuctionsCompleteListener);
-            onComplete();
+            finishAuctionBatch();
         };
         window.draftSocket.on('allMembersAccepted', allAuctionsCompleteListener);
         
@@ -4575,6 +4610,101 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         const suppressedUiState = {
             pwaSettingsWasOpen: false
         };
+
+        function playWinCelebrationEffects() {
+            try {
+                const styleId = 'auction-win-celebration-style';
+                if (!document.getElementById(styleId)) {
+                    const style = document.createElement('style');
+                    style.id = styleId;
+                    style.textContent = `
+                        @keyframes hushConfettiFall {
+                            0% { transform: translate3d(0, -10vh, 0) rotate(0deg); opacity: 1; }
+                            100% { transform: translate3d(var(--drift, 0px), 110vh, 0) rotate(720deg); opacity: 0; }
+                        }
+                        @keyframes hushFireworkPop {
+                            0% { transform: translate(-50%, -50%) scale(0.15); opacity: 0.9; }
+                            65% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+                            100% { transform: translate(-50%, -50%) scale(1.15); opacity: 0; }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+
+                const overlay = document.createElement('div');
+                overlay.id = 'auction-win-celebration-overlay';
+                overlay.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:10003;overflow:hidden;';
+                document.body.appendChild(overlay);
+
+                const confettiColors = ['#2ecc71', '#f1c40f', '#3498db', '#e74c3c', '#9b59b6', '#1abc9c'];
+                for (let i = 0; i < 70; i++) {
+                    const piece = document.createElement('div');
+                    const size = 6 + Math.random() * 8;
+                    const drift = -80 + Math.random() * 160;
+                    piece.style.cssText = [
+                        'position:absolute',
+                        `left:${Math.random() * 100}%`,
+                        `top:${-12 - Math.random() * 20}px`,
+                        `width:${size}px`,
+                        `height:${size * 0.6}px`,
+                        `background:${confettiColors[Math.floor(Math.random() * confettiColors.length)]}`,
+                        'border-radius:2px',
+                        `--drift:${drift}px`,
+                        `animation:hushConfettiFall ${2.2 + Math.random() * 1.8}s ease-out ${Math.random() * 0.35}s forwards`
+                    ].join(';');
+                    overlay.appendChild(piece);
+                }
+
+                const fireworks = [
+                    { left: '22%', top: '28%' },
+                    { left: '78%', top: '30%' },
+                    { left: '50%', top: '22%' }
+                ];
+                fireworks.forEach((spot, idx) => {
+                    const burst = document.createElement('div');
+                    burst.style.cssText = [
+                        'position:absolute',
+                        `left:${spot.left}`,
+                        `top:${spot.top}`,
+                        'width:140px',
+                        'height:140px',
+                        'border-radius:50%',
+                        'background:radial-gradient(circle, rgba(255,255,255,0.92) 0%, rgba(241,196,15,0.75) 30%, rgba(52,152,219,0.35) 58%, rgba(52,152,219,0) 75%)',
+                        `animation:hushFireworkPop 900ms ease-out ${idx * 120}ms forwards`
+                    ].join(';');
+                    overlay.appendChild(burst);
+                });
+
+                setTimeout(() => {
+                    if (overlay && overlay.parentNode) {
+                        overlay.parentNode.removeChild(overlay);
+                    }
+                }, 3600);
+            } catch (e) {
+                console.log('[startLiveAuction] Celebration visual failed:', e);
+            }
+
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const notes = [784, 988, 1175, 1568];
+                notes.forEach((freq, idx) => {
+                    const now = audioContext.currentTime + idx * 0.11;
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.0001, now);
+                    gain.gain.exponentialRampToValueAtTime(0.15, now + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.23);
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.24);
+                });
+            } catch (e) {
+                console.log('[startLiveAuction] Celebration audio not supported');
+            }
+        }
 
         const suppressConflictingOverlays = () => {
             const processingModal = document.getElementById('processing-bids-modal');
@@ -4802,14 +4932,20 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 : '';
 
             const showWinnerSummary = () => {
+                const userWonAuction = isCurrentUserTeamName(data.winner);
                 auctionDiv.innerHTML = `
                     <h3 style="color:#2ecc71;margin-top:0;text-align:center;">Auction Complete!</h3>
                     <div style="background:rgba(52,152,219,0.1);border:1px solid rgba(52,152,219,0.35);border-radius:8px;padding:12px;margin:12px 0;">
                         <p style="text-align:center;color:#f5f5f7;font-size:17px;margin:0 0 8px 0;"><strong>Player:</strong> ${player.playerName || player.name} (${player.position})</p>
                         <p style="text-align:center;color:#2ecc71;font-size:20px;font-weight:bold;margin:0 0 6px 0;">Winner: ${data.winner}</p>
                         <p style="text-align:center;color:#3498db;font-size:18px;margin:0;">Price: $${data.finalBid}</p>
+                        ${userWonAuction ? '<p style="text-align:center;color:#f1c40f;font-size:20px;font-weight:800;margin:10px 0 0 0;">You won this tie-breaker!</p>' : ''}
                     </div>
                 `;
+
+                if (userWonAuction) {
+                    playWinCelebrationEffects();
+                }
 
                 console.log('[completeHandler] Winner display HTML set, waiting 5 seconds before removing');
                 setTimeout(() => {

@@ -3056,19 +3056,38 @@ io.on('connection', (socket) => {
         playerId: auction.playerId,
         playerName: auction.playerName
       });
+
+      const emitAuctionBatchComplete = () => {
+        try {
+          if (drafts[code]) {
+            io.to(`draft_${code}`).emit('allMembersAccepted');
+            console.log(`[completeLiveAuction] allMembersAccepted emitted successfully`);
+          }
+        } catch (emitError) {
+          console.error(`[completeLiveAuction] Error emitting allMembersAccepted:`, emitError);
+          console.error(emitError.stack);
+        }
+      };
       
         // Check if there are more pending auctions
       if (drafts[code] && drafts[code].draftState && drafts[code].draftState.pendingAuctions && drafts[code].draftState.pendingAuctions.length > 0) {
         console.log(`[completeLiveAuction] ${drafts[code].draftState.pendingAuctions.length} more auctions pending, starting next in 2 seconds...`);
         setTimeout(() => {
           try {
-            if (drafts[code] && drafts[code].draftState && drafts[code].draftState.pendingAuctions && drafts[code].draftState.pendingAuctions.length > 0) {
-              const nextTie = drafts[code].draftState.pendingAuctions.shift();
-              if (nextTie) {
-                startServerLiveAuction(code, nextTie);
-              } else {
-                console.error(`[completeLiveAuction] nextTie was undefined`);
-              }
+            if (!drafts[code] || !drafts[code].draftState) {
+              return;
+            }
+
+            const queue = Array.isArray(drafts[code].draftState.pendingAuctions)
+              ? drafts[code].draftState.pendingAuctions
+              : [];
+
+            const nextTie = queue.shift();
+            if (nextTie) {
+              startServerLiveAuction(code, nextTie);
+            } else {
+              console.log('[completeLiveAuction] Pending queue drained before next-auction timer; emitting completion');
+              emitAuctionBatchComplete();
             }
           } catch (nextAuctionError) {
             console.error(`[completeLiveAuction] Error starting next auction:`, nextAuctionError);
@@ -3079,15 +3098,7 @@ io.on('connection', (socket) => {
         console.log(`[completeLiveAuction] No more auctions, waiting 6 seconds then emitting allMembersAccepted to draft_${code}`);
         // Wait for winner display to show (5 seconds) plus 1 second buffer before starting next round
         setTimeout(() => {
-          try {
-            if (drafts[code]) {
-              io.to(`draft_${code}`).emit('allMembersAccepted');
-              console.log(`[completeLiveAuction] allMembersAccepted emitted successfully`);
-            }
-          } catch (emitError) {
-            console.error(`[completeLiveAuction] Error emitting allMembersAccepted:`, emitError);
-            console.error(emitError.stack);
-          }
+          emitAuctionBatchComplete();
         }, 6000);
       }
     } catch (err) {
