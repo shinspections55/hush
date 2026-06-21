@@ -1,14 +1,29 @@
 document.addEventListener('DOMContentLoaded', ()=>{
   const form = document.getElementById('joinPrivateForm');
+  const codeInput = form ? form.querySelector('input[name="code"]') : null;
   const user = sessionStorage.getItem('username');
   if(!user){ window.location.href='index.html'; return; }
+
+  function normalizeDraftCode(raw) {
+    return String(raw || '')
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '');
+  }
   // If an invite link like /ABC123 was used, location.pathname will contain the code
   const pathCode = (function(){
     const p = location.pathname.replace(/^\//,'').replace(/\/.*/,'');
     // Ignore if it's an HTML file or too short to be a code
     if(!p || p.length < 3 || p.endsWith('.html')) return null;
-    return p;
+    return normalizeDraftCode(p);
   })();
+
+  if (codeInput) {
+    codeInput.addEventListener('input', () => {
+      const normalized = normalizeDraftCode(codeInput.value);
+      if (codeInput.value !== normalized) codeInput.value = normalized;
+    });
+  }
 
   async function attemptJoin(code){
     // Prefer server-side authoritative join if socket available
@@ -61,7 +76,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   form.addEventListener('submit', (e)=>{
     e.preventDefault();
     const data = new FormData(form);
-    const code = data.get('code').trim();
+    const code = normalizeDraftCode(data.get('code'));
     if(!code || code.length < 3){ alert('Enter a valid draft code'); return; }
     attemptJoin(code);
   });

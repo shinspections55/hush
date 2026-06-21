@@ -51,6 +51,22 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   const appHomeLoginGate = document.getElementById('appHomeLoginGate');
   const appHomeLoginForm = document.getElementById('appHomeLoginForm');
   const draftActionRow = document.querySelector('#draftActions .dashboard-cta-row');
+  const DRAFT_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const DRAFT_CODE_LENGTH = 6;
+
+  function generateDraftCode(existingDrafts = {}) {
+    for (let attempt = 0; attempt < 200; attempt++) {
+      let code = '';
+      for (let i = 0; i < DRAFT_CODE_LENGTH; i++) {
+        const index = Math.floor(Math.random() * DRAFT_CODE_ALPHABET.length);
+        code += DRAFT_CODE_ALPHABET[index];
+      }
+      if (!existingDrafts[code]) return code;
+    }
+    return `${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 4).toUpperCase()}`
+      .replace(/[IO01]/g, 'A')
+      .slice(0, DRAFT_CODE_LENGTH);
+  }
 
   if(!user){
     if (!isInstalledApp) {
@@ -371,7 +387,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     }
     // if none found, create one via server if available
     if(!chosen){
-      chosen = (Math.random().toString(36).substr(2,6)).toUpperCase();
+      chosen = generateDraftCode(drafts);
       drafts[chosen] = { members: [], public: true, capacity: 10 };
     }
     // try server-authoritative join if possible
@@ -412,11 +428,11 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     startPrivate.addEventListener('click', async (e)=>{
       e.preventDefault();
       // generate a short unique code
-      const code = (Math.random().toString(36).substr(2,6)).toUpperCase();
-      const usersRaw = localStorage.getItem('users');
-      // create draft and add current user
       const draftsRaw = localStorage.getItem('drafts');
       const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
+      const code = generateDraftCode(drafts);
+      const usersRaw = localStorage.getItem('users');
+      // create draft and add current user
       drafts[code] = drafts[code] || { members: [], capacity: 10 };
       // try server create & join
       try{
@@ -452,9 +468,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   if(startPublic){
     startPublic.addEventListener('click', async (e)=>{
       e.preventDefault();
-      const code = (Math.random().toString(36).substr(2,6)).toUpperCase();
       const draftsRaw = localStorage.getItem('drafts');
       const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
+      const code = generateDraftCode(drafts);
       drafts[code] = drafts[code] || { members: [], public: true, capacity: 10 };
       try{
         if(window.io){

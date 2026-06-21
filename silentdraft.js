@@ -1852,6 +1852,19 @@ function initSilentDraft() {
         `;
     }
 
+    function getBenchTargetCount() {
+        return Math.max(0, Number.parseInt(rosterSettings.BN, 10) || 0);
+    }
+
+    function getBenchProgressText(benchCount) {
+        const target = getBenchTargetCount();
+        const filled = Math.min(target, Math.max(0, Number.parseInt(benchCount, 10) || 0));
+        const remaining = Math.max(0, target - filled);
+        return remaining > 0
+            ? `Bench ${filled}/${target} (${remaining} left)`
+            : `Bench ${filled}/${target}`;
+    }
+
     function getConfiguredSlotBlueprint() {
         const slots = [];
         const addSlots = (label, count, eligiblePositions) => {
@@ -2042,7 +2055,7 @@ function initSilentDraft() {
                     <span class="r-name">${player.name}
                         ${owner ? ` <span class="r-owner">→ ${owner}</span>` : ''}
                     </span>
-                    <span class="r-av">AV $${player.avgValue}</span>
+                    <span class="r-av" style="color:#ffffff;">AV $${player.avgValue}</span>
                 </div>
             `;
         }).join('');
@@ -2479,7 +2492,7 @@ function initSilentDraft() {
                         <p><span style="font-weight: bold; font-size: 20px; background: #3498db; color: white; padding: 4px 8px; border-radius: 4px; margin-right: 8px; display: inline-block;">${playerPosition}</span> <span style="font-size: 15px;">${playerName}</span> (<span style="font-weight: bold;">${playerTeam}</span>)</p>
                         ${ownershipBadge}
                     </div>
-                    <input type="tel" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Your bid" data-player-id="${player.id}" 
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Your bid" data-player-id="${player.id}" 
                            style="width:80px;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:14px;" 
                            min="0" max="${yourTeam ? yourTeam.budget : 200}" 
                            value="${storedBids[player.id] || ''}">
@@ -2526,9 +2539,13 @@ function initSilentDraft() {
             document.querySelectorAll('input[data-player-id]').forEach(input => {
                 input.addEventListener('input', playTypingSound);
                 input.addEventListener('input', (e) => {
+                    const digitsOnly = String(e.target.value || '').replace(/\D+/g, '');
+                    if (e.target.value !== digitsOnly) {
+                        e.target.value = digitsOnly;
+                    }
                     const playerId = parseInt(e.target.dataset.playerId);
-                    storedBids[playerId] = e.target.value;
-                    const bidAmount = parseInt(e.target.value, 10) || 0;
+                    storedBids[playerId] = digitsOnly;
+                    const bidAmount = parseInt(digitsOnly, 10) || 0;
 
                     if (window.draftSocket && currentDraftCode) {
                         window.draftSocket.emit('placeBid', currentDraftCode, playerId, bidAmount, (response) => {
@@ -2661,6 +2678,9 @@ function initSilentDraft() {
             teams.forEach(team => {
                 // Skip user's own team (shown in center column)
                 if (team.name === username) return;
+
+                const teamAssigned = assignRosterToSlots(team.roster);
+                const teamBenchText = getBenchProgressText(teamAssigned.bench.length);
                 
                 const teamItem = document.createElement('li');
                 teamItem.style.cssText = 'cursor:pointer;padding:10px 14px;margin:6px 0;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;transition:all 0.2s ease;font-size:14px;';
@@ -2670,7 +2690,7 @@ function initSilentDraft() {
                 const header = document.createElement('div');
                 header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
                 header.innerHTML = `
-                    <span>${team.name} - $${team.budget} (${team.roster.length} players) ${autoDraftStatusByTeam[team.name] ? '<span style="display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.5);color:#93c5fd;">AUTO</span>' : ''}</span>
+                    <span>${team.name} - $${team.budget} (${team.roster.length} players) | ${teamBenchText} ${autoDraftStatusByTeam[team.name] ? '<span style="display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.5);color:#93c5fd;">AUTO</span>' : ''}</span>
                     <span class="dropdown-arrow" style="font-size:12px;transition:transform 0.2s;">▼</span>
                 `;
                 teamItem.appendChild(header);
@@ -2681,15 +2701,15 @@ function initSilentDraft() {
                 rosterDiv.style.cssText = 'display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);';
                 
                 if (team.roster.length > 0) {
-                    const assigned = assignRosterToSlots(team.roster);
+                    const assigned = teamAssigned;
                     rosterDiv.innerHTML = assigned.assignedSlots.map(slot => (
                         `<div style="margin-top: 4px; display: flex; align-items: center; font-size: 12px;"><b style="font-size: 14px;">${slot.label}</b>: ${slot.player ? `${slot.player.name} - $${slot.player.bid}` : ''}</div>`
                     )).join('');
 
                     // Bench players (everyone not in starters), sorted by prerank
                     const bench = assigned.bench;
+                    rosterDiv.innerHTML += `<div style="margin-top: 8px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.1);"><b style="font-size: 14px;">${getBenchProgressText(bench.length)}</b></div>`;
                     if (bench.length > 0) {
-                        rosterDiv.innerHTML += '<div style="margin-top: 8px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.1);"><b style="font-size: 14px;">Bench:</b></div>';
                         bench.forEach(p => {
                             const benchLine = document.createElement('div');
                             benchLine.style.cssText = 'display:flex;align-items:center;margin:2px 0;font-size:11px;color:#9aa0a6;';
@@ -2742,6 +2762,10 @@ function initSilentDraft() {
         if (yourTeamElem && team) {
             const assigned = assignRosterToSlots(team.roster);
             benchPlayersForDisplay = assigned.bench;
+            const benchTitle = document.getElementById('bench-title');
+            if (benchTitle) {
+                benchTitle.textContent = getBenchProgressText(benchPlayersForDisplay.length);
+            }
 
             // Build HTML for each slot
             yourTeamElem.innerHTML = assigned.assignedSlots
@@ -2757,6 +2781,10 @@ function initSilentDraft() {
             }
         } else if (yourTeamElem) {
             yourTeamElem.innerHTML = '<p class="bench-empty-state">Your team lineup will be displayed here.</p>';
+            const benchTitle = document.getElementById('bench-title');
+            if (benchTitle) {
+                benchTitle.textContent = getBenchProgressText(0);
+            }
         }
 
         // Bench players display (only if we have the element and team)
