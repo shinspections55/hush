@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hush-v2';
+const CACHE_NAME = 'hush-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -10,6 +10,7 @@ const STATIC_ASSETS = [
   '/silentdraft.css',
   '/rankings.css',
   '/scripts.js',
+  '/sw-register.js',
   '/firebase-config.js',
   '/firebase-auth.js',
   '/manifest.json'
@@ -49,7 +50,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - network first, fallback to cache
+// Fetch event - prefer fresh content for documents and keep static assets updated
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -61,6 +62,25 @@ self.addEventListener('fetch', (event) => {
 
   // Skip cross-origin requests
   if (url.origin !== location.origin) {
+    return;
+  }
+
+  // Always try network first for HTML documents so pushes show up quickly.
+  if (request.mode === 'navigate' || request.destination === 'document') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, copy).catch(() => {});
+          });
+          return response;
+        })
+        .catch(() => {
+          return caches.match(request)
+            .then((cached) => cached || caches.match('/index.html'));
+        })
+    );
     return;
   }
 
@@ -88,26 +108,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For static assets, use cache first with network fallback
+  // For static assets, serve from cache immediately and update in the background.
   event.respondWith(
     caches.match(request).then((cached) => {
+      const networkFetch = fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, copy).catch(() => {});
+          });
+          return response;
+        })
+        .catch(() => null);
+
       if (cached) {
+        event.waitUntil(networkFetch);
         return cached;
       }
 
-      // Not in cache, fetch from network
-      return fetch(request)
-        .then((response) => response)
-        .catch(() => {
-          // Network failed and not in cache
-          if (request.destination === 'document') {
-            return caches.match('/index.html');
-          }
-          return new Response('Offline', {
-            status: 503,
-            statusText: 'Service Unavailable'
-          });
-        });
+      return networkFetch.then((response) => response || new Response('Offline', {
+        status: 503,
+        statusText: 'Service Unavailable'
+      }));
     })
   );
 });

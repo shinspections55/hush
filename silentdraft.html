@@ -98,16 +98,5 @@
     <script src="/socket.io/socket.io.js" onerror="(function(){var s=document.createElement('script');s.src='https://cdn.socket.io/4.7.2/socket.io.min.js';document.head.appendChild(s);})();"></script>
     <script src="preferences.js?v=20260611c"></script>
     <script src="silentdraft.js?v=20260616h"></script>
-    <script>
-        // Register service worker for PWA support
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js')
-                .then(registration => {
-                    console.log('[PWA] Service Worker registered:', registration);
-                })
-                .catch(error => {
-                    console.warn('[PWA] Service Worker registration failed:', error);
-                });
-        }
-    </script></body>
+    <script src="sw-register.js"></script></body>
 </html>

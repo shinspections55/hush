@@ -84,17 +84,6 @@
   <script src="firebase-config.js"></script>
   <script src="preferences.js"></script>
   <script type="module" src="dashboard.js"></script>
-  <script>
-    // Register service worker for PWA support
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js')
-        .then(registration => {
-          console.log('[PWA] Service Worker registered:', registration);
-        })
-        .catch(error => {
-          console.warn('[PWA] Service Worker registration failed:', error);
-        });
-    }
-  </script>
+  <script src="sw-register.js"></script>
 </body>
 </html>
