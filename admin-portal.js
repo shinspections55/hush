@@ -228,6 +228,21 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
+  function parseRankingsHashPosition(hashValue) {
+    const raw = String(hashValue || '').replace(/^#/, '').trim().toUpperCase();
+    if (!raw) return null;
+    const normalized = raw.startsWith('RANKINGS-') ? raw.slice('RANKINGS-'.length) : raw;
+    return BOARD_POSITIONS.includes(normalized) ? normalized : null;
+  }
+
+  function syncRankingsHash(position) {
+    const normalized = BOARD_POSITIONS.includes(position) ? position : 'QB';
+    const targetHash = `#rankings-${normalized}`;
+    if (window.location.hash !== targetHash) {
+      window.history.replaceState(null, '', targetHash);
+    }
+  }
+
   function setConnectStatus(message) {
     connectStatus.textContent = message;
   }
@@ -846,6 +861,7 @@ document.addEventListener('DOMContentLoaded', () => {
         topPlayers = Array.isArray(defaultPayload.players) ? inferTierBreaks(defaultPayload.players.map((player) => ({ ...player }))) : [];
         topMeta = defaultPayload;
         activePosition = 'TOP';
+        syncRankingsHash(activePosition);
         updateRankingsMeta(topMeta, topPlayers.length);
         clearUndoHistory();
         setLayoutDirty(false);
@@ -860,6 +876,7 @@ document.addEventListener('DOMContentLoaded', () => {
       positionPlayers[position] = Array.isArray(payload.players) ? inferTierBreaks(payload.players.map((player) => ({ ...player }))) : [];
       positionMeta[position] = payload;
       activePosition = position;
+      syncRankingsHash(activePosition);
       updateRankingsMeta(payload, positionPlayers[position].length);
       clearUndoHistory();
       setLayoutDirty(false);
@@ -1135,11 +1152,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
   clearUndoHistory();
   loadTierInsertModePreference();
+  const requestedFromHash = parseRankingsHashPosition(window.location.hash);
+  if (requestedFromHash) {
+    activePosition = requestedFromHash;
+  }
   setLayoutDirty(false);
   applyTierInsertMode();
   updatePositionTabs();
   setOverviewMode(false);
   setConnectApproved(false);
+
+  window.addEventListener('hashchange', async () => {
+    const requestedPosition = parseRankingsHashPosition(window.location.hash);
+    if (!requestedPosition || requestedPosition === activePosition) return;
+
+    activePosition = requestedPosition;
+    updatePositionTabs();
+
+    const managerAnchor = document.getElementById('default-rankings-manager');
+    if (managerAnchor) {
+      managerAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    if (String(keyInput.value || '').trim()) {
+      await loadPositionRankings(requestedPosition);
+    } else {
+      renderActiveBoard();
+      setActionStatus(`Connect admin access to load ${requestedPosition} rankings.`);
+    }
+  });
 
   window.addEventListener('resize', () => {
     try {

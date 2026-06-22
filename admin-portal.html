@@ -4,6 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Admin Portal</title>
+  <link rel="manifest" href="manifest-admin.json">
+  <meta name="theme-color" content="#1f2937">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Hush Admin">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body class="bg-overlay admin-portal-page">
@@ -78,10 +83,12 @@
       </section>
 
       <section class="box admin-portal-card admin-rankings-card">
+        <a id="default-rankings-manager"></a>
         <h2>Default Rankings Manager</h2>
         <p class="form-helper">Edit each position file directly. QB loads qb.json, RB loads rb.json, WR loads wr.json, and so on. Drag to reorder, change AV, add players, remove players, then save.</p>
 
         <div class="admin-portal-actions">
+          <a href="admin-rankings-nav.html" class="form-link">Open Rankings Navigation Page</a>
           <button id="loadRankingsBtn" type="button" class="btn btn-login">Load Rankings</button>
           <button id="tierInsertModeBtn" type="button" class="btn btn-login" aria-pressed="false">Easy Tier Breaks: Off</button>
           <button id="saveRankingsLayoutBtn" type="button" class="btn btn-signup" disabled>Save Order + Tier Breaks</button>
@@ -141,5 +148,6 @@
 
   <script src="admin-portal.js"></script>
   <script src="preferences.js"></script>
+  <script src="sw-register.js"></script>
 </body>
 </html>

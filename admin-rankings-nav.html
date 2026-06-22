@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin Rankings Navigation</title>
+  <link rel="manifest" href="manifest-admin.json">
+  <meta name="theme-color" content="#1f2937">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Hush Admin">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-overlay admin-portal-page">
+  <header class="site-header">
+    <img src="HUSHLOGO.png" alt="Logo" class="logo">
+  </header>
+
+  <main class="page">
+    <div class="container" style="max-width:760px;">
+      <section class="box admin-portal-card">
+        <h2>Default Rankings Navigation</h2>
+        <p class="form-helper">Choose a board to open directly in the Default Rankings Manager.</p>
+
+        <div class="admin-portal-actions" style="display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:10px;">
+          <a class="btn btn-signup" href="admin-portal.html#rankings-TOP">TOP</a>
+          <a class="btn btn-login" href="admin-portal.html#rankings-QB">QB</a>
+          <a class="btn btn-login" href="admin-portal.html#rankings-RB">RB</a>
+          <a class="btn btn-login" href="admin-portal.html#rankings-WR">WR</a>
+          <a class="btn btn-login" href="admin-portal.html#rankings-TE">TE</a>
+          <a class="btn btn-login" href="admin-portal.html#rankings-K">K</a>
+          <a class="btn btn-login" href="admin-portal.html#rankings-DEF">DEF</a>
+          <a class="btn btn-signup" href="admin-portal.html#default-rankings-manager">Open Manager Home</a>
+        </div>
+
+        <p style="margin-top:12px;color:var(--muted);">Tip: After opening a board, connect with your admin key and tap Load Rankings if needed.</p>
+      </section>
+    </div>
+  </main>
+
+  <script src="preferences.js"></script>
+  <script src="sw-register.js"></script>
+</body>
+</html>
