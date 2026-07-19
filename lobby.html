@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0F2F44">
+  <meta name="description" content="Hush - Silent draft fantasy football league management">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
+  <link rel="apple-touch-icon" href="/icon-192x192.png">
+  <title>Draft Lobby</title>
+  <link rel="stylesheet" href="styles.css?v=20260625b">
+</head>
+<body class="bg-overlay lobby-page">
+  <header class="site-header">
+    <div class="header-left">
+      <img src="HUSHLOGO.png" alt="Logo" class="logo">
+    </div>
+    <div class="header-right">
+      <a href="dashboard.html" class="account-btn">Back</a>
+    </div>
+  </header>
+  <main class="page">
+    <div class="container">
+      <section class="box" id="lobbyBox">
+        <div id="hostBanner" class="host-banner hidden">
+          Lobby is full.
+          <button id="dismissBanner" class="dismiss-btn">✕</button>
+        </div>
+        <h2 id="draftTitle" class="hush-silver">Draft Lobby</h2>
+        <p id="draftCode" class="hush-silver">Code: </p>
+        <p id="hostDisplay" class="lobby-host-display hush-silver">Host: --</p>
+        <h3 class="hush-silver">Members</h3>
+        <ul id="memberList" class="hush-silver"></ul>
+        <div class="lobby-controls">
+          <div class="type-display">Type:</div>
+          <div class="flex-container">
+            <label class="radio-label">
+              <input type="radio" name="draftType" value="silent" checked>
+              <span>Silent auction</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="draftType" value="rounds3">
+              <span>3 rounds auction</span>
+            </label>
+          </div>
+        </div>
+        <div id="draftOrderSection" class="lobby-controls draft-order-section">
+          <div class="type-display">Draft Order:</div>
+          <div class="flex-container">
+            <label class="radio-label">
+              <input type="radio" name="draftOrder" value="manual" checked>
+              <span>Set draft order</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="draftOrder" value="random">
+              <span>Random order</span>
+            </label>
+          </div>
+        </div>
+        <div class="lobby-controls">
+          <div class="type-display">Capacity: <span id="draftCapacity">10</span></div>
+          <div id="capacityControls" class="capacity-controls">
+            <select id="capacitySelect" class="type-btn" aria-label="Select draft capacity">
+              <option value="10" selected>10</option>
+              <option value="12">12</option>
+              <option value="14">14</option>
+            </select>
+            <button id="applyCapacityBtn" type="button" class="type-btn">Apply</button>
+          </div>
+        </div>
+        <button id="startDraftBtn" class="btn btn-signup">Start Draft</button>
+        <button id="leaveBtn" class="btn">Leave Draft</button>
+      </section>
+    </div>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="preferences.js"></script>
+  <script src="lobby.js?v=20260616a"></script>
+  <script>
+    // Register service worker for PWA support
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(registration => {
+          console.log('[PWA] Service Worker registered:', registration);
+        })
+        .catch(error => {
+          console.warn('[PWA] Service Worker registration failed:', error);
+        });
+    }
+  </script>
+</body>
+</html>

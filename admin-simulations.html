@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin Fast Simulations</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="theme-utils.js?v=20260630a"></script>
+</head>
+<body class="bg-overlay admin-portal-page">
+  <header class="site-header">
+    <img src="HUSHLOGO.png" alt="Logo" class="logo">
+    <section class="admin-header-access" aria-label="Admin access">
+      <h2>Admin Fast Simulations</h2>
+      <form id="adminConnectForm">
+        <input type="text" id="adminKeyInput" placeholder="Admin key" autocomplete="off" inputmode="numeric" pattern="[0-9]*" required>
+        <button type="submit" class="btn btn-login">Connect</button>
+      </form>
+      <p id="adminConnectStatus" class="form-status"></p>
+    </section>
+  </header>
+
+  <main class="page">
+    <div class="container admin-portal-layout">
+      <section class="box admin-portal-card">
+        <h2>Fast Draft Simulations</h2>
+        <p class="form-helper">Runs a fixed 15-draft accelerated simulation batch using current CPU logic and rankings.</p>
+
+        <div class="admin-portal-actions">
+          <button id="simulateBatchBtn" type="button" class="btn btn-signup">Simulate (15 Drafts)</button>
+          <a href="admin-portal.html" class="form-link">Back to Admin Portal</a>
+        </div>
+
+        <div class="admin-portal-actions" aria-label="Simulation filters">
+          <input type="number" id="filterDraftNumber" min="1" step="1" placeholder="Draft # (all)">
+          <input type="text" id="filterTeamName" placeholder="Team name contains..." autocomplete="off">
+          <input type="number" id="filterMinBid" min="0" step="1" placeholder="Min bid (all)">
+          <button id="clearFiltersBtn" type="button" class="btn btn-login">Clear Filters</button>
+        </div>
+
+        <div id="simulationStatus" class="form-status"></div>
+        <pre id="simulationOutput" class="admin-debug-pre">Connect with admin key, then click Simulate (15 Drafts).</pre>
+      </section>
+    </div>
+  </main>
+
+  <script src="admin-simulations.js"></script>
+  <script src="preferences.js"></script>
+</body>
+</html>

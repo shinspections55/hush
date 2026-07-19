@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0F2F44">
+  <meta name="description" content="Hush - Silent draft fantasy football league management">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
+  <link rel="apple-touch-icon" href="/icon-192x192.png">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-overlay dashboard-page">
+
+  <header class="dashboard-header hush-silver-bg">
+    <div class="dashboard-header-left">
+      <a href="dashboard.html" class="dashboard-home-link" aria-label="Go to Dashboard">
+        <img src="HUSHLOGO.png" alt="HUSH Logo" class="dashboard-header-logo">
+      </a>
+    </div>
+    <div class="dashboard-header-center">
+      <div class="dashboard-header-center-stack">
+        <span class="dashboard-header-title hush-header-contrast">HUSH Fantasy Drafts</span>
+      </div>
+    </div>
+    <div class="dashboard-header-right">
+      <div id="walletBalance" class="wallet-balance hush-header-contrast">$0</div>
+      <div class="account-menu-stack">
+        <span id="welcomeUser" class="welcome-user hush-header-contrast">Timbee12</span>
+        <button id="accountBtn" class="account-btn hush-header-contrast">Account ▼</button>
+        <div id="accountMenu" class="account-menu">
+          <button id="toggleDashboardTheme" class="theme-icon-btn" aria-label="Switch to light mode" title="Switch to light mode" aria-pressed="false">Mode: &#127769;</button>
+          <button id="editAccountBtn">Edit Account</button>
+          <button id="deleteAccountMenuBtn">Delete Account</button>
+          <button id="completedDraftsBtn">Completed Drafts</button>
+          <button id="openWallet">Wallet</button>
+          <a href="rankings.html?draftView=off" id="myRankingsMenu" class="account-menu-link"><span>My Rankings</span></a>
+          <button id="downloadAppBtn" class="download-app-btn download-app-hidden">📱 Download App</button>
+          <button id="logoutBtn">Log out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+
+  <main class="dashboard-main-centered">
+    <section class="dashboard-three-column">
+      <article class="dashboard-column-card dashboard-column-left" id="draftActions">
+        <section id="appHomeLoginGate" class="app-home-login-gate hidden" aria-live="polite">
+          <h3>Sign In To Continue</h3>
+          <p>You're in app mode. Sign in to draft, use rankings, and sync your account.</p>
+          <form id="appHomeLoginForm" class="app-home-login-form"></form>
+        </section>
+        <div class="dashboard-cta-row">
+          <a href="#" id="joinDraft" class="cta cta-secondary">Join a Draft</a>
+          <a href="#" id="joinPrivate" class="cta cta-secondary">Join a Private Draft</a>
+          <a href="#" id="startPrivate" class="cta cta-primary">Start New Private Draft</a>
+          <a href="#" id="startPublic" class="cta cta-primary">Start Public Draft</a>
+        </div>
+      </article>
+
+      <article class="dashboard-column-card dashboard-column-middle">
+        <p id="newsFeedStatus" class="hidden"></p>
+        <ul id="newsFeedList" class="dashboard-placeholder-list">
+          <li>Fetching live RSS feed...</li>
+        </ul>
+      </article>
+
+      <article class="dashboard-column-card dashboard-column-right">
+        <div class="dashboard-cta-row dashboard-tools-row">
+          <a href="rankings.html?draftView=off" id="myRankingsQuickLink" class="cta cta-secondary">My Rankings</a>
+          <a href="learn-hush.html" id="learnHush" class="cta cta-primary">Learn Hush</a>
+          <a href="offline-draft-print.html" id="offlineDraftPrint" class="cta cta-secondary">Offline Draft Print</a>
+          <a href="av-trends.html" id="avMarketReport" class="cta cta-secondary">AV Market Report</a>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="theme-utils.js?v=20260630a"></script>
+  <script src="firebase-config.js"></script>
+  <script src="preferences.js"></script>
+  <script type="module" src="dashboard.js"></script>
+  <script src="sw-register.js"></script>
+</body>
+</html>

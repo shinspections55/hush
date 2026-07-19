@@ -1,0 +1,38 @@
+{
+  "id": "/admin-portal.html#admin-app",
+  "name": "Hush Admin Rankings",
+  "short_name": "Hush Admin",
+  "description": "Admin portal for adjusting rankings and monitoring draft system health.",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/admin-portal.html#admin-home",
+  "theme_color": "#1f2937",
+  "background_color": "#0b1220",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

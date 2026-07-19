@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Register</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="theme-utils.js?v=20260630a"></script>
+</head>
+<body class="bg-overlay">
+  <header class="site-header">
+    <img src="HUSHLOGO.png" alt="Logo" class="logo">
+  </header>
+  <main class="page">
+    <div class="container">
+      <section class="box">
+        <h2>Create Account</h2>
+        <form id="registerForm">
+          <input type="text" name="fullname" placeholder="Full name" required>
+          <input type="email" name="email" placeholder="Email address" required>
+          <input type="tel" name="phone" placeholder="Phone (optional)">
+          <input type="text" name="username" placeholder="Choose a draft username" required>
+          <div class="password-field">
+            <input type="password" name="password" placeholder="Create password" autocomplete="new-password" required>
+            <button type="button" class="password-toggle" data-password-toggle aria-label="Show password">Show</button>
+          </div>
+          <div class="password-field">
+            <input type="password" name="password2" placeholder="Confirm password" autocomplete="new-password" required>
+            <button type="button" class="password-toggle" data-password-toggle aria-label="Show password confirmation">Show</button>
+          </div>
+          <button type="submit" class="btn btn-signup">Create account</button>
+        </form>
+        <p>Already have an account? <a href="index.html">Login</a></p>
+      </section>
+    </div>
+  </main>
+  <script src="firebase-config.js"></script>
+  <script src="preferences.js"></script>
+  <script type="module" src="register.js"></script>
+</body>
+</html>

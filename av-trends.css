@@ -1,0 +1,165 @@
+.av-trends-main {
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 0 12px 24px;
+  display: grid;
+  gap: 16px;
+}
+
+.av-trends-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+
+.av-trends-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.av-trends-controls input {
+  min-width: 100px;
+}
+
+.av-status {
+  margin: 0;
+  font-size: 0.92rem;
+  opacity: 0.9;
+}
+
+.av-headline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.av-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.av-tab-btn {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.av-tab-btn-active {
+  background: rgba(44, 191, 125, 0.2);
+  border-color: rgba(44, 191, 125, 0.8);
+}
+
+.av-tab-panel-hidden {
+  display: none;
+}
+
+.av-movers-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.av-movers-title {
+  margin: 0 0 8px;
+}
+
+.av-headline-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.av-up {
+  color: #2cbf7d;
+  font-weight: 700;
+}
+
+.av-down {
+  color: #e55a5a;
+  font-weight: 700;
+}
+
+.av-flat {
+  color: #c8ced5;
+  font-weight: 700;
+}
+
+.av-table-wrap {
+  overflow-x: auto;
+}
+
+.av-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.av-table th,
+.av-table td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  text-align: left;
+  padding: 10px 8px;
+}
+
+.av-trends-nav {
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .av-trends-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .av-trends-controls .cta {
+    width: 100%;
+  }
+
+  .av-movers-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+body.light-mode.av-trends-page .av-tab-btn,
+body.dashboard-light-mode.av-trends-page .av-tab-btn {
+  border-color: rgba(123, 142, 166, 0.28);
+  background: rgba(255, 255, 255, 0.9);
+  color: #17324d;
+}
+
+body.light-mode.av-trends-page .av-tab-btn-active,
+body.dashboard-light-mode.av-trends-page .av-tab-btn-active {
+  background: rgba(44, 191, 125, 0.14);
+  border-color: rgba(44, 191, 125, 0.52);
+  color: #165341;
+}
+
+body.light-mode.av-trends-page .av-headline-item,
+body.dashboard-light-mode.av-trends-page .av-headline-item {
+  background: rgba(23, 50, 77, 0.05);
+  color: #17324d;
+}
+
+body.light-mode.av-trends-page .av-flat,
+body.dashboard-light-mode.av-trends-page .av-flat {
+  color: #5a6f86;
+}
+
+body.light-mode.av-trends-page .av-table th,
+body.light-mode.av-trends-page .av-table td,
+body.dashboard-light-mode.av-trends-page .av-table th,
+body.dashboard-light-mode.av-trends-page .av-table td {
+  border-bottom-color: rgba(123, 142, 166, 0.28);
+  color: #17324d;
+}
