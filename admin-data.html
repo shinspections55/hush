@@ -1,11 +1,11 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Admin - All Data</title>
   <link rel="stylesheet" href="styles.css">
-  <script src="theme-utils.js?v=20260630a"></script>
+  <script src="theme-utils.js?v=20260726b"></script>
   <style>
     .admin-data-container {
       max-width: 1400px;
@@ -159,7 +159,7 @@
 
   <main class="page">
     <div class="admin-data-container">
-      <a href="admin-portal.html" class="back-link">← Back to Admin Portal</a>
+      <a href="admin-portal.html" class="back-link">â† Back to Admin Portal</a>
 
       <div class="admin-data-header">
         <h1>System Data Viewer</h1>
@@ -250,7 +250,7 @@
               <td>${escapeHtml(user.username)}</td>
               <td>${escapeHtml(user.email || 'N/A')}</td>
               <td>${escapeHtml(user.created_at || 'N/A')}</td>
-              <td>${user.is_premium ? '✓' : '✗'}</td>
+              <td>${user.is_premium ? 'âœ“' : 'âœ—'}</td>
             </tr>`;
           });
           html += '</tbody></table></div>';
@@ -350,3 +350,4 @@
   </script>
 </body>
 </html>
+

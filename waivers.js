@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const DEFAULT_BENCH_CUT_TARGET = 5;
     const MAX_DRAFT_BENCH = 13;
     const username = sessionStorage.getItem('username') || 'Your Team';
+    const normalizedUsername = String(username || '').trim().toLowerCase();
 
     const waiverPageMeta = document.getElementById('waiverPageMeta');
     const waiverPageNotice = document.getElementById('waiverPageNotice');
@@ -250,8 +251,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return waiverState.order[Math.max(0, Math.min(Number(waiverState.turnIndex || 0), waiverState.order.length - 1))] || '';
     }
 
+    function isCurrentUserTeamName(teamName) {
+        return String(teamName || '').trim().toLowerCase() === normalizedUsername;
+    }
+
     function getUserTeam() {
-        return (draftSummary.teams || []).find(team => team.name === username) || null;
+        return (draftSummary.teams || []).find(team => isCurrentUserTeamName(team.name)) || null;
     }
 
     function getWaiverSecondsRemaining() {
@@ -279,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function isCurrentUserHost() {
         const host = String(draftSummary && draftSummary.host || '').trim();
-        return !host || host === username;
+        return !host || isCurrentUserTeamName(host);
     }
 
     function escapeHtml(value) {
@@ -378,7 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return player.name.toLowerCase().includes(searchTerm) || player.team.toLowerCase().includes(searchTerm);
         });
 
-        const canAct = !!(waiverState && waiverState.active && getCurrentWaiverTeamName() === username && userTeam && (userTeam.roster || []).length > 0);
+        const canAct = !!(waiverState && waiverState.active && isCurrentUserTeamName(getCurrentWaiverTeamName()) && userTeam && (userTeam.roster || []).length > 0);
 
         waiverPoolList.innerHTML = filtered.length
             ? filtered.map(player => `
@@ -428,7 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function submitWaiverAddDrop(player) {
         if (!socket || !draftSummary.draftCode || !waiverState || !waiverState.active) return;
         const userTeam = getUserTeam();
-        const canAct = !!(getCurrentWaiverTeamName() === username && userTeam && (userTeam.roster || []).length > 0);
+        const canAct = !!(isCurrentUserTeamName(getCurrentWaiverTeamName()) && userTeam && (userTeam.roster || []).length > 0);
         if (!canAct) {
             alert('It is not your turn to make a waiver move.');
             return;
@@ -483,7 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const starters = Array.isArray(split.slots) ? split.slots : [];
         const bench = Array.isArray(split.bench) ? split.bench : [];
 
-        waiverOnClockTitle.textContent = `${currentTurn}${currentTurn === username ? ' (Your Team)' : ''}`;
+        waiverOnClockTitle.textContent = `${currentTurn}${isCurrentUserTeamName(currentTurn) ? ' (Your Team)' : ''}`;
         onClockRosterCount = roster.length;
         waiverOnClockMeta.textContent = buildOnClockMetaText(onClockRosterCount);
 
@@ -545,7 +550,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const turnKey = `${draftSummary.draftCode || ''}:${currentTurn}:${Number(waiverState.turnIndex || 0)}:${Number(waiverState.updatedAt || 0)}`;
         if (turnKey === lastTurnAlertKey) return;
         lastTurnAlertKey = turnKey;
-        if (currentTurn === username) {
+        if (isCurrentUserTeamName(currentTurn)) {
             playTurnDing();
             showTurnAlert('Your turn');
         }
@@ -557,7 +562,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentTurn = getCurrentWaiverTeamName();
         const userTeam = getUserTeam();
         const canStart = !!(isCurrentUserHost() && waiverMode !== 'off' && (!waiverState || (!waiverState.active && !waiverState.completed)));
-        const canPass = !!(waiverState && waiverState.active && currentTurn === username);
+        const isUsersTurn = !!(waiverState && waiverState.active && isCurrentUserTeamName(currentTurn));
+        const canPass = !!(waiverState && waiverState.active && isUsersTurn);
 
         waiverPageMeta.textContent = `Draft ${draftSummary.draftCode || 'N/A'} | Waiver Mode: ${waiverMode.toUpperCase()}`;
 
@@ -580,6 +586,14 @@ document.addEventListener('DOMContentLoaded', () => {
         waiverPassBtn.hidden = false;
         waiverPassBtn.disabled = !canPass;
 
+        if (!isUsersTurn && waiverTurnAlert && !waiverTurnAlert.hidden) {
+            waiverTurnAlert.hidden = true;
+            if (turnAlertTimeout) {
+                clearTimeout(turnAlertTimeout);
+                turnAlertTimeout = null;
+            }
+        }
+
         if (!waiverState || (!waiverState.active && !waiverState.completed)) {
             waiverPageNotice.textContent = isCurrentUserHost()
                 ? `Waivers are ready. Start when ready using ${waiverMode.toUpperCase()} order.`
@@ -587,14 +601,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (waiverState.active) {
             const secondsLeft = getWaiverSecondsRemaining();
             const timerLabel = secondsLeft == null ? '--:--' : formatClock(secondsLeft);
-            waiverPageNotice.textContent = currentTurn === username
+            waiverPageNotice.textContent = isUsersTurn
                 ? `It is your waiver turn (${timerLabel} left). Select a drop player above, then tap + on a waiver player, or pass.`
                 : `Waivers are active. On the clock: ${currentTurn || 'N/A'} (${timerLabel} left).`;
         } else {
             waiverPageNotice.textContent = `Waivers are complete (${waiverState.mode.toUpperCase()} order).`;
         }
 
-        renderInlineDropOptions(!!(waiverState && waiverState.active && currentTurn === username));
+        renderInlineDropOptions(!!(waiverState && waiverState.active && isUsersTurn));
         renderOrder();
         renderOnClockTeamPanel();
         renderPool();

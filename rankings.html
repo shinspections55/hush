@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -14,7 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="rankings.css">
-  <script src="theme-utils.js?v=20260630a"></script>
+  <script src="theme-utils.js?v=20260726b"></script>
 </head>
 <body class="bg-overlay">
 
@@ -24,7 +24,7 @@
       <img src="printablehushrank.PNG" alt="" class="rankings-header-banner-image rankings-header-banner-image-light">
     </div>
     <div class="header-left">
-      <a href="dashboard.html" class="account-btn">← Dashboard</a>
+      <a href="dashboard.html" class="account-btn">â† Dashboard</a>
     </div>
     <div class="header-right">
       <span id="draftStatusBadge" class="draft-status-badge hidden"></span>
@@ -34,9 +34,9 @@
 
   <div class="rankings-page">
 
-    <!-- ══════════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <!-- LEFT PANEL: My Rankings                           -->
-    <!-- ══════════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <div class="rankings-panel">
 
       <div class="rankings-panel-header">
@@ -47,7 +47,7 @@
         <div class="rankings-panel-actions">
           <button id="tierInsertModeBtn" class="action-btn" type="button">Easy Tier Breaks: Off</button>
           <button id="printRankingsBtn" class="action-btn" type="button">Print</button>
-          <button id="saveRankingsBtn" class="action-btn saved">Saved ✓</button>
+          <button id="saveRankingsBtn" class="action-btn saved">Saved âœ“</button>
         </div>
       </div>
 
@@ -82,7 +82,7 @@
       <!-- Rankings list (tiers rendered here) -->
       <div class="rankings-list" id="rankingsList">
         <div class="rankings-empty" id="rankingsEmpty">
-          <div class="empty-icon">📋</div>
+          <div class="empty-icon">ðŸ“‹</div>
           <p>Your rankings board is empty</p>
           <p class="empty-hint">Click players on the right to add them, or drag &amp; drop</p>
         </div>
@@ -92,15 +92,15 @@
 
     </div>
 
-    <!-- ══════════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <!-- RIGHT PANEL: Player Pool                          -->
-    <!-- ══════════════════════════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <div class="pool-panel">
 
       <div class="pool-panel-header">
         <h2>Player Pool</h2>
         <div class="pool-search-wrap">
-          <input type="text" id="poolSearch" class="pool-search" placeholder="Search players…" autocomplete="off">
+          <input type="text" id="poolSearch" class="pool-search" placeholder="Search playersâ€¦" autocomplete="off">
         </div>
       </div>
 
@@ -115,11 +115,11 @@
       </div>
 
       <!-- Pool count line -->
-      <div class="pool-meta" id="poolMeta">Loading…</div>
+      <div class="pool-meta" id="poolMeta">Loadingâ€¦</div>
 
       <!-- Player list -->
       <div class="pool-list" id="poolList">
-        <div class="pool-loading">Loading players…</div>
+        <div class="pool-loading">Loading playersâ€¦</div>
       </div>
 
     </div>
@@ -128,6 +128,8 @@
 
   <script src="preferences.js"></script>
   <script src="rankings.js"></script>
-  <script src="sw-register.js"></script>
+  <script src="sw-register.js?v=20260726b"></script>
 </body>
 </html>
+
+

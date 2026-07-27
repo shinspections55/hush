@@ -234,38 +234,37 @@ function initializePageTheme() {
         if (typeof resolveSiteThemePreference === 'function') {
             theme = resolveSiteThemePreference() === 'light' ? 'light' : 'dark';
         } else {
-        
-        // Try to get username first
-        const username = String(
-            sessionStorage.getItem('username') ||
-            localStorage.getItem('lastSignedInUsername') ||
-            ''
-        ).trim();
-        
-        // Check user preferences if logged in
-        if (username) {
-            try {
-                const usersJson = localStorage.getItem('users');
-                if (usersJson) {
-                    const users = JSON.parse(usersJson);
-                    const userTheme = users[username]?.preferences?.theme;
-                    if (userTheme === 'light' || userTheme === 'dark') {
-                        theme = userTheme;
+            // Try to get username first
+            const username = String(
+                sessionStorage.getItem('username') ||
+                localStorage.getItem('lastSignedInUsername') ||
+                ''
+            ).trim();
+
+            // Check user preferences if logged in
+            if (username) {
+                try {
+                    const usersJson = localStorage.getItem('users');
+                    if (usersJson) {
+                        const users = JSON.parse(usersJson);
+                        const userTheme = users[username]?.preferences?.theme;
+                        if (userTheme === 'light' || userTheme === 'dark') {
+                            theme = userTheme;
+                        }
                     }
+                } catch (e) {
+                    console.warn('[HUSH JS] Error reading user preferences:', e);
                 }
-            } catch (e) {
-                console.warn('[HUSH JS] Error reading user preferences:', e);
             }
-        }
-        
-        // Fall back to localStorage dashboardTheme
-        if (theme === 'dark') {
-            const storedTheme = localStorage.getItem('dashboardTheme');
-            if (storedTheme === 'light') {
-                theme = 'light';
+
+            // Fall back to localStorage dashboardTheme.
+            if (theme === 'dark') {
+                const storedTheme = localStorage.getItem('dashboardTheme');
+                if (storedTheme === 'light') {
+                    theme = 'light';
+                }
             }
-        }
-        
+
             // No system fallback here; pages should follow app preference only.
         }
         

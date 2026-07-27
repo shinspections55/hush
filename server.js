@@ -1164,8 +1164,9 @@ app.get('/api/rss/sports-news', async (req, res) => {
     });
   } catch (error) {
     console.error('[RSS] Failed to fetch sports feeds:', error.message);
-    res.status(502).json({
+    res.json({
       ok: false,
+      degraded: true,
       error: 'Failed to fetch sports RSS feeds',
       items: sportsRssCache.items.slice(0, 9)
     });

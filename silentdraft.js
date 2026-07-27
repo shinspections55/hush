@@ -2597,6 +2597,56 @@ function initSilentDraft() {
         return 'available';
     }
 
+    function normalizeByeWeekValue(rawValue) {
+        const numeric = Number.parseInt(rawValue, 10);
+        if (Number.isFinite(numeric) && numeric > 0) {
+            return numeric;
+        }
+        return null;
+    }
+
+    function extractPlayerByeWeek(player) {
+        if (!player || typeof player !== 'object') return null;
+        return normalizeByeWeekValue(
+            player.byeWeek
+            ?? player.bye
+            ?? player.bye_week
+            ?? player.BYE
+            ?? player.BYEWEEK
+            ?? player.byeweek
+        );
+    }
+
+    function resolveDraftRoomByeWeek(player) {
+        const directBye = extractPlayerByeWeek(player);
+        if (directBye !== null) {
+            return directBye;
+        }
+
+        const matched = players.find(p => p && p.name === player.name);
+        return extractPlayerByeWeek(matched);
+    }
+
+    function formatFinalPrice(player) {
+        const raw = Number(player && (player.bid ?? player.bidAmount ?? player.pricePaid));
+        if (!Number.isFinite(raw)) return null;
+        return Math.max(0, Math.round(raw));
+    }
+
+    function buildRosterPlayerInline(player) {
+        if (!player) return '';
+        const byeWeek = resolveDraftRoomByeWeek(player);
+        const byeBadge = byeWeek ? `<span class="roster-player-bye">BYE ${byeWeek}</span>` : '';
+        const finalPrice = formatFinalPrice(player);
+        const finalPriceBadge = finalPrice !== null ? `<span class="roster-player-price">Final $${finalPrice}</span>` : '';
+
+        return `
+            <span class="roster-player-name">${player.name}</span>
+            ${byeBadge}
+            ${finalPriceBadge}
+        `;
+    }
+
     function getDraftRoomDefaultRankings() {
         if (draftRoomRankingsPosition !== 'ALL') {
             const pos = String(draftRoomRankingsPosition || '').trim().toUpperCase();
@@ -2608,6 +2658,7 @@ function initSilentDraft() {
                         position: p.position || pos,
                         team: p.team || '—',
                         avgValue: p.avgValue || 0,
+                        byeWeek: extractPlayerByeWeek(p),
                     }));
                 }
             }
@@ -2625,6 +2676,7 @@ function initSilentDraft() {
                     position: p.position || 'UNK',
                     team: p.team || '—',
                     avgValue: p.avgValue || 0,
+                    byeWeek: extractPlayerByeWeek(p),
                 }));
         }
 
@@ -2640,6 +2692,7 @@ function initSilentDraft() {
                 position: p.position || 'UNK',
                 team: p.team || '—',
                 avgValue: p.avgValue || p.value || 0,
+                byeWeek: extractPlayerByeWeek(p),
             }));
     }
 
@@ -2677,6 +2730,7 @@ function initSilentDraft() {
                         position: entry.position || 'UNK',
                         team: 'DATABASE',
                         avgValue: Number(entry.avgValue || 0),
+                        byeWeek: extractPlayerByeWeek(entry),
                         draftPct: liveDraftPct,
                         auctionCount: Number(entry.auctionCount || 0),
                         updatedBy: 'DATABASE'
@@ -2730,6 +2784,7 @@ function initSilentDraft() {
                             position: player.position || 'UNK',
                             team: player.team || '—',
                             avgValue: player.avgValue || 0,
+                            byeWeek: extractPlayerByeWeek(player),
                         });
                     });
                 });
@@ -2759,7 +2814,7 @@ function initSilentDraft() {
         return `
             <div class="roster-slot-card"${cardInlineStyle}>
                 <span class="roster-slot-label">${slotLabel}</span>
-                <span class="roster-slot-value"${valueInlineStyle}>${player ? `${player.name} - $${player.bid}` : ''}</span>
+                <span class="roster-slot-value"${valueInlineStyle}>${buildRosterPlayerInline(player)}</span>
             </div>
         `;
     }
@@ -2768,7 +2823,7 @@ function initSilentDraft() {
         return `
             <div class="roster-slot-card">
                 <span class="roster-slot-label">${label}</span>
-                <span class="roster-slot-value">${player ? `${player.name} - $${player.bid}` : ''}</span>
+                <span class="roster-slot-value">${buildRosterPlayerInline(player)}</span>
             </div>
         `;
     }
@@ -2983,6 +3038,8 @@ function initSilentDraft() {
         list.innerHTML = visible.map((player, idx) => {
             const status = getDraftRoomPlayerStatus(player.name);
             const isStarred = starredNames.has(player.name);
+            const byeWeek = resolveDraftRoomByeWeek(player);
+            const byeBadge = byeWeek ? `<span class="bye-badge">BYE ${byeWeek}</span>` : '';
             const owner = (() => {
                 const matched = players.find(p => p.name === player.name);
                 return matched && matched.owner ? matched.owner : '';
@@ -3000,6 +3057,7 @@ function initSilentDraft() {
                     </button>
                     <span class="r-num">${idx + 1}</span>
                     <span class="pos-badge pos-${player.position}">${player.position}</span>
+                    ${byeBadge}
                     <span class="r-name">${player.name}
                         ${owner ? ` <span class="r-owner">→ ${owner}</span>` : ''}
                         ${databaseMeta}
@@ -5786,6 +5844,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             const playerName = String((payload && payload.playerName) || 'Unknown Player');
             const playerPosition = String((payload && payload.playerPosition) || 'UNK');
             const playerId = Number.parseInt((payload && payload.playerId), 10);
+            const winnerModalId = 'live-auction-winner-modal';
 
             // Track auction result
             auctionResults.push({
@@ -5795,8 +5854,9 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 finalBid
             });
 
-            const existingModal = document.getElementById('live-auction-modal');
-            if (existingModal) {
+            const existingLiveModal = document.getElementById('live-auction-modal');
+            const existingWinnerModal = document.getElementById(winnerModalId);
+            if (existingLiveModal || existingWinnerModal) {
                 return;
             }
 
@@ -5809,7 +5869,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             }
 
             const winnerModal = document.createElement('div');
-            winnerModal.id = 'live-auction-modal';
+            winnerModal.id = winnerModalId;
             winnerModal.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:${theme.modalBackground};border:2px solid #2ecc71;border-radius:12px;padding:18px;z-index:10000;color:${theme.text};box-shadow:${theme.shadow};width:min(92vw,560px);max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);overflow-y:auto;overflow-x:hidden;box-sizing:border-box;touch-action:manipulation;-webkit-overflow-scrolling:touch;`;
             winnerModal.innerHTML = `
                 <h3 style="color:#2ecc71;margin-top:0;text-align:center;">Auction Complete!</h3>
@@ -5822,7 +5882,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             document.body.appendChild(winnerModal);
 
             setTimeout(() => {
-                const modal = document.getElementById('live-auction-modal');
+                const modal = document.getElementById(winnerModalId);
                 if (modal && modal.parentNode) {
                     modal.parentNode.removeChild(modal);
                 }
@@ -6153,7 +6213,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
 
         // Timer update listener
         timerUpdateHandler = (data) => {
-            console.log('[timerUpdateHandler] Received timer update:', data);
+            console.debug('[timerUpdateHandler] Received timer update:', data);
             if (data.auctionId !== auctionId) return;
             
             if (!countdownEl || !countdownEl.isConnected) {
@@ -6163,11 +6223,11 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
 
             if (countdownEl) {
                 countdownEl.textContent = `Time: ${data.timer}s`;
-                console.log('[timerUpdateHandler] Updated countdown display to:', data.timer);
+                console.debug('[timerUpdateHandler] Updated countdown display to:', data.timer);
             } else {
                 missingCountdownLogCount += 1;
-                if (missingCountdownLogCount <= 2) {
-                    console.warn('[timerUpdateHandler] Countdown element not found (auction UI likely replaced)');
+                if (missingCountdownLogCount === 1) {
+                    console.debug('[timerUpdateHandler] Countdown element temporarily unavailable during UI transition');
                 }
                 // Do not detach listeners for transient UI swaps.
             }
