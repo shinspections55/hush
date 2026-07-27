@@ -528,6 +528,21 @@ body.rankings-tier-insert-mode .add-tier-here-btn:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.rank-player-bye {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 5px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.25px;
+  color: #111827;
+  background: linear-gradient(180deg, #fde68a 0%, #f59e0b 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
 .status-owner {
   font-size: 10px;
   color: #6b7280;
@@ -1516,6 +1531,7 @@ body.rankings-print-preview .pos-filter-bar {
 body.rankings-print-preview .rankings-panel-title h2,
 body.rankings-print-preview .tier-name,
 body.rankings-print-preview .rank-player-name,
+body.rankings-print-preview .rank-player-bye,
 body.rankings-print-preview .rank-player-team,
 body.rankings-print-preview .rank-player-val,
 body.rankings-print-preview .rank-num,
@@ -1632,6 +1648,8 @@ body.rankings-print-preview .rank-star-btn.active .rank-star-icon polygon {
   .rankings-panel-title h2,
   .tier-name,
   .rank-player-name,
+  .rank-player-bye,
+  .rank-player-bye,
   .rank-player-team,
   .rank-player-val,
   .rank-num,

@@ -120,8 +120,11 @@ document.addEventListener('DOMContentLoaded', () => {
   let easyTierInsertMode = false;
   let cpuTuningState;
   let cpuNamedModels = {};
+  let activeCpuModelName = '';
   let previousProfileImpactSnapshot = {};
   let activeCpuLogicSourceFile = 'cpulogic.js';
+  let cpuSaveToServerResetTimer = null;
+  let cpuLoadSelectedResetTimer = null;
 
   const cpuSilentProfiles = [
     { name: 'Balanced', aggression: 1.15, valueHunter: 0.92, sleeperHunter: 0.95, starsAndScrubs: 1.18, QB: 0.95, RB: 1.15, WR: 1.0, TE: 0.95, K: 0.85, DEF: 0.9 },
@@ -161,7 +164,85 @@ document.addEventListener('DOMContentLoaded', () => {
       lateRoundVarianceMax: 0.4,
       personalityVarianceStep: 0.1,
       roundVarianceMax: 0.15,
-      maxAggressionCap: 0.95
+      maxAggressionCap: 0.95,
+      avCapMult1to5: 1.24,
+      avCapMult5to10: 1.2,
+      avCapMult10to20: 1.16,
+      avCapMult20to30: 1.12,
+      avCapMult30to40: 1.1,
+      avCapMult40to50: 1.08,
+      avCapMult50to60: 1.07,
+      avCapMult60Plus: 1.06,
+      avCapBaseBuffer: 1,
+      avCapLateRoundExtraBuffer: 1,
+      curve1to9Bid1: 0.12,
+      curve1to9Bid2: 0.42,
+      curve1to9Bid3: 0.3,
+      curve1to9Bid4: 0.11,
+      curve1to9Bid5: 0.035,
+      curve1to9Bid6: 0.01,
+      curve1to9Bid7: 0.003,
+      curve1to9Bid8: 0.001,
+      curve10to19Bid1: 0.06,
+      curve10to19Bid2: 0.36,
+      curve10to19Bid3: 0.36,
+      curve10to19Bid4: 0.15,
+      curve10to19Bid5: 0.05,
+      curve10to19Bid6: 0.015,
+      curve10to19Bid7: 0.004,
+      curve10to19Bid8: 0.001,
+      curve20to29Bid1: 0.03,
+      curve20to29Bid2: 0.24,
+      curve20to29Bid3: 0.4,
+      curve20to29Bid4: 0.2,
+      curve20to29Bid5: 0.08,
+      curve20to29Bid6: 0.03,
+      curve20to29Bid7: 0.012,
+      curve20to29Bid8: 0.004,
+      curve30to39Bid1: 0.02,
+      curve30to39Bid2: 0.16,
+      curve30to39Bid3: 0.32,
+      curve30to39Bid4: 0.28,
+      curve30to39Bid5: 0.13,
+      curve30to39Bid6: 0.05,
+      curve30to39Bid7: 0.02,
+      curve30to39Bid8: 0.01,
+      curve40to49Bid1: 0.02,
+      curve40to49Bid2: 0.08,
+      curve40to49Bid3: 0.18,
+      curve40to49Bid4: 0.36,
+      curve40to49Bid5: 0.23,
+      curve40to49Bid6: 0.09,
+      curve40to49Bid7: 0.03,
+      curve40to49Bid8: 0.01,
+      curve50PlusBid1: 0.02,
+      curve50PlusBid2: 0.04,
+      curve50PlusBid3: 0.08,
+      curve50PlusBid4: 0.2,
+      curve50PlusBid5: 0.26,
+      curve50PlusBid6: 0.24,
+      curve50PlusBid7: 0.12,
+      curve50PlusBid8: 0.04,
+      band50PlusMinTeamPct: 0.4,
+      band50PlusMaxTeamPct: 0.6,
+      band40to49MinTeamPct: 0.4,
+      band40to49MaxTeamPct: 0.6,
+      band30to39MinTeamPct: 0.35,
+      band30to39MaxTeamPct: 0.55,
+      band20to29MinTeamPct: 0.25,
+      band20to29MaxTeamPct: 0.4,
+      band10to19MinTeamPct: 0.15,
+      band10to19MaxTeamPct: 0.3,
+      band1to9MinTeamPct: 0.1,
+      band1to9MaxTeamPct: 0.3,
+      band1to9NoBidChance: 0.55,
+      band10to19NoBidChance: 0.25,
+      bandLowAvNoBidLateRoundRelief: 0.08,
+      band50PlusPullChance: 0.9,
+      band40to49PullChance: 0.84,
+      bandDefaultPullChance: 0.75,
+      topAvHardMaxTeamPct: 0.8,
+      topAvPreferredBandPullChance: 0.8
     },
     tied: {
       baseBidProb: 0.34,
@@ -200,8 +281,79 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const BUILTIN_CPU_MODELS = {
+    'Version A': {
+      silent: {
+        globalInterestThresholdScale: 1.25,
+        globalInterestThresholdCap: 0.95,
+        earlyInterestHoldUntilRound: 8,
+        earlyInterestHoldMaxPressure: 6.5,
+        earlyTopRankFocusMaxRound: 4,
+        earlyTopRankFocusMaxRank: 120,
+        earlyRoundMaxBidsCap: 5,
+        globalBidVolumeMultiplier: 0.82,
+        spreadBidVolumeMultiplier: 0.52,
+        spreadDollarBidMultiplier: 0.4,
+        volumeBidsStartRound: 9,
+        draftChancePrimaryBaseFloor: 0.82,
+        draftChancePrimaryMinFloor: 0.62,
+        coverageAddCap: 4,
+        coverageDraftChanceFloor: 0.75,
+        starTargetAggressionBoost: 0.6,
+        starTargetLowballReduction: 0.4,
+        spreadModeIntensity: 0.32
+      }
+    },
+    'Version B': {
+      silent: {
+        globalInterestThresholdScale: 1.32,
+        globalInterestThresholdCap: 0.96,
+        earlyInterestHoldUntilRound: 8,
+        earlyInterestHoldMaxPressure: 5.5,
+        earlyTopRankFocusMaxRound: 5,
+        earlyTopRankFocusMaxRank: 100,
+        earlyRoundMaxBidsCap: 4,
+        globalBidVolumeMultiplier: 0.76,
+        spreadBidVolumeMultiplier: 0.45,
+        spreadDollarBidMultiplier: 0.32,
+        volumeBidsStartRound: 9,
+        draftChancePrimaryBaseFloor: 0.86,
+        draftChancePrimaryMinFloor: 0.66,
+        coverageAddCap: 3,
+        coverageDraftChanceFloor: 0.8,
+        starTargetAggressionBoost: 0.68,
+        starTargetLowballReduction: 0.48,
+        spreadModeIntensity: 0.24
+      }
+    }
+  };
+
   cpuTuningState = loadCpuTuningPreset();
   cpuNamedModels = loadCpuNamedModels();
+
+  function ensureBuiltinCpuNamedModels() {
+    let changed = false;
+    const now = Date.now();
+
+    Object.entries(BUILTIN_CPU_MODELS).forEach(([name, configPatch]) => {
+      const modelName = String(name || '').trim();
+      if (!modelName || cpuNamedModels[modelName]) return;
+
+      cpuNamedModels[modelName] = {
+        modelName,
+        createdAt: now,
+        updatedAt: now,
+        config: mergeDeep(deepClone(cpuTuningDefaults), configPatch || {})
+      };
+      changed = true;
+    });
+
+    if (changed) {
+      saveCpuNamedModels(cpuNamedModels);
+    }
+  }
+
+  ensureBuiltinCpuNamedModels();
 
   function createEmptyBoards() {
     return POSITIONS.reduce((acc, pos) => {
@@ -889,12 +1041,18 @@ document.addEventListener('DOMContentLoaded', () => {
   function refreshCpuModelSelect(preferredName = '') {
     if (!cpuModelSelect) return;
     const names = getSortedCpuModelNames();
-    const current = preferredName || cpuModelSelect.value || '';
+    const current = String(preferredName || activeCpuModelName || cpuModelSelect.value || '').trim();
     cpuModelSelect.innerHTML = `<option value="">Select a model</option>${names.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')}`;
     if (current && names.includes(current)) {
       cpuModelSelect.value = current;
+      activeCpuModelName = current;
+    } else if (activeCpuModelName && names.includes(activeCpuModelName)) {
+      cpuModelSelect.value = activeCpuModelName;
+    } else if (names.length === 1) {
+      cpuModelSelect.value = names[0];
+      activeCpuModelName = names[0];
     }
-    renderCpuModelLibrary(cpuModelSelect.value || current || '');
+    renderCpuModelLibrary(cpuModelSelect.value || activeCpuModelName || current || '');
   }
 
   function saveNamedCpuModel() {
@@ -911,6 +1069,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updatedAt: Date.now(),
       config: cloneCpuModelState(cpuTuningState)
     };
+    activeCpuModelName = name;
     saveCpuNamedModels(cpuNamedModels);
     refreshCpuModelSelect(name);
     if (cpuModelSelect) cpuModelSelect.value = name;
@@ -918,19 +1077,79 @@ document.addEventListener('DOMContentLoaded', () => {
     setCpuTuningStatus(`Saved model "${name}" locally.`, 'success');
   }
 
-  function loadSelectedCpuModel() {
+  function resolveCpuModelNameForLoad() {
     const selected = String(cpuModelSelect?.value || '').trim();
-    if (!selected || !cpuNamedModels[selected]) {
+    if (selected && cpuNamedModels[selected]) return selected;
+
+    const typed = String(cpuModelNameInput?.value || '').trim();
+    if (typed && cpuNamedModels[typed]) return typed;
+
+    return '';
+  }
+
+  function loadSelectedCpuModel() {
+    const selected = resolveCpuModelNameForLoad();
+    if (!selected) {
       setCpuTuningStatus('Select a saved model to load.', 'error');
+      setLoadSelectedButtonState('error');
       return;
     }
     const model = cpuNamedModels[selected];
     cpuTuningState = mergeDeep(deepClone(cpuTuningDefaults), model.config || {});
     saveCpuTuningPreset(cpuTuningState);
+    activeCpuModelName = selected;
+    if (cpuModelSelect) cpuModelSelect.value = selected;
+    if (cpuModelNameInput) cpuModelNameInput.value = selected;
     renderCpuTuningLab();
     renderCpuModelDetails(selected);
     renderCpuModelComparison(selected);
     setCpuTuningStatus(`Loaded model "${selected}".`, 'success');
+    setLoadSelectedButtonState('success', selected);
+  }
+
+  function setLoadSelectedButtonState(state, modelName = '') {
+    if (!cpuLoadNamedModelBtn) return;
+
+    if (cpuLoadSelectedResetTimer) {
+      clearTimeout(cpuLoadSelectedResetTimer);
+      cpuLoadSelectedResetTimer = null;
+    }
+
+    cpuLoadNamedModelBtn.classList.remove('admin-cpu-button-success', 'admin-cpu-button-error');
+
+    if (state === 'success') {
+      cpuLoadNamedModelBtn.disabled = false;
+      cpuLoadNamedModelBtn.textContent = 'Loaded ✓';
+      cpuLoadNamedModelBtn.classList.add('admin-cpu-button-success');
+      if (modelName) {
+        cpuLoadNamedModelBtn.title = `Loaded ${modelName}`;
+      }
+      cpuLoadSelectedResetTimer = setTimeout(() => {
+        if (!cpuLoadNamedModelBtn) return;
+        cpuLoadNamedModelBtn.textContent = 'Load Selected';
+        cpuLoadNamedModelBtn.title = '';
+        cpuLoadNamedModelBtn.classList.remove('admin-cpu-button-success', 'admin-cpu-button-error');
+        cpuLoadSelectedResetTimer = null;
+      }, 2200);
+      return;
+    }
+
+    if (state === 'error') {
+      cpuLoadNamedModelBtn.disabled = false;
+      cpuLoadNamedModelBtn.textContent = 'Load Failed';
+      cpuLoadNamedModelBtn.classList.add('admin-cpu-button-error');
+      cpuLoadSelectedResetTimer = setTimeout(() => {
+        if (!cpuLoadNamedModelBtn) return;
+        cpuLoadNamedModelBtn.textContent = 'Load Selected';
+        cpuLoadNamedModelBtn.title = '';
+        cpuLoadNamedModelBtn.classList.remove('admin-cpu-button-success', 'admin-cpu-button-error');
+        cpuLoadSelectedResetTimer = null;
+      }, 2200);
+      return;
+    }
+
+    cpuLoadNamedModelBtn.textContent = 'Load Selected';
+    cpuLoadNamedModelBtn.title = '';
   }
 
   function deleteSelectedCpuModel() {
@@ -940,6 +1159,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     delete cpuNamedModels[selected];
+    if (activeCpuModelName === selected) {
+      activeCpuModelName = '';
+    }
     saveCpuNamedModels(cpuNamedModels);
     refreshCpuModelSelect('');
     renderCpuModelDetails('');
@@ -947,7 +1169,59 @@ document.addEventListener('DOMContentLoaded', () => {
     setCpuTuningStatus(`Deleted model "${selected}".`, 'success');
   }
 
+  function setSaveToServerButtonState(state, sourceFile = '') {
+    if (!cpuSaveToServerBtn) return;
+
+    if (cpuSaveToServerResetTimer) {
+      clearTimeout(cpuSaveToServerResetTimer);
+      cpuSaveToServerResetTimer = null;
+    }
+
+    cpuSaveToServerBtn.classList.remove('admin-cpu-button-success', 'admin-cpu-button-error');
+
+    if (state === 'saving') {
+      cpuSaveToServerBtn.disabled = true;
+      cpuSaveToServerBtn.textContent = 'Saving...';
+      return;
+    }
+
+    cpuSaveToServerBtn.disabled = false;
+
+    if (state === 'success') {
+      cpuSaveToServerBtn.textContent = 'Saved ✓';
+      cpuSaveToServerBtn.classList.add('admin-cpu-button-success');
+      if (sourceFile) {
+        cpuSaveToServerBtn.title = `Saved to ${sourceFile}`;
+      }
+      cpuSaveToServerResetTimer = setTimeout(() => {
+        if (!cpuSaveToServerBtn) return;
+        cpuSaveToServerBtn.textContent = 'Save Active To cpulogic.js';
+        cpuSaveToServerBtn.title = '';
+        cpuSaveToServerBtn.classList.remove('admin-cpu-button-success', 'admin-cpu-button-error');
+        cpuSaveToServerResetTimer = null;
+      }, 2200);
+      return;
+    }
+
+    if (state === 'error') {
+      cpuSaveToServerBtn.textContent = 'Save Failed';
+      cpuSaveToServerBtn.classList.add('admin-cpu-button-error');
+      cpuSaveToServerResetTimer = setTimeout(() => {
+        if (!cpuSaveToServerBtn) return;
+        cpuSaveToServerBtn.textContent = 'Save Active To cpulogic.js';
+        cpuSaveToServerBtn.title = '';
+        cpuSaveToServerBtn.classList.remove('admin-cpu-button-success', 'admin-cpu-button-error');
+        cpuSaveToServerResetTimer = null;
+      }, 2600);
+      return;
+    }
+
+    cpuSaveToServerBtn.textContent = 'Save Active To cpulogic.js';
+    cpuSaveToServerBtn.title = '';
+  }
+
   async function saveActiveCpuLogicToServer() {
+    setSaveToServerButtonState('saving');
     try {
       const modelName = String(cpuModelNameInput?.value || cpuModelSelect?.value || 'Custom').trim() || 'Custom';
       const payload = getCpuLogicPayload(modelName);
@@ -960,8 +1234,10 @@ document.addEventListener('DOMContentLoaded', () => {
       activeCpuLogicSourceFile = sourceFile;
       updateCpuLogicSourceMeta();
       setCpuTuningStatus(`Saved "${modelName}" to ${sourceFile}.`, 'success');
+      setSaveToServerButtonState('success', sourceFile);
     } catch (error) {
       setCpuTuningStatus(error.message || 'Failed to save cpulogic.js', 'error');
+      setSaveToServerButtonState('error');
     }
   }
 
@@ -982,7 +1258,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (cpuModelNameInput) {
-        cpuModelNameInput.value = String(config?.presetName || cpuModelNameInput.value || '').trim();
+        const serverPresetName = String(config?.presetName || '').trim();
+        const existingModelName = String(cpuModelNameInput.value || '').trim();
+        if (!silent || !existingModelName) {
+          cpuModelNameInput.value = serverPresetName || existingModelName;
+        }
       }
       renderCpuTuningLab();
       if (!silent) {
@@ -1073,7 +1353,26 @@ document.addEventListener('DOMContentLoaded', () => {
         starTargetLowballReduction: 'When targeting a starred player, reduces the lowballing effect. At 1.0, CPUs bid normally on starred targets instead of spreading. Lower = still spread even on stars.',
         lowballIntensity: 'In spread mode, CPUs lower bids on ALL players (not just $40+) to roughly 60-70% of normal bid. Higher = more aggressive lowballing to maximize volume (0=off, 1.0=heavy lowballing on everything).',
         cheapFillerBidFrequency: 'Probability of throwing $1-5 "filler" bids to stretch budget even further when CPUs have multiple open spots. Higher = more frequent cheap filler bids (0=off, 1.0=always throw filler when spreading).',
-        starAvailabilityOverride: 'When CPUs\' starred targets are available THIS ROUND, override lowball mode and bid aggressively. Higher threshold = more conservative (only override if many stars available), Lower = eager to override when stars present (0=always lowball, 1.0=only override if 100% of stars available).'
+        starAvailabilityOverride: 'When CPUs\' starred targets are available THIS ROUND, override lowball mode and bid aggressively. Higher threshold = more conservative (only override if many stars available), Lower = eager to override when stars present (0=always lowball, 1.0=only override if 100% of stars available).',
+        band50PlusMinTeamPct: 'AV 50+ preferred lower participation bound as a percent of total teams.',
+        band50PlusMaxTeamPct: 'AV 50+ preferred upper participation bound as a percent of total teams.',
+        band40to49MinTeamPct: 'AV 40-49 preferred lower participation bound as a percent of total teams.',
+        band40to49MaxTeamPct: 'AV 40-49 preferred upper participation bound as a percent of total teams.',
+        band30to39MinTeamPct: 'AV 30-39 preferred lower participation bound as a percent of total teams.',
+        band30to39MaxTeamPct: 'AV 30-39 preferred upper participation bound as a percent of total teams.',
+        band20to29MinTeamPct: 'AV 20-29 preferred lower participation bound as a percent of total teams.',
+        band20to29MaxTeamPct: 'AV 20-29 preferred upper participation bound as a percent of total teams.',
+        band10to19MinTeamPct: 'AV 10-19 preferred lower participation bound as a percent of total teams.',
+        band10to19MaxTeamPct: 'AV 10-19 preferred upper participation bound as a percent of total teams.',
+        band1to9MinTeamPct: 'AV 1-9 preferred lower participation bound as a percent of total teams.',
+        band1to9MaxTeamPct: 'AV 1-9 preferred upper participation bound as a percent of total teams.',
+        band1to9NoBidChance: 'Chance that an AV 1-9 player gets no CPU market at all in this round. Higher = more undrafted low-value players.',
+        band10to19NoBidChance: 'Chance that an AV 10-19 player gets no CPU market at all in this round.',
+        band50PlusPullChance: 'How strongly AV 50+ bidder counts are pulled back into the preferred percent band. Higher = tighter adherence.',
+        band40to49PullChance: 'How strongly AV 40-49 bidder counts are pulled back into the preferred percent band. Higher = tighter adherence.',
+        bandDefaultPullChance: 'Shared pull strength for AV 1-39 preferred bands. Higher = tighter adherence to each bucket band.',
+        topAvHardMaxTeamPct: 'Absolute cap for AV 40+ participation as a percent of total draft teams. Bids above this percentage are not allowed.',
+        topAvPreferredBandPullChance: 'Legacy global pull fallback. Used only if per-band pull strengths are not set.'
       },
       tied: {
         baseBidProb: 'Baseline chance a CPU continues bidding each tied-auction tick before psychology and budget effects.',
@@ -1227,12 +1526,86 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
 
+  function renderCpuParticipationCurveGraph() {
+    const host = document.getElementById('cpuParticipationCurveGraph');
+    if (!host) return;
+
+    const silent = cpuTuningState?.silent || {};
+    const buckets = [
+      { label: 'AV 1-9', prefix: 'curve1to9' },
+      { label: 'AV 10-19', prefix: 'curve10to19' },
+      { label: 'AV 20-29', prefix: 'curve20to29' },
+      { label: 'AV 30-39', prefix: 'curve30to39' },
+      { label: 'AV 40-49', prefix: 'curve40to49' },
+      { label: 'AV 50+', prefix: 'curve50Plus' }
+    ];
+
+    const rows = buckets.map((bucket) => {
+      const weights = Array.from({ length: 8 }, (_, index) => {
+        const key = `${bucket.prefix}Bid${index + 1}`;
+        return Math.max(0, Number(silent[key] || 0));
+      });
+      const total = weights.reduce((sum, value) => sum + value, 0);
+      const probs = weights.map((value) => (total > 0 ? (value / total) : 0));
+
+      const bars = probs.map((probability, index) => {
+        const pct = probability * 100;
+        return `
+          <div class="admin-cpu-curve-cell" title="${bucket.label}: ${index + 1} bidders = ${pct.toFixed(1)}%">
+            <div class="admin-cpu-curve-track">
+              <div class="admin-cpu-curve-bar" style="height:${Math.max(2, Math.min(100, pct)).toFixed(1)}%"></div>
+            </div>
+            <span class="admin-cpu-curve-x">${index + 1}</span>
+            <span class="admin-cpu-curve-p">${pct.toFixed(0)}%</span>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="admin-cpu-curve-row">
+          <div class="admin-cpu-curve-label">${bucket.label}</div>
+          <div class="admin-cpu-curve-bars">${bars}</div>
+        </div>
+      `;
+    }).join('');
+
+    host.innerHTML = `
+      <p class="admin-cpu-note">Participation curve preview by AV bucket. X-axis = bidder count, Y-axis = probability.</p>
+      <div class="admin-cpu-curve-chart">${rows}</div>
+    `;
+  }
+
   function renderCpuTuningLab() {
     if (!cpuTuningControls) return;
 
     refreshCpuModelSelect(cpuModelSelect ? cpuModelSelect.value : '');
 
     const scenario = cpuTuningState.scenario || {};
+    const participationCurveGroups = [
+      { label: 'AV 1-9 (10%-30% teams preferred)', prefix: 'curve1to9' },
+      { label: 'AV 10-19 (15%-30% teams preferred)', prefix: 'curve10to19' },
+      { label: 'AV 20-29 (25%-40% teams preferred)', prefix: 'curve20to29' },
+      { label: 'AV 30-39 (35%-55% teams preferred)', prefix: 'curve30to39' },
+      { label: 'AV 40-49 (mostly 4 bidders)', prefix: 'curve40to49' },
+      { label: 'AV 50+ (4-6 bidders, heavy 6)', prefix: 'curve50Plus' }
+    ];
+    const participationCurveFields = participationCurveGroups.map((group) => {
+      const knobs = Array.from({ length: 8 }, (_, index) => makeCpuField('silent', `${group.prefix}Bid${index + 1}`, `${index + 1} Bidder Weight`, {
+        type: 'range',
+        min: 0,
+        max: 1,
+        step: 0.001,
+        typicalMin: 0,
+        typicalMax: 0.5
+      })).join('');
+      return `
+        <div class="admin-cpu-group">
+          <div class="admin-cpu-subtitle">${group.label}</div>
+          <div class="admin-cpu-grid">${knobs}</div>
+        </div>
+      `;
+    }).join('');
+
     cpuTuningControls.innerHTML = `
       <div class="admin-cpu-group">
         <div class="admin-cpu-group-title">Silent Auction Knobs</div>
@@ -1259,6 +1632,48 @@ document.addEventListener('DOMContentLoaded', () => {
           ${makeCpuField('silent', 'cheapFillerBidFrequency', 'Cheap Filler Bid Frequency', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.25, typicalMax: 0.50 })}
           ${makeCpuField('silent', 'starAvailabilityOverride', 'Star Availability Override', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.60, typicalMax: 0.85 })}
         </div>
+      </div>
+
+      <div class="admin-cpu-group">
+        <div class="admin-cpu-group-title">AV Bid Cap Knobs</div>
+        <div class="admin-cpu-grid">
+          ${makeCpuField('silent', 'avCapMult1to5', 'AV $1-5 Cap Multiplier', { type: 'range', min: 1, max: 1.8, step: 0.01, typicalMin: 1.12, typicalMax: 1.35 })}
+          ${makeCpuField('silent', 'avCapMult5to10', 'AV $5-10 Cap Multiplier', { type: 'range', min: 1, max: 1.8, step: 0.01, typicalMin: 1.1, typicalMax: 1.3 })}
+          ${makeCpuField('silent', 'avCapMult10to20', 'AV $10-20 Cap Multiplier', { type: 'range', min: 1, max: 1.8, step: 0.01, typicalMin: 1.08, typicalMax: 1.24 })}
+          ${makeCpuField('silent', 'avCapMult20to30', 'AV $20-30 Cap Multiplier', { type: 'range', min: 1, max: 1.7, step: 0.01, typicalMin: 1.06, typicalMax: 1.2 })}
+          ${makeCpuField('silent', 'avCapMult30to40', 'AV $30-40 Cap Multiplier', { type: 'range', min: 1, max: 1.6, step: 0.01, typicalMin: 1.04, typicalMax: 1.18 })}
+          ${makeCpuField('silent', 'avCapMult40to50', 'AV $40-50 Cap Multiplier', { type: 'range', min: 1, max: 1.5, step: 0.01, typicalMin: 1.03, typicalMax: 1.14 })}
+          ${makeCpuField('silent', 'avCapMult50to60', 'AV $50-60 Cap Multiplier', { type: 'range', min: 1, max: 1.4, step: 0.01, typicalMin: 1.02, typicalMax: 1.12 })}
+          ${makeCpuField('silent', 'avCapMult60Plus', 'AV $60+ Cap Multiplier', { type: 'range', min: 1, max: 1.35, step: 0.01, typicalMin: 1.01, typicalMax: 1.1 })}
+          ${makeCpuField('silent', 'avCapBaseBuffer', 'AV Cap Base Buffer', { type: 'range', min: 0, max: 6, step: 1, precision: 0, typicalMin: 0, typicalMax: 3 })}
+          ${makeCpuField('silent', 'avCapLateRoundExtraBuffer', 'AV Cap Late-Round Buffer', { type: 'range', min: 0, max: 4, step: 1, precision: 0, typicalMin: 0, typicalMax: 2 })}
+        </div>
+      </div>
+
+      <div class="admin-cpu-group">
+        <div class="admin-cpu-group-title">AV Participation Curve Knobs</div>
+        <div class="admin-cpu-grid">
+          ${makeCpuField('silent', 'band50PlusMinTeamPct', 'AV 50+ Preferred Team % Min', { type: 'range', min: 0.2, max: 0.9, step: 0.01, typicalMin: 0.35, typicalMax: 0.5 })}
+          ${makeCpuField('silent', 'band50PlusMaxTeamPct', 'AV 50+ Preferred Team % Max', { type: 'range', min: 0.25, max: 0.95, step: 0.01, typicalMin: 0.5, typicalMax: 0.7 })}
+          ${makeCpuField('silent', 'band40to49MinTeamPct', 'AV 40-49 Preferred Team % Min', { type: 'range', min: 0.2, max: 0.9, step: 0.01, typicalMin: 0.35, typicalMax: 0.5 })}
+          ${makeCpuField('silent', 'band40to49MaxTeamPct', 'AV 40-49 Preferred Team % Max', { type: 'range', min: 0.25, max: 0.95, step: 0.01, typicalMin: 0.5, typicalMax: 0.7 })}
+          ${makeCpuField('silent', 'band30to39MinTeamPct', 'AV 30-39 Preferred Team % Min', { type: 'range', min: 0.15, max: 0.8, step: 0.01, typicalMin: 0.3, typicalMax: 0.45 })}
+          ${makeCpuField('silent', 'band30to39MaxTeamPct', 'AV 30-39 Preferred Team % Max', { type: 'range', min: 0.2, max: 0.9, step: 0.01, typicalMin: 0.45, typicalMax: 0.65 })}
+          ${makeCpuField('silent', 'band20to29MinTeamPct', 'AV 20-29 Preferred Team % Min', { type: 'range', min: 0.1, max: 0.7, step: 0.01, typicalMin: 0.2, typicalMax: 0.35 })}
+          ${makeCpuField('silent', 'band20to29MaxTeamPct', 'AV 20-29 Preferred Team % Max', { type: 'range', min: 0.15, max: 0.8, step: 0.01, typicalMin: 0.35, typicalMax: 0.5 })}
+          ${makeCpuField('silent', 'band10to19MinTeamPct', 'AV 10-19 Preferred Team % Min', { type: 'range', min: 0.05, max: 0.6, step: 0.01, typicalMin: 0.1, typicalMax: 0.25 })}
+          ${makeCpuField('silent', 'band10to19MaxTeamPct', 'AV 10-19 Preferred Team % Max', { type: 'range', min: 0.1, max: 0.7, step: 0.01, typicalMin: 0.25, typicalMax: 0.4 })}
+          ${makeCpuField('silent', 'band1to9MinTeamPct', 'AV 1-9 Preferred Team % Min', { type: 'range', min: 0.05, max: 0.5, step: 0.01, typicalMin: 0.08, typicalMax: 0.2 })}
+          ${makeCpuField('silent', 'band1to9MaxTeamPct', 'AV 1-9 Preferred Team % Max', { type: 'range', min: 0.1, max: 0.7, step: 0.01, typicalMin: 0.2, typicalMax: 0.4 })}
+          ${makeCpuField('silent', 'band1to9NoBidChance', 'AV 1-9 No-Bid Chance', { type: 'range', min: 0, max: 0.95, step: 0.01, typicalMin: 0.35, typicalMax: 0.75 })}
+          ${makeCpuField('silent', 'band10to19NoBidChance', 'AV 10-19 No-Bid Chance', { type: 'range', min: 0, max: 0.9, step: 0.01, typicalMin: 0.1, typicalMax: 0.4 })}
+          ${makeCpuField('silent', 'band50PlusPullChance', 'AV 50+ Pull Strength', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.8, typicalMax: 1.0 })}
+          ${makeCpuField('silent', 'band40to49PullChance', 'AV 40-49 Pull Strength', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.7, typicalMax: 0.95 })}
+          ${makeCpuField('silent', 'bandDefaultPullChance', 'AV 1-39 Pull Strength', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.55, typicalMax: 0.9 })}
+          ${makeCpuField('silent', 'topAvHardMaxTeamPct', 'AV 40+ Hard Team % Max', { type: 'range', min: 0.3, max: 1, step: 0.01, typicalMin: 0.7, typicalMax: 0.9 })}
+        </div>
+        <div id="cpuParticipationCurveGraph" class="admin-cpu-curve-wrap"></div>
+        ${participationCurveFields}
       </div>
 
       <div class="admin-cpu-group">
@@ -1337,6 +1752,8 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }
 
+    renderCpuParticipationCurveGraph();
+
     bindCpuTuningControls();
     runCpuPreview();
   }
@@ -1381,6 +1798,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentValue = element.tagName === 'SELECT' ? element.value : Number(element.value);
         setCpuFieldValue(section, key, Number.isFinite(currentValue) && element.tagName !== 'SELECT' ? currentValue : currentValue);
         updateSliderValueLabel(element);
+        renderCpuParticipationCurveGraph();
         runCpuPreview();
       });
       element.addEventListener('change', () => {
@@ -1390,6 +1808,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setCpuFieldValue(section, key, Number.isFinite(currentValue) && element.tagName !== 'SELECT' ? currentValue : currentValue);
         updateSliderValueLabel(element);
         saveCpuTuningPreset(cpuTuningState);
+        renderCpuParticipationCurveGraph();
         runCpuPreview();
       });
 
@@ -1399,6 +1818,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cpuModelSelect) {
       cpuModelSelect.onchange = () => {
         const selected = String(cpuModelSelect.value || '').trim();
+        activeCpuModelName = selected;
         if (cpuModelNameInput && selected) {
           cpuModelNameInput.value = selected;
         }

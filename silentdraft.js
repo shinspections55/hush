@@ -355,6 +355,7 @@ function initSilentDraft() {
     let roundDuration = DEFAULT_ROUND_TIMER_MINUTES * 60;
     let timerInterval = null;
     let isDraftEnding = false;
+    let processRoundRetryTimer = null;
     let draftAudioContext = null;
     let draftAudioReady = false;
     let lastCountdownCueKey = '';
@@ -815,6 +816,40 @@ function initSilentDraft() {
     
     // Global players array loaded from JSON files
     let players = [];
+    let draftRoomDefaultRankings = [];
+    let draftRoomDefaultRankingsLastLoadedAt = 0;
+    const DRAFTROOM_POSITION_FILES = {
+        QB: 'qb',
+        RB: 'rb',
+        WR: 'wr',
+        TE: 'te',
+        K: 'k',
+        DEF: 'def'
+    };
+    const DRAFTROOM_POSITION_RANK_FIELDS = {
+        QB: 'qbRank',
+        RB: 'RBrank',
+        WR: 'WRrank',
+        TE: 'TErank',
+        K: 'Krank',
+        DEF: 'DEFrank'
+    };
+    let draftRoomDefaultPositionRankings = {
+        QB: [],
+        RB: [],
+        WR: [],
+        TE: [],
+        K: [],
+        DEF: []
+    };
+    let draftRoomDefaultPositionRankingsLastLoadedAt = {
+        QB: 0,
+        RB: 0,
+        WR: 0,
+        TE: 0,
+        K: 0,
+        DEF: 0
+    };
     let draftRoomRankingsMode = 'default';
     let draftRoomRightViewMode = 'budgets';
     let draftAppSectionViewMode = 'players';
@@ -862,6 +897,107 @@ function initSilentDraft() {
         players = loadedPlayers;
         console.log(`[silentdraft] Loaded ${players.length} players from JSON files`);
         return players;
+    }
+
+    async function loadDraftRoomDefaultRankings(forceRefresh = false) {
+        const now = Date.now();
+        const staleMs = 15000;
+        if (!forceRefresh && draftRoomDefaultRankings.length > 0 && (now - draftRoomDefaultRankingsLastLoadedAt) < staleMs) {
+            return draftRoomDefaultRankings;
+        }
+
+        const candidates = [
+            `top250.generated.json?t=${now}`,
+            `top250.json?t=${now}`
+        ];
+
+        for (const url of candidates) {
+            try {
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) continue;
+
+                const raw = await response.json();
+                if (!Array.isArray(raw)) continue;
+
+                draftRoomDefaultRankings = raw
+                    .map((player, index) => ({
+                        name: String(player && player.name || '').trim(),
+                        position: String(player && player.position || 'UNK').trim().toUpperCase(),
+                        team: String(player && player.team || '—').trim().toUpperCase() || '—',
+                        avgValue: Number(player && (player.avgValue || player.value) || 0),
+                        prerank: Number.parseInt(player && player.prerank, 10) || (index + 1)
+                    }))
+                    .filter((player) => player.name);
+
+                draftRoomDefaultRankingsLastLoadedAt = Date.now();
+                console.log(`[silentdraft] Loaded ${draftRoomDefaultRankings.length} default rankings from ${url}`);
+                return draftRoomDefaultRankings;
+            } catch (error) {
+                console.warn(`[silentdraft] Failed to load default rankings from ${url}:`, error);
+            }
+        }
+
+        return draftRoomDefaultRankings;
+    }
+
+    function parseDraftRoomPositionRank(position, player, fallbackRank) {
+        const rankField = DRAFTROOM_POSITION_RANK_FIELDS[position];
+        const rawRank = rankField ? player && player[rankField] : undefined;
+        const cleaned = String(rawRank || '').replace(/[^0-9.-]/g, '');
+        const parsed = Number.parseInt(cleaned, 10);
+        if (Number.isFinite(parsed) && parsed > 0) return parsed;
+
+        const genericRank = Number.parseInt(String(player && player.rank || '').replace(/[^0-9.-]/g, ''), 10);
+        if (Number.isFinite(genericRank) && genericRank > 0) return genericRank;
+
+        return fallbackRank;
+    }
+
+    async function loadDraftRoomPositionRankings(position, forceRefresh = false) {
+        const pos = String(position || '').trim().toUpperCase();
+        const fileKey = DRAFTROOM_POSITION_FILES[pos];
+        if (!fileKey) return [];
+
+        const now = Date.now();
+        const staleMs = 15000;
+        const lastLoadedAt = Number(draftRoomDefaultPositionRankingsLastLoadedAt[pos] || 0);
+        const current = Array.isArray(draftRoomDefaultPositionRankings[pos]) ? draftRoomDefaultPositionRankings[pos] : [];
+        if (!forceRefresh && current.length > 0 && (now - lastLoadedAt) < staleMs) {
+            return current;
+        }
+
+        try {
+            const url = `players%20file/${fileKey}.json?t=${now}`;
+            const response = await fetch(url, { cache: 'no-store' });
+            if (!response.ok) return current;
+
+            const raw = await response.json();
+            if (!Array.isArray(raw)) return current;
+
+            const normalized = raw
+                .map((player, index) => ({
+                    name: String(player && player.name || '').trim(),
+                    position: pos,
+                    team: String(player && player.team || '—').trim().toUpperCase() || '—',
+                    avgValue: Number(player && (player.avgValue || player.value) || 0),
+                    prerank: parseDraftRoomPositionRank(pos, player, index + 1)
+                }))
+                .filter((player) => player.name)
+                .sort((a, b) => a.prerank - b.prerank);
+
+            draftRoomDefaultPositionRankings[pos] = normalized;
+            draftRoomDefaultPositionRankingsLastLoadedAt[pos] = Date.now();
+            console.log(`[silentdraft] Loaded ${normalized.length} ${pos} rankings from position file`);
+            return normalized;
+        } catch (error) {
+            console.warn(`[silentdraft] Failed to load ${pos} rankings from position file:`, error);
+            return current;
+        }
+    }
+
+    async function loadAllDraftRoomPositionRankings(forceRefresh = false) {
+        const positions = Object.keys(DRAFTROOM_POSITION_FILES);
+        await Promise.all(positions.map((pos) => loadDraftRoomPositionRankings(pos, forceRefresh)));
     }
     
     // Build a dedicated DATABASE rankings set without mutating Default rankings.
@@ -1278,14 +1414,35 @@ function initSilentDraft() {
     }
     
     if (window.io && currentDraftCode) {
-        window.draftSocket = io({ reconnection: false });
-        window.draftSocket.emit('joinActiveDraft', currentDraftCode, username);
+        window.draftSocket = io({
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000
+        });
+
+        const syncDraftSocketRooms = () => {
+            try {
+                // Lobby-level room used by draft metadata updates.
+                window.draftSocket.emit('joinDraftRoom', currentDraftCode, username);
+                // Active draft room used by bidding/round live events.
+                window.draftSocket.emit('joinActiveDraft', currentDraftCode, username);
+                console.log('[silentdraft] Joined draft socket rooms:', currentDraftCode, username);
+            } catch (error) {
+                console.warn('[silentdraft] Failed to sync draft socket rooms:', error);
+            }
+        };
+
+        // Initial handshake; connect handler will also run this on reconnect.
+        syncDraftSocketRooms();
         console.log('[silentdraft] Connected to active draft room, isHost:', window.isHost);
 
         let reconnectNoticeShown = false;
         updateSocketConnectionIndicator(true);
 
         window.draftSocket.on('connect', () => {
+            syncDraftSocketRooms();
             updateSocketConnectionIndicator(true);
             if (reconnectNoticeShown) {
                 showNotification('Connection restored. Draft is live again.');
@@ -1350,9 +1507,30 @@ function initSilentDraft() {
                 return;
             }
             clearAutoDraftSoloGraceWindow();
-            console.log('[silentdraft] All members have submitted - showing processing modal and starting round processing');
+            console.log('[silentdraft] All members have submitted - showing processing modal');
             showProcessingBidsModal();
-            processRoundOnServer();
+            if (window.isHost) {
+                console.log('[silentdraft] Host is processing round on server');
+                processRoundOnServer();
+            } else {
+                console.log('[silentdraft] Non-host waiting for host round processing');
+            }
+        });
+
+        window.draftSocket.on('roundDiagnostics', (payload) => {
+            console.log('[silentdraft][server][roundDiagnostics]', payload);
+        });
+
+        window.draftSocket.on('roundProcessingError', (payload) => {
+            const message = payload && payload.message ? payload.message : 'Round processing failed.';
+            const detail = payload && payload.error ? ` (${payload.error})` : '';
+            console.error('[silentdraft] roundProcessingError:', payload);
+            hideProcessingBidsModal();
+            if (processRoundRetryTimer) {
+                clearTimeout(processRoundRetryTimer);
+                processRoundRetryTimer = null;
+            }
+            showNotification(`${message}${detail}`);
         });
         
         // Listen for round players set by host
@@ -1372,12 +1550,34 @@ function initSilentDraft() {
                 console.log('[silentdraft] Ignoring roundResults while draft ending');
                 return;
             }
+            if (processRoundRetryTimer) {
+                clearTimeout(processRoundRetryTimer);
+                processRoundRetryTimer = null;
+            }
             clearAutoDraftSoloGraceWindow();
             console.log('[silentdraft] Round results received from server:', results.length, 'results');
             console.log('[silentdraft] Full results data:', JSON.stringify(results, null, 2));
             hideProcessingBidsModal();
-            const { tiedBids } = applyRoundResults(results);
-            showRoundResultsModal(results, window.currentRoundPlayers || window.syncedRoundPlayers || [], () => {
+            const resultsArray = Array.isArray(results) ? results : [];
+            let safeResults = resultsArray;
+            const localRoundPlayers = window.currentRoundPlayers || window.syncedRoundPlayers || [];
+            if (safeResults.length === 0 && Array.isArray(localRoundPlayers) && localRoundPlayers.length > 0) {
+                console.warn('[silentdraft] Server returned empty roundResults; synthesizing undrafted fallback from local round players', {
+                    currentRound,
+                    localRoundPlayers: localRoundPlayers.length
+                });
+                safeResults = localRoundPlayers.map((player) => ({
+                    type: 'undrafted',
+                    playerId: player && player.id,
+                    playerName: String(player && player.name || `Player ${player && player.id ? player.id : '?'}`),
+                    allBids: (teams || []).map((team) => ({
+                        teamName: String(team && team.name || ''),
+                        amount: 0
+                    }))
+                }));
+            }
+            const { tiedBids } = applyRoundResults(safeResults);
+            showRoundResultsModal(safeResults, localRoundPlayers, () => {
                 if (timerInterval) {
                     clearInterval(timerInterval);
                     timerInterval = null;
@@ -1625,7 +1825,7 @@ function initSilentDraft() {
     }
     
     // Process round on server (called when all submitted or timer expires)
-    function processRoundOnServer() {
+    function processRoundOnServer(attempt = 0) {
         console.log('[silentdraft] Processing round on server');
         
         // Stop the timer when processing begins
@@ -1635,7 +1835,24 @@ function initSilentDraft() {
             console.log('[silentdraft] Timer cleared for round processing');
         }
         
-        const roundPlayers = getRoundPlayers();
+        let roundPlayers = getRoundPlayers();
+        if (!Array.isArray(roundPlayers) || roundPlayers.length === 0) {
+            const page1 = Array.isArray(window.page1Players) ? window.page1Players : [];
+            const page2 = Array.isArray(window.page2Players) ? window.page2Players : [];
+            const merged = [...page1, ...page2];
+            const seen = new Set();
+            roundPlayers = merged.filter((player) => {
+                const pid = Number(player && player.id);
+                if (!Number.isFinite(pid) || seen.has(pid)) return false;
+                seen.add(pid);
+                return true;
+            });
+            console.warn('[silentdraft] getRoundPlayers was empty; using page fallback for processRound payload', {
+                page1: page1.length,
+                page2: page2.length,
+                merged: roundPlayers.length
+            });
+        }
         const roundData = {
             roundPlayers: roundPlayers,
             teams: teams,
@@ -1645,11 +1862,50 @@ function initSilentDraft() {
             rosterSettings: rosterSettings,
             allPlayers: players
         };
+        console.log('[silentdraft][debug] processRound payload summary:', {
+            attempt,
+            roundPlayers: Array.isArray(roundData.roundPlayers) ? roundData.roundPlayers.length : 0,
+            teams: Array.isArray(roundData.teams) ? roundData.teams.length : 0,
+            allPlayers: Array.isArray(roundData.allPlayers) ? roundData.allPlayers.length : 0,
+            currentRound
+        });
         
         if (window.draftSocket && currentDraftCode) {
             window.draftSocket.emit('processRound', currentDraftCode, roundData, (response) => {
                 if (response && response.ok) {
                     console.log('[silentdraft] Round processing complete');
+                    return;
+                }
+
+                const reason = response && response.reason ? String(response.reason) : 'unknown';
+                console.warn('[silentdraft] processRound rejected:', response);
+
+                // Ignore this client when another member is already processing the same round.
+                if (reason === 'already_processing') {
+                    return;
+                }
+
+                // Race safety: host retries briefly when submit tracking arrives just after trigger.
+                if (reason === 'not_all_submitted' && window.isHost && attempt < 2) {
+                    if (processRoundRetryTimer) {
+                        clearTimeout(processRoundRetryTimer);
+                    }
+                    processRoundRetryTimer = setTimeout(() => {
+                        processRoundRetryTimer = null;
+                        processRoundOnServer(attempt + 1);
+                    }, 450);
+                    return;
+                }
+
+                hideProcessingBidsModal();
+                if (reason === 'not_all_submitted') {
+                    showNotification('Round results blocked: waiting for all required members to submit bids.');
+                } else if (reason === 'auction_in_progress') {
+                    showNotification('Round results pending: a tie-break auction is still active.');
+                } else if (reason === 'no_draft_state' || reason === 'draft_not_ready') {
+                    showNotification('Draft state not ready yet. Please wait a moment and try again.');
+                } else {
+                    showNotification('Unable to process round results right now.');
                 }
             });
         }
@@ -2342,6 +2598,36 @@ function initSilentDraft() {
     }
 
     function getDraftRoomDefaultRankings() {
+        if (draftRoomRankingsPosition !== 'ALL') {
+            const pos = String(draftRoomRankingsPosition || '').trim().toUpperCase();
+            if (Object.prototype.hasOwnProperty.call(draftRoomDefaultPositionRankings, pos)) {
+                const posRankings = Array.isArray(draftRoomDefaultPositionRankings[pos]) ? draftRoomDefaultPositionRankings[pos] : [];
+                if (posRankings.length > 0) {
+                    return posRankings.map((p) => ({
+                        name: p.name,
+                        position: p.position || pos,
+                        team: p.team || '—',
+                        avgValue: p.avgValue || 0,
+                    }));
+                }
+            }
+        }
+
+        if (Array.isArray(draftRoomDefaultRankings) && draftRoomDefaultRankings.length > 0) {
+            return [...draftRoomDefaultRankings]
+                .sort((a, b) => {
+                    const rankA = Number.isFinite(a.prerank) ? a.prerank : 9999;
+                    const rankB = Number.isFinite(b.prerank) ? b.prerank : 9999;
+                    return rankA - rankB;
+                })
+                .map((p) => ({
+                    name: p.name,
+                    position: p.position || 'UNK',
+                    team: p.team || '—',
+                    avgValue: p.avgValue || 0,
+                }));
+        }
+
         return [...players]
             .filter(p => p && p.name)
             .sort((a, b) => {
@@ -2740,7 +3026,7 @@ function initSilentDraft() {
         tabs.forEach(t => t.classList.toggle('active', t.dataset.rankingsMode === draftRoomRankingsMode));
 
         tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
+            tab.addEventListener('click', async () => {
                 const requestedMode = tab.dataset.rankingsMode;
                 if (requestedMode === 'default' || requestedMode === 'personal' || requestedMode === 'database') {
                     draftRoomRankingsMode = requestedMode;
@@ -2753,6 +3039,12 @@ function initSilentDraft() {
                     // ignore
                 }
                 tabs.forEach(t => t.classList.toggle('active', t === tab));
+
+                if (draftRoomRankingsMode === 'default') {
+                    await loadDraftRoomDefaultRankings(true);
+                    await loadAllDraftRoomPositionRankings(true);
+                }
+
                 renderDraftRoomRankings();
             });
         });
@@ -2765,9 +3057,15 @@ function initSilentDraft() {
         tabs.forEach(t => t.classList.toggle('active', t.dataset.rankingsPos === draftRoomRankingsPosition));
 
         tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
+            tab.addEventListener('click', async () => {
                 draftRoomRankingsPosition = tab.dataset.rankingsPos || 'ALL';
                 tabs.forEach(t => t.classList.toggle('active', t === tab));
+                if (draftRoomRankingsMode === 'default') {
+                    await loadDraftRoomDefaultRankings(true);
+                    if (draftRoomRankingsPosition !== 'ALL') {
+                        await loadDraftRoomPositionRankings(draftRoomRankingsPosition, true);
+                    }
+                }
                 renderDraftRoomRankings();
             });
         });
@@ -3020,6 +3318,7 @@ function initSilentDraft() {
         const emojiToggle = document.getElementById('draft-chat-emoji-toggle');
         const emojiPicker = document.getElementById('draft-chat-emoji-picker');
         if (!form || !input || !sendButton) return;
+        let emojiPickerExpanded = false;
 
         const emojiOptions = [
             '😀', '😁', '😂', '🤣', '😊', '😍', '😎', '🤝',
@@ -3041,6 +3340,19 @@ function initSilentDraft() {
             emojiToggle.setAttribute('aria-expanded', 'true');
         }
 
+        function applyEmojiPickerMode() {
+            if (!emojiPicker) return;
+            emojiPicker.classList.toggle('expanded', emojiPickerExpanded);
+            emojiPicker.classList.toggle('compact', !emojiPickerExpanded);
+
+            const modeButton = emojiPicker.querySelector('[data-emoji-action="toggle-mode"]');
+            if (modeButton) {
+                modeButton.textContent = emojiPickerExpanded ? 'Collapse' : 'Expand';
+                modeButton.setAttribute('aria-label', emojiPickerExpanded ? 'Collapse emoji picker' : 'Expand emoji picker');
+                modeButton.setAttribute('title', emojiPickerExpanded ? 'Collapse' : 'Expand');
+            }
+        }
+
         function insertEmojiIntoInput(emoji) {
             const currentText = String(input.value || '');
             const maxLen = Number(input.maxLength || DRAFT_CHAT_MAX_LENGTH);
@@ -3057,13 +3369,33 @@ function initSilentDraft() {
         }
 
         if (emojiPicker) {
-            emojiPicker.innerHTML = emojiOptions
-                .map((emoji) => `<button type="button" data-emoji="${emoji}" aria-label="Insert ${emoji}">${emoji}</button>`)
-                .join('');
+            emojiPicker.innerHTML = `
+                <div class="draft-chat-emoji-toolbar">
+                    <button type="button" class="draft-chat-emoji-action" data-emoji-action="toggle-mode" aria-label="Expand emoji picker" title="Expand">Expand</button>
+                    <button type="button" class="draft-chat-emoji-action" data-emoji-action="close" aria-label="Minimize emoji picker" title="Minimize">Minimize</button>
+                </div>
+                <div class="draft-chat-emoji-scroll" role="listbox" aria-label="Emoji picker">
+                    ${emojiOptions.map((emoji) => `<button type="button" class="draft-chat-emoji-item" data-emoji="${emoji}" aria-label="Insert ${emoji}">${emoji}</button>`).join('')}
+                </div>
+            `;
+            applyEmojiPickerMode();
 
             emojiPicker.addEventListener('click', (event) => {
                 const target = event.target;
                 if (!(target instanceof HTMLElement)) return;
+
+                const action = String(target.dataset.emojiAction || '');
+                if (action === 'toggle-mode') {
+                    emojiPickerExpanded = !emojiPickerExpanded;
+                    applyEmojiPickerMode();
+                    return;
+                }
+
+                if (action === 'close') {
+                    closeEmojiPicker();
+                    return;
+                }
+
                 const emoji = String(target.dataset.emoji || '');
                 if (!emoji) return;
                 insertEmojiIntoInput(emoji);
@@ -5449,7 +5781,6 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
 
         const showFallbackWinnerAnnouncement = (payload) => {
             const theme = getLiveAuctionTheme();
-            const auctionId = payload && payload.auctionId;
             const winner = String((payload && payload.winner) || 'Unknown Team');
             const finalBid = Number((payload && payload.finalBid) || 0);
             const playerName = String((payload && payload.playerName) || 'Unknown Player');
@@ -5487,7 +5818,6 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                     <p style="text-align:center;color:#2ecc71;font-size:20px;font-weight:bold;margin:0 0 6px 0;">Winning Team: ${winner}</p>
                     <p style="text-align:center;color:#3498db;font-size:18px;margin:0;">Price: $${finalBid}</p>
                 </div>
-                <p style="text-align:center;color:${theme.muted};font-size:13px;margin:8px 0 0 0;">Auction ID: ${auctionId}</p>
             `;
             document.body.appendChild(winnerModal);
 
@@ -5693,7 +6023,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         document.body.appendChild(auctionBackdrop);
 
         // Create auction UI
-        const auctionDiv = document.createElement('div');
+        let auctionDiv = document.createElement('div');
         auctionDiv.id = 'live-auction-modal';
         
         // Add pulsing animation if user is in the auction
@@ -5744,6 +6074,18 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             ` : ''}
         `;
         document.body.appendChild(auctionDiv);
+
+        const resolveAuctionModal = () => {
+            if (auctionDiv && auctionDiv.isConnected) {
+                return auctionDiv;
+            }
+            const fallbackModal = document.getElementById('live-auction-modal');
+            if (fallbackModal) {
+                auctionDiv = fallbackModal;
+                return auctionDiv;
+            }
+            return null;
+        };
         countdownEl = auctionDiv.querySelector('#auction-countdown');
         bidAmountEl = auctionDiv.querySelector('#live-bid-amount');
 
@@ -5793,8 +6135,10 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 return;
             }
 
-            if (!auctionDiv.isConnected) {
-                detachAuctionListeners('missing_live_auction_ui_on_bid_update');
+            const activeModal = resolveAuctionModal();
+            if (!activeModal) {
+                // The UI can be temporarily replaced by transition/winner overlays.
+                // Keep listeners attached so we can recover on the next render tick.
                 return;
             }
             
@@ -5813,7 +6157,8 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             if (data.auctionId !== auctionId) return;
             
             if (!countdownEl || !countdownEl.isConnected) {
-                countdownEl = auctionDiv.querySelector('#auction-countdown') || document.getElementById('auction-countdown');
+                const activeModal = resolveAuctionModal();
+                countdownEl = (activeModal && activeModal.querySelector('#auction-countdown')) || document.getElementById('auction-countdown');
             }
 
             if (countdownEl) {
@@ -5824,9 +6169,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 if (missingCountdownLogCount <= 2) {
                     console.warn('[timerUpdateHandler] Countdown element not found (auction UI likely replaced)');
                 }
-                if (!auctionDiv.isConnected) {
-                    detachAuctionListeners('missing_live_auction_ui_on_timer_update');
-                }
+                // Do not detach listeners for transient UI swaps.
             }
         };
         window.draftSocket.on('liveAuctionTimerUpdate', timerUpdateHandler);
@@ -5957,7 +6300,8 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         function updateBidDisplay() {
             console.log('[updateBidDisplay] Updating display - currentBid:', currentBid, 'currentWinner:', currentWinner, 'username:', username);
             if (!bidAmountEl || !bidAmountEl.isConnected) {
-                bidAmountEl = auctionDiv.querySelector('#live-bid-amount') || document.getElementById('live-bid-amount');
+                const activeModal = resolveAuctionModal();
+                bidAmountEl = (activeModal && activeModal.querySelector('#live-bid-amount')) || document.getElementById('live-bid-amount');
             }
 
             const bidAmount = bidAmountEl;
@@ -5987,9 +6331,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 if (missingBidLogCount <= 2) {
                     console.warn('[updateBidDisplay] live-bid-amount element not found (auction UI likely replaced)');
                 }
-                if (!auctionDiv.isConnected) {
-                    detachAuctionListeners('missing_live_auction_ui_on_bid_render');
-                }
+                // Keep listeners active; complete events should still land and clean up.
             }
         }
 
@@ -6128,38 +6470,64 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
         resultsDiv.style.cssText = `position:fixed;top:0;left:0;right:0;bottom:0;transform:none;background:${modalBackground};border:none;border-radius:0;padding:calc(14px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom)) 14px;z-index:10000;color:${modalText};box-shadow:none;width:100vw;height:100dvh;max-width:none;max-height:none;display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;`;
         
         // Build displayResults and group by page
+        const payloadResults = serverResults && Array.isArray(serverResults.results)
+            ? serverResults.results
+            : null;
+        const resultsArray = Array.isArray(serverResults)
+            ? serverResults
+            : (payloadResults || []);
+        const debugTypeCounts = { won: 0, tied: 0, undrafted: 0, other: 0 };
+        const missingWinnerTeams = [];
         const displayResults = [];
-        serverResults.forEach(result => {
-            if (result.type === 'won') {
+        resultsArray.forEach(result => {
+            const resultType = String(result && result.type || '').trim().toLowerCase();
+            if (resultType === 'won') debugTypeCounts.won += 1;
+            else if (resultType === 'tied') debugTypeCounts.tied += 1;
+            else if (resultType === 'undrafted') debugTypeCounts.undrafted += 1;
+            else debugTypeCounts.other += 1;
+
+            if (resultType === 'won') {
                 const team = teams.find(t => t.name === result.winnerTeam);
-                if (team) {
-                    let resultText = `${result.playerName} → ${team.name} for $${result.pricePaid} (bid $${result.bidAmount})`;
-                    let isWinner = isCurrentUserTeamName(team.name);
-                    let isSecondPlace = isCurrentUserTeamName(result.secondHighestBidder);
-                    
-                    if (result.secondHighestBidder && result.secondHighestBid > 0) {
-                        if (isSecondPlace) {
-                            resultText += ` | <span style="color: #f39c12; font-weight: bold;">2nd: ${result.secondHighestBidder} ($${result.secondHighestBid})</span>`;
-                        } else {
-                            resultText += ` | 2nd: ${result.secondHighestBidder} ($${result.secondHighestBid})`;
-                        }
-                    }
-                    
-                    if (isWinner) {
-                        resultText = `<span style="color: #2ecc71; font-weight: bold;">${resultText}</span>`;
-                    }
-                    
-                    displayResults.push({ playerId: result.playerId, text: resultText, result: result });
+                const winnerTeamName = String((team && team.name) || result.winnerTeam || 'Unknown Team').trim();
+                if (!team) {
+                    missingWinnerTeams.push({ playerId: result.playerId, winnerTeam: result.winnerTeam });
                 }
-            } else if (result.type === 'tied') {
-                let tieText = `${result.tiedTeams.join(' and ')} are tied at $${result.bidAmount} for ${result.playerName}`;
+                const bidAmount = Number(result.bidAmount || 0);
+                let resultText = `${result.playerName} → ${winnerTeamName} bid $${bidAmount} | final sale <span style="font-size:1.2em;font-weight:800;">$${result.pricePaid}</span>`;
+                let isWinner = isCurrentUserTeamName(winnerTeamName);
+                let isSecondPlace = isCurrentUserTeamName(result.secondHighestBidder);
+                
+                if (result.secondHighestBidder && result.secondHighestBid > 0) {
+                    if (isSecondPlace) {
+                        resultText += ` | <span style="color: #f39c12; font-weight: bold;">2nd: ${result.secondHighestBidder} ($${result.secondHighestBid})</span>`;
+                    } else {
+                        resultText += ` | 2nd: ${result.secondHighestBidder} ($${result.secondHighestBid})`;
+                    }
+                }
+                
+                if (isWinner) {
+                    resultText = `<span style="color: #2ecc71; font-weight: bold;">${resultText}</span>`;
+                }
+                
+                displayResults.push({ playerId: result.playerId, text: resultText, result: result });
+            } else if (resultType === 'tied') {
+                const tiedTeams = Array.isArray(result.tiedTeams) ? result.tiedTeams : [];
+                let tieText = `${tiedTeams.join(' and ')} are tied at $${result.bidAmount} for ${result.playerName}`;
                 // Highlight ties involving the user in blue
-                if (result.tiedTeams.some(teamName => isCurrentUserTeamName(teamName))) {
+                if (tiedTeams.some(teamName => isCurrentUserTeamName(teamName))) {
                     tieText = `<span style="color: #3498db; font-weight: bold;">${tieText}</span>`;
                 }
                 displayResults.push({ playerId: result.playerId, text: tieText, result: result });
-            } else if (result.type === 'undrafted') {
+            } else if (resultType === 'undrafted') {
                 displayResults.push({ playerId: result.playerId, text: `${result.playerName} was undrafted.`, result: result });
+            } else {
+                const fallbackName = String(result && result.playerName || `Player #${result && result.playerId ? result.playerId : '?'}`);
+                const fallbackType = resultType || 'unknown';
+                displayResults.push({
+                    playerId: result && result.playerId,
+                    text: `${fallbackName} (${fallbackType})`,
+                    result: result
+                });
             }
         });
 
@@ -6167,21 +6535,57 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
         const page1Results = [];
         const page2Results = [];
 
+        const unmatchedPlayerIds = [];
         displayResults.forEach(item => {
-            const player = (window.page1Players || []).find(p => p.id === item.playerId) ||
-                          (window.page2Players || []).find(p => p.id === item.playerId);
+            const itemPlayerId = Number(item && item.playerId);
+            const player = (window.page1Players || []).find(p => Number(p && p.id) === itemPlayerId) ||
+                          (window.page2Players || []).find(p => Number(p && p.id) === itemPlayerId);
             if (player) {
-                const isPage1Player = (window.page1Players || []).some(p => p.id === item.playerId);
+                const isPage1Player = (window.page1Players || []).some(p => Number(p && p.id) === itemPlayerId);
                 if (isPage1Player) {
                     page1Results.push(item);
                 } else {
                     page2Results.push(item);
                 }
             } else {
+                unmatchedPlayerIds.push(item.playerId);
                 // Fallback: if not found in stored pages, put in page 1
                 page1Results.push(item);
             }
         });
+
+        const roundResultsDebugSummary = {
+            receivedResults: resultsArray.length,
+            renderedResults: displayResults.length,
+            page1Count: page1Results.length,
+            page2Count: page2Results.length,
+            typeCounts: debugTypeCounts,
+            missingWinnerTeamCount: missingWinnerTeams.length,
+            missingWinnerTeamSamples: missingWinnerTeams.slice(0, 5),
+            unmatchedPlayerCount: unmatchedPlayerIds.length,
+            unmatchedPlayerSamples: unmatchedPlayerIds.slice(0, 8),
+            currentRound,
+            page1PoolSize: (window.page1Players || []).length,
+            page2PoolSize: (window.page2Players || []).length
+        };
+        console.log('[silentdraft][roundResults][debug] render summary JSON:', JSON.stringify(roundResultsDebugSummary));
+        console.log('[silentdraft][roundResults][debug] raw payload type:', {
+            isArray: Array.isArray(serverResults),
+            hasResultsArray: Boolean(payloadResults),
+            rawType: Object.prototype.toString.call(serverResults)
+        });
+        if (displayResults.length === 0) {
+            console.warn('[silentdraft][roundResults][debug] No displayable round results built from payload:', {
+                summary: roundResultsDebugSummary,
+                rawResultsSample: resultsArray.slice(0, 10),
+                teamsSample: (teams || []).slice(0, 12).map(t => t && t.name)
+            });
+            console.warn('[silentdraft][roundResults][debug] No displayable round results JSON:', JSON.stringify({
+                summary: roundResultsDebugSummary,
+                rawResultsSample: resultsArray.slice(0, 10),
+                teamsSample: (teams || []).slice(0, 12).map(t => t && t.name)
+            }));
+        }
 
         const page1List = page1Results.length > 0 ? page1Results.map(item => {
             const visibleBids = Array.isArray(item.result?.allBids)
@@ -6330,10 +6734,10 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
         window.draftSocket.on('memberAcceptedResults', memberAcceptedHandler);
         window.draftSocket.once('allMembersAccepted', allAcceptedHandler);
         
-        // Failsafe timeout: if allMembersAccepted doesn't arrive within 3 minutes, close modal anyway
+        // Failsafe timeout: if allMembersAccepted doesn't arrive within 10 minutes, close modal anyway
         // This prevents modals from being stuck if the event is lost due to network issues
         window.roundResultsTimeoutId = setTimeout(() => {
-            console.warn('[silentdraft] WARNING: Round results modal timeout - allMembersAccepted event not received within 3 minutes');
+            console.warn('[silentdraft] WARNING: Round results modal timeout - allMembersAccepted event not received within 10 minutes');
             window.draftSocket.off('memberAcceptedResults', memberAcceptedHandler);
             window.draftSocket.off('allMembersAccepted', allAcceptedHandler);
             
@@ -6344,7 +6748,7 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
             
             // Call onComplete anyway to keep draft moving
             onComplete();
-        }, 180000);
+        }, 600000);
 
         // Use setTimeout to ensure button is fully rendered before attaching handler
         setTimeout(() => {
@@ -6508,7 +6912,10 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
     startRound();
     
     // Initialize by loading players first, then draft state
-    loadPlayers().then(() => {
+    loadPlayers().then(() => Promise.all([
+        loadDraftRoomDefaultRankings(true),
+        loadAllDraftRoomPositionRankings(true)
+    ])).then(() => {
         initializeDraft();
     }).catch(error => {
         console.error('[silentdraft] Failed to load players:', error);

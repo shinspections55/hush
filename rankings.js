@@ -22,6 +22,50 @@ const DEFAULT_STARRED_KEY = 'defaultRankingsStarred';
 const STARRED_PLAYERS_KEY = 'rankingsStarredPlayers';
 const DRAFT_TEMP_STARRED_KEY = 'rankingsDraftStarredPlayers';
 
+const BYE_WEEK_BY_TEAM = Object.freeze({
+  ATL: 5,
+  ARI: 8,
+  BAL: 7,
+  BUF: 7,
+  CAR: 5,
+  CHI: 5,
+  CIN: 6,
+  CLE: 9,
+  DAL: 10,
+  DEN: 10,
+  DET: 6,
+  GB: 5,
+  HOU: 6,
+  IND: 11,
+  JAC: 7,
+  KC: 5,
+  LAC: 7,
+  LAR: 8,
+  LV: 13,
+  MIA: 6,
+  MIN: 6,
+  NE: 11,
+  NO: 8,
+  NYG: 8,
+  NYJ: 9,
+  PHI: 9,
+  PIT: 5,
+  SEA: 8,
+  SF: 8,
+  TB: 9,
+  TEN: 9,
+  WAS: 7,
+});
+
+const TEAM_ABBREVIATION_ALIASES = Object.freeze({
+  JAX: 'JAC',
+  LA: 'LAR',
+  OAK: 'LV',
+  SD: 'LAC',
+  STL: 'LAR',
+  WSH: 'WAS',
+});
+
 // ═══════════════════════════════════════════════════
 //  State
 // ═══════════════════════════════════════════════════
@@ -55,6 +99,26 @@ function getAllPlayersCount() {
   }
 
   return POSITIONS.reduce((total, pos) => total + ((playerPools[pos] || []).length), 0);
+}
+
+function normalizeTeamAbbreviation(value) {
+  const team = String(value || '').trim().toUpperCase();
+  return TEAM_ABBREVIATION_ALIASES[team] || team;
+}
+
+function getPlayerByeWeek(player) {
+  const team = normalizeTeamAbbreviation(player && (player.team || player.teamName || player.teamAbbr || ''));
+  return BYE_WEEK_BY_TEAM[team] || null;
+}
+
+function getPlayerByeWeekLabel(player) {
+  const byeWeek = getPlayerByeWeek(player);
+  return byeWeek ? `W${byeWeek}` : '';
+}
+
+function getPlayerByeWeekMarkup(player) {
+  const byeWeekLabel = getPlayerByeWeekLabel(player);
+  return byeWeekLabel ? `<span class="rank-player-bye" title="Bye Week ${byeWeekLabel.slice(1)}">${byeWeekLabel}</span>` : '';
 }
 
 function updateAllFilterButtonLabel() {
@@ -368,6 +432,8 @@ function buildPrintSectionMarkup(label, players, startRank = 1) {
   const rows = players.length
     ? players.map((player, idx) => {
         const av = Number.isFinite(Number(player.avgValue)) ? Number(player.avgValue) : 0;
+        const byeWeekLabel = getPlayerByeWeekLabel(player);
+        const byeWeekMarkup = byeWeekLabel ? ` <span class="print-player-bye">${byeWeekLabel}</span>` : '';
         const tierBreakRow = player._printTierBreakBefore
           ? `<tr class="print-tier-break-row"><td class="print-tier-break-cell" colspan="3"></td></tr>`
           : '';
@@ -375,7 +441,7 @@ function buildPrintSectionMarkup(label, players, startRank = 1) {
           ${tierBreakRow}
           <tr>
             <td class="print-col-rank">${startRank + idx}.</td>
-            <td class="print-col-name">${escapeHtml(player.name)}</td>
+            <td class="print-col-name">${escapeHtml(player.name)}${byeWeekMarkup}</td>
             <td class="print-col-av">$${av}</td>
           </tr>`;
       }).join('')
@@ -1183,6 +1249,7 @@ function renderDefaultRankings() {
       <span class="rank-num">${index + 1}</span>
       <span class="pos-badge pos-${player.position}">${player.position}</span>
       <span class="rank-player-name">${escapeHtml(player.name)}${ownerLabel}</span>
+      ${getPlayerByeWeekMarkup(player)}
       <span class="rank-player-team">${escapeHtml(player.team)}</span>
       <span class="rank-player-val">\$${player.avgValue}</span>
     `;
@@ -1259,6 +1326,7 @@ function renderDatabaseRankings() {
       <span class="rank-num">${index + 1}</span>
       <span class="pos-badge pos-${player.position}">${player.position}</span>
       <span class="rank-player-name">${escapeHtml(player.name)}${ownerLabel}</span>
+      ${getPlayerByeWeekMarkup(player)}
       <span class="rank-player-team">${escapeHtml(player.updatedBy || 'DATABASE')} updated • Drafted ${Number(player.draftPct || 0).toFixed(1)}% • ${Number(player.auctionCount || 0)} auctions</span>
       <span class="rank-player-val">\$${player.avgValue}</span>
     `;
@@ -1421,6 +1489,7 @@ function buildPlayerRow(player, tierIdx, playerIdx, globalRank, status) {
     <span class="rank-num">${globalRank}</span>
     <span class="pos-badge pos-${player.position}">${player.position}</span>
     <span class="rank-player-name">${escapeHtml(player.name)}${ownerLabel}</span>
+    ${getPlayerByeWeekMarkup(player)}
     <span class="rank-player-team">${escapeHtml(player.team)}</span>
     <span class="rank-player-val">\$${player.avgValue}</span>
     <span class="rank-bid-wrap">

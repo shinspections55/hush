@@ -12,17 +12,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const waiverSearchInput = document.getElementById('waiverSearchInput');
     const waiverStartBtn = document.getElementById('waiverStartBtn');
     const waiverPassBtn = document.getElementById('waiverPassBtn');
-    const waiverModalBackdrop = document.getElementById('waiverModalBackdrop');
-    const waiverModalPlayer = document.getElementById('waiverModalPlayer');
-    const waiverDropSelect = document.getElementById('waiverDropSelect');
-    const waiverConfirmBtn = document.getElementById('waiverConfirmBtn');
-    const waiverCancelBtn = document.getElementById('waiverCancelBtn');
+    const waiverInlineDropSelect = document.getElementById('waiverInlineDropSelect');
+    const waiverOnClockTitle = document.getElementById('waiverOnClockTitle');
+    const waiverOnClockMeta = document.getElementById('waiverOnClockMeta');
+    const waiverOnClockStarters = document.getElementById('waiverOnClockStarters');
+    const waiverOnClockBench = document.getElementById('waiverOnClockBench');
+    const waiverTurnAlert = document.getElementById('waiverTurnAlert');
+    const waiverTurnAlertText = document.getElementById('waiverTurnAlertText');
 
     const currentDraft = sessionStorage.getItem('currentDraft');
     let draftSummary = loadSummary();
     let waiverState = null;
     let selectedPosition = 'ALL';
-    let pendingAddPlayer = null;
+    let lastTurnAlertKey = '';
+    let turnAlertTimeout = null;
+    let onClockRosterCount = 0;
 
     const socket = window.io ? window.io({ reconnection: false }) : null;
 
@@ -42,6 +46,39 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'off';
     }
 
+    function parseRankNumber(value, fallback = 999) {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            return Math.max(1, Math.floor(value));
+        }
+        const cleaned = String(value || '').replace(/[^0-9.-]/g, '');
+        const parsed = Number.parseInt(cleaned, 10);
+        if (Number.isFinite(parsed) && parsed > 0) {
+            return parsed;
+        }
+        return fallback;
+    }
+
+    function getPlayerPositionRank(player) {
+        const pos = String(player && player.position || '').trim().toUpperCase();
+        const positionRankFieldByPos = {
+            QB: 'qbRank',
+            RB: 'RBrank',
+            WR: 'WRrank',
+            TE: 'TErank',
+            K: 'Krank',
+            DEF: 'DEFrank'
+        };
+
+        const specificField = positionRankFieldByPos[pos];
+        const specificRank = parseRankNumber(specificField ? player && player[specificField] : undefined, NaN);
+        if (Number.isFinite(specificRank) && specificRank > 0) return specificRank;
+
+        const positionRank = parseRankNumber(player && player.positionRank, NaN);
+        if (Number.isFinite(positionRank) && positionRank > 0) return positionRank;
+
+        return parseRankNumber(player && player.prerank, 999);
+    }
+
     function normalizeWaiverState(rawState) {
         if (!rawState || typeof rawState !== 'object') return null;
         return {
@@ -50,6 +87,8 @@ document.addEventListener('DOMContentLoaded', () => {
             mode: normalizeWaiverMode(rawState.mode),
             order: Array.isArray(rawState.order) ? rawState.order.map(name => String(name || '').trim()).filter(Boolean) : [],
             turnIndex: Math.max(0, Number(rawState.turnIndex || 0)),
+            turnDurationMs: Math.max(1000, Number(rawState.turnDurationMs || 180000)),
+            turnEndsAt: Number(rawState.turnEndsAt || 0),
             updatedAt: Number(rawState.updatedAt || Date.now()),
             passesInRow: Math.max(0, Number(rawState.passesInRow || 0)),
             lastAction: rawState.lastAction || null,
@@ -60,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     position: String(player.position || 'UNK').trim().toUpperCase(),
                     team: String(player.team || '').trim().toUpperCase(),
                     avgValue: Number(player.avgValue || 0),
+                    positionRank: getPlayerPositionRank(player),
                     prerank: Number(player.prerank || 999)
                 }))
                 : []
@@ -145,6 +185,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return { slots, bench };
     }
 
+    function getRosterPlayerById(team, playerId) {
+        const id = Number(playerId);
+        if (!Number.isFinite(id) || !team || !Array.isArray(team.roster)) return null;
+        return team.roster.find(player => Number(player && player.id) === id) || null;
+    }
+
+    function isStarterPlayerOnTeam(team, playerId) {
+        const id = Number(playerId);
+        if (!Number.isFinite(id) || !team || !Array.isArray(team.roster)) return false;
+        const split = splitRoster(team.roster, getSummaryRosterSettings());
+        return (split.slots || []).some(slot => Number(slot && slot.player && slot.player.id) === id);
+    }
+
     function getRequiredCuts(roster, bench) {
         const settings = getSummaryRosterSettings();
         const maxBenchPlayers = getBenchCutTarget();
@@ -186,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 position: String(player.position || 'UNK').trim().toUpperCase(),
                 team: String(player.team || '').trim().toUpperCase(),
                 avgValue: Number(player.avgValue || 0),
+                positionRank: getPlayerPositionRank(player),
                 prerank: Number(player.prerank || 999)
             }))
             .sort((a, b) => Number(a.prerank || 999) - Number(b.prerank || 999));
@@ -198,6 +252,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getUserTeam() {
         return (draftSummary.teams || []).find(team => team.name === username) || null;
+    }
+
+    function getWaiverSecondsRemaining() {
+        if (!waiverState || !waiverState.active) return null;
+        const endTs = Number(waiverState.turnEndsAt || 0);
+        if (!Number.isFinite(endTs) || endTs <= 0) return null;
+        return Math.max(0, Math.ceil((endTs - Date.now()) / 1000));
+    }
+
+    function formatClock(secondsTotal) {
+        const safeSeconds = Math.max(0, Number(secondsTotal || 0));
+        const mins = Math.floor(safeSeconds / 60);
+        const secs = safeSeconds % 60;
+        return `${String(mins).padStart(1, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function buildOnClockMetaText(rosterCount) {
+        if (!waiverState || !waiverState.active) {
+            return `Waivers complete | Final roster ${rosterCount}`;
+        }
+        const secondsLeft = getWaiverSecondsRemaining();
+        const timeLabel = secondsLeft == null ? 'Time left --:--' : `Time left ${formatClock(secondsLeft)}`;
+        return `On clock now | ${timeLabel} | Roster ${rosterCount}`;
     }
 
     function isCurrentUserHost() {
@@ -306,23 +383,172 @@ document.addEventListener('DOMContentLoaded', () => {
         waiverPoolList.innerHTML = filtered.length
             ? filtered.map(player => `
                 <div class="waiver-pool-item">
-                    <span class="waiver-rank">#${Number(player.prerank || 999)}</span>
                     <span class="pos-badge pos-${escapeHtml(player.position)}">${escapeHtml(player.position)}</span>
-                    <span class="waiver-name">${escapeHtml(player.name)} <span class="waiver-meta">${escapeHtml(player.team || 'FA')} | AV $${Number(player.avgValue || 0)}</span></span>
-                    <span class="waiver-meta">Default Rank</span>
+                    <span class="waiver-name">${escapeHtml(player.name)} <span class="waiver-meta">${escapeHtml(player.position || 'UNK')} #${getPlayerPositionRank(player)}</span></span>
                     <button type="button" class="account-btn waiver-add-btn" data-player-id="${Number(player.id)}" ${canAct ? '' : 'disabled'}>+</button>
                 </div>
             `).join('')
-            : '<div class="bench-empty">No undrafted players match the current filters.</div>';
+            : '<div class="bench-empty">No available waiver players match the current filters.</div>';
 
         waiverPoolList.querySelectorAll('.waiver-add-btn').forEach(button => {
             button.addEventListener('click', () => {
                 const playerId = Number(button.getAttribute('data-player-id'));
                 const player = pool.find(entry => Number(entry.id) === playerId);
                 if (!player) return;
-                openWaiverModal(player);
+                submitWaiverAddDrop(player);
             });
         });
+    }
+
+    function renderInlineDropOptions(canAct) {
+        if (!waiverInlineDropSelect) return;
+        const userTeam = getUserTeam();
+        const roster = Array.isArray(userTeam && userTeam.roster)
+            ? userTeam.roster.slice().sort((a, b) => Number(a.prerank || 999) - Number(b.prerank || 999))
+            : [];
+
+        if (!roster.length) {
+            waiverInlineDropSelect.innerHTML = '<option value="">No players to drop</option>';
+            waiverInlineDropSelect.disabled = true;
+            return;
+        }
+
+        const currentValue = String(waiverInlineDropSelect.value || '');
+        waiverInlineDropSelect.innerHTML = roster
+            .map(entry => `<option value="${Number(entry.id)}">${escapeHtml(entry.name)} (${escapeHtml(entry.position || 'UNK')})</option>`)
+            .join('');
+
+        if (currentValue && roster.some(entry => String(Number(entry.id)) === currentValue)) {
+            waiverInlineDropSelect.value = currentValue;
+        }
+
+        waiverInlineDropSelect.disabled = !canAct;
+    }
+
+    function submitWaiverAddDrop(player) {
+        if (!socket || !draftSummary.draftCode || !waiverState || !waiverState.active) return;
+        const userTeam = getUserTeam();
+        const canAct = !!(getCurrentWaiverTeamName() === username && userTeam && (userTeam.roster || []).length > 0);
+        if (!canAct) {
+            alert('It is not your turn to make a waiver move.');
+            return;
+        }
+
+        const dropPlayerId = Number(waiverInlineDropSelect && waiverInlineDropSelect.value);
+        if (!Number.isFinite(dropPlayerId)) {
+            alert('Select a player to drop first.');
+            return;
+        }
+
+        if (isStarterPlayerOnTeam(userTeam, dropPlayerId)) {
+            const dropPlayer = getRosterPlayerById(userTeam, dropPlayerId);
+            const dropName = String(dropPlayer && dropPlayer.name || 'this starter');
+            const confirmed = window.confirm(`Drop ${dropName} from your starting lineup and submit this waiver add/drop?`);
+            if (!confirmed) {
+                return;
+            }
+        }
+
+        socket.emit('submitWaiverMove', {
+            draftCode: draftSummary.draftCode,
+            teamName: username,
+            action: 'addDrop',
+            addPlayerId: Number(player.id),
+            dropPlayerId
+        }, (response) => {
+            if (!response || !response.ok) {
+                alert(`Waiver add/drop failed: ${(response && response.reason) || 'unknown_error'}`);
+            }
+        });
+    }
+
+    function renderOnClockTeamPanel() {
+        if (!waiverOnClockTitle || !waiverOnClockMeta || !waiverOnClockStarters || !waiverOnClockBench) {
+            return;
+        }
+
+        const currentTurn = getCurrentWaiverTeamName();
+        const onClockTeam = (draftSummary.teams || []).find(team => team.name === currentTurn) || null;
+
+        if (!onClockTeam) {
+            waiverOnClockTitle.textContent = 'On The Clock Team';
+            waiverOnClockMeta.textContent = 'Waiting for waivers to start...';
+            waiverOnClockStarters.innerHTML = '<div class="bench-empty">No lineup to display.</div>';
+            waiverOnClockBench.innerHTML = '<div class="bench-empty">No bench to display.</div>';
+            return;
+        }
+
+        const roster = Array.isArray(onClockTeam.roster) ? onClockTeam.roster : [];
+        const split = splitRoster(roster, getSummaryRosterSettings());
+        const starters = Array.isArray(split.slots) ? split.slots : [];
+        const bench = Array.isArray(split.bench) ? split.bench : [];
+
+        waiverOnClockTitle.textContent = `${currentTurn}${currentTurn === username ? ' (Your Team)' : ''}`;
+        onClockRosterCount = roster.length;
+        waiverOnClockMeta.textContent = buildOnClockMetaText(onClockRosterCount);
+
+        waiverOnClockStarters.innerHTML = starters.length
+            ? starters.map(slot => {
+                if (!slot.player) {
+                    return `<div class="waiver-team-row"><span class="waiver-team-pos">${escapeHtml(slot.label || '--')}</span><span class="waiver-team-player">Empty</span><span class="waiver-team-cost">-</span></div>`;
+                }
+                return `<div class="waiver-team-row"><span class="waiver-team-pos">${escapeHtml(slot.label || slot.player.position || 'UNK')}</span><span class="waiver-team-player">${escapeHtml(slot.player.name || 'Unknown')}</span><span class="waiver-team-cost">$${Number(slot.player.bid || 0)}</span></div>`;
+            }).join('')
+            : '<div class="bench-empty">No starters configured.</div>';
+
+        waiverOnClockBench.innerHTML = bench.length
+            ? bench.map(player => `<div class="waiver-team-row"><span class="waiver-team-pos">${escapeHtml(player.position || 'BN')}</span><span class="waiver-team-player">${escapeHtml(player.name || 'Unknown')}</span><span class="waiver-team-cost">$${Number(player.bid || 0)}</span></div>`).join('')
+            : '<div class="bench-empty">No bench players.</div>';
+    }
+
+    function playTurnDing() {
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.exponentialRampToValueAtTime(1240, now + 0.14);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.26);
+            setTimeout(() => {
+                try { ctx.close(); } catch (_error) { /* noop */ }
+            }, 400);
+        } catch (_error) {
+            // Browsers can block autoplay audio until user interaction.
+        }
+    }
+
+    function showTurnAlert(message) {
+        if (!waiverTurnAlert || !waiverTurnAlertText) return;
+        waiverTurnAlertText.textContent = String(message || 'Your turn');
+        waiverTurnAlert.hidden = false;
+        if (turnAlertTimeout) {
+            clearTimeout(turnAlertTimeout);
+        }
+        turnAlertTimeout = setTimeout(() => {
+            waiverTurnAlert.hidden = true;
+        }, 2400);
+    }
+
+    function maybeNotifyTurnChange() {
+        if (!waiverState || !waiverState.active) return;
+        const currentTurn = getCurrentWaiverTeamName();
+        const turnKey = `${draftSummary.draftCode || ''}:${currentTurn}:${Number(waiverState.turnIndex || 0)}:${Number(waiverState.updatedAt || 0)}`;
+        if (turnKey === lastTurnAlertKey) return;
+        lastTurnAlertKey = turnKey;
+        if (currentTurn === username) {
+            playTurnDing();
+            showTurnAlert('Your turn');
+        }
     }
 
     function render() {
@@ -341,6 +567,11 @@ document.addEventListener('DOMContentLoaded', () => {
             waiverPassBtn.hidden = true;
             waiverOrderList.innerHTML = '<div class="bench-empty">Waivers are disabled.</div>';
             waiverPoolList.innerHTML = '<div class="bench-empty">No waiver pool is available because waivers are off.</div>';
+            if (waiverInlineDropSelect) {
+                waiverInlineDropSelect.innerHTML = '<option value="">No players to drop</option>';
+                waiverInlineDropSelect.disabled = true;
+            }
+            renderOnClockTeamPanel();
             return;
         }
 
@@ -354,68 +585,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `Waivers are ready. Start when ready using ${waiverMode.toUpperCase()} order.`
                 : 'Waivers are enabled. Waiting for the host to start waivers.';
         } else if (waiverState.active) {
+            const secondsLeft = getWaiverSecondsRemaining();
+            const timerLabel = secondsLeft == null ? '--:--' : formatClock(secondsLeft);
             waiverPageNotice.textContent = currentTurn === username
-                ? 'It is your waiver turn. Choose an undrafted player, then drop one player from your roster, or pass.'
-                : `Waivers are active. On the clock: ${currentTurn || 'N/A'}.`;
+                ? `It is your waiver turn (${timerLabel} left). Select a drop player above, then tap + on a waiver player, or pass.`
+                : `Waivers are active. On the clock: ${currentTurn || 'N/A'} (${timerLabel} left).`;
         } else {
             waiverPageNotice.textContent = `Waivers are complete (${waiverState.mode.toUpperCase()} order).`;
         }
 
+        renderInlineDropOptions(!!(waiverState && waiverState.active && currentTurn === username));
         renderOrder();
+        renderOnClockTeamPanel();
         renderPool();
+        maybeNotifyTurnChange();
     }
-
-    function openWaiverModal(player) {
-        const userTeam = getUserTeam();
-        const roster = Array.isArray(userTeam && userTeam.roster) ? userTeam.roster.slice().sort((a, b) => Number(a.prerank || 999) - Number(b.prerank || 999)) : [];
-        if (!roster.length) {
-            alert('You need a player on your roster to make an add/drop move.');
-            return;
-        }
-
-        pendingAddPlayer = player;
-        waiverModalPlayer.textContent = `${player.name} (${player.position}) | Rank ${Number(player.prerank || 999)} | AV $${Number(player.avgValue || 0)}`;
-        waiverDropSelect.innerHTML = roster.map(entry => `<option value="${Number(entry.id)}">${escapeHtml(entry.name)} (${escapeHtml(entry.position || 'UNK')})</option>`).join('');
-        waiverModalBackdrop.hidden = false;
-    }
-
-    function closeWaiverModal() {
-        pendingAddPlayer = null;
-        waiverModalBackdrop.hidden = true;
-    }
-
-    waiverCancelBtn.addEventListener('click', closeWaiverModal);
-    waiverModalBackdrop.addEventListener('click', (event) => {
-        if (event.target === waiverModalBackdrop) {
-            closeWaiverModal();
-        }
-    });
-
-    waiverConfirmBtn.addEventListener('click', () => {
-        if (!socket || !draftSummary.draftCode || !pendingAddPlayer) return;
-        const dropPlayerId = Number(waiverDropSelect.value);
-        if (!Number.isFinite(dropPlayerId)) {
-            alert('Select a player to drop.');
-            return;
-        }
-
-        socket.emit('submitWaiverMove', {
-            draftCode: draftSummary.draftCode,
-            teamName: username,
-            action: 'addDrop',
-            addPlayerId: Number(pendingAddPlayer.id),
-            dropPlayerId
-        }, (response) => {
-            if (!response || !response.ok) {
-                alert(`Waiver add/drop failed: ${(response && response.reason) || 'unknown_error'}`);
-                return;
-            }
-            closeWaiverModal();
-        });
-    });
 
     waiverPassBtn.addEventListener('click', () => {
         if (!socket || !draftSummary.draftCode || !waiverState || !waiverState.active) return;
+        const confirmed = window.confirm('Are you sure you want to pass?');
+        if (!confirmed) {
+            return;
+        }
         socket.emit('submitWaiverMove', {
             draftCode: draftSummary.draftCode,
             teamName: username,
@@ -453,6 +644,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (waiverSearchInput) {
         waiverSearchInput.addEventListener('input', renderPool);
     }
+
+    setInterval(() => {
+        if (!waiverState || !waiverState.active) return;
+        if (!waiverOnClockMeta) return;
+        waiverOnClockMeta.textContent = buildOnClockMetaText(onClockRosterCount);
+    }, 1000);
 
     if (socket) {
         socket.on('benchUpdated', (data) => {

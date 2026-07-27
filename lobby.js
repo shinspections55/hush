@@ -60,6 +60,11 @@ window.initializeLobby = function initializeLobby(opts){
     return 'off';
   }
 
+  function isValidWaiverMode(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized === 'off' || normalized === 'random' || normalized === 'skill';
+  }
+
   function buildAjRoundOrder() {
     const order = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
     for (let i = order.length - 1; i > 0; i--) {
@@ -248,7 +253,7 @@ window.initializeLobby = function initializeLobby(opts){
       localStorage.setItem('drafts', JSON.stringify(drafts));
       try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
     }
-    if (normalizeWaiverMode(drafts[code].waiverMode, 'off') !== waiverMode) {
+    if (!isValidWaiverMode(drafts[code].waiverMode) || String(drafts[code].waiverMode).trim().toLowerCase() !== waiverMode) {
       drafts[code].waiverMode = waiverMode;
       localStorage.setItem('drafts', JSON.stringify(drafts));
       try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
@@ -317,14 +322,7 @@ window.initializeLobby = function initializeLobby(opts){
         closedOverlay.style.display = 'flex';
       }
 
-      // disable interactive controls but allow leaving
-      if (capacitySelect) capacitySelect.disabled = true;
-      if (applyCapacityBtn) applyCapacityBtn.disabled = true;
-      if (applyRosterBtn) applyRosterBtn.disabled = true;
-      Object.values(rosterInputMap).forEach(input => { if (input) input.disabled = true; });
-      if (roundTimerMinutesInput) roundTimerMinutesInput.disabled = true;
-      if (ajDraftModeInput) ajDraftModeInput.disabled = true;
-      if (waiverModeInput) waiverModeInput.disabled = true;
+      // keep leave action available even when closed
       if (leaveBtn) leaveBtn.disabled = false;
 
       // show a one-time alert to the user in addition to the overlay
@@ -340,12 +338,6 @@ window.initializeLobby = function initializeLobby(opts){
       }
     } else {
       if (closedOverlay) closedOverlay.style.display = 'none';
-      if (capacitySelect) capacitySelect.disabled = false;
-      if (applyCapacityBtn) applyCapacityBtn.disabled = false;
-      Object.values(rosterInputMap).forEach(input => { if (input) input.disabled = false; });
-      if (roundTimerMinutesInput) roundTimerMinutesInput.disabled = false;
-      if (ajDraftModeInput) ajDraftModeInput.disabled = false;
-      if (waiverModeInput) waiverModeInput.disabled = false;
     }
     // notify host when full (show banner once until dismissed)
     const full = cap && members.length >= cap;
@@ -353,6 +345,10 @@ window.initializeLobby = function initializeLobby(opts){
     const alreadyNotified = sessionStorage.getItem(notifiedKey);
     if(isHost && full && !alreadyNotified){ if(hostBanner){ hostBanner.style.display = 'block'; } sessionStorage.setItem(notifiedKey, '1'); }
     if(!full){ if(hostBanner){ hostBanner.style.display = 'none'; } sessionStorage.removeItem(notifiedKey); }
+    updateDraftTypeControlsState();
+    updateCapacityControls();
+    updateRosterControlsState();
+    updateCustomBudgetControlsState();
     updateStartDraftControlState();
   }
 
@@ -541,6 +537,30 @@ window.initializeLobby = function initializeLobby(opts){
     if(window.io){ 
       socket = io({ reconnection: false }); 
       console.log('[lobby] Socket.IO connecting...', user);
+
+      const syncHostWaiverModeToServerIfMissing = (serverDraft) => {
+        try {
+          const draftsRaw = localStorage.getItem('drafts');
+          const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
+          const localDraft = drafts[code] || {};
+          const isHost = isCurrentUserHost(localDraft);
+          if (!isHost) return;
+
+          const serverModeRaw = serverDraft && serverDraft.waiverMode;
+          const serverHasMode = isValidWaiverMode(serverModeRaw);
+          if (serverHasMode) return;
+
+          const localMode = normalizeWaiverMode(localDraft.waiverMode, 'off');
+          localDraft.waiverMode = localMode;
+          drafts[code] = localDraft;
+          localStorage.setItem('drafts', JSON.stringify(drafts));
+
+          console.log(`[lobby] Server missing waiverMode for ${code}; host syncing local mode "${localMode}"`);
+          socket.emit('updateDraft', code, localDraft);
+        } catch (e) {
+          console.warn('[lobby] Failed to sync waiverMode to server:', e);
+        }
+      };
       
       // Wait for connection before joining room
       socket.on('connect', () => {
@@ -553,6 +573,7 @@ window.initializeLobby = function initializeLobby(opts){
             drafts[code] = Object.assign(drafts[code] || {}, response.draft);
             localStorage.setItem('drafts', JSON.stringify(drafts));
             console.log('[lobby] Hydrated draft state from server. Host:', resolveDraftHost(response.draft));
+            syncHostWaiverModeToServerIfMissing(response.draft);
             refreshMembers();
           }
         });
@@ -656,8 +677,31 @@ window.initializeLobby = function initializeLobby(opts){
 
   // set capacity (host only)
   if(setCapacityBtn){ /* no-op placeholder reserved for legacy button */ }
+  function updateDraftTypeControlsState(){
+    const draftsRaw = localStorage.getItem('drafts');
+    const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
+    const isHost = isCurrentUserHost(drafts[code]);
+    const isClosed = Boolean(drafts[code] && drafts[code].closed);
+    const disableControls = !isHost || isClosed;
+    draftTypeRadios.forEach((radio) => {
+      radio.disabled = disableControls;
+    });
+    draftOrderRadios.forEach((radio) => {
+      radio.disabled = disableControls;
+    });
+  }
+
   // show/hide capacity controls depending on host
-  function updateCapacityControls(){ const draftsRaw = localStorage.getItem('drafts'); const drafts = draftsRaw ? JSON.parse(draftsRaw) : {}; const isHost = isCurrentUserHost(drafts[code]); if(capacityControls){ capacityControls.classList.toggle('hidden', !isHost); } }
+  function updateCapacityControls(){
+    const draftsRaw = localStorage.getItem('drafts');
+    const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
+    const isHost = isCurrentUserHost(drafts[code]);
+    const isClosed = Boolean(drafts[code] && drafts[code].closed);
+    const disableControls = !isHost || isClosed;
+    if(capacityControls){ capacityControls.classList.toggle('hidden', !isHost); }
+    if (capacitySelect) capacitySelect.disabled = disableControls;
+    if (applyCapacityBtn) applyCapacityBtn.disabled = disableControls;
+  }
 
   function updateRosterControlsState(){
     const draftsRaw = localStorage.getItem('drafts');
@@ -866,6 +910,7 @@ window.initializeLobby = function initializeLobby(opts){
   }
 
   // initialize capacity controls visibility
+  updateDraftTypeControlsState();
   updateCapacityControls();
   updateRosterControlsState();
   updateCustomBudgetControlsState();

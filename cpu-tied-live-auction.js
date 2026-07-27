@@ -42,6 +42,82 @@ const tiedLiveAuctionBidRanges = {
     }
 };
 
+const silentAuctionBidRanges = {
+  QB: {
+    '1-5': { min: 0.4, max: 1.65 },
+    '5-10': { min: 0.5, max: 1.45 },
+    '10-20': { min: 0.55, max: 1.35 },
+    '20-30': { min: 0.6, max: 1.3 },
+    '30-40': { min: 0.85, max: 1.15 },
+    '40-50': { min: 0.9, max: 1.1 },
+    '50-60': { min: 0.95, max: 1.05 },
+    '60+': { min: 0.98, max: 1.02 }
+  },
+  RB: {
+    '1-5': { min: 0.5, max: 1.55 },
+    '5-10': { min: 0.6, max: 1.45 },
+    '10-20': { min: 0.6, max: 1.4 },
+    '20-30': { min: 0.7, max: 1.35 },
+    '30-40': { min: 0.8, max: 1.25 },
+    '40-50': { min: 0.9, max: 1.15 },
+    '50-60': { min: 0.92, max: 1.15 },
+    '60+': { min: 0.95, max: 1.08 }
+  },
+  WR: {
+    '1-5': { min: 0.5, max: 1.55 },
+    '5-10': { min: 0.6, max: 1.45 },
+    '10-20': { min: 0.6, max: 1.4 },
+    '20-30': { min: 0.7, max: 1.35 },
+    '30-40': { min: 0.8, max: 1.25 },
+    '40-50': { min: 0.9, max: 1.15 },
+    '50-60': { min: 0.92, max: 1.15 },
+    '60+': { min: 0.95, max: 1.08 }
+  },
+  TE: {
+    '1-5': { min: 0.5, max: 1.55 },
+    '5-10': { min: 0.6, max: 1.45 },
+    '10-20': { min: 0.6, max: 1.4 },
+    '20-30': { min: 0.7, max: 1.35 },
+    '30-40': { min: 0.8, max: 1.25 },
+    '40-50': { min: 0.9, max: 1.15 },
+    '50-60': { min: 0.92, max: 1.15 },
+    '60+': { min: 0.95, max: 1.08 }
+  },
+  K: {
+    '1-5': { min: 0.3, max: 1.8 },
+    '5-10': { min: 0.4, max: 1.6 },
+    '10-20': { min: 0.5, max: 1.4 },
+    '20-30': { min: 0.6, max: 1.3 },
+    '30-40': { min: 0.7, max: 1.2 },
+    '40-50': { min: 0.8, max: 1.1 },
+    '50-60': { min: 0.85, max: 1.05 },
+    '60+': { min: 0.9, max: 1.0 }
+  },
+  DEF: {
+    '1-5': { min: 0.3, max: 1.8 },
+    '5-10': { min: 0.4, max: 1.6 },
+    '10-20': { min: 0.5, max: 1.4 },
+    '20-30': { min: 0.6, max: 1.3 },
+    '30-40': { min: 0.7, max: 1.2 },
+    '40-50': { min: 0.8, max: 1.1 },
+    '50-60': { min: 0.85, max: 1.05 },
+    '60+': { min: 0.9, max: 1.0 }
+  }
+};
+
+function getSilentAuctionCap(position, playerAV) {
+  const rangeKey = playerAV <= 5 ? '1-5'
+    : playerAV <= 10 ? '5-10'
+    : playerAV <= 20 ? '10-20'
+    : playerAV <= 30 ? '20-30'
+    : playerAV <= 40 ? '30-40'
+    : playerAV <= 50 ? '40-50'
+    : playerAV <= 60 ? '50-60'
+    : '60+';
+  const range = silentAuctionBidRanges[position]?.[rangeKey];
+  return Math.max(1, Math.round((Number(playerAV) || 1) * (range ? range.max : 1.5)));
+}
+
 const DEFAULT_TIED_TUNING = {
   baseBidProb: 0.34,
   preAvShape: 0.8,
@@ -57,6 +133,9 @@ const DEFAULT_TIED_TUNING = {
   budgetMidThreshold: 0.3,
   budgetPenaltyHigh: 0.55,
   budgetPenaltyMid: 0.72,
+  top10BargainDiscountTrigger: 0.85,
+  top10BargainOverAvAllowance: 1,
+  top10BargainForceBidBase: 0.58,
   backoutBase: 0.08,
   backoutAggressionScale: 0.35,
   clockBoost: 1.04
@@ -403,6 +482,30 @@ function updateTieAuctionState(state, action, context, overRatio) {
   state.recentOverpayStress = clamp(state.recentOverpayStress * 0.92, 0, 3);
 }
 
+function getReserveAwareTieMaxPrice(context) {
+  const tuning = getTiedTuning();
+  const av = Math.max(1, Number(context.playerAV || 1));
+  const baseMaxPrice = getSilentAuctionCap(context.position, av);
+  const rosterSpotsLeft = Math.max(0, Math.floor(Number(context.rosterSpotsLeft || 0)));
+  // Keep at least $1 for each remaining spot after potentially winning this tie auction.
+  const reserveAfterWin = Math.max(0, rosterSpotsLeft - 1);
+  const reserveLimitedCap = Math.max(1, Math.floor(Number(context.budgetRemaining || 0) - reserveAfterWin));
+
+  const prerank = Math.max(1, Math.floor(Number(context.playerPrerank || 999)));
+  const discountTrigger = Math.max(0.5, Math.min(1, Number(tuning.top10BargainDiscountTrigger || 0.9)));
+  const isTop10Bargain = prerank <= 10;
+
+  let finalCap = Math.min(baseMaxPrice, reserveLimitedCap);
+  if (isTop10Bargain) {
+    const avAllowance = Math.max(0, Math.floor(Number(tuning.top10BargainOverAvAllowance || 1)));
+    const top10BargainCap = Math.max(1, Math.round(av + avAllowance));
+    // In elite bargain tie wars, allow bidding up near AV even if the normal silent cap is lower.
+    finalCap = Math.min(reserveLimitedCap, Math.max(baseMaxPrice, top10BargainCap));
+  }
+
+  return Math.max(1, finalCap);
+}
+
 // Function to get bid probability in tied auctions using the updated model
 function getTiedBidProbability(A, p) {
   const tuning = getTiedTuning();
@@ -491,10 +594,12 @@ function runTiedAuctionRound(state) {
         const decision = decideActionDetailed(cpu, {
             currentBid,
             playerAV,
+          playerPrerank: Number(state.playerPrerank || 999),
           position,
             teamsRemaining: active.length,
             round,
             budgetRemaining: cpu.budget,
+            rosterSpotsLeft: Number(cpu.rosterSpotsLeft || 0),
             positionNeed: cpu.needs[position] || 0.5,
             timeLeft,
             roundAggression: roundAggressionMap.get(cpu)
@@ -547,8 +652,14 @@ function runTiedAuctionRound(state) {
     // Multiple bidders → pick one to raise
     if (bidders.length > 0) {
         const aggressor = pickRandomCPU(bidders);
-      const range = avRanges[playerAV];
-      const maxPrice = range ? range.max : Math.round(playerAV * 4);
+      const maxPrice = getReserveAwareTieMaxPrice({
+        currentBid,
+        playerAV,
+        playerPrerank: Number(state.playerPrerank || 999),
+        position,
+        budgetRemaining: Number(aggressor?.budget || 0),
+        rosterSpotsLeft: Number(aggressor?.rosterSpotsLeft || 0)
+      });
 
       if (currentBid + 1 > maxPrice) {
         aggressor.isIn = false;
@@ -594,8 +705,14 @@ function runTiedAuctionRound(state) {
 
         if (remaining.length > 1) {
             // Check if bidding would exceed max price
-            const range = avRanges[playerAV];
-            const maxPrice = range ? range.max : Math.round(playerAV * 4);
+            const maxPrice = getReserveAwareTieMaxPrice({
+              currentBid,
+              playerAV,
+              playerPrerank: Number(state.playerPrerank || 999),
+              position,
+              budgetRemaining: Number(remaining[0]?.budget || 0),
+              rosterSpotsLeft: Number(remaining[0]?.rosterSpotsLeft || 0)
+            });
             if (currentBid + 1 > maxPrice) {
                 // Force all remaining to back out since bidding would exceed max
                 remaining.forEach(cpu => cpu.isIn = false);
@@ -676,17 +793,10 @@ function decideActionDetailed(cpuTeam, context) {
   // Use the tied auction probabilities lookup table
   const probs = tiedAuctionProbabilities[context.playerAV]?.[context.currentBid];
   const bidProb = probs ? probs.bid : 0;
+  const tuning = getTiedTuning();
+  const maxPrice = getReserveAwareTieMaxPrice(context);
 
   // Can't bid if over budget
-  if (context.currentBid >= context.budgetRemaining) {
-    const state = getTieAuctionState(cpuTeam, context);
-    updateTieAuctionState(state, 'backout', context, context.currentBid / Math.max(1, context.playerAV));
-    return { action: 'backout', backoutIntent: 1, roundAggression: context.roundAggression || getCpuPersonality(cpuTeam).aggression };
-  }
-
-  // Can't bid if over max price
-  const range = avRanges[context.playerAV];
-  const maxPrice = range ? range.max : Math.round(context.playerAV * 4);
   if (context.currentBid >= maxPrice) {
     const state = getTieAuctionState(cpuTeam, context);
     updateTieAuctionState(state, 'backout', context, context.currentBid / Math.max(1, context.playerAV));
@@ -702,6 +812,49 @@ function decideActionDetailed(cpuTeam, context) {
     overRatio,
     roundAggression
   } = getPsychologyModifiers(cpuTeam, context, bidProb);
+
+  const prerank = Math.max(1, Math.floor(Number(context.playerPrerank || 999)));
+  const overRatioNow = context.currentBid / Math.max(1, context.playerAV);
+  const discountTrigger = Math.max(0.5, Math.min(1, Number(tuning.top10BargainDiscountTrigger || 0.9)));
+  const isTop10Bargain = prerank <= 10;
+
+  if (isTop10Bargain && context.currentBid + 1 <= maxPrice) {
+    const baseForceBid = Math.max(0.2, Math.min(0.95, Number(tuning.top10BargainForceBidBase || 0.58)));
+    const positionNeedBoost = Number(context.positionNeed || 0) * 0.1;
+
+    // Backout chance rises each $1 step, with a gentle pre-85% slope and stronger post-85% slope.
+    const preThresholdStep = clamp((overRatioNow - 0.55) / Math.max(0.08, discountTrigger - 0.55), 0, 1);
+    const postThresholdStep = clamp((overRatioNow - discountTrigger) / Math.max(0.08, 1.08 - discountTrigger), 0, 1);
+
+    const progressiveBackoutChance = overRatioNow < discountTrigger
+      ? clamp(0.03 + (preThresholdStep * 0.11) + (backoutProb * 0.08), 0.02, 0.22)
+      : clamp(0.14 + (postThresholdStep * 0.33) + (backoutProb * 0.18), 0.12, 0.58);
+
+    let progressiveBidChance = overRatioNow < discountTrigger
+      ? clamp(baseForceBid + ((1 - preThresholdStep) * 0.2) + positionNeedBoost, 0.64, 0.97)
+      : clamp(baseForceBid + ((1 - postThresholdStep) * 0.18) + positionNeedBoost - (postThresholdStep * 0.14), 0.34, 0.88);
+
+    // Keep room for hold decisions so outcomes can settle around AV naturally.
+    progressiveBidChance = Math.min(progressiveBidChance, 0.96 - progressiveBackoutChance);
+
+    const eliteRoll = Math.random();
+    if (eliteRoll < progressiveBackoutChance) {
+      updateTieAuctionState(state, 'backout', context, overRatioNow);
+      return {
+        action: 'backout',
+        backoutIntent: clamp(progressiveBackoutChance + Math.max(0, overRatioNow - 1) * 0.3, 0.06, 1),
+        roundAggression
+      };
+    }
+
+    if (eliteRoll < progressiveBackoutChance + progressiveBidChance) {
+      updateTieAuctionState(state, 'bid', context, overRatioNow);
+      return { action: 'bid', backoutIntent: progressiveBackoutChance * 0.55, roundAggression };
+    }
+
+    updateTieAuctionState(state, 'hold', context, overRatioNow);
+    return { action: 'hold', backoutIntent: progressiveBackoutChance * 0.8, roundAggression };
+  }
 
   const roll = Math.random();
   const bluffWindow = context.currentBid <= context.playerAV * 1.02 && state.commitment >= 1 && roll < bluffChance;

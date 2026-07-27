@@ -158,6 +158,73 @@ function normalizePosition(position) {
   return VALID_POSITIONS.has(pos) ? pos : '';
 }
 
+function normalizePlayerNameKey(name) {
+  return String(name || '').trim().toLowerCase();
+}
+
+function sanitizeStarredNamesInput(rawInput) {
+  const source = Array.isArray(rawInput)
+    ? rawInput
+    : (rawInput && Array.isArray(rawInput.starredNames) ? rawInput.starredNames : []);
+
+  const out = [];
+  const seen = new Set();
+  source.forEach((name) => {
+    const clean = String(name || '').trim();
+    const key = normalizePlayerNameKey(clean);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(clean);
+  });
+
+  return out.slice(0, 120);
+}
+
+function buildAutoDraftStarPlayerIdsByTeam(teams, allPlayers, autoDraftStarTargets, autoDraftMembers) {
+  const players = Array.isArray(allPlayers) ? [...allPlayers] : [];
+  players.sort((a, b) => {
+    const rankA = Number(a && a.prerank || 9999);
+    const rankB = Number(b && b.prerank || 9999);
+    if (rankA !== rankB) return rankA - rankB;
+    return Number(b && b.avgValue || 0) - Number(a && a.avgValue || 0);
+  });
+
+  const playerIdByNameKey = new Map();
+  players.forEach((player) => {
+    const key = normalizePlayerNameKey(player && player.name);
+    const playerId = player && player.id;
+    if (!key || playerId == null || playerId === '') return;
+    if (!playerIdByNameKey.has(key)) {
+      playerIdByNameKey.set(key, String(playerId));
+    }
+  });
+
+  const teamNameSet = new Set((Array.isArray(teams) ? teams : []).map((team) => String(team && team.name || '').trim()));
+  const result = {};
+
+  (Array.isArray(autoDraftMembers) ? autoDraftMembers : []).forEach((teamNameRaw) => {
+    const teamName = String(teamNameRaw || '').trim();
+    if (!teamName || !teamNameSet.has(teamName)) return;
+
+    const starredNames = sanitizeStarredNamesInput(autoDraftStarTargets && autoDraftStarTargets[teamName]);
+    const ids = [];
+    const seenIds = new Set();
+
+    starredNames.forEach((name) => {
+      const playerId = playerIdByNameKey.get(normalizePlayerNameKey(name));
+      if (!playerId || seenIds.has(playerId)) return;
+      seenIds.add(playerId);
+      ids.push(playerId);
+    });
+
+    if (ids.length > 0) {
+      result[teamName] = ids;
+    }
+  });
+
+  return result;
+}
+
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -2498,7 +2565,7 @@ function resolveSimulationRound(roundPlayers, teams, cpuBids, maxRosterSize, rou
   };
 }
 
-async function runAdminDraftSimulations({ draftCount, teamCount, rounds, playersPerRound, rosterSettings, commitmentMode = 'B', forceSpread = null, thresholdDebug = null }) {
+async function runAdminDraftSimulations({ draftCount, teamCount, rounds, playersPerRound, rosterSettings, lobbySettings = null, commitmentMode = 'B', forceSpread = null, thresholdDebug = null, teamTrace = null }) {
   const rankingsData = await readDefaultRankingsData();
   const effectivePlayersPerRound = SIM_PAGE_SIZE * 2;
   const rawPlayerTemplate = clonePlayersForSimulation(rankingsData.players || []);
@@ -2538,6 +2605,41 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
     samples: 0
   }));
   const thresholdDebugExamples = [];
+  const serializeSimulationPlayer = (player) => ({
+    id: Number(player && player.id) || null,
+    name: String(player && player.name || ''),
+    position: normalizePosition(player && player.position),
+    bid: Number(player && player.bid) || 0,
+    prerank: Number(player && player.prerank) || null,
+    positionRank: Number(player && player.positionRank) || null,
+    avgValue: Number(player && player.avgValue) || 0
+  });
+  const serializeSimulationRoster = (roster) => (Array.isArray(roster) ? roster : [])
+    .map((player) => serializeSimulationPlayer(player))
+    .sort((a, b) => {
+      if (b.bid !== a.bid) return b.bid - a.bid;
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
+  const serializeStarTargets = (targets) => (Array.isArray(targets) ? targets : [])
+    .map((target) => ({
+      id: Number(target && target.id) || null,
+      name: String(target && target.name || ''),
+      position: normalizePosition(target && target.position),
+      avgValue: Number(target && target.avgValue) || 0,
+      prerank: Number(target && target.prerank) || null
+    }))
+    .filter((target) => target.id || target.name)
+    .sort((a, b) => {
+      if (Number(a?.prerank || 9999) !== Number(b?.prerank || 9999)) {
+        return Number(a?.prerank || 9999) - Number(b?.prerank || 9999);
+      }
+      return String(a?.name || '').localeCompare(String(b?.name || ''));
+    });
+  const normalizedTeamKey = (value) => String(value || '').trim().toLowerCase();
+  const normalizedTraceTeamFilter = String(teamTrace?.teamNameFilter || '').trim().toLowerCase();
+  const thresholdDebugDraftNumber = Math.max(1, Number(thresholdDebug?.draftNumber || 1));
+  const teamTraceDraftNumber = Math.max(1, Number(teamTrace?.draftNumber || thresholdDebugDraftNumber || 1));
+  let tracedTeamSummary = null;
 
   for (let draftIndex = 0; draftIndex < draftCount; draftIndex += 1) {
     const allPlayers = clonePlayersForSimulation(playerTemplate);
@@ -2548,10 +2650,24 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
       starterCompletedRound: null
     }));
     const draftRoundBidDetails = [];
+    const draftNumber = draftIndex + 1;
+    const shouldCollectThresholdDebugForDraft = !!thresholdDebug && draftNumber === thresholdDebugDraftNumber;
+    const shouldCollectTeamTraceForDraft = !!teamTrace && draftNumber === teamTraceDraftNumber;
+    const draftTeamTraceRounds = [];
 
     for (let roundNumber = 1; roundNumber <= rounds; roundNumber += 1) {
       const roundPlayers = buildSimulationRoundPlayers(allPlayers, effectivePlayersPerRound, roundNumber, rounds, roundPositionMinimums);
       if (roundPlayers.length === 0) break;
+
+      const roundTeamStateBefore = shouldCollectTeamTraceForDraft
+        ? new Map((teams || []).map((team) => [
+            String(team?.name || ''),
+            {
+              budgetBefore: Number(team?.budget || 0),
+              rosterBefore: serializeSimulationRoster(team?.roster)
+            }
+          ]))
+        : null;
 
       const roundIdx = Math.max(0, Number(roundNumber || 1) - 1);
       const totalBudgetBeforeRound = (teams || []).reduce((sum, team) => sum + Math.max(0, Number(team && team.budget || 0)), 0);
@@ -2572,7 +2688,7 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
           commitmentMode,
           forceSpread,
           thresholdDebug,
-          thresholdDebugCollector: (thresholdDebug && draftIndex === 0) ? thresholdDebugExamples : null
+          thresholdDebugCollector: shouldCollectThresholdDebugForDraft ? thresholdDebugExamples : null
         }
       );
       const gatedCpuBids = gateCpuBidsForRound(
@@ -2665,6 +2781,56 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
         roundPlayerResults
       });
 
+      if (shouldCollectTeamTraceForDraft) {
+        const tracedRoundTeams = (teams || [])
+          .filter((team) => {
+            const teamName = normalizedTeamKey(team?.name || '');
+            return !normalizedTraceTeamFilter || teamName === normalizedTraceTeamFilter;
+          })
+          .map((team) => {
+            const teamName = String(team?.name || '');
+            const beforeState = roundTeamStateBefore?.get(teamName) || {
+              budgetBefore: Number(team?.budget || 0),
+              rosterBefore: []
+            };
+            const rosterAfter = serializeSimulationRoster(team?.roster);
+            const beforeRosterIds = new Set(beforeState.rosterBefore.map((player) => Number(player?.id || 0)).filter(Boolean));
+            const playersWon = rosterAfter.filter((player) => Number(player?.id || 0) > 0 && !beforeRosterIds.has(Number(player.id)));
+            const bidsPlaced = ((gatedCpuBids && gatedCpuBids[teamName]) || [])
+              .map((bid) => ({
+                playerId: Number(bid?.player?.id || 0),
+                playerName: String(bid?.player?.name || ''),
+                position: normalizePosition(bid?.player?.position),
+                avgValue: Number(bid?.player?.avgValue || 0),
+                cpuBid: Number(bid?.cpuBid || 0)
+              }))
+              .sort((a, b) => {
+                if (b.cpuBid !== a.cpuBid) return b.cpuBid - a.cpuBid;
+                return String(a.playerName || '').localeCompare(String(b.playerName || ''));
+              });
+
+            return {
+              teamName,
+              cpuProfileApproach: String(team?.cpuProfileApproach || ''),
+              cpuProfileLabel: String(team?.cpuProfileLabel || ''),
+              starTargets: serializeStarTargets(team?.cpuStarTargets),
+              budgetBefore: Number(beforeState.budgetBefore || 0),
+              budgetAfter: Number(team?.budget || 0),
+              rosterBefore: beforeState.rosterBefore,
+              rosterAfter,
+              bidsPlaced,
+              playersWon
+            };
+          });
+
+        if (tracedRoundTeams.length > 0) {
+          draftTeamTraceRounds.push({
+            round: Number(roundNumber || 0),
+            teams: tracedRoundTeams
+          });
+        }
+      }
+
       teams.forEach((team) => {
         if (!team || team.starterCompletedRound !== null) return;
         if (hasCompletedStarters(team.roster, normalizedSettings)) {
@@ -2677,24 +2843,25 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
       const rosterCount = Array.isArray(team.roster) ? team.roster.length : 0;
       const budgetRemaining = Number(team.budget || 0);
       const complete = rosterCount >= targetRosterSize;
-      const roster = (Array.isArray(team.roster) ? team.roster : [])
-        .map((player) => ({
-          id: Number(player && player.id) || null,
-          name: String(player && player.name || ''),
-          position: normalizePosition(player && player.position),
-          bid: Number(player && player.bid) || 0,
-          prerank: Number(player && player.prerank) || null,
-          positionRank: Number(player && player.positionRank) || null
-        }))
-        .sort((a, b) => {
-          if (b.bid !== a.bid) return b.bid - a.bid;
-          return String(a.name || '').localeCompare(String(b.name || ''));
-        });
+      const roster = serializeSimulationRoster(team.roster);
+      const starTargets = serializeStarTargets(team.cpuStarTargets);
+      const starTargetIdSet = new Set((Array.isArray(team.cpuStarTargetIds) ? team.cpuStarTargetIds : []).map((id) => Number(id)).filter(Boolean));
+      const acquiredTargets = roster.filter((player) => starTargetIdSet.has(Number(player?.id || 0)));
+      const starTargetTotal = starTargets.length;
+      const starTargetHitCount = acquiredTargets.length;
+      const starTargetHitPct = starTargetTotal > 0
+        ? Number(((starTargetHitCount / starTargetTotal) * 100).toFixed(1))
+        : 0;
 
       return {
         name: team.name,
         cpuProfileApproach: String(team && team.cpuProfileApproach || ''),
         cpuProfileLabel: String(team && team.cpuProfileLabel || ''),
+        starTargets,
+        starTargetTotal,
+        starTargetHitCount,
+        starTargetHitPct,
+        acquiredTargets,
         rosterCount,
         budgetRemaining,
         budgetSpent: Math.max(0, 200 - budgetRemaining),
@@ -2705,6 +2872,43 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
         roster
       };
     });
+
+    if (shouldCollectTeamTraceForDraft) {
+      const tracedTeams = teams
+        .filter((team) => {
+          const teamName = normalizedTeamKey(team?.name || '');
+          return !normalizedTraceTeamFilter || teamName === normalizedTraceTeamFilter;
+        })
+        .map((team) => {
+          const starTargets = serializeStarTargets(team?.cpuStarTargets);
+          const starTargetIdSet = new Set((Array.isArray(team?.cpuStarTargetIds) ? team.cpuStarTargetIds : []).map((id) => Number(id)).filter(Boolean));
+          const finalRoster = serializeSimulationRoster(team?.roster);
+          const acquiredTargets = finalRoster.filter((player) => starTargetIdSet.has(Number(player?.id || 0)));
+          const starTargetTotal = starTargets.length;
+          const starTargetHitCount = acquiredTargets.length;
+          const starTargetHitPct = starTargetTotal > 0
+            ? Number(((starTargetHitCount / starTargetTotal) * 100).toFixed(1))
+            : 0;
+
+          return {
+            teamName: String(team?.name || ''),
+            cpuProfileApproach: String(team?.cpuProfileApproach || ''),
+            cpuProfileLabel: String(team?.cpuProfileLabel || ''),
+            starTargets,
+            starTargetTotal,
+            starTargetHitCount,
+            starTargetHitPct,
+            acquiredTargets
+          };
+        });
+
+      tracedTeamSummary = {
+        draftNumber,
+        teamNameFilter: String(teamTrace?.teamNameFilter || ''),
+        teams: tracedTeams,
+        rounds: draftTeamTraceRounds
+      };
+    }
 
     const completeTeams = teamSummaries.filter(team => team.complete).length;
     const undraftedPlayers = (Array.isArray(allPlayers) ? allPlayers : []).filter(player => player && !player.owner);
@@ -2903,6 +3107,7 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
       forceSpread,
       targetRosterSize,
       rosterSettings: normalizedSettings,
+      lobbySettings: lobbySettings || {},
       sourceFile: rankingsData.sourceFile
     },
     aggregate: {
@@ -2945,7 +3150,8 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
       flags: realismFlags
     },
     drafts: draftRows,
-    thresholdDebugExamples
+    thresholdDebugExamples,
+    teamTrace: tracedTeamSummary
   };
 }
 
@@ -2965,12 +3171,22 @@ app.post('/api/admin/simulate-drafts', requireAdminDebugKey, async (req, res) =>
           enabled: thresholdDebugRaw.enabled !== false,
           minRound: clampInt(thresholdDebugRaw.minRound, 6, 1, rounds),
           maxRound: clampInt(thresholdDebugRaw.maxRound, rounds, 1, rounds),
-          maxSamplesPerTeamRound: clampInt(thresholdDebugRaw.maxSamplesPerTeamRound, 2, 1, 10),
+          maxSamplesPerTeamRound: clampInt(thresholdDebugRaw.maxSamplesPerTeamRound, 2, 1, 500),
+          draftNumber: clampInt(thresholdDebugRaw.draftNumber, 1, 1, draftCount),
           teams: Array.isArray(thresholdDebugRaw.teams) ? thresholdDebugRaw.teams.map((n) => String(n || '').trim()).filter(Boolean) : [],
           players: Array.isArray(thresholdDebugRaw.players) ? thresholdDebugRaw.players.map((n) => String(n || '').trim()).filter(Boolean) : []
         }
       : null;
+    const teamTraceRaw = req.body?.teamTrace;
+    const teamTrace = (teamTraceRaw && typeof teamTraceRaw === 'object')
+      ? {
+          teamNameFilter: String(teamTraceRaw.teamNameFilter || '').trim(),
+          draftNumber: clampInt(teamTraceRaw.draftNumber, 1, 1, draftCount)
+        }
+      : null;
     const rosterSettings = normalizeRosterSettingsForSummary(req.body?.rosterSettings || SUMMARY_DEFAULT_ROSTER_SETTINGS);
+    const lobbySettingsRaw = req.body?.lobbySettings;
+    const lobbySettings = (lobbySettingsRaw && typeof lobbySettingsRaw === 'object') ? lobbySettingsRaw : null;
 
     const startedAt = Date.now();
     const simulation = await runAdminDraftSimulations({
@@ -2979,9 +3195,11 @@ app.post('/api/admin/simulate-drafts', requireAdminDebugKey, async (req, res) =>
       rounds,
       playersPerRound,
       rosterSettings,
+      lobbySettings,
       commitmentMode,
       forceSpread,
-      thresholdDebug
+      thresholdDebug,
+      teamTrace
     });
 
     return res.json({
@@ -3332,9 +3550,17 @@ const io = new Server(server, {
 
 // In-memory map of drafts for real-time sync. This mirrors client localStorage but is ephemeral.
 const drafts = {};
+const WAIVER_PICK_TIMER_MS = 3 * 60 * 1000;
+const WAIVER_TIMER_TICK_MS = 1000;
 
 function normalizeWaiverMode(mode) {
   return String(mode || '').trim().toLowerCase() === 'skill' ? 'skill' : 'random';
+}
+
+function normalizeWaiverLobbyMode(mode) {
+  const normalized = String(mode || '').trim().toLowerCase();
+  if (normalized === 'random' || normalized === 'skill') return normalized;
+  return 'off';
 }
 
 function shuffleList(values = []) {
@@ -3386,6 +3612,32 @@ function getTeamTotalAvScore(team, draft) {
   }, 0);
 }
 
+function resolveWaiverPositionRank(player) {
+  const fallback = parsePositionRankValue(player && player.prerank, 999);
+  const position = String(player && player.position || '').trim().toUpperCase();
+  const positionRankFieldByPos = {
+    QB: 'qbRank',
+    RB: 'RBrank',
+    WR: 'WRrank',
+    TE: 'TErank',
+    K: 'Krank',
+    DEF: 'DEFrank'
+  };
+
+  const specificField = positionRankFieldByPos[position];
+  const specificRank = parsePositionRankValue(specificField ? player && player[specificField] : undefined, NaN);
+  if (Number.isFinite(specificRank) && specificRank > 0) {
+    return specificRank;
+  }
+
+  const genericPositionRank = parsePositionRankValue(player && player.positionRank, NaN);
+  if (Number.isFinite(genericPositionRank) && genericPositionRank > 0) {
+    return genericPositionRank;
+  }
+
+  return fallback;
+}
+
 function toWaiverPoolPlayer(player) {
   return {
     id: Number(player && player.id),
@@ -3393,6 +3645,7 @@ function toWaiverPoolPlayer(player) {
     position: String(player && player.position || 'UNK').trim().toUpperCase(),
     team: String(player && player.team || '').trim().toUpperCase(),
     avgValue: Number(player && (player.avgValue || player.value) || 0),
+    positionRank: resolveWaiverPositionRank(player),
     prerank: Number(player && (player.prerank || player.positionRank) || 999)
   };
 }
@@ -3430,11 +3683,376 @@ function buildWaiverPoolFromDraft(draft) {
     .sort((a, b) => Number(a.prerank || 999) - Number(b.prerank || 999));
 }
 
+function getCurrentWaiverTurnTeamName(waiverState) {
+  if (!waiverState || !Array.isArray(waiverState.order) || waiverState.order.length === 0) return '';
+  const idx = Math.max(0, Math.min(Number(waiverState.turnIndex || 0), waiverState.order.length - 1));
+  return String(waiverState.order[idx] || '').trim();
+}
+
+function resetWaiverTurnTimer(waiverState) {
+  if (!waiverState) return;
+  const durationMs = Number.isFinite(Number(waiverState.turnDurationMs))
+    ? Math.max(1000, Number(waiverState.turnDurationMs))
+    : WAIVER_PICK_TIMER_MS;
+  waiverState.turnDurationMs = durationMs;
+  waiverState.turnEndsAt = Date.now() + durationMs;
+}
+
 function advanceWaiverTurn(waiverState) {
   if (!waiverState || !Array.isArray(waiverState.order) || waiverState.order.length === 0) return;
   waiverState.turnIndex = (Number(waiverState.turnIndex || 0) + 1) % waiverState.order.length;
+  resetWaiverTurnTimer(waiverState);
   waiverState.updatedAt = Date.now();
 }
+
+function finalizeWaiverStateProgress(draft, waiverState) {
+  if (!draft || !waiverState) return;
+  waiverState.pool = buildWaiverPoolFromDraft(draft);
+  if (waiverState.pool.length === 0 || Number(waiverState.passesInRow || 0) >= waiverState.order.length) {
+    waiverState.active = false;
+    waiverState.completed = true;
+  }
+}
+
+function getWaiverPlayerValueMaps(draft) {
+  const byId = new Map();
+  const byName = new Map();
+  const allPlayers = draft && draft.draftState && Array.isArray(draft.draftState.allPlayers)
+    ? draft.draftState.allPlayers
+    : [];
+
+  allPlayers.forEach((player) => {
+    const av = Number(player && (player.avgValue || player.value) || 0);
+    const pid = Number(player && player.id);
+    if (Number.isFinite(pid) && pid > 0) {
+      byId.set(pid, av);
+    }
+    const nameKey = normalizePlayerNameKey(player && player.name);
+    if (nameKey && !byName.has(nameKey)) {
+      byName.set(nameKey, av);
+    }
+  });
+
+  return { byId, byName };
+}
+
+function getWaiverPlayerAv(player, valueMaps) {
+  const direct = Number(player && (player.avgValue || player.value));
+  if (Number.isFinite(direct)) return direct;
+
+  const pid = Number(player && player.id);
+  if (Number.isFinite(pid) && pid > 0 && valueMaps && valueMaps.byId && valueMaps.byId.has(pid)) {
+    return Number(valueMaps.byId.get(pid) || 0);
+  }
+
+  const nameKey = normalizePlayerNameKey(player && player.name);
+  if (nameKey && valueMaps && valueMaps.byName && valueMaps.byName.has(nameKey)) {
+    return Number(valueMaps.byName.get(nameKey) || 0);
+  }
+
+  return 0;
+}
+
+function scoreWaiverRoster(roster, rosterSettings, valueMaps) {
+  const slotBlueprint = buildSummarySlotBlueprint(rosterSettings || SUMMARY_DEFAULT_ROSTER_SETTINGS);
+  const candidates = Array.isArray(roster) ? roster.slice() : [];
+  const used = new Set();
+  let starterScore = 0;
+  let missingStarterPenalty = 0;
+
+  slotBlueprint.forEach((slot) => {
+    let bestIndex = -1;
+    let bestValue = -Infinity;
+
+    for (let i = 0; i < candidates.length; i += 1) {
+      if (used.has(i)) continue;
+      const player = candidates[i];
+      const pos = normalizePosition(player && player.position);
+      if (!slot.eligible.includes(pos)) continue;
+      const value = getWaiverPlayerAv(player, valueMaps);
+      if (value > bestValue) {
+        bestValue = value;
+        bestIndex = i;
+      }
+    }
+
+    if (bestIndex >= 0) {
+      used.add(bestIndex);
+      starterScore += Math.max(0, bestValue);
+    } else {
+      // Missing a starter slot is a major structural loss.
+      missingStarterPenalty += 12;
+    }
+  });
+
+  const benchScore = candidates.reduce((sum, player, index) => {
+    if (used.has(index)) return sum;
+    return sum + Math.max(0, getWaiverPlayerAv(player, valueMaps));
+  }, 0);
+
+  return starterScore + (benchScore * 0.22) - missingStarterPenalty;
+}
+
+function buildWaiverRosterPlayer(addPlayer) {
+  return {
+    id: Number(addPlayer && addPlayer.id),
+    name: String(addPlayer && addPlayer.name || '').trim(),
+    position: String(addPlayer && addPlayer.position || 'UNK').trim().toUpperCase(),
+    team: String(addPlayer && addPlayer.team || '').trim().toUpperCase(),
+    avgValue: Number(addPlayer && (addPlayer.avgValue || addPlayer.value) || 0),
+    value: Number(addPlayer && (addPlayer.value || addPlayer.avgValue) || 0),
+    bid: 0,
+    prerank: Number(addPlayer && (addPlayer.prerank || addPlayer.positionRank) || 999)
+  };
+}
+
+function findBestCpuWaiverMove(draft, team) {
+  if (!draft || !team || !Array.isArray(team.roster) || team.roster.length === 0) return null;
+  const waiverPool = Array.isArray(draft && draft.waiverState && draft.waiverState.pool)
+    ? draft.waiverState.pool
+    : buildWaiverPoolFromDraft(draft);
+  if (!waiverPool.length) return null;
+
+  const rosterSettings = normalizeRosterSettingsForSummary(
+    (draft && draft.rosterSettings) || (draft && draft.draftState && draft.draftState.rosterSettings)
+  );
+  const valueMaps = getWaiverPlayerValueMaps(draft);
+  const baseRoster = team.roster.slice();
+  const baseScore = scoreWaiverRoster(baseRoster, rosterSettings, valueMaps);
+
+  let bestMove = null;
+
+  waiverPool.forEach((addPlayer) => {
+    const addPlayerId = Number(addPlayer && addPlayer.id);
+    if (!Number.isFinite(addPlayerId) || addPlayerId <= 0) return;
+
+    const addPlayerAv = getWaiverPlayerAv(addPlayer, valueMaps);
+    if (addPlayerAv <= 0) return;
+
+    baseRoster.forEach((dropPlayer, dropIndex) => {
+      const dropPlayerId = Number(dropPlayer && dropPlayer.id);
+      if (!Number.isFinite(dropPlayerId) || dropPlayerId <= 0) return;
+      if (dropPlayerId === addPlayerId) return;
+
+      const candidateRoster = baseRoster.filter((_, idx) => idx !== dropIndex);
+      candidateRoster.push(buildWaiverRosterPlayer(addPlayer));
+
+      const candidateScore = scoreWaiverRoster(candidateRoster, rosterSettings, valueMaps);
+      const scoreGain = candidateScore - baseScore;
+      if (scoreGain <= 0) return;
+
+      const dropPlayerAv = getWaiverPlayerAv(dropPlayer, valueMaps);
+      const avDelta = addPlayerAv - dropPlayerAv;
+
+      const candidate = {
+        addPlayerId,
+        dropPlayerId,
+        scoreGain,
+        avDelta,
+        addPrerank: Number(addPlayer && addPlayer.prerank || 999),
+        dropPrerank: Number(dropPlayer && dropPlayer.prerank || 999)
+      };
+
+      if (!bestMove) {
+        bestMove = candidate;
+        return;
+      }
+
+      if (candidate.scoreGain > bestMove.scoreGain + 0.001) {
+        bestMove = candidate;
+        return;
+      }
+
+      if (Math.abs(candidate.scoreGain - bestMove.scoreGain) <= 0.001) {
+        if (candidate.avDelta > bestMove.avDelta + 0.001) {
+          bestMove = candidate;
+          return;
+        }
+        if (Math.abs(candidate.avDelta - bestMove.avDelta) <= 0.001 && candidate.addPrerank < bestMove.addPrerank) {
+          bestMove = candidate;
+        }
+      }
+    });
+  });
+
+  // Require a meaningful gain to avoid noisy churn.
+  if (!bestMove || bestMove.scoreGain < 0.75) return null;
+  return bestMove;
+}
+
+function applyWaiverAddDropForTeam(draft, team, teamName, addPlayerId, dropPlayerId) {
+  const allPlayers = draft && draft.draftState && Array.isArray(draft.draftState.allPlayers)
+    ? draft.draftState.allPlayers
+    : [];
+  const addPlayer = allPlayers.find(player => Number(player && player.id) === Number(addPlayerId));
+  const dropIndex = Array.isArray(team && team.roster)
+    ? team.roster.findIndex(player => Number(player && player.id) === Number(dropPlayerId))
+    : -1;
+
+  if (!addPlayer || dropIndex < 0) {
+    return { ok: false, reason: 'player_not_found' };
+  }
+
+  const addPlayerCurrentOwner = String(addPlayer.owner || '').trim();
+  if (addPlayerCurrentOwner && addPlayerCurrentOwner !== String(teamName || '').trim()) {
+    return { ok: false, reason: 'add_player_not_available' };
+  }
+
+  const dropPlayer = team.roster[dropIndex];
+  team.roster.splice(dropIndex, 1);
+  team.roster.push(buildWaiverRosterPlayer(addPlayer));
+
+  addPlayer.owner = String(teamName || '').trim();
+  addPlayer.shown = true;
+  addPlayer.bid = 0;
+
+  const droppedStatePlayer = allPlayers.find(player => Number(player && player.id) === Number(dropPlayer && dropPlayer.id));
+  if (droppedStatePlayer) {
+    droppedStatePlayer.owner = null;
+    droppedStatePlayer.shown = false;
+    droppedStatePlayer.bid = 0;
+  }
+
+  return { ok: true, addPlayer, dropPlayer };
+}
+
+function processCpuWaiverTurns(draftCode, draft) {
+  if (!draft || !draft.waiverState || !draft.waiverState.active || draft.waiverState.completed) return false;
+  const waiverState = draft.waiverState;
+  const teams = draft.draftState && Array.isArray(draft.draftState.teams)
+    ? draft.draftState.teams
+    : (Array.isArray(draft.teams) ? draft.teams : []);
+  if (!Array.isArray(teams) || teams.length === 0) return false;
+
+  let changed = false;
+  // Strict order guardrail: process at most one full pass over the configured order
+  // per invocation, advancing one turn at a time.
+  const maxLoops = Math.max(1, (Array.isArray(waiverState.order) ? waiverState.order.length : 0));
+  let loops = 0;
+
+  while (loops < maxLoops && waiverState.active && !waiverState.completed) {
+    loops += 1;
+    const teamName = getCurrentWaiverTurnTeamName(waiverState);
+    if (!teamName || !isCpuSummaryTeam(teamName, draft)) break;
+
+    const team = teams.find(t => String(t && t.name || '').trim() === teamName);
+    if (!team || !Array.isArray(team.roster)) {
+      waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
+      waiverState.lastAction = {
+        type: 'cpuPass',
+        by: teamName,
+        reason: 'team_not_found',
+        at: Date.now()
+      };
+      advanceWaiverTurn(waiverState);
+      finalizeWaiverStateProgress(draft, waiverState);
+      changed = true;
+      continue;
+    }
+
+    const move = findBestCpuWaiverMove(draft, team);
+    if (!move) {
+      waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
+      waiverState.lastAction = {
+        type: 'cpuPass',
+        by: teamName,
+        reason: 'no_upgrade_found',
+        at: Date.now()
+      };
+      advanceWaiverTurn(waiverState);
+      finalizeWaiverStateProgress(draft, waiverState);
+      changed = true;
+      continue;
+    }
+
+    const applied = applyWaiverAddDropForTeam(draft, team, teamName, move.addPlayerId, move.dropPlayerId);
+    if (!applied.ok) {
+      waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
+      waiverState.lastAction = {
+        type: 'cpuPass',
+        by: teamName,
+        reason: applied.reason || 'apply_failed',
+        at: Date.now()
+      };
+      advanceWaiverTurn(waiverState);
+      finalizeWaiverStateProgress(draft, waiverState);
+      changed = true;
+      continue;
+    }
+
+    waiverState.passesInRow = 0;
+    waiverState.lastAction = {
+      type: 'cpuAddDrop',
+      by: teamName,
+      addPlayerId: move.addPlayerId,
+      dropPlayerId: move.dropPlayerId,
+      scoreGain: Number(move.scoreGain.toFixed(3)),
+      at: Date.now()
+    };
+    advanceWaiverTurn(waiverState);
+    finalizeWaiverStateProgress(draft, waiverState);
+    changed = true;
+  }
+
+  if (draft.draftState && Array.isArray(draft.draftState.teams)) {
+    draft.draftState.teams = teams;
+  }
+  if (Array.isArray(draft.teams)) {
+    draft.teams = teams;
+  }
+
+  return changed;
+}
+
+function applyWaiverAutoPassIfExpired(draftCode, draft) {
+  if (!draft || !draft.waiverState) return false;
+  const waiverState = draft.waiverState;
+  if (!waiverState.active || waiverState.completed) return false;
+
+  const turnEndsAt = Number(waiverState.turnEndsAt || 0);
+  if (!Number.isFinite(turnEndsAt) || turnEndsAt <= 0) {
+    resetWaiverTurnTimer(waiverState);
+    waiverState.updatedAt = Date.now();
+    return false;
+  }
+
+  if (Date.now() < turnEndsAt) return false;
+
+  const expectedTeamName = getCurrentWaiverTurnTeamName(waiverState);
+  waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
+  waiverState.lastAction = {
+    type: 'autoPass',
+    by: expectedTeamName || null,
+    reason: 'timer_expired',
+    at: Date.now()
+  };
+  advanceWaiverTurn(waiverState);
+  finalizeWaiverStateProgress(draft, waiverState);
+  processCpuWaiverTurns(draftCode, draft);
+
+  const teams = draft.draftState && Array.isArray(draft.draftState.teams)
+    ? draft.draftState.teams
+    : (Array.isArray(draft.teams) ? draft.teams : []);
+
+  io.to(draftCode).emit('waiverStateUpdated', {
+    draftCode,
+    waiverState,
+    teams,
+    allPlayersSnapshot: (draft.draftState && Array.isArray(draft.draftState.allPlayers)) ? draft.draftState.allPlayers : []
+  });
+
+  return true;
+}
+
+setInterval(() => {
+  Object.entries(drafts).forEach(([draftCode, draft]) => {
+    try {
+      applyWaiverAutoPassIfExpired(draftCode, draft);
+    } catch (error) {
+      console.error(`[waiverTimer] Failed auto-pass tick for ${draftCode}:`, error);
+    }
+  });
+}, WAIVER_TIMER_TICK_MS);
 
 const SUMMARY_DEFAULT_ROSTER_SETTINGS = { QB: 1, WR: 2, RB: 2, TE: 1, FLEX: 1, K: 1, DEF: 1, BN: 5 };
 
@@ -3789,6 +4407,7 @@ function getBidRange(position, avgValue) {
 // Helper function: Process all auctions for a round
 async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLimits, flexPositions, rosterSize, roundNumber) {
   try {
+    const safeRoundPlayers = Array.isArray(roundPlayers) ? roundPlayers : [];
     const results = [];
     const tiedBids = [];
     const allIndividualBids = []; // Collect all bids for bulk database operations
@@ -3806,7 +4425,7 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
       ])
     );
 
-    console.log(`[processAuctions] Processing ${roundPlayers.length} players`);
+    console.log(`[processAuctions] Processing ${safeRoundPlayers.length} players`);
     console.log(`[processAuctions] User bids:`, JSON.stringify(userBids));
     console.log(`[processAuctions] CPU teams with bids:`, Object.keys(cpuBids));
     
@@ -3814,9 +4433,9 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
     const playersWithUserBids = Object.keys(userBids).filter(playerId => 
       Object.keys(userBids[playerId]).length > 0
     );
-    console.log(`[processAuctions] Players with user bids: ${playersWithUserBids.length} out of ${roundPlayers.length}`);
+    console.log(`[processAuctions] Players with user bids: ${playersWithUserBids.length} out of ${safeRoundPlayers.length}`);
     playersWithUserBids.forEach(playerId => {
-      const player = roundPlayers.find(p => p.id == playerId);
+      const player = safeRoundPlayers.find(p => p.id == playerId);
       const bidTeams = Object.keys(userBids[playerId]);
       console.log(`[processAuctions] ${player ? player.name : 'Unknown player'} (${playerId}): bids from ${bidTeams.join(', ')}`);
     });
@@ -3837,7 +4456,57 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
     return safeAmount;
   }
 
-  roundPlayers.forEach(player => {
+  const cpuCfgSilent = (loadCpuLogicConfig()?.silent) || {};
+  function getAvRangeKey(avValue) {
+    const av = Number(avValue || 0);
+    if (av <= 5) return '1-5';
+    if (av <= 10) return '5-10';
+    if (av <= 20) return '10-20';
+    if (av <= 30) return '20-30';
+    if (av <= 40) return '30-40';
+    if (av <= 50) return '40-50';
+    if (av <= 60) return '50-60';
+    return '60+';
+  }
+
+  function capCpuBidByAvGuardrail(player, amount, budgetRemaining) {
+    const av = Math.max(0, Number(player && player.avgValue || 0));
+    const safeAmount = Math.max(0, Number(amount || 0));
+    const safeBudget = Math.max(0, Number(budgetRemaining || 0));
+    if (av <= 0) {
+      return Math.min(safeAmount, safeBudget);
+    }
+
+    const multiplierByBucket = {
+      '1-5': Math.max(1.0, Number(cpuCfgSilent?.avCapMult1to5 ?? 1.24)),
+      '5-10': Math.max(1.0, Number(cpuCfgSilent?.avCapMult5to10 ?? 1.2)),
+      '10-20': Math.max(1.0, Number(cpuCfgSilent?.avCapMult10to20 ?? 1.16)),
+      '20-30': Math.max(1.0, Number(cpuCfgSilent?.avCapMult20to30 ?? 1.12)),
+      '30-40': Math.max(1.0, Number(cpuCfgSilent?.avCapMult30to40 ?? 1.1)),
+      '40-50': Math.max(1.0, Number(cpuCfgSilent?.avCapMult40to50 ?? 1.08)),
+      '50-60': Math.max(1.0, Number(cpuCfgSilent?.avCapMult50to60 ?? 1.07)),
+      '60+': Math.max(1.0, Number(cpuCfgSilent?.avCapMult60Plus ?? 1.06))
+    };
+
+    const bucket = getAvRangeKey(av);
+    const bucketMultiplier = multiplierByBucket[bucket] || 1.1;
+    const baseBuffer = Math.max(0, Number(cpuCfgSilent?.avCapBaseBuffer ?? 1));
+    const lateRoundExtraBuffer = Math.max(0, Number(cpuCfgSilent?.avCapLateRoundExtraBuffer ?? 1));
+    const targetOverbidMax = Math.max(0, Math.floor(Number(cpuCfgSilent?.targetPlayerOverbidMax ?? 3)));
+
+    let avSoftCap = Math.floor((av * bucketMultiplier) + baseBuffer);
+    if (Number(roundNumber || 0) >= 8) {
+      avSoftCap += lateRoundExtraBuffer;
+    }
+
+    // Server-side safety net: allow at most +$3 over AV soft cap for any CPU bid.
+    // Main bidding logic still enforces tighter target-only +$2-$3 behavior.
+    const hardGuardrail = Math.max(1, Math.min(safeBudget, avSoftCap + targetOverbidMax));
+    return Math.min(safeAmount, hardGuardrail);
+  }
+
+  safeRoundPlayers.forEach(player => {
+    try {
     const bids = [];
     
     // Collect user bids from draftState.bids
@@ -3871,7 +4540,10 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
       const cpuTeam = teams.find(t => t.name === cpuName);
       const cpuBidObj = cpuBids[cpuName].find(b => b.player.id === player.id);
       const state = teamRoundState.get(String(cpuName || ''));
-      const cappedCpuBid = cpuBidObj ? capCpuBidForSpecialists(player, cpuBidObj.cpuBid) : 0;
+      const specialistCappedBid = cpuBidObj ? capCpuBidForSpecialists(player, cpuBidObj.cpuBid) : 0;
+      const cappedCpuBid = cpuBidObj
+        ? capCpuBidByAvGuardrail(player, specialistCappedBid, state?.budgetRemaining || 0)
+        : 0;
       const canBid = state
         && state.rosterCount < maxRosterSize
         && cpuBidObj
@@ -4012,6 +4684,23 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
         allBids: allTeamsBids
       });
     }
+    } catch (playerError) {
+      console.error('[processAuctions] Player processing error:', {
+        roundNumber,
+        playerId: player && player.id,
+        playerName: player && player.name,
+        error: playerError && playerError.message
+      });
+      results.push({
+        type: 'undrafted',
+        playerId: player && player.id,
+        playerName: String(player && player.name || `Player ${player && player.id ? player.id : '?'}`),
+        allBids: (Array.isArray(teams) ? teams : []).map((team) => ({
+          teamName: String(team && team.name || ''),
+          amount: 0
+        }))
+      });
+    }
   });
 
   // Bulk database operations - much more efficient!
@@ -4027,7 +4716,7 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
     // Log auction results (these are fewer operations)
     const auctionResults = results.filter(r => r.type === 'won');
     for (const result of auctionResults) {
-      const player = roundPlayers.find(p => p.id === result.playerId);
+      const player = safeRoundPlayers.find(p => p.id === result.playerId);
       if (player) {
         await logAuctionResult(
           currentDraftId || 'default_draft',
@@ -4081,7 +4770,7 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
       .filter(Boolean)
   );
   const teamsInDraft = Array.isArray(teams) ? teams.length : 0;
-  const playersInRound = Array.isArray(roundPlayers) ? roundPlayers.length : 0;
+  const playersInRound = safeRoundPlayers.length;
   const bidEntries = allIndividualBids.length;
   const participationStats = {
     roundNumber: Number(roundNumber || 0),
@@ -4102,16 +4791,27 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
   } catch (error) {
     console.error('[processAuctions] CRITICAL ERROR processing auctions:', error);
     console.error(error.stack);
+
+    const fallbackRoundPlayers = Array.isArray(roundPlayers) ? roundPlayers : [];
+    const fallbackResults = fallbackRoundPlayers.map((player) => ({
+      type: 'undrafted',
+      playerId: player && player.id,
+      playerName: String(player && player.name || `Player ${player && player.id ? player.id : '?'}`),
+      allBids: (Array.isArray(teams) ? teams : []).map((team) => ({
+        teamName: String(team && team.name || ''),
+        amount: 0
+      }))
+    }));
     
     // Return empty results on error to prevent server crash
     return {
-      results: [],
+      results: fallbackResults,
       tiedBids: [],
       participationStats: {
         roundNumber: Number(roundNumber || 0),
         teamsInDraft: Array.isArray(teams) ? teams.length : 0,
         teamsWithBid: 0,
-        playersInRound: Array.isArray(roundPlayers) ? roundPlayers.length : 0,
+        playersInRound: fallbackRoundPlayers.length,
         bidEntries: 0,
         totalBidAmount: 0,
         totalBidAmountPerTeam: 0,
@@ -4233,9 +4933,9 @@ io.on('connection', (socket) => {
 
   // Generic state update - still supported but server won't accept member lists blindly
   socket.on('updateDraft', (code, state) => {
-    // merge only non-members fields (type, capacity, public, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder)
+    // merge only non-members fields (type, capacity, public, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder, waiverMode)
     drafts[code] = drafts[code] || { members: [], type: null, capacity: null, public: false };
-    const allowed = (({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder }) => ({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder }))(state || {});
+    const allowed = (({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder, waiverMode }) => ({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder, waiverMode }))(state || {});
     // apply allowed fields
     if(typeof allowed.type !== 'undefined') drafts[code].type = allowed.type;
     if(typeof allowed.capacity !== 'undefined') drafts[code].capacity = allowed.capacity;
@@ -4248,6 +4948,7 @@ io.on('connection', (socket) => {
     if(typeof allowed.roundTimerMinutes !== 'undefined') drafts[code].roundTimerMinutes = allowed.roundTimerMinutes;
     if(typeof allowed.ajDraftMode !== 'undefined') drafts[code].ajDraftMode = !!allowed.ajDraftMode;
     if(typeof allowed.ajRoundOrder !== 'undefined') drafts[code].ajRoundOrder = Array.isArray(allowed.ajRoundOrder) ? allowed.ajRoundOrder.slice(0, 10) : undefined;
+    if(typeof allowed.waiverMode !== 'undefined') drafts[code].waiverMode = normalizeWaiverLobbyMode(allowed.waiverMode);
     console.log(`[updateDraft] ${code} capacity=${drafts[code].capacity} members=${drafts[code].members.length}`);
     io.to(code).emit('draftUpdate', drafts[code]);
     // Also push roster/bench changes to any active draft room (draft_<code>)
@@ -4372,6 +5073,7 @@ io.on('connection', (socket) => {
         completedRounds: [],
         bids: {}, // playerId: { teamName: bidAmount }
         autoDraftStatus: {}, // teamName: boolean
+        autoDraftStarTargets: {}, // teamName: [playerName]
         chatMessages: [],
         participationTracker: {
           history: [],
@@ -4387,6 +5089,10 @@ io.on('connection', (socket) => {
 
     if (!drafts[code].draftState.autoDraftStatus) {
       drafts[code].draftState.autoDraftStatus = {};
+    }
+
+    if (!drafts[code].draftState.autoDraftStarTargets || typeof drafts[code].draftState.autoDraftStarTargets !== 'object') {
+      drafts[code].draftState.autoDraftStarTargets = {};
     }
 
     if (!Array.isArray(drafts[code].draftState.chatMessages)) {
@@ -4415,7 +5121,9 @@ io.on('connection', (socket) => {
   });
 
   // Update and broadcast auto-draft toggle status for a team/user.
-  socket.on('setAutoDraftStatus', (code, username, enabled, cb) => {
+  socket.on('setAutoDraftStatus', (code, username, enabled, starredPayloadOrCb, cbMaybe) => {
+    const starredPayload = typeof starredPayloadOrCb === 'function' ? undefined : starredPayloadOrCb;
+    const cb = typeof starredPayloadOrCb === 'function' ? starredPayloadOrCb : cbMaybe;
     if (!drafts[code] || !drafts[code].draftState) {
       if (cb) cb({ ok: false, reason: 'draft_not_found' });
       return;
@@ -4425,6 +5133,10 @@ io.on('connection', (socket) => {
       drafts[code].draftState.autoDraftStatus = {};
     }
 
+    if (!drafts[code].draftState.autoDraftStarTargets || typeof drafts[code].draftState.autoDraftStarTargets !== 'object') {
+      drafts[code].draftState.autoDraftStarTargets = {};
+    }
+
     const requestUser = socket.data.username;
     if (!requestUser || requestUser !== username) {
       if (cb) cb({ ok: false, reason: 'unauthorized' });
@@ -4432,6 +5144,9 @@ io.on('connection', (socket) => {
     }
 
     drafts[code].draftState.autoDraftStatus[username] = !!enabled;
+    if (typeof starredPayload !== 'undefined') {
+      drafts[code].draftState.autoDraftStarTargets[username] = sanitizeStarredNamesInput(starredPayload);
+    }
 
     io.to(`draft_${code}`).emit('autoDraftStatusChanged', {
       username,
@@ -4451,6 +5166,26 @@ io.on('connection', (socket) => {
       io.to(`draft_${code}`).emit('allBidsSubmitted');
     }
 
+    if (cb) cb({ ok: true });
+  });
+
+  socket.on('syncAutoDraftStarTargets', (code, username, starredPayload, cb) => {
+    if (!drafts[code] || !drafts[code].draftState) {
+      if (cb) cb({ ok: false, reason: 'draft_not_found' });
+      return;
+    }
+
+    const requestUser = socket.data.username;
+    if (!requestUser || requestUser !== username) {
+      if (cb) cb({ ok: false, reason: 'unauthorized' });
+      return;
+    }
+
+    if (!drafts[code].draftState.autoDraftStarTargets || typeof drafts[code].draftState.autoDraftStarTargets !== 'object') {
+      drafts[code].draftState.autoDraftStarTargets = {};
+    }
+
+    drafts[code].draftState.autoDraftStarTargets[username] = sanitizeStarredNamesInput(starredPayload);
     if (cb) cb({ ok: true });
   });
 
@@ -4667,6 +5402,13 @@ io.on('connection', (socket) => {
       return;
     }
 
+    const hostUsername = drafts[code].members && drafts[code].members[0];
+    if (username !== hostUsername) {
+      console.log(`[processRound] Rejected non-host processor ${username}; host is ${hostUsername}`);
+      if (cb) cb({ ok: false, reason: 'only_host_can_process' });
+      return;
+    }
+
     // Check if there's an active auction
     const hasActiveAuction = drafts[code].draftState.liveAuctions && 
       Object.values(drafts[code].draftState.liveAuctions).some(auction => auction.active);
@@ -4701,13 +5443,67 @@ io.on('connection', (socket) => {
     
     drafts[code].draftState.isProcessingRound = true;
 
-    const { roundPlayers, teams, rosterSize, rosterLimits, flexPositions, allPlayers } = roundData;
     const draftState = drafts[code].draftState;
+    const payload = roundData && typeof roundData === 'object' ? roundData : {};
+    const clientRoundPlayers = Array.isArray(payload.roundPlayers) ? payload.roundPlayers : [];
+    const stateRoundPlayers = Array.isArray(draftState.currentPlayers) ? draftState.currentPlayers : [];
+    const roundPlayers = clientRoundPlayers.length > 0 ? clientRoundPlayers : stateRoundPlayers;
+
+    const clientTeams = Array.isArray(payload.teams) ? payload.teams : [];
+    const stateTeams = Array.isArray(draftState.teams) ? draftState.teams : [];
+    const teams = clientTeams.length > 0 ? clientTeams : stateTeams;
+
+    const clientAllPlayers = Array.isArray(payload.allPlayers) ? payload.allPlayers : [];
+    const stateAllPlayers = Array.isArray(draftState.allPlayers) ? draftState.allPlayers : [];
+    const allPlayers = clientAllPlayers.length > 0 ? clientAllPlayers : stateAllPlayers;
+
+    const rosterSize = Number.isFinite(Number(payload.rosterSize)) ? Number(payload.rosterSize) : 0;
+    const rosterLimits = payload.rosterLimits && typeof payload.rosterLimits === 'object'
+      ? payload.rosterLimits
+      : (draftState.rosterLimits && typeof draftState.rosterLimits === 'object' ? draftState.rosterLimits : {});
+    const flexPositions = Array.isArray(payload.flexPositions)
+      ? payload.flexPositions
+      : (Array.isArray(draftState.flexPositions) ? draftState.flexPositions : ['RB', 'WR', 'TE']);
+
+    if (!Array.isArray(roundPlayers) || roundPlayers.length === 0) {
+      console.warn(`[processRound] No round players available for ${code}; client=${clientRoundPlayers.length}, state=${stateRoundPlayers.length}`);
+      drafts[code].draftState.isProcessingRound = false;
+      io.to(`draft_${code}`).emit('roundProcessingError', {
+        message: 'Failed to process round results',
+        error: 'No round players available on server'
+      });
+      if (cb) cb({ ok: false, reason: 'no_round_players' });
+      return;
+    }
+
+    if (!Array.isArray(teams) || teams.length === 0) {
+      console.warn(`[processRound] No teams available for ${code}; client=${clientTeams.length}, state=${stateTeams.length}`);
+      drafts[code].draftState.isProcessingRound = false;
+      io.to(`draft_${code}`).emit('roundProcessingError', {
+        message: 'Failed to process round results',
+        error: 'No teams available on server'
+      });
+      if (cb) cb({ ok: false, reason: 'no_teams' });
+      return;
+    }
+
+    console.log('[processRound][debug] authoritative inputs:', {
+      roundPlayersFromClient: clientRoundPlayers.length,
+      roundPlayersFromState: stateRoundPlayers.length,
+      selectedRoundPlayers: roundPlayers.length,
+      teamsFromClient: clientTeams.length,
+      teamsFromState: stateTeams.length,
+      selectedTeams: teams.length,
+      allPlayersFromClient: clientAllPlayers.length,
+      allPlayersFromState: stateAllPlayers.length,
+      selectedAllPlayers: allPlayers.length
+    });
     
     // Store teams, allPlayers and rosterLimits for live auction use
     draftState.teams = teams;
     draftState.allPlayers = allPlayers;
     draftState.rosterLimits = rosterLimits;
+    draftState.currentPlayers = roundPlayers;
     
     // Add risk tolerance to CPU teams for tie breaker logic
     draftState.teams.forEach(team => {
@@ -4726,6 +5522,13 @@ io.on('connection', (socket) => {
 
     // Remove stale manual bids for teams currently controlled by auto-draft.
     const autoDraftMembers = allMembers.filter(member => autoDraftStatus[member]);
+    const autoDraftStarTargets = draftState.autoDraftStarTargets || {};
+    const autoDraftStarPlayerIdsByTeam = buildAutoDraftStarPlayerIdsByTeam(
+      teams,
+      allPlayers,
+      autoDraftStarTargets,
+      autoDraftMembers
+    );
     const sanitizedUserBids = Object.entries(draftState.bids || {}).reduce((acc, [playerId, teamBids]) => {
       const filteredTeamBids = Object.entries(teamBids || {}).reduce((teamAcc, [teamName, amount]) => {
         if (!autoDraftMembers.includes(teamName)) {
@@ -4743,7 +5546,16 @@ io.on('connection', (socket) => {
     // Generate CPU bids once on server for consistency
     // Filter out all human members, so only CPU teams get bids generated
     console.log(`[processRound] Starting CPU bid generation...`);
-    const cpuBidsPromise = generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize, rosterLimits, humanMembers, draftState.currentRound);
+    const cpuBidsPromise = generateServerCPUBids(
+      teams,
+      roundPlayers,
+      allPlayers,
+      rosterSize,
+      rosterLimits,
+      humanMembers,
+      draftState.currentRound,
+      { autoDraftStarPlayerIdsByTeam }
+    );
     
     // Add timeout to prevent hanging
     const timeoutPromise = new Promise((_, reject) => {
@@ -4803,10 +5615,49 @@ io.on('connection', (socket) => {
     console.log(`[processRound] - ${humanMembers.length} human members: ${humanMembers.join(', ')}`);
     console.log(`[processRound] - CPU bids generated for ${Object.keys(cpuBids).length} teams`);
     console.log(`[processRound] - User bids available:`, JSON.stringify(sanitizedUserBids, null, 2));
+
+    const cpuBidTeamCount = Object.keys(cpuBids || {}).length;
+    const cpuBidEntryCount = Object.values(cpuBids || {}).reduce((sum, arr) => {
+      const size = Array.isArray(arr) ? arr.length : 0;
+      return sum + size;
+    }, 0);
+    const userBidPlayerCount = Object.keys(sanitizedUserBids || {}).length;
+    const userBidEntryCount = Object.values(sanitizedUserBids || {}).reduce((sum, teamBids) => {
+      const size = teamBids && typeof teamBids === 'object' ? Object.keys(teamBids).length : 0;
+      return sum + size;
+    }, 0);
+    const roundDiagnostics = {
+      draftCode: code,
+      round: Number(draftState.currentRound || 0),
+      roundPlayers: Array.isArray(roundPlayers) ? roundPlayers.length : 0,
+      teams: Array.isArray(teams) ? teams.length : 0,
+      cpuBidTeamCount,
+      cpuBidEntryCount,
+      userBidPlayerCount,
+      userBidEntryCount
+    };
+    console.log('[processRound][debug] diagnostics:', roundDiagnostics);
+    io.to(`draft_${code}`).emit('roundDiagnostics', roundDiagnostics);
     
     try {
       // Process each player's auction
       const auctionResults = await processAuctions(roundPlayers, teams, cpuBids, sanitizedUserBids, rosterLimits, flexPositions, rosterSize, draftState.currentRound);
+      if (Array.isArray(roundPlayers) && roundPlayers.length > 0 && Array.isArray(auctionResults.results) && auctionResults.results.length === 0) {
+        console.warn('[processRound] Empty results returned for non-empty roundPlayers; applying undrafted fallback', {
+          draftCode: code,
+          round: draftState.currentRound,
+          roundPlayers: roundPlayers.length
+        });
+        auctionResults.results = roundPlayers.map((player) => ({
+          type: 'undrafted',
+          playerId: player && player.id,
+          playerName: String(player && player.name || `Player ${player && player.id ? player.id : '?'}`),
+          allBids: (Array.isArray(teams) ? teams : []).map((team) => ({
+            teamName: String(team && team.name || ''),
+            amount: 0
+          }))
+        }));
+      }
 
       const existingTracker = draftState.participationTracker && typeof draftState.participationTracker === 'object'
         ? draftState.participationTracker
@@ -4902,10 +5753,41 @@ io.on('connection', (socket) => {
 
       // Store complete results (including tiedBids) for auction processing
       draftState.lastRoundResults = auctionResults;
+
+      const emittedResults = Array.isArray(auctionResults && auctionResults.results) ? auctionResults.results : [];
+      const resultTypeSummary = emittedResults.reduce((acc, result) => {
+        const type = String(result && result.type || 'unknown').trim().toLowerCase();
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      }, {});
+      const winnerTeamSample = emittedResults
+        .filter(result => String(result && result.type || '').trim().toLowerCase() === 'won')
+        .slice(0, 12)
+        .map(result => ({
+          playerId: result && result.playerId,
+          playerName: result && result.playerName,
+          winnerTeam: result && result.winnerTeam,
+          bidAmount: result && result.bidAmount,
+          pricePaid: result && result.pricePaid
+        }));
+      console.log('[processRound][debug] roundResults payload summary:', {
+        draftCode: code,
+        round: draftState.currentRound,
+        totalResults: emittedResults.length,
+        resultTypeSummary,
+        winnerTeamSample
+      });
       
       // Broadcast results array to all members (they expect the results array)
       io.to(`draft_${code}`).emit('roundResults', auctionResults.results);
       console.log(`[processRound] Emitted roundResults to room draft_${code}:`, auctionResults.results.length, 'results');
+      io.to(`draft_${code}`).emit('roundDiagnostics', {
+        ...roundDiagnostics,
+        emittedResults: Array.isArray(auctionResults.results) ? auctionResults.results.length : 0,
+        emittedWon: Array.isArray(auctionResults.results) ? auctionResults.results.filter(r => String(r && r.type || '').toLowerCase() === 'won').length : 0,
+        emittedTied: Array.isArray(auctionResults.results) ? auctionResults.results.filter(r => String(r && r.type || '').toLowerCase() === 'tied').length : 0,
+        emittedUndrafted: Array.isArray(auctionResults.results) ? auctionResults.results.filter(r => String(r && r.type || '').toLowerCase() === 'undrafted').length : 0
+      });
       io.to(`draft_${code}`).emit('participationTrackerUpdated', draftState.participationTracker);
       
       // Reset acceptance tracking for the new round results
@@ -5122,6 +6004,7 @@ io.on('connection', (socket) => {
           // Get player data
           const player = drafts[code].draftState.allPlayers?.find(p => p.id === auction.playerId);
           const position = player?.position || 'UNK';
+          const configuredRosterSize = Math.max(1, Number(drafts[code].draftState.rosterSize || 0));
 
           // Each CPU recalculates aggression with current context
           const remainingAfterBackout = [];
@@ -5250,6 +6133,7 @@ io.on('connection', (socket) => {
               budget: cpuTeam.budget,
               riskTolerance: cpuTeam.riskTolerance || 1.0,
               isIn: true,
+              rosterSpotsLeft: Math.max(0, configuredRosterSize - (Array.isArray(cpuTeam.roster) ? cpuTeam.roster.length : 0)),
               needs: { [position]: positionNeed },
               aggression: 0 // Will be calculated by module
             };
@@ -5260,6 +6144,7 @@ io.on('connection', (socket) => {
             cpus,
             currentBid: auction.currentBid,
             playerAV: player?.avgValue || auction.playerAvgValue || 1,
+            playerPrerank: Number(player?.prerank || player?.positionRank || 999),
             position,
             round: drafts[code].draftState.currentRound || 1,
             timeLeft: auction.timer
@@ -6107,6 +6992,8 @@ io.on('connection', (socket) => {
       mode,
       order,
       turnIndex: 0,
+      turnDurationMs: WAIVER_PICK_TIMER_MS,
+      turnEndsAt: Date.now() + WAIVER_PICK_TIMER_MS,
       pool: buildWaiverPoolFromDraft(draft),
       passesInRow: 0,
       updatedAt: Date.now(),
@@ -6116,6 +7003,8 @@ io.on('connection', (socket) => {
         at: Date.now()
       }
     };
+
+    processCpuWaiverTurns(draftCode, draft);
 
     const payload = {
       draftCode,
@@ -6183,45 +7072,10 @@ io.on('connection', (socket) => {
         return;
       }
 
-      const allPlayers = draft.draftState && Array.isArray(draft.draftState.allPlayers)
-        ? draft.draftState.allPlayers
-        : [];
-      const addPlayer = allPlayers.find(player => Number(player && player.id) === addPlayerId);
-      const dropIndex = team.roster.findIndex(player => Number(player && player.id) === dropPlayerId);
-
-      if (!addPlayer || dropIndex < 0) {
-        if (cb) cb({ ok: false, reason: 'player_not_found' });
+      const applied = applyWaiverAddDropForTeam(draft, team, expectedTeamName, addPlayerId, dropPlayerId);
+      if (!applied.ok) {
+        if (cb) cb({ ok: false, reason: applied.reason || 'unable_to_apply_move' });
         return;
-      }
-
-      const addPlayerCurrentOwner = String(addPlayer.owner || '').trim();
-      if (addPlayerCurrentOwner && addPlayerCurrentOwner !== expectedTeamName) {
-        if (cb) cb({ ok: false, reason: 'add_player_not_available' });
-        return;
-      }
-
-      const dropPlayer = team.roster[dropIndex];
-      team.roster.splice(dropIndex, 1);
-      team.roster.push({
-        id: Number(addPlayer.id),
-        name: String(addPlayer.name || '').trim(),
-        position: String(addPlayer.position || 'UNK').trim().toUpperCase(),
-        team: String(addPlayer.team || '').trim().toUpperCase(),
-        avgValue: Number(addPlayer.avgValue || addPlayer.value || 0),
-        value: Number(addPlayer.value || addPlayer.avgValue || 0),
-        bid: 0,
-        prerank: Number(addPlayer.prerank || addPlayer.positionRank || 999)
-      });
-
-      addPlayer.owner = expectedTeamName;
-      addPlayer.shown = true;
-      addPlayer.bid = 0;
-
-      const droppedStatePlayer = allPlayers.find(player => Number(player && player.id) === Number(dropPlayer && dropPlayer.id));
-      if (droppedStatePlayer) {
-        droppedStatePlayer.owner = null;
-        droppedStatePlayer.shown = false;
-        droppedStatePlayer.bid = 0;
       }
 
       waiverState.passesInRow = 0;
@@ -6238,11 +7092,8 @@ io.on('connection', (socket) => {
       return;
     }
 
-    waiverState.pool = buildWaiverPoolFromDraft(draft);
-    if (waiverState.pool.length === 0 || Number(waiverState.passesInRow || 0) >= waiverState.order.length) {
-      waiverState.active = false;
-      waiverState.completed = true;
-    }
+    finalizeWaiverStateProgress(draft, waiverState);
+    processCpuWaiverTurns(draftCode, draft);
 
     if (draft.draftState && Array.isArray(draft.draftState.teams)) {
       draft.draftState.teams = teams;

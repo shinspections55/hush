@@ -27,6 +27,10 @@
                     <div id="waiverPageMeta" class="summary-meta">Loading waiver state...</div>
                 </div>
                 <div class="waiver-page-actions">
+                    <div class="waiver-inline-drop-wrap">
+                        <label for="waiverInlineDropSelect" class="team-nav-label">Drop Player</label>
+                        <select id="waiverInlineDropSelect" class="team-select waiver-inline-drop-select"></select>
+                    </div>
                     <button id="waiverStartBtn" type="button" class="account-btn">Start Waivers</button>
                     <button id="waiverPassBtn" type="button" class="team-nav-btn waiver-pass-btn">Pass Turn</button>
                 </div>
@@ -40,7 +44,23 @@
                     <div id="waiverOrderList" class="bench-list"></div>
                 </aside>
 
+                <section class="summary-panel waiver-center-panel">
+                    <h2 id="waiverOnClockTitle" class="summary-section-title">On The Clock Team</h2>
+                    <div id="waiverOnClockMeta" class="summary-meta">Waiting for waivers to start...</div>
+                    <div class="waiver-team-columns">
+                        <div>
+                            <h3 class="summary-section-title waiver-team-subtitle">Starters</h3>
+                            <div id="waiverOnClockStarters" class="bench-list"></div>
+                        </div>
+                        <div>
+                            <h3 class="summary-section-title waiver-team-subtitle">Bench</h3>
+                            <div id="waiverOnClockBench" class="bench-list"></div>
+                        </div>
+                    </div>
+                </section>
+
                 <section class="summary-panel waiver-main-panel">
+                    <h2 class="summary-section-title">Rankings</h2>
                     <div class="waiver-filter-bar">
                         <div class="waiver-position-tabs" id="waiverPositionTabs">
                             <button type="button" class="team-nav-btn waiver-pos-tab active" data-pos="ALL">ALL</button>
@@ -60,16 +80,10 @@
         </section>
     </main>
 
-    <div id="waiverModalBackdrop" class="waiver-modal-backdrop" hidden>
-        <div class="waiver-modal" role="dialog" aria-modal="true" aria-labelledby="waiverModalTitle">
-            <h3 id="waiverModalTitle" class="summary-section-title">Submit Waiver Move</h3>
-            <div id="waiverModalPlayer" class="summary-meta"></div>
-            <label for="waiverDropSelect" class="team-nav-label">Drop Player</label>
-            <select id="waiverDropSelect" class="team-select"></select>
-            <div class="waiver-modal-actions">
-                <button id="waiverConfirmBtn" type="button" class="account-btn">Confirm Add/Drop</button>
-                <button id="waiverCancelBtn" type="button" class="team-nav-btn">Cancel</button>
-            </div>
+    <div id="waiverTurnAlert" class="waiver-turn-alert" hidden>
+        <div class="waiver-turn-alert-card">
+            <h3 id="waiverTurnAlertText">Your turn</h3>
+            <p>Make your waiver move or pass.</p>
         </div>
     </div>
 

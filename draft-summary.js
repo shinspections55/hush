@@ -795,28 +795,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const startWaiversAndOpenPage = () => {
-            const mode = normalizeWaiverMode(draftSummary && draftSummary.waiverMode);
-            const canControl = canCurrentUserControlWaivers();
-            const canStart = !!(canControl && mode !== 'off' && (!waiverState || (!waiverState.active && !waiverState.completed)));
-
-            if (!canStart) {
-                window.location.href = 'waivers.html';
-                return;
-            }
-
             if (!socket || !draftSummary || !draftSummary.draftCode) {
                 alert('Realtime connection unavailable. Refresh and try again.');
                 return;
             }
 
-            socket.emit('startWaivers', { draftCode: draftSummary.draftCode, mode }, (response) => {
-                if (!response || !response.ok) {
-                    alert(`Unable to start waivers: ${(response && response.reason) || 'unknown_error'}`);
+            // Always re-read waiver mode from server right before start to avoid stale local cache.
+            socket.emit('getDraftState', draftSummary.draftCode, (stateResp) => {
+                if (stateResp && stateResp.ok && stateResp.draft) {
+                    draftSummary.waiverMode = normalizeWaiverMode(stateResp.draft.waiverMode);
+                    persistSummary();
+                    renderWaiverSection();
+                }
+
+                const mode = normalizeWaiverMode(draftSummary && draftSummary.waiverMode);
+                const canControl = canCurrentUserControlWaivers();
+                const canStart = !!(canControl && mode !== 'off' && (!waiverState || (!waiverState.active && !waiverState.completed)));
+
+                if (!canStart) {
+                    window.location.href = 'waivers.html';
                     return;
                 }
-                waiverState = normalizeWaiverState(response.waiverState || null);
-                renderWaiverSection();
-                window.location.href = 'waivers.html';
+
+                socket.emit('startWaivers', { draftCode: draftSummary.draftCode, mode }, (response) => {
+                    if (!response || !response.ok) {
+                        alert(`Unable to start waivers: ${(response && response.reason) || 'unknown_error'}`);
+                        return;
+                    }
+                    waiverState = normalizeWaiverState(response.waiverState || null);
+                    renderWaiverSection();
+                    window.location.href = 'waivers.html';
+                });
             });
     };
 
@@ -844,6 +853,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            const userTeam = (Array.isArray(draftSummary && draftSummary.teams) ? draftSummary.teams : []).find(team => team.name === username) || null;
+            if (isStarterPlayerOnTeam(userTeam, dropPlayerId)) {
+                const dropPlayer = getRosterPlayerById(userTeam, dropPlayerId);
+                const dropName = String(dropPlayer && dropPlayer.name || 'this starter');
+                const confirmed = window.confirm(`Drop ${dropName} from your starting lineup and submit this waiver add/drop?`);
+                if (!confirmed) {
+                    return;
+                }
+            }
+
             socket.emit('submitWaiverMove', {
                 draftCode: draftSummary.draftCode,
                 teamName: username,
@@ -861,6 +880,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (passWaiverTurnBtn) {
         passWaiverTurnBtn.addEventListener('click', () => {
             if (!socket || !draftSummary || !draftSummary.draftCode || !waiverState || !waiverState.active) return;
+            const confirmed = window.confirm('Are you sure you want to pass?');
+            if (!confirmed) {
+                return;
+            }
             socket.emit('submitWaiverMove', {
                 draftCode: draftSummary.draftCode,
                 teamName: username,
@@ -1163,20 +1186,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const form = document.getElementById('cut-bench-form');
         if (!form) return;
 
-        form.querySelectorAll('input[name="cut"]').forEach(input => {
-            input.addEventListener('change', () => {
-                if (!input.checked || input.dataset.benchPlayer === 'true') {
-                    return;
-                }
-
-                const playerName = String(input.dataset.playerName || 'this starter');
-                const confirmed = window.confirm(`Cut ${playerName} even though they are currently in a starting lineup spot?`);
-                if (!confirmed) {
-                    input.checked = false;
-                }
-            });
-        });
-
         form.addEventListener('submit', (e) => {
             e.preventDefault();
 
@@ -1318,6 +1327,19 @@ document.addEventListener('DOMContentLoaded', () => {
             .sort((a, b) => Number(a.prerank || 999) - Number(b.prerank || 999));
 
         return { slots, bench };
+    }
+
+    function getRosterPlayerById(team, playerId) {
+        const id = Number(playerId);
+        if (!Number.isFinite(id) || !team || !Array.isArray(team.roster)) return null;
+        return team.roster.find(player => Number(player && player.id) === id) || null;
+    }
+
+    function isStarterPlayerOnTeam(team, playerId) {
+        const id = Number(playerId);
+        if (!Number.isFinite(id) || !team || !Array.isArray(team.roster)) return false;
+        const split = splitRoster(team.roster, getSummaryRosterSettings());
+        return (split.slots || []).some(slot => Number(slot && slot.player && slot.player.id) === id);
     }
 
     function renderLineupRow(label, player) {

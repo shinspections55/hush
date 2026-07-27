@@ -268,7 +268,6 @@ function initializePageTheme() {
         
             // No system fallback here; pages should follow app preference only.
         }
-        }
         
         // Add classes
         const html = document.documentElement;

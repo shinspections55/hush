@@ -1420,8 +1420,18 @@ body.dashboard-light-mode .admin-rankings-back-link:hover{
 .admin-cpu-preview{display:flex;flex-direction:column;gap:12px}
 .admin-cpu-actions{margin:0}
 .admin-cpu-model-row{display:grid;grid-template-columns:1fr;gap:6px;padding:8px;border:1px solid rgba(255,255,255,0.14);border-radius:8px;background:rgba(17,31,51,0.3)}
+.admin-sim-title{margin:0;font-size:0.95rem;color:var(--hush-silver)}
+.admin-sim-note{margin:0}
+.admin-sim-model-row{margin-top:6px}
+.admin-sim-actions{margin-top:8px}
+.admin-sim-collapsible{padding:10px}
+.admin-sim-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;list-style:none}
+.admin-sim-summary::-webkit-details-marker{display:none}
+.admin-sim-summary-note{font-size:0.78rem;color:var(--muted);text-align:right}
 .admin-cpu-model-label{font-size:0.78rem;color:var(--muted)}
 .admin-cpu-model-input,.admin-cpu-model-select{width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.18);background:#111F33;color:var(--hush-ice);font-size:0.9rem;box-sizing:border-box}
+.admin-cpu-button-success{background:var(--hush-win)!important;color:var(--hush-bg)!important;border-color:rgba(127,200,169,0.9)!important;box-shadow:0 0 0 1px rgba(127,200,169,0.22) inset}
+.admin-cpu-button-error{background:#d86b6b!important;color:#fff!important;border-color:rgba(216,107,107,0.9)!important;box-shadow:0 0 0 1px rgba(216,107,107,0.22) inset}
 .admin-cpu-model-library{display:grid;gap:8px;padding:10px;border:1px solid rgba(255,255,255,0.14);border-radius:8px;background:rgba(17,31,51,0.28)}
 .admin-cpu-model-library h4{margin:0;font-size:0.92rem;color:var(--hush-silver)}
 .admin-cpu-model-list{display:grid;gap:8px;max-height:280px;overflow:auto;padding-right:4px}
@@ -1474,6 +1484,16 @@ body.dashboard-light-mode .admin-rankings-back-link:hover{
 .admin-cpu-table td{color:var(--hush-ice)}
 .admin-cpu-note{margin:0;color:var(--muted);font-size:0.9rem;line-height:1.45}
 .admin-cpu-subtitle{margin:0 0 8px 0;font-size:0.88rem;color:var(--hush-silver);font-weight:700}
+.admin-cpu-curve-wrap{display:grid;gap:8px;padding:10px;border:1px solid rgba(255,255,255,0.14);border-radius:10px;background:rgba(17,31,51,0.24)}
+.admin-cpu-curve-chart{display:grid;gap:10px}
+.admin-cpu-curve-row{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:end}
+.admin-cpu-curve-label{font-size:0.78rem;color:var(--hush-silver);font-weight:700}
+.admin-cpu-curve-bars{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
+.admin-cpu-curve-cell{display:grid;justify-items:center;gap:4px}
+.admin-cpu-curve-track{width:100%;height:72px;border-radius:7px;border:1px solid rgba(127,200,169,0.25);background:linear-gradient(180deg,rgba(255,255,255,0.06) 0%,rgba(255,255,255,0.01) 100%);display:flex;align-items:flex-end;overflow:hidden}
+.admin-cpu-curve-bar{width:100%;background:linear-gradient(180deg,#80d4b2 0%,#57b893 100%)}
+.admin-cpu-curve-x{font-size:0.72rem;color:var(--muted)}
+.admin-cpu-curve-p{font-size:0.72rem;color:var(--hush-ice);font-weight:700}
 .admin-cpu-preview .admin-debug-pre{margin:0;min-height:240px}
 .admin-cpu-note,.admin-cpu-subtitle,.admin-cpu-field-hint,.admin-cpu-table td,.admin-cpu-field-label{overflow-wrap:anywhere;word-break:break-word}
 
@@ -1492,7 +1512,11 @@ body.dashboard-light-mode .admin-cpu-table td,
 body.light-mode .admin-cpu-note,
 body.dashboard-light-mode .admin-cpu-note,
 body.light-mode .admin-cpu-subtitle,
-body.dashboard-light-mode .admin-cpu-subtitle{color:#17324d}
+body.dashboard-light-mode .admin-cpu-subtitle,
+body.light-mode .admin-cpu-curve-label,
+body.dashboard-light-mode .admin-cpu-curve-label,
+body.light-mode .admin-cpu-curve-p,
+body.dashboard-light-mode .admin-cpu-curve-p{color:#17324d}
 
 body.light-mode .admin-cpu-field input,
 body.light-mode .admin-cpu-field select,
@@ -1509,6 +1533,12 @@ body.light-mode .admin-cpu-model-library,
 body.dashboard-light-mode .admin-cpu-model-library,
 body.light-mode .admin-cpu-model-item,
 body.dashboard-light-mode .admin-cpu-model-item{background:rgba(255,255,255,0.92);border-color:rgba(31,76,122,0.18)}
+
+body.light-mode .admin-cpu-curve-wrap,
+body.dashboard-light-mode .admin-cpu-curve-wrap{background:rgba(255,255,255,0.92);border-color:rgba(31,76,122,0.18)}
+
+body.light-mode .admin-cpu-curve-track,
+body.dashboard-light-mode .admin-cpu-curve-track{border-color:rgba(23,50,77,0.24);background:linear-gradient(180deg,rgba(23,50,77,0.08) 0%,rgba(23,50,77,0.02) 100%)}
 
 body.light-mode .admin-cpu-profile-impact,
 body.dashboard-light-mode .admin-cpu-profile-impact{background:rgba(255,255,255,0.94);border-color:rgba(31,76,122,0.18)}
