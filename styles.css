@@ -728,6 +728,11 @@ body.pwa-installed.dashboard-page .dashboard-header .wallet-balance {
     color: #e6f2fb;
 }
 
+/* Keep dashboard action cards clear of fixed PWA bottom nav on iPhone. */
+body.pwa-installed.dashboard-page .dashboard-main-centered {
+    padding-bottom: calc(124px + env(safe-area-inset-bottom));
+}
+
 @media (max-width: 700px) {
     .dashboard-header {
         padding: 16px 16px 14px 16px;
@@ -765,6 +770,10 @@ body.pwa-installed.dashboard-page .dashboard-header .wallet-balance {
 
     body.pwa-installed.dashboard-page .dashboard-header-logo {
         height: 30px;
+    }
+
+    body.pwa-installed.dashboard-page .dashboard-main-centered {
+        padding-bottom: calc(140px + env(safe-area-inset-bottom));
     }
 }
 
