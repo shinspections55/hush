@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hush-v7';
+const CACHE_NAME = 'hush-v8';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -92,6 +92,17 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => response)
         .catch(() => {
+          if (url.pathname === '/api/rss/sports-news') {
+            return new Response(JSON.stringify({
+              ok: false,
+              degraded: true,
+              offline: true,
+              items: []
+            }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
           // If network fails, try cache
           return caches.match(request).then((cached) => {
             if (cached) {
