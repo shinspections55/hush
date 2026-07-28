@@ -1419,7 +1419,8 @@ function initSilentDraft() {
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            timeout: 20000
+            timeout: 30000,
+            transports: ['polling', 'websocket']
         });
 
         const syncDraftSocketRooms = () => {
@@ -1434,8 +1435,22 @@ function initSilentDraft() {
             }
         };
 
-        // Initial handshake; connect handler will also run this on reconnect.
-        syncDraftSocketRooms();
+        const requestFreshDraftState = () => {
+            if (!(window.draftSocket && currentDraftCode)) return;
+            window.draftSocket.emit('getDraftState', currentDraftCode, (response) => {
+                if (response && response.ok && response.draft) {
+                    console.log('[silentdraft] Fresh draft state requested after connect');
+                } else if (response) {
+                    console.warn('[silentdraft] Fresh draft state request rejected:', response);
+                }
+            });
+        };
+
+        const resyncDraftConnection = () => {
+            syncDraftSocketRooms();
+            requestFreshDraftState();
+        };
+
         console.log('[silentdraft] Connected to active draft room, isHost:', window.isHost);
 
         let reconnectNoticeShown = false;
@@ -1443,7 +1458,7 @@ function initSilentDraft() {
         updateSocketConnectionIndicator(true);
 
         window.draftSocket.on('connect', () => {
-            syncDraftSocketRooms();
+            resyncDraftConnection();
             updateSocketConnectionIndicator(true);
             if (reconnectNoticeShown) {
                 showNotification('Connection restored. Draft is live again.');
@@ -1794,6 +1809,105 @@ function initSilentDraft() {
         }
     }
 
+    function emitSocketAckWithRetry(eventName, args, options = {}) {
+        const socket = window.draftSocket;
+        const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : 7000;
+        const overallTimeoutMs = Number.isFinite(Number(options.overallTimeoutMs)) ? Number(options.overallTimeoutMs) : 15000;
+        const maxRetries = Number.isFinite(Number(options.maxRetries)) ? Number(options.maxRetries) : 1;
+
+        if (!(socket && currentDraftCode)) {
+            return Promise.resolve({ ok: false, reason: 'socket_unavailable' });
+        }
+
+        return new Promise((resolve) => {
+            let settled = false;
+            let attempts = 0;
+            let ackTimeoutId = null;
+            let overallTimeoutId = null;
+            let waitingForReconnect = !socket.connected;
+
+            const cleanup = () => {
+                if (ackTimeoutId) {
+                    clearTimeout(ackTimeoutId);
+                    ackTimeoutId = null;
+                }
+                if (overallTimeoutId) {
+                    clearTimeout(overallTimeoutId);
+                    overallTimeoutId = null;
+                }
+                socket.off('connect', handleConnect);
+                socket.off('disconnect', handleDisconnect);
+            };
+
+            const finish = (response) => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                resolve(response || { ok: false });
+            };
+
+            const send = () => {
+                if (settled) return;
+                if (!socket.connected) {
+                    waitingForReconnect = true;
+                    return;
+                }
+
+                waitingForReconnect = false;
+                if (ackTimeoutId) {
+                    clearTimeout(ackTimeoutId);
+                    ackTimeoutId = null;
+                }
+
+                ackTimeoutId = setTimeout(() => {
+                    if (settled) return;
+
+                    if (!socket.connected) {
+                        waitingForReconnect = true;
+                        return;
+                    }
+
+                    if (attempts < maxRetries) {
+                        attempts += 1;
+                        console.warn(`[silentdraft] ${eventName} ack timeout; retrying once.`);
+                        send();
+                        return;
+                    }
+
+                    finish({ ok: false, reason: 'timeout' });
+                }, timeoutMs);
+
+                socket.emit(eventName, ...args, (response) => {
+                    finish(response || { ok: false });
+                });
+            };
+
+            const handleConnect = () => {
+                if (!settled && waitingForReconnect) {
+                    send();
+                }
+            };
+
+            const handleDisconnect = () => {
+                waitingForReconnect = true;
+                if (ackTimeoutId) {
+                    clearTimeout(ackTimeoutId);
+                    ackTimeoutId = null;
+                }
+            };
+
+            socket.on('connect', handleConnect);
+            socket.on('disconnect', handleDisconnect);
+
+            overallTimeoutId = setTimeout(() => {
+                if (settled) return;
+                finish({ ok: false, reason: 'timeout' });
+            }, overallTimeoutMs);
+
+            send();
+        });
+    }
+
     function syncCurrentRoundBidsToServer() {
         if (!(window.draftSocket && currentDraftCode)) {
             console.warn('[silentdraft] syncCurrentRoundBidsToServer aborted: socket unavailable');
@@ -1811,14 +1925,12 @@ function initSilentDraft() {
             let bidAmount = storedBids[player.id] ? parseInt(storedBids[player.id], 10) : 0;
             if (Number.isNaN(bidAmount) || bidAmount < 0) bidAmount = 0;
 
-            return new Promise(resolve => {
-                window.draftSocket.emit('placeBid', currentDraftCode, player.id, bidAmount, (response) => {
+            return emitSocketAckWithRetry('placeBid', [currentDraftCode, player.id, bidAmount], { timeoutMs: 5000, overallTimeoutMs: 12000, maxRetries: 1 }).then((response) => {
                     if (response && response.ok) {
                         console.log(`[silentdraft] Bid sent: ${player.name} = $${bidAmount}`);
                     }
-                    resolve();
+                    return response && response.ok;
                 });
-            });
         });
 
         return Promise.all(bidPromises).then(() => true);
@@ -1841,19 +1953,17 @@ function initSilentDraft() {
         }
 
         return syncCurrentRoundBidsToServer().then(() => (
-            new Promise(resolve => {
-                window.draftSocket.emit('submitBids', currentDraftCode, username, autoDraftEnabled, (response) => {
-                    if (response && response.ok) {
-                        console.log('[silentdraft] All bids submitted and recorded');
-                        if (lockUI) {
-                            lockRoundBidsUI(lockLabel);
-                        }
-                        resolve(true);
-                    } else {
-                        console.warn('[silentdraft] submitBids rejected:', response);
-                        resolve(false);
+            emitSocketAckWithRetry('submitBids', [currentDraftCode, username, autoDraftEnabled], { timeoutMs: 7000, overallTimeoutMs: 15000, maxRetries: 1 }).then((response) => {
+                if (response && response.ok) {
+                    console.log('[silentdraft] All bids submitted and recorded');
+                    if (lockUI) {
+                        lockRoundBidsUI(lockLabel);
                     }
-                });
+                    return true;
+                }
+
+                console.warn('[silentdraft] submitBids rejected:', response);
+                return false;
             })
         ));
     }
@@ -3757,71 +3867,40 @@ function initSilentDraft() {
                     // In app layout the auto-draft toggle may be hidden; allow manual submit tap.
                     showNotification('Auto Draft is ON. Submitting your bids now.');
                 }
-                
-                // First, collect and send all bids to server
-                const roundPlayers = getRoundPlayers();
-                const bidPromises = [];
-                
-                roundPlayers.forEach(player => {
-                    // Use stored bids instead of DOM inputs, since not all players may be visible
-                    let bidAmount = storedBids[player.id] ? parseInt(storedBids[player.id]) : 0;
-                    
-                    if (isNaN(bidAmount) || bidAmount < 0) bidAmount = 0;
-                    
-                    // Always send current state so cleared inputs remove stale server bids.
-                    if (window.draftSocket && currentDraftCode) {
-                        const promise = new Promise((resolve) => {
-                            window.draftSocket.emit('placeBid', currentDraftCode, player.id, bidAmount, (response) => {
-                                if (response && response.ok) {
-                                    console.log(`[silentdraft] Bid sent: ${player.name} = $${bidAmount}`);
-                                }
-                                resolve();
-                            });
-                        });
-                        bidPromises.push(promise);
-                    }
-                });
-                
-                // Wait for all bids to be sent, then notify submission complete
-                Promise.all(bidPromises).then(() => {
-                    if (window.draftSocket && currentDraftCode) {
-                        window.draftSocket.emit('submitBids', currentDraftCode, username, autoDraftEnabled, (response) => {
-                            if (response && response.ok) {
-                                console.log('[silentdraft] All bids submitted and recorded');
-                                
-                                // Play success sound
-                                try {
-                                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                                    const oscillator1 = audioContext.createOscillator();
-                                    const oscillator2 = audioContext.createOscillator();
-                                    const gainNode = audioContext.createGain();
-                                    
-                                    oscillator1.connect(gainNode);
-                                    oscillator2.connect(gainNode);
-                                    gainNode.connect(audioContext.destination);
-                                    
-                                    // Two-tone success chime
-                                    oscillator1.frequency.value = 800;
-                                    oscillator2.frequency.value = 1000;
-                                    oscillator1.type = 'sine';
-                                    oscillator2.type = 'sine';
-                                    
-                                    gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
-                                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-                                    
-                                    oscillator1.start(audioContext.currentTime);
-                                    oscillator2.start(audioContext.currentTime + 0.1);
-                                    oscillator1.stop(audioContext.currentTime + 0.3);
-                                    oscillator2.stop(audioContext.currentTime + 0.4);
-                                } catch (e) {
-                                    console.log('[silentdraft] Audio not supported');
-                                }
-                                
-                                submitBidsButton.disabled = true;
-                                submitBidsButton.textContent = isForceAutoSubmit ? 'Auto Submitted' : 'Bids Submitted';
-                                clearAutoDraftSoloGraceWindow();
-                            }
-                        });
+
+                submitCurrentRoundBidsToServer({
+                    lockUI: true,
+                    lockLabel: isForceAutoSubmit ? 'Auto Submitted' : 'Bids Submitted'
+                }).then((submitted) => {
+                    if (submitted) {
+                        // Play success sound
+                        try {
+                            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                            const oscillator1 = audioContext.createOscillator();
+                            const oscillator2 = audioContext.createOscillator();
+                            const gainNode = audioContext.createGain();
+
+                            oscillator1.connect(gainNode);
+                            oscillator2.connect(gainNode);
+                            gainNode.connect(audioContext.destination);
+
+                            oscillator1.frequency.value = 800;
+                            oscillator2.frequency.value = 1000;
+                            oscillator1.type = 'sine';
+                            oscillator2.type = 'sine';
+
+                            gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+                            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+                            oscillator1.start(audioContext.currentTime);
+                            oscillator2.start(audioContext.currentTime + 0.1);
+                            oscillator1.stop(audioContext.currentTime + 0.3);
+                            oscillator2.stop(audioContext.currentTime + 0.4);
+                        } catch (e) {
+                            console.log('[silentdraft] Audio not supported');
+                        }
+
+                        clearAutoDraftSoloGraceWindow();
                     }
                 });
             };
@@ -4814,13 +4893,11 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         });
 
         // Notify other users that this user has submitted their bids
-        if (window.draftSocket && currentDraftCode) {
-            window.draftSocket.emit('submitBids', currentDraftCode, username, autoDraftEnabled, (response) => {
-                if (response && response.ok) {
-                    console.log('[silentdraft] Bid submission broadcasted');
-                }
-            });
-        }
+        submitCurrentRoundBidsToServer({ lockUI: true, lockLabel: 'Bids Submitted' }).then((submitted) => {
+            if (submitted) {
+                console.log('[silentdraft] Bid submission broadcasted');
+            }
+        });
     }
 
     // Get current round players
