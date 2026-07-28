@@ -1439,6 +1439,7 @@ function initSilentDraft() {
         console.log('[silentdraft] Connected to active draft room, isHost:', window.isHost);
 
         let reconnectNoticeShown = false;
+        let liveAuctionRecoveryNeeded = false;
         updateSocketConnectionIndicator(true);
 
         window.draftSocket.on('connect', () => {
@@ -1470,6 +1471,7 @@ function initSilentDraft() {
                 showNotification('Connection lost. Attempting to reconnect...');
                 reconnectNoticeShown = true;
             }
+            liveAuctionRecoveryNeeded = true;
             console.warn('[silentdraft] Socket disconnected:', reason);
         });
 
@@ -1531,6 +1533,32 @@ function initSilentDraft() {
                 processRoundRetryTimer = null;
             }
             showNotification(`${message}${detail}`);
+        });
+
+        window.draftSocket.on('liveAuctionSync', (auctionState) => {
+            if (!auctionState || !auctionState.auctionId || !auctionState.playerId) {
+                return;
+            }
+
+            const hasAuctionUi = !!document.getElementById('live-auction-modal');
+            const shouldRecover = liveAuctionRecoveryNeeded || !activeLiveAuctionUi || activeLiveAuctionUi.auctionId !== auctionState.auctionId || !hasAuctionUi;
+            if (!shouldRecover) {
+                return;
+            }
+
+            const tiedBids = [{
+                playerId: auctionState.playerId,
+                bidAmount: Number(auctionState.startBid || auctionState.currentBid || 0),
+                tiedTeams: Array.isArray(auctionState.tiedTeams) ? auctionState.tiedTeams.slice() : []
+            }];
+
+            console.warn('[silentdraft] Recovering active live auction from sync payload:', auctionState.auctionId);
+            try {
+                liveAuctionRecoveryNeeded = false;
+                handleLiveAuction(tiedBids, () => {});
+            } catch (error) {
+                console.error('[silentdraft] Failed to recover live auction UI from sync payload:', error);
+            }
         });
         
         // Listen for round players set by host

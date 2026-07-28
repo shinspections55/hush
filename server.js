@@ -5117,6 +5117,29 @@ io.on('connection', (socket) => {
     // Send current draft state to the joining player
     socket.emit('draftStateSync', drafts[code].draftState);
 
+    // Rehydrate any active live auction so a reconnecting PWA client can recover
+    // the tied-auction UI instead of freezing at the last disconnected screen.
+    const liveAuctions = drafts[code].draftState.liveAuctions || {};
+    const activeAuctionEntry = Object.entries(liveAuctions).find(([, auction]) => auction && auction.active);
+    if (activeAuctionEntry) {
+      const [auctionId, auction] = activeAuctionEntry;
+      socket.emit('liveAuctionSync', {
+        auctionId,
+        playerId: auction.playerId,
+        playerName: auction.playerName,
+        playerPosition: auction.playerPosition,
+        playerAvgValue: auction.playerAvgValue,
+        playerPositionRank: auction.playerPositionRank,
+        tiedTeams: Array.isArray(auction.tiedTeams) ? auction.tiedTeams.slice() : [],
+        startBid: Number(auction.currentBid || 0),
+        currentBid: Number(auction.currentBid || 0),
+        currentWinner: auction.currentWinner || null,
+        timer: Number(auction.timer || 0),
+        isTiedAuction: !!auction.isTiedAuction,
+        backedOutTeams: Array.isArray(auction.backedOutTeams) ? auction.backedOutTeams.slice() : []
+      });
+    }
+
     // Also sync current auto-draft statuses for UI badges.
     socket.emit('autoDraftStatusSync', drafts[code].draftState.autoDraftStatus);
   });
