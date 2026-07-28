@@ -5284,6 +5284,60 @@ io.on('connection', (socket) => {
     }
   });
 
+  const applyUserBidToDraftState = (draft, username, playerId, bidAmount) => {
+    if (!draft || !draft.draftState || !draft.draftState.bids) return { ok: false, reason: 'draft_not_ready' };
+
+    const safePlayerId = Number(playerId);
+    if (!Number.isFinite(safePlayerId)) {
+      return { ok: false, reason: 'invalid_player_id' };
+    }
+
+    const numericBid = Number(bidAmount);
+    const safeBid = Number.isFinite(numericBid) && numericBid > 0 ? Math.floor(numericBid) : 0;
+
+    if (!draft.draftState.bids[safePlayerId]) {
+      draft.draftState.bids[safePlayerId] = {};
+    }
+
+    if (safeBid > 0) {
+      draft.draftState.bids[safePlayerId][username] = safeBid;
+    } else {
+      delete draft.draftState.bids[safePlayerId][username];
+      if (Object.keys(draft.draftState.bids[safePlayerId]).length === 0) {
+        delete draft.draftState.bids[safePlayerId];
+      }
+    }
+
+    return { ok: true, playerId: safePlayerId, bidAmount: safeBid };
+  };
+
+  // Sync all bids for the current round in one payload to avoid submit-time socket churn.
+  socket.on('syncRoundBids', (code, bidEntries, cb) => {
+    const username = socket.data.username;
+    const draft = drafts[code];
+    if (!draft || !draft.draftState || !draft.draftState.bids) {
+      if (cb) cb({ ok: false, reason: 'draft_not_ready' });
+      return;
+    }
+
+    const entries = Array.isArray(bidEntries) ? bidEntries.slice(0, 120) : [];
+    let appliedCount = 0;
+    let skippedCount = 0;
+
+    entries.forEach((entry) => {
+      const playerId = entry && entry.playerId;
+      const bidAmount = entry && entry.bidAmount;
+      const result = applyUserBidToDraftState(draft, username, playerId, bidAmount);
+      if (result.ok) {
+        appliedCount += 1;
+      } else {
+        skippedCount += 1;
+      }
+    });
+
+    if (cb) cb({ ok: true, appliedCount, skippedCount });
+  });
+
   // Place a bid on a player
   socket.on('placeBid', (code, playerId, bidAmount, cb) => {
     const username = socket.data.username;
@@ -5293,25 +5347,16 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const safePlayerId = Number(playerId);
-    const numericBid = Number(bidAmount);
-    const safeBid = Number.isFinite(numericBid) && numericBid > 0 ? Math.floor(numericBid) : 0;
+    const result = applyUserBidToDraftState(draft, username, playerId, bidAmount);
+    if (!result.ok) {
+      if (cb) cb(result);
+      return;
+    }
+
+    const safePlayerId = result.playerId;
+    const safeBid = result.bidAmount;
 
     console.log(`[placeBid] ${username} bid $${safeBid} on player ${safePlayerId} in draft ${code}`);
-
-    if (!draft.draftState.bids[safePlayerId]) {
-      draft.draftState.bids[safePlayerId] = {};
-    }
-
-    if (safeBid > 0) {
-      draft.draftState.bids[safePlayerId][username] = safeBid;
-    } else {
-      // Clearing a bid must remove old server-side values to avoid phantom bids.
-      delete draft.draftState.bids[safePlayerId][username];
-      if (Object.keys(draft.draftState.bids[safePlayerId]).length === 0) {
-        delete draft.draftState.bids[safePlayerId];
-      }
-    }
     
     // Broadcast bid to all members in the draft
     io.to(`draft_${code}`).emit('bidUpdate', { playerId: safePlayerId, username, bidAmount: safeBid });

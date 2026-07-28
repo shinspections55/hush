@@ -1202,6 +1202,12 @@ function initSilentDraft() {
                     updatePauseButtonVisibility();
                     buildTeamsAndStartDraft();
                 }
+
+                try {
+                    socket.disconnect();
+                } catch (disconnectError) {
+                    console.warn('[silentdraft] Failed to close initialization socket:', disconnectError);
+                }
             });
         } else {
             console.warn('[silentdraft] No draft code or socket.io, using localStorage');
@@ -1921,19 +1927,37 @@ function initSilentDraft() {
             storedBid: storedBids[player.id] ? parseInt(storedBids[player.id], 10) || 0 : 0
         }));
         console.log('[silentdraft][debug] syncCurrentRoundBidsToServer snapshot:', bidSnapshot);
-        const bidPromises = roundPlayers.map(player => {
+
+        const bidEntries = roundPlayers.map(player => {
             let bidAmount = storedBids[player.id] ? parseInt(storedBids[player.id], 10) : 0;
             if (Number.isNaN(bidAmount) || bidAmount < 0) bidAmount = 0;
 
-            return emitSocketAckWithRetry('placeBid', [currentDraftCode, player.id, bidAmount], { timeoutMs: 5000, overallTimeoutMs: 12000, maxRetries: 1 }).then((response) => {
-                    if (response && response.ok) {
-                        console.log(`[silentdraft] Bid sent: ${player.name} = $${bidAmount}`);
-                    }
-                    return response && response.ok;
-                });
+            return {
+                playerId: player.id,
+                bidAmount
+            };
         });
 
-        return Promise.all(bidPromises).then(() => true);
+        return emitSocketAckWithRetry('syncRoundBids', [currentDraftCode, bidEntries], { timeoutMs: 7000, overallTimeoutMs: 15000, maxRetries: 1 }).then((response) => {
+            if (response && response.ok) {
+                return true;
+            }
+
+            // Backward-compatible fallback for servers that do not yet support syncRoundBids.
+            const bidPromises = roundPlayers.map(player => {
+                let bidAmount = storedBids[player.id] ? parseInt(storedBids[player.id], 10) : 0;
+                if (Number.isNaN(bidAmount) || bidAmount < 0) bidAmount = 0;
+
+                return emitSocketAckWithRetry('placeBid', [currentDraftCode, player.id, bidAmount], { timeoutMs: 5000, overallTimeoutMs: 12000, maxRetries: 1 }).then((placeResponse) => {
+                    if (placeResponse && placeResponse.ok) {
+                        console.log(`[silentdraft] Bid sent: ${player.name} = $${bidAmount}`);
+                    }
+                    return placeResponse && placeResponse.ok;
+                });
+            });
+
+            return Promise.all(bidPromises).then(() => true);
+        });
     }
 
     function submitCurrentRoundBidsToServer(options = {}) {
