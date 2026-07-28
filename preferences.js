@@ -689,11 +689,12 @@ initGlobalThemeToggleFallback();
     var style = document.createElement('style');
     style.id = 'pwaShellStyles';
     style.textContent = [
-      ':root { --app-safe-top: env(safe-area-inset-top); --app-safe-right: env(safe-area-inset-right); --app-safe-bottom: env(safe-area-inset-bottom); --app-safe-left: env(safe-area-inset-left); }',
+      ':root { --app-safe-top: env(safe-area-inset-top); --app-safe-right: env(safe-area-inset-right); --app-safe-bottom: env(safe-area-inset-bottom); --app-safe-left: env(safe-area-inset-left); --app-nav-clearance: calc(96px + env(safe-area-inset-bottom)); }',
       'html.pwa-installed, body.pwa-installed { width: 100%; max-width: 100%; min-height: 100svh; min-height: 100dvh; overflow-x: hidden; }',
       'body.pwa-installed { padding-left: var(--app-safe-left); padding-right: var(--app-safe-right); box-sizing: border-box; }',
       'body.pwa-installed .page, body.pwa-installed .container, body.pwa-installed .dashboard-main-centered { box-sizing: border-box; max-width: 100%; }',
-      '.pwa-installed body, body.pwa-installed { padding-bottom: calc(86px + env(safe-area-inset-bottom)); }',
+      '.pwa-installed body, body.pwa-installed { padding-bottom: var(--app-nav-clearance); }',
+      'body.pwa-installed:not(.silentdraft-page) main, body.pwa-installed:not(.silentdraft-page) main.page, body.pwa-installed:not(.silentdraft-page) .page { box-sizing: border-box; padding-bottom: calc(20px + var(--app-nav-clearance)); scroll-padding-bottom: var(--app-nav-clearance); }',
       '.pwa-bottom-nav {',
       '  position: fixed;',
       '  left: 0;',
