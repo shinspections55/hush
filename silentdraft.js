@@ -5287,26 +5287,33 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     }
 
     function showAuctionTransitionPopup(message) {
-        const existing = document.getElementById('auction-transition-popup');
+        const existing = document.getElementById('live-auction-modal');
+        const content = `
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:220px;padding:8px 4px;box-sizing:border-box;">
+                <div style="width:min(92%,420px);padding:18px 18px 16px 18px;border-radius:14px;border:1px solid rgba(173,220,246,0.28);background:linear-gradient(180deg, rgba(9,22,32,0.98) 0%, rgba(8,14,20,0.98) 100%);box-shadow:0 16px 42px rgba(0,0,0,0.38);text-align:center;color:#eef7ff;">
+                    <div style="font-size:18px;font-weight:800;margin-bottom:8px;">Preparing for next auction...</div>
+                    <div style="font-size:14px;line-height:1.45;color:#c8d9e6;">${message ? message : 'Loading the next tied player now.'}</div>
+                    <div style="margin-top:14px;height:8px;border-radius:999px;background:rgba(255,255,255,0.12);overflow:hidden;">
+                        <div style="height:100%;width:100%;background:linear-gradient(90deg,#2ecc71,#3498db);animation:auctionTransitionBar 1.1s ease-in-out infinite alternate;"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+
         if (existing) {
-            existing.remove();
+            existing.innerHTML = content;
+            existing.style.borderColor = 'rgba(173,220,246,0.28)';
+            existing.style.background = 'transparent';
+            existing.style.boxShadow = '0 16px 42px rgba(0,0,0,0.18)';
+            existing.style.overflow = 'hidden';
+            return;
         }
 
         const backdrop = document.createElement('div');
         backdrop.id = 'auction-transition-popup';
-        backdrop.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(3,8,12,0.38);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);padding:18px;box-sizing:border-box;';
-        backdrop.innerHTML = `
-            <div style="width:min(92vw,460px);padding:18px 18px 16px 18px;border-radius:14px;border:1px solid rgba(173,220,246,0.26);background:linear-gradient(180deg, rgba(9,22,32,0.98) 0%, rgba(8,14,20,0.98) 100%);box-shadow:0 16px 42px rgba(0,0,0,0.38);text-align:center;color:#eef7ff;">
-                <div style="font-size:18px;font-weight:800;margin-bottom:8px;">Preparing for next auction...</div>
-                <div style="font-size:14px;line-height:1.45;color:#c8d9e6;">${message ? message : 'Loading the next tied player now.'}</div>
-            </div>
-        `;
+        backdrop.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(3,8,12,0.24);backdrop-filter:blur(1px);-webkit-backdrop-filter:blur(1px);padding:18px;box-sizing:border-box;';
+        backdrop.innerHTML = content;
         document.body.appendChild(backdrop);
-
-        window.setTimeout(() => {
-            const node = document.getElementById('auction-transition-popup');
-            if (node) node.remove();
-        }, 1400);
     }
 
     function clearAutoDraftSoloGraceWindow() {
