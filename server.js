@@ -7078,8 +7078,12 @@ io.on('connection', (socket) => {
       return;
     }
 
+    const normalizedRequestUser = String(requestUser || '').trim().toLowerCase();
+    const normalizedExpectedTeamName = String(waiverState.order[Math.max(0, Math.min(Number(waiverState.turnIndex || 0), waiverState.order.length - 1))] || '').trim().toLowerCase();
     const expectedTeamName = waiverState.order[Math.max(0, Math.min(Number(waiverState.turnIndex || 0), waiverState.order.length - 1))];
-    if (!expectedTeamName || requestUser !== expectedTeamName) {
+    const requestMatchesTurn = normalizedRequestUser && normalizedExpectedTeamName && normalizedRequestUser === normalizedExpectedTeamName;
+
+    if (!expectedTeamName || !requestMatchesTurn) {
       if (cb) cb({ ok: false, reason: 'not_your_turn' });
       return;
     }

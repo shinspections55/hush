@@ -255,6 +255,20 @@ document.addEventListener('DOMContentLoaded', () => {
         return String(teamName || '').trim().toLowerCase() === normalizedUsername;
     }
 
+    function isUsersWaiverTurn() {
+        return !!(waiverState && waiverState.active && isCurrentUserTeamName(getCurrentWaiverTeamName()));
+    }
+
+    function forceHideTurnAlert() {
+        if (waiverTurnAlert) {
+            waiverTurnAlert.hidden = true;
+        }
+        if (turnAlertTimeout) {
+            clearTimeout(turnAlertTimeout);
+            turnAlertTimeout = null;
+        }
+    }
+
     function getUserTeam() {
         return (draftSummary.teams || []).find(team => isCurrentUserTeamName(team.name)) || null;
     }
@@ -383,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return player.name.toLowerCase().includes(searchTerm) || player.team.toLowerCase().includes(searchTerm);
         });
 
-        const canAct = !!(waiverState && waiverState.active && isCurrentUserTeamName(getCurrentWaiverTeamName()) && userTeam && (userTeam.roster || []).length > 0);
+        const canAct = !!(isUsersWaiverTurn() && userTeam && (userTeam.roster || []).length > 0);
 
         waiverPoolList.innerHTML = filtered.length
             ? filtered.map(player => `
@@ -433,7 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function submitWaiverAddDrop(player) {
         if (!socket || !draftSummary.draftCode || !waiverState || !waiverState.active) return;
         const userTeam = getUserTeam();
-        const canAct = !!(isCurrentUserTeamName(getCurrentWaiverTeamName()) && userTeam && (userTeam.roster || []).length > 0);
+        const canAct = !!(isUsersWaiverTurn() && userTeam && (userTeam.roster || []).length > 0);
         if (!canAct) {
             alert('It is not your turn to make a waiver move.');
             return;
@@ -553,6 +567,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isCurrentUserTeamName(currentTurn)) {
             playTurnDing();
             showTurnAlert('Your turn');
+        } else {
+            forceHideTurnAlert();
         }
     }
 
@@ -562,7 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentTurn = getCurrentWaiverTeamName();
         const userTeam = getUserTeam();
         const canStart = !!(isCurrentUserHost() && waiverMode !== 'off' && (!waiverState || (!waiverState.active && !waiverState.completed)));
-        const isUsersTurn = !!(waiverState && waiverState.active && isCurrentUserTeamName(currentTurn));
+        const isUsersTurn = isUsersWaiverTurn();
         const canPass = !!(waiverState && waiverState.active && isUsersTurn);
 
         waiverPageMeta.textContent = `Draft ${draftSummary.draftCode || 'N/A'} | Waiver Mode: ${waiverMode.toUpperCase()}`;
@@ -586,12 +602,8 @@ document.addEventListener('DOMContentLoaded', () => {
         waiverPassBtn.hidden = false;
         waiverPassBtn.disabled = !canPass;
 
-        if (!isUsersTurn && waiverTurnAlert && !waiverTurnAlert.hidden) {
-            waiverTurnAlert.hidden = true;
-            if (turnAlertTimeout) {
-                clearTimeout(turnAlertTimeout);
-                turnAlertTimeout = null;
-            }
+        if (!isUsersTurn) {
+            forceHideTurnAlert();
         }
 
         if (!waiverState || (!waiverState.active && !waiverState.completed)) {
