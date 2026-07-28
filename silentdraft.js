@@ -5306,6 +5306,16 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             existing.style.background = 'transparent';
             existing.style.boxShadow = '0 16px 42px rgba(0,0,0,0.18)';
             existing.style.overflow = 'hidden';
+
+            if (existing.dataset.transitionTimeoutId) {
+                clearTimeout(Number(existing.dataset.transitionTimeoutId));
+            }
+            const dismissTimeoutId = setTimeout(() => {
+                if (existing && existing.parentNode) {
+                    existing.parentNode.removeChild(existing);
+                }
+            }, 1000);
+            existing.dataset.transitionTimeoutId = String(dismissTimeoutId);
             return;
         }
 
@@ -5314,6 +5324,13 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         backdrop.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(3,8,12,0.24);backdrop-filter:blur(1px);-webkit-backdrop-filter:blur(1px);padding:18px;box-sizing:border-box;';
         backdrop.innerHTML = content;
         document.body.appendChild(backdrop);
+
+        const dismissTimeoutId = setTimeout(() => {
+            if (backdrop && backdrop.parentNode) {
+                backdrop.parentNode.removeChild(backdrop);
+            }
+        }, 1000);
+        backdrop.dataset.transitionTimeoutId = String(dismissTimeoutId);
     }
 
     function clearAutoDraftSoloGraceWindow() {
@@ -6344,8 +6361,8 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             const backedOutSummary = backedOutTeams.length
                 ? backedOutTeams.join(', ')
                 : '';
-            const BACKOUT_SUMMARY_MS = 1200;
-            const WINNER_DISPLAY_MS = 2000;
+            const BACKOUT_SUMMARY_MS = 2000;
+            const WINNER_DISPLAY_MS = 4000;
 
             const finishPresentation = () => {
                 removeAuctionUi();
@@ -6823,6 +6840,77 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
                 }
             }
         };
+
+        let acceptAckTimeoutId = null;
+        let acceptRequestInFlight = false;
+        let acceptRequestAcked = false;
+        let acceptRetryCount = 0;
+
+        const clearAcceptAckTimeout = () => {
+            if (acceptAckTimeoutId) {
+                clearTimeout(acceptAckTimeoutId);
+                acceptAckTimeoutId = null;
+            }
+        };
+
+        const finishAcceptanceState = () => {
+            acceptRequestInFlight = false;
+            acceptRequestAcked = true;
+            acceptRetryCount = 0;
+            clearAcceptAckTimeout();
+        };
+
+        const sendAcceptRoundResults = (isRetry = false) => {
+            if (!window.draftSocket || !currentDraftCode) return;
+
+            acceptRequestInFlight = true;
+            if (isRetry) {
+                acceptRetryCount += 1;
+            }
+
+            console.log('[silentdraft] Emitting acceptRoundResults for:', username, isRetry ? '(retry)' : '');
+
+            clearAcceptAckTimeout();
+            acceptAckTimeoutId = setTimeout(() => {
+                if (acceptRequestAcked) {
+                    return;
+                }
+
+                if (window.draftSocket && window.draftSocket.connected) {
+                    if (acceptRetryCount < 1) {
+                        console.warn('[silentdraft] acceptRoundResults ack timeout; retrying once after a transport blip');
+                        sendAcceptRoundResults(true);
+                        return;
+                    }
+
+                    console.warn('[silentdraft] acceptRoundResults callback timeout after retry; assuming server state will reconcile on the next sync');
+                    finishAcceptanceState();
+                    return;
+                }
+
+                console.debug('[silentdraft] acceptRoundResults ack delayed while socket is disconnected; waiting for reconnect');
+            }, 7000);
+
+            window.draftSocket.emit('acceptRoundResults', currentDraftCode, username, (response) => {
+                if (acceptRequestAcked) return;
+                clearAcceptAckTimeout();
+
+                if (response && response.ok) {
+                    console.log('[silentdraft] Acceptance recorded successfully');
+                    finishAcceptanceState();
+                } else {
+                    console.error('[silentdraft] Acceptance failed:', response);
+                    acceptRequestInFlight = false;
+                    acceptRequestAcked = false;
+                    const acceptBtn = document.getElementById('accept-results-btn');
+                    if (acceptBtn) {
+                        acceptBtn.disabled = false;
+                        acceptBtn.style.background = '#2ecc71';
+                        acceptBtn.textContent = 'Accept & Continue';
+                    }
+                }
+            });
+        };
         
         // Handler for all members accepted
         const allAcceptedHandler = () => {
@@ -6835,16 +6923,21 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
             if (statusEl) {
                 statusEl.textContent = 'All members accepted!';
             }
-            
-            // Clear any pending timeout
+
             if (window.roundResultsTimeoutId) {
                 clearTimeout(window.roundResultsTimeoutId);
                 window.roundResultsTimeoutId = null;
             }
-            
-            // Clean up listeners
+
+            clearAcceptAckTimeout();
+            acceptRequestInFlight = false;
+            acceptRequestAcked = true;
+            acceptRetryCount = 0;
+
             window.draftSocket.off('memberAcceptedResults', memberAcceptedHandler);
-            
+            window.draftSocket.off('connect', handleRoundResultsReconnect);
+            window.draftSocket.off('disconnect', handleRoundResultsDisconnect);
+
             setTimeout(() => {
                 if (resultsDiv && resultsDiv.parentNode) {
                     resultsDiv.parentNode.removeChild(resultsDiv);
@@ -6854,65 +6947,75 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
             }, 1000);
         };
 
+        const handleRoundResultsReconnect = () => {
+            if (!resultsDiv || !resultsDiv.isConnected) return;
+            if (!acceptRequestInFlight || acceptRequestAcked) return;
+            console.log('[silentdraft] Reconnected while round-results acceptance is pending; resending once.');
+            sendAcceptRoundResults(true);
+        };
+
+        const handleRoundResultsDisconnect = () => {
+            clearAcceptAckTimeout();
+        };
+
         // Attach listeners
         window.draftSocket.on('memberAcceptedResults', memberAcceptedHandler);
         window.draftSocket.once('allMembersAccepted', allAcceptedHandler);
-        
-        // Failsafe timeout: if allMembersAccepted doesn't arrive within 10 minutes, close modal anyway
-        // This prevents modals from being stuck if the event is lost due to network issues
+        window.draftSocket.on('connect', handleRoundResultsReconnect);
+        window.draftSocket.on('disconnect', handleRoundResultsDisconnect);
+
         window.roundResultsTimeoutId = setTimeout(() => {
             console.warn('[silentdraft] WARNING: Round results modal timeout - allMembersAccepted event not received within 10 minutes');
             window.draftSocket.off('memberAcceptedResults', memberAcceptedHandler);
             window.draftSocket.off('allMembersAccepted', allAcceptedHandler);
-            
+            window.draftSocket.off('connect', handleRoundResultsReconnect);
+            window.draftSocket.off('disconnect', handleRoundResultsDisconnect);
+            clearAcceptAckTimeout();
+
             if (resultsDiv && resultsDiv.parentNode) {
                 resultsDiv.parentNode.removeChild(resultsDiv);
             }
             setRoundResultsChromeVisible(false);
-            
-            // Call onComplete anyway to keep draft moving
+
             onComplete();
         }, 600000);
 
-        // Use setTimeout to ensure button is fully rendered before attaching handler
         setTimeout(() => {
             const acceptBtn = document.getElementById('accept-results-btn');
             console.log('[silentdraft] Accept button found:', acceptBtn ? 'YES' : 'NO');
-            
+
             if (acceptBtn) {
                 acceptBtn.addEventListener('click', function(e) {
                     console.log('[silentdraft] Accept button clicked!');
                     e.preventDefault();
                     e.stopPropagation();
-                    
-                    // Play success sound
+
                     try {
                         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
                         const oscillator1 = audioContext.createOscillator();
                         const oscillator2 = audioContext.createOscillator();
                         const gainNode = audioContext.createGain();
-                        
+
                         oscillator1.connect(gainNode);
                         oscillator2.connect(gainNode);
                         gainNode.connect(audioContext.destination);
-                        
-                        // Two-tone success chime
+
                         oscillator1.frequency.value = 800;
                         oscillator2.frequency.value = 1000;
                         oscillator1.type = 'sine';
                         oscillator2.type = 'sine';
-                        
+
                         gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
                         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-                        
+
                         oscillator1.start(audioContext.currentTime);
                         oscillator2.start(audioContext.currentTime + 0.1);
                         oscillator1.stop(audioContext.currentTime + 0.3);
                         oscillator2.stop(audioContext.currentTime + 0.4);
-                    } catch (e) {
+                    } catch (error) {
                         console.log('[silentdraft] Audio not supported');
                     }
-                    
+
                     this.disabled = true;
                     this.style.background = '#95a5a6';
                     this.textContent = 'Accepted ✓';
@@ -6921,51 +7024,17 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
                     if (statusEl) {
                         statusEl.textContent = 'You accepted. Waiting for other members...';
                     }
-                    
-                    // Notify server that this member accepted
-                    if (window.draftSocket && currentDraftCode) {
-                        console.log('[silentdraft] Emitting acceptRoundResults for:', username);
-                        
-                        // Set a timeout for the callback in case server doesn't respond
-                        const callbackTimeout = setTimeout(() => {
-                            console.warn('[silentdraft] WARNING: acceptRoundResults callback timeout - no response from server within 10s');
-                        }, 10000);
-                        
-                        window.draftSocket.emit('acceptRoundResults', currentDraftCode, username, (response) => {
-                            clearTimeout(callbackTimeout);
-                            if (response && response.ok) {
-                                console.log('[silentdraft] Acceptance recorded successfully');
-                            } else {
-                                console.error('[silentdraft] Acceptance failed:', response);
-                                // Re-enable button on error
-                                this.disabled = false;
-                                this.style.background = '#2ecc71';
-                                this.textContent = 'Accept & Continue';
-                            }
-                        });
-                    } else {
+
+                    acceptRequestAcked = false;
+                    sendAcceptRoundResults(false);
+
+                    if (!window.draftSocket || !currentDraftCode) {
                         console.error('[silentdraft] Cannot emit - socket:', !!window.draftSocket, 'code:', currentDraftCode);
-                        // Re-enable button
                         this.disabled = false;
                         this.style.background = '#2ecc71';
                         this.textContent = 'Accept & Continue';
                     }
                 });
-
-                // Auto Draft users should auto-accept round results without manual click.
-                if (autoDraftEnabled) {
-                    const statusEl = document.getElementById('waiting-status');
-                    if (statusEl) {
-                        statusEl.textContent = 'Auto Draft is ON. Accepting results automatically...';
-                    }
-
-                    setTimeout(() => {
-                        if (!acceptBtn.disabled) {
-                            console.log('[silentdraft] Auto Draft ON - auto accepting round results');
-                            acceptBtn.click();
-                        }
-                    }, 250);
-                }
             } else {
                 console.error('[silentdraft] Accept button not found in DOM!');
             }

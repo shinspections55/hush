@@ -6370,7 +6370,7 @@ io.on('connection', (socket) => {
         // Check if there are more pending auctions
       if (drafts[code] && drafts[code].draftState && drafts[code].draftState.pendingAuctions && drafts[code].draftState.pendingAuctions.length > 0) {
         const nextTiePreview = drafts[code].draftState.pendingAuctions[0];
-        console.log(`[completeLiveAuction] ${drafts[code].draftState.pendingAuctions.length} more auctions pending, starting next in 2 seconds...`);
+        console.log(`[completeLiveAuction] ${drafts[code].draftState.pendingAuctions.length} more auctions pending, starting next after the summary/winner sequence completes...`);
         io.to(`draft_${code}`).emit('liveAuctionTransition', {
           auctionId,
           nextPlayerId: nextTiePreview ? nextTiePreview.playerId : null,
@@ -6394,7 +6394,7 @@ io.on('connection', (socket) => {
             console.error(`[completeLiveAuction] Error starting next auction:`, nextAuctionError);
             console.error(nextAuctionError.stack);
           }
-        }, 2000);
+        }, 7000);
       } else {
         console.log(`[completeLiveAuction] No more auctions, waiting 2 seconds then emitting allMembersAccepted to draft_${code}`);
         // Keep the completion flow tight so the PWA doesn't feel stalled.
