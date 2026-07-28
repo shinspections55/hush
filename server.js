@@ -6369,7 +6369,17 @@ io.on('connection', (socket) => {
       
         // Check if there are more pending auctions
       if (drafts[code] && drafts[code].draftState && drafts[code].draftState.pendingAuctions && drafts[code].draftState.pendingAuctions.length > 0) {
-        console.log(`[completeLiveAuction] ${drafts[code].draftState.pendingAuctions.length} more auctions pending, showing winner for 5+ seconds before starting next...`);
+        const nextTiePreview = drafts[code].draftState.pendingAuctions[0];
+        console.log(`[completeLiveAuction] ${drafts[code].draftState.pendingAuctions.length} more auctions pending, starting next in 2 seconds...`);
+        io.to(`draft_${code}`).emit('liveAuctionTransition', {
+          auctionId,
+          nextPlayerId: nextTiePreview ? nextTiePreview.playerId : null,
+          nextPlayerName: nextTiePreview ? nextTiePreview.playerName : null,
+          nextPlayerPosition: nextTiePreview ? nextTiePreview.playerPosition || 'UNK' : 'UNK',
+          message: nextTiePreview
+            ? `Preparing for next auction: ${nextTiePreview.playerName || 'Next player'}...`
+            : 'Preparing for next auction...'
+        });
         setTimeout(() => {
           try {
             if (drafts[code] && drafts[code].draftState && drafts[code].draftState.pendingAuctions && drafts[code].draftState.pendingAuctions.length > 0) {
@@ -6384,10 +6394,10 @@ io.on('connection', (socket) => {
             console.error(`[completeLiveAuction] Error starting next auction:`, nextAuctionError);
             console.error(nextAuctionError.stack);
           }
-        }, 5500);
+        }, 2000);
       } else {
-        console.log(`[completeLiveAuction] No more auctions, waiting 6 seconds then emitting allMembersAccepted to draft_${code}`);
-        // Wait for winner display to show (5 seconds) plus 1 second buffer before starting next round
+        console.log(`[completeLiveAuction] No more auctions, waiting 2 seconds then emitting allMembersAccepted to draft_${code}`);
+        // Keep the completion flow tight so the PWA doesn't feel stalled.
         setTimeout(() => {
           try {
             if (drafts[code]) {

@@ -1560,6 +1560,12 @@ function initSilentDraft() {
                 console.error('[silentdraft] Failed to recover live auction UI from sync payload:', error);
             }
         });
+
+        window.draftSocket.on('liveAuctionTransition', (payload) => {
+            if (!payload) return;
+            const message = String(payload.message || 'Preparing for next auction...');
+            showAuctionTransitionPopup(message);
+        });
         
         // Listen for round players set by host
         window.draftSocket.on('roundPlayersSet', (roundPlayers) => {
@@ -5280,6 +5286,29 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         }, 2200);
     }
 
+    function showAuctionTransitionPopup(message) {
+        const existing = document.getElementById('auction-transition-popup');
+        if (existing) {
+            existing.remove();
+        }
+
+        const backdrop = document.createElement('div');
+        backdrop.id = 'auction-transition-popup';
+        backdrop.style.cssText = 'position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(3,8,12,0.38);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);padding:18px;box-sizing:border-box;';
+        backdrop.innerHTML = `
+            <div style="width:min(92vw,460px);padding:18px 18px 16px 18px;border-radius:14px;border:1px solid rgba(173,220,246,0.26);background:linear-gradient(180deg, rgba(9,22,32,0.98) 0%, rgba(8,14,20,0.98) 100%);box-shadow:0 16px 42px rgba(0,0,0,0.38);text-align:center;color:#eef7ff;">
+                <div style="font-size:18px;font-weight:800;margin-bottom:8px;">Preparing for next auction...</div>
+                <div style="font-size:14px;line-height:1.45;color:#c8d9e6;">${message ? message : 'Loading the next tied player now.'}</div>
+            </div>
+        `;
+        document.body.appendChild(backdrop);
+
+        window.setTimeout(() => {
+            const node = document.getElementById('auction-transition-popup');
+            if (node) node.remove();
+        }, 1400);
+    }
+
     function clearAutoDraftSoloGraceWindow() {
         if (autoDraftSoloGraceTimeoutId) {
             clearTimeout(autoDraftSoloGraceTimeoutId);
@@ -6308,8 +6337,8 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             const backedOutSummary = backedOutTeams.length
                 ? backedOutTeams.join(', ')
                 : '';
-            const BACKOUT_SUMMARY_MS = 2200;
-            const WINNER_DISPLAY_MS = 5000;
+            const BACKOUT_SUMMARY_MS = 1200;
+            const WINNER_DISPLAY_MS = 2000;
 
             const finishPresentation = () => {
                 removeAuctionUi();
@@ -6328,9 +6357,9 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                     </div>
                 `;
 
-                console.log('[completeHandler] Winner display HTML set, waiting 5 seconds before removing');
+                console.log('[completeHandler] Winner display HTML set, waiting 2 seconds before removing');
                 setTimeout(() => {
-                    console.log('[completeHandler] 5 seconds elapsed, removing winner display');
+                    console.log('[completeHandler] 2 seconds elapsed, removing winner display');
                     finishPresentation();
                     console.log('[completeHandler] Winner display removed');
                 }, WINNER_DISPLAY_MS);
