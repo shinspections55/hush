@@ -731,7 +731,6 @@ initGlobalThemeToggleFallback();
       '  color: #ffffff;',
       '  box-shadow: inset 0 0 0 1px rgba(153,225,255,0.45);',
       '}',
-      '.pwa-nav-btn .pwa-nav-icon { font-size: 17px; line-height: 1; }',
       '.pwa-settings-sheet {',
       '  position: fixed;',
       '  left: 0;',
@@ -832,10 +831,10 @@ initGlobalThemeToggleFallback();
     nav.className = 'pwa-bottom-nav';
     nav.setAttribute('aria-label', 'App navigation');
     nav.innerHTML = [
-      '<button type="button" class="pwa-nav-btn" data-tab="home"><span class="pwa-nav-icon" aria-hidden="true">🏠</span><span>Home</span></button>',
-      '<button type="button" class="pwa-nav-btn" data-tab="rankings"><span class="pwa-nav-icon" aria-hidden="true">📋</span><span>Rankings</span></button>',
-      '<button type="button" class="pwa-nav-btn" data-tab="draft"><span class="pwa-nav-icon" aria-hidden="true">🏈</span><span>Draft</span></button>',
-      '<button type="button" class="pwa-nav-btn" data-tab="settings"><span class="pwa-nav-icon" aria-hidden="true">⚙️</span><span>Settings</span></button>'
+      '<button type="button" class="pwa-nav-btn" data-tab="home">Home</button>',
+      '<button type="button" class="pwa-nav-btn" data-tab="rankings">Rankings</button>',
+      '<button type="button" class="pwa-nav-btn" data-tab="draft">Draft</button>',
+      '<button type="button" class="pwa-nav-btn" data-tab="settings">Settings</button>'
     ].join('');
 
     var backdrop = document.createElement('div');
