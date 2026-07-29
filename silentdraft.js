@@ -1820,6 +1820,7 @@ function initSilentDraft() {
         const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : 7000;
         const overallTimeoutMs = Number.isFinite(Number(options.overallTimeoutMs)) ? Number(options.overallTimeoutMs) : 15000;
         const maxRetries = Number.isFinite(Number(options.maxRetries)) ? Number(options.maxRetries) : 1;
+        const suppressRetryWarning = !!options.suppressRetryWarning;
 
         if (!(socket && currentDraftCode)) {
             return Promise.resolve({ ok: false, reason: 'socket_unavailable' });
@@ -1875,7 +1876,9 @@ function initSilentDraft() {
 
                     if (attempts < maxRetries) {
                         attempts += 1;
-                        console.warn(`[silentdraft] ${eventName} ack timeout; retrying once.`);
+                        if (!suppressRetryWarning) {
+                            console.warn(`[silentdraft] ${eventName} ack timeout; retrying once.`);
+                        }
                         send();
                         return;
                     }
@@ -1938,7 +1941,12 @@ function initSilentDraft() {
             };
         });
 
-        return emitSocketAckWithRetry('syncRoundBids', [currentDraftCode, bidEntries], { timeoutMs: 7000, overallTimeoutMs: 15000, maxRetries: 1 }).then((response) => {
+        return emitSocketAckWithRetry('syncRoundBids', [currentDraftCode, bidEntries], {
+            timeoutMs: 2500,
+            overallTimeoutMs: 4000,
+            maxRetries: 0,
+            suppressRetryWarning: true
+        }).then((response) => {
             if (response && response.ok) {
                 return true;
             }
@@ -1991,6 +1999,10 @@ function initSilentDraft() {
             })
         ));
     }
+
+    // Expose helper explicitly for nested UI callbacks that may execute
+    // outside this function's lexical scope in some browser/runtime paths.
+    window.submitCurrentRoundBidsToServer = submitCurrentRoundBidsToServer;
     
     // Process round on server (called when all submitted or timer expires)
     function processRoundOnServer(attempt = 0) {
@@ -3892,7 +3904,16 @@ function initSilentDraft() {
                     showNotification('Auto Draft is ON. Submitting your bids now.');
                 }
 
-                submitCurrentRoundBidsToServer({
+                const submitHelper = (typeof submitCurrentRoundBidsToServer === 'function')
+                    ? submitCurrentRoundBidsToServer
+                    : window.submitCurrentRoundBidsToServer;
+                if (typeof submitHelper !== 'function') {
+                    console.error('[silentdraft] submit helper unavailable');
+                    showNotification('Submit helper unavailable. Please refresh.');
+                    return;
+                }
+
+                submitHelper({
                     lockUI: true,
                     lockLabel: isForceAutoSubmit ? 'Auto Submitted' : 'Bids Submitted'
                 }).then((submitted) => {
@@ -4917,7 +4938,15 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         });
 
         // Notify other users that this user has submitted their bids
-        submitCurrentRoundBidsToServer({ lockUI: true, lockLabel: 'Bids Submitted' }).then((submitted) => {
+        const submitHelper = (typeof submitCurrentRoundBidsToServer === 'function')
+            ? submitCurrentRoundBidsToServer
+            : window.submitCurrentRoundBidsToServer;
+        if (typeof submitHelper !== 'function') {
+            console.error('[silentdraft] submit helper unavailable during round submit broadcast');
+            return;
+        }
+
+        submitHelper({ lockUI: true, lockLabel: 'Bids Submitted' }).then((submitted) => {
             if (submitted) {
                 console.log('[silentdraft] Bid submission broadcasted');
             }
@@ -5387,8 +5416,18 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         }, 2200);
     }
 
-    function showAuctionTransitionPopup(message) {
-        const existing = document.getElementById('live-auction-modal');
+    function showAuctionTransitionPopup(message, attempt = 0) {
+        const activeAuctionModal = document.getElementById('live-auction-modal');
+        const countdownEl = (activeAuctionModal && activeAuctionModal.querySelector('#auction-countdown')) || document.getElementById('auction-countdown');
+        if (countdownEl) {
+            // Never replace the active bidding UI. Retry later and only render transition when bidding modal is no longer active.
+            if (attempt < 120) {
+                setTimeout(() => showAuctionTransitionPopup(message, attempt + 1), 100);
+            }
+            return;
+        }
+
+        const existingTransition = document.getElementById('auction-transition-popup');
         const content = `
             <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:220px;padding:8px 4px;box-sizing:border-box;">
                 <div style="width:min(92%,420px);padding:18px 18px 16px 18px;border-radius:14px;border:1px solid rgba(173,220,246,0.28);background:linear-gradient(180deg, rgba(9,22,32,0.98) 0%, rgba(8,14,20,0.98) 100%);box-shadow:0 16px 42px rgba(0,0,0,0.38);text-align:center;color:#eef7ff;">
@@ -5401,22 +5440,17 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             </div>
         `;
 
-        if (existing) {
-            existing.innerHTML = content;
-            existing.style.borderColor = 'rgba(173,220,246,0.28)';
-            existing.style.background = 'transparent';
-            existing.style.boxShadow = '0 16px 42px rgba(0,0,0,0.18)';
-            existing.style.overflow = 'hidden';
-
-            if (existing.dataset.transitionTimeoutId) {
-                clearTimeout(Number(existing.dataset.transitionTimeoutId));
+        if (existingTransition) {
+            existingTransition.innerHTML = content;
+            if (existingTransition.dataset.transitionTimeoutId) {
+                clearTimeout(Number(existingTransition.dataset.transitionTimeoutId));
             }
             const dismissTimeoutId = setTimeout(() => {
-                if (existing && existing.parentNode) {
-                    existing.parentNode.removeChild(existing);
+                if (existingTransition && existingTransition.parentNode) {
+                    existingTransition.parentNode.removeChild(existingTransition);
                 }
             }, 1000);
-            existing.dataset.transitionTimeoutId = String(dismissTimeoutId);
+            existingTransition.dataset.transitionTimeoutId = String(dismissTimeoutId);
             return;
         }
 
@@ -6998,6 +7032,11 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
 
                 if (response && response.ok) {
                     console.log('[silentdraft] Acceptance recorded successfully');
+                    if (response.allAccepted) {
+                        // Fallback in case allMembersAccepted socket event is delayed/lost.
+                        allAcceptedHandler();
+                        return;
+                    }
                     finishAcceptanceState();
                 } else {
                     console.error('[silentdraft] Acceptance failed:', response);

@@ -334,6 +334,21 @@ function getSilentProfiles() {
   return DEFAULT_SILENT_PROFILES;
 }
 
+function getRawAvValue(playerOrAvgValue) {
+  if (playerOrAvgValue && typeof playerOrAvgValue === 'object') {
+    return Number(playerOrAvgValue.avgValue || 0);
+  }
+  return Number(playerOrAvgValue || 0);
+}
+
+function getCpuEffectiveAv(playerOrAvgValue) {
+  return Math.max(1, getRawAvValue(playerOrAvgValue));
+}
+
+function isTrueZeroAv(playerOrAvgValue) {
+  return getRawAvValue(playerOrAvgValue) <= 0;
+}
+
 // Helper function to get bid range key
 function getRangeKey(avgValue) {
     if (avgValue <= 5) return '1-5';
@@ -1663,7 +1678,8 @@ function enforceAvMarketDepth(cpuBids, cpuTeams, roundPlayers, teamStrategies, r
   targets.forEach((player) => {
     const playerId = Number(player.id || 0);
     if (!playerId) return;
-    const av = Number(player.avgValue || 0);
+    const av = getCpuEffectiveAv(player);
+    const trueZeroAv = isTrueZeroAv(player);
     const minCompetitiveBid = Math.max(1, Math.round(av * minBidMultiplier));
 
     const existingBids = [];
@@ -1680,7 +1696,8 @@ function enforceAvMarketDepth(cpuBids, cpuTeams, roundPlayers, teamStrategies, r
       cfg?.silent || {},
       av,
       roundNumber,
-      Array.isArray(cpuTeams) ? cpuTeams.length : 0
+      Array.isArray(cpuTeams) ? cpuTeams.length : 0,
+      { isTrueZeroAv: trueZeroAv }
     );
     if (existingBids.length > participationTarget) {
       const keepTeams = new Set(
@@ -1775,8 +1792,9 @@ function applyAvParticipationCurve(cpuBids, roundPlayers, roundNumber) {
 
   bidsByPlayerId.forEach((entries, playerId) => {
     const player = playerById.get(Number(playerId)) || null;
-    const av = Math.max(0, Number(player?.avgValue || 0));
-    const targetCount = pickParticipationTargetCountFromCurve(cfg?.silent || {}, av, roundNumber, totalTeamCount);
+    const av = getCpuEffectiveAv(player);
+    const trueZeroAv = isTrueZeroAv(player);
+    const targetCount = pickParticipationTargetCountFromCurve(cfg?.silent || {}, av, roundNumber, totalTeamCount, { isTrueZeroAv: trueZeroAv });
 
     if (entries.length <= targetCount) return;
 
@@ -2236,15 +2254,16 @@ function getDynamicBidBand(avgValue, roundNumber, strategy) {
 }
 
 function clampBidToDynamicBand(player, bidAmount, roundNumber, strategy, bidRemainingBudget) {
-  const band = getDynamicBidBand(player.avgValue, roundNumber, strategy);
+  const effectiveAv = getCpuEffectiveAv(player);
+  const band = getDynamicBidBand(effectiveAv, roundNumber, strategy);
   const expansionPct = 0.02 + (Math.random() * 0.04);
   const expandedMinPct = Math.max(0.25, band.minPct * (1 - expansionPct));
   const expandedMaxPct = band.maxPct * (1 + expansionPct);
   const expandedRareMaxPct = band.rareMaxPct * (1 + expansionPct);
 
-  const baseFloor = Math.max(1, Math.round(player.avgValue * expandedMinPct));
-  const baseCeiling = Math.max(baseFloor, Math.round(player.avgValue * expandedMaxPct));
-  const rareCeiling = Math.max(baseCeiling, Math.round(player.avgValue * expandedRareMaxPct));
+  const baseFloor = Math.max(1, Math.round(effectiveAv * expandedMinPct));
+  const baseCeiling = Math.max(baseFloor, Math.round(effectiveAv * expandedMaxPct));
+  const rareCeiling = Math.max(baseCeiling, Math.round(effectiveAv * expandedRareMaxPct));
   const ceiling = Math.random() < band.rareChance ? rareCeiling : baseCeiling;
 
   // AV band acts as a soft ceiling so roster/round structure drives behavior.
@@ -2252,15 +2271,11 @@ function clampBidToDynamicBand(player, bidAmount, roundNumber, strategy, bidRema
 }
 
 function getPlayerAvSoftBidCap(player, roundNumber, budgetCap, cfgSilent = {}, options = {}) {
-  const av = Math.max(0, Number(player?.avgValue || 0));
+  const av = getCpuEffectiveAv(player);
   const safeBudgetCap = Math.max(1, Number(budgetCap || 1));
   const round = Math.max(1, Number(roundNumber || 1));
   const isStarredTarget = !!options.isStarredTarget;
   const isMustFillPosition = !!options.isMustFillPosition;
-
-  if (av <= 0) {
-    return safeBudgetCap;
-  }
 
   const multiplierByBucket = {
     '1-5': Math.max(1.0, Number(cfgSilent?.avCapMult1to5 ?? 1.24)),
@@ -2308,14 +2323,15 @@ function getHardPlayerBidCap(player, roundNumber, budgetCap, cfgSilent = {}, opt
 }
 
 function pullBidTowardAV(player, bidAmount, roundNumber) {
-  if (player.avgValue < 20) {
+  const effectiveAv = getCpuEffectiveAv(player);
+  if (effectiveAv < 20) {
     return bidAmount;
   }
 
   // Gentle center-weighting only — the old 0.68 weight was collapsing all CPUs into a tiny dollar window
   // making integer ties near-certain for high-value players. This is just a soft nudge now.
   const avWeight = roundNumber <= 3 ? 0.16 : roundNumber <= 7 ? 0.12 : 0.08;
-  return Math.round((player.avgValue * avWeight) + (bidAmount * (1 - avWeight)));
+  return Math.round((effectiveAv * avWeight) + (bidAmount * (1 - avWeight)));
 }
 
 // Client-side CPU bidding for silent auctions (from silentdraft.js)
@@ -2335,6 +2351,9 @@ function generateClientCPUBids(teams, roundPlayers, username, rosterSize, curren
       cpuAggressiveness[team.name] = Math.max(0.55, base);
     });
 
+    const cfg = loadCpuLogicConfig();
+    const zeroAvParticipationMultiplier = Math.max(0.25, Math.min(0.95, Number(cfg?.silent?.trueZeroAvParticipationMultiplier ?? 0.72)));
+
     // Calculate bestByPos for each team
     cpuTeams.forEach((team, idx) => {
         let bestByPos = {};
@@ -2352,6 +2371,8 @@ function generateClientCPUBids(teams, roundPlayers, username, rosterSize, curren
     // For each player
     roundPlayers.forEach(player => {
         if (player.owner) return;
+      const effectiveAv = getCpuEffectiveAv(player);
+      const trueZeroAv = isTrueZeroAv(player);
         // Define probability ranges based on avgValue
         const valueRanges = [
           { min: 1, max: 5, minProb: 0.02, maxProb: 0.10 },
@@ -2363,11 +2384,14 @@ function generateClientCPUBids(teams, roundPlayers, username, rosterSize, curren
           { min: 50, max: 60, minProb: 0.34, maxProb: 0.74 },
           { min: 60, max: Infinity, minProb: 0.40, maxProb: 0.84 }
         ];
-        const range = valueRanges.find(r => player.avgValue >= r.min && player.avgValue < r.max) || valueRanges[valueRanges.length - 1];
+        const range = valueRanges.find(r => effectiveAv >= r.min && effectiveAv < r.max) || valueRanges[0];
         let participationRate = range.minProb + Math.random() * (range.maxProb - range.minProb);
+        if (trueZeroAv) {
+          participationRate *= zeroAvParticipationMultiplier;
+        }
         // Further decrease participation in first 3 rounds, EXCEPT for big names
         if (currentRound <= 3) {
-          if (player.avgValue >= 40) {
+          if (effectiveAv >= 40) {
             // For stars, keep high participation (no reduction)
             participationRate *= 1.08;
             participationRate = Math.max(participationRate, 0.22); // Ensure at least 22%
@@ -2387,9 +2411,9 @@ function generateClientCPUBids(teams, roundPlayers, username, rosterSize, curren
         cpuTeams.forEach(team => {
             if (!isValidRosterAddition(team, player)) return;
             const bestByPos = team.bestByPos;
-            let improve = player.avgValue - bestByPos[player.position];
-            if (bestByPos[player.position] > 20 && player.avgValue < 20) improve -= 10;
-            if (bestByPos[player.position] > 5 && player.avgValue < 3) improve -= 20;
+          let improve = effectiveAv - bestByPos[player.position];
+          if (bestByPos[player.position] > 20 && effectiveAv < 20) improve -= 10;
+          if (bestByPos[player.position] > 5 && effectiveAv < 3) improve -= 20;
             if (improve > 0) improve += 5;
             if (bestByPos[player.position] < 10) improve += 10;
             let avgOther = Object.keys(bestByPos).filter(pos => pos !== player.position).reduce((sum, pos) => sum + bestByPos[pos], 0) / 5;
@@ -2408,18 +2432,18 @@ function generateClientCPUBids(teams, roundPlayers, username, rosterSize, curren
             const bestByPos = team.bestByPos;
             let baseBid;
             if (player.position === 'K' || player.position === 'DEF') {
-              baseBid = player.avgValue * (0.65 + Math.random() * 0.22); // 65-87% for K/DEF (further reduced)
+              baseBid = effectiveAv * (0.65 + Math.random() * 0.22); // 65-87% for K/DEF (further reduced)
             } else {
-              const bidRange = getBidRange(player.position, player.avgValue);
+              const bidRange = getBidRange(player.position, effectiveAv);
               // Further reduce the bid range for all positions
               const reducedMin = bidRange.min * 0.85;
               const reducedMax = bidRange.min + 0.55 * (bidRange.max - bidRange.min);
-              baseBid = player.avgValue * (reducedMin + Math.random() * (reducedMax - reducedMin));
+              baseBid = effectiveAv * (reducedMin + Math.random() * (reducedMax - reducedMin));
               // Add a hard cap: never bid more than 1.05x avgValue for any player
-              baseBid = Math.min(baseBid, player.avgValue * 1.05);
+              baseBid = Math.min(baseBid, effectiveAv * 1.05);
             }
             // Special handling for very low value players
-            if (player.avgValue <= 1) {
+            if (effectiveAv <= 1) {
                 baseBid = Math.random() < 0.75 ? 1 : (1 + Math.floor(Math.random() * 4)); // 75% chance $1, 25% chance $1-4
             }
             if (bestByPos[player.position] === 0) baseBid *= 1.2;
@@ -5589,10 +5613,11 @@ function getParticipationBandConfig(silentCfg, avgValue) {
   };
 }
 
-function getLowAvNoBidChance(silentCfg, avgValue, roundNumber) {
+function getLowAvNoBidChance(silentCfg, avgValue, roundNumber, options = {}) {
   const av = Math.max(0, Number(avgValue || 0));
   const round = Math.max(1, Number(roundNumber || 1));
   const lateRoundRelief = Math.max(0, Math.min(0.5, Number(silentCfg?.bandLowAvNoBidLateRoundRelief ?? 0.08)));
+  const trueZeroPenalty = Math.max(0, Math.min(0.5, Number(silentCfg?.trueZeroAvNoBidPenalty ?? 0.16)));
 
   let baseNoBidChance = 0;
   if (av <= 9) {
@@ -5604,22 +5629,29 @@ function getLowAvNoBidChance(silentCfg, avgValue, roundNumber) {
   if (baseNoBidChance <= 0) return 0;
 
   const lateStage = Math.max(0, round - 6);
-  const adjusted = baseNoBidChance - (lateStage * lateRoundRelief);
+  let adjusted = baseNoBidChance - (lateStage * lateRoundRelief);
+  if (options?.isTrueZeroAv) {
+    adjusted += trueZeroPenalty;
+  }
   return Math.max(0, Math.min(0.95, adjusted));
 }
 
-function pickParticipationTargetCountFromCurve(silentCfg, avgValue, roundNumber, totalTeams = 0) {
+function pickParticipationTargetCountFromCurve(silentCfg, avgValue, roundNumber, totalTeams = 0, options = {}) {
   const weights = getParticipationCurveWeights(silentCfg, avgValue, roundNumber);
   const total = weights.reduce((sum, value) => sum + value, 0);
   const av = Math.max(0, Number(avgValue || 0));
   const teams = Math.max(0, Math.floor(Number(totalTeams || 0)));
+  const trueZeroAv = !!options?.isTrueZeroAv;
 
-  const noBidChance = getLowAvNoBidChance(silentCfg, av, roundNumber);
+  const noBidChance = getLowAvNoBidChance(silentCfg, av, roundNumber, options);
   if (teams > 0 && noBidChance > 0 && Math.random() < noBidChance) {
     return 0;
   }
 
   let hardMax = Math.min(weights.length, getParticipationHardMax(silentCfg, av));
+  if (trueZeroAv) {
+    hardMax = Math.max(1, hardMax - 1);
+  }
 
   if (teams > 0) {
     const bandCfg = getParticipationBandConfig(silentCfg, av);

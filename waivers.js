@@ -566,10 +566,9 @@ document.addEventListener('DOMContentLoaded', () => {
         lastTurnAlertKey = turnKey;
         if (isCurrentUserTeamName(currentTurn)) {
             playTurnDing();
-            showTurnAlert('Your turn');
-        } else {
-            forceHideTurnAlert();
         }
+        // Explicitly disable the popup-style turn alert.
+        forceHideTurnAlert();
     }
 
     function render() {

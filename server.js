@@ -3559,6 +3559,7 @@ const io = new Server(server, {
 const drafts = {};
 const WAIVER_PICK_TIMER_MS = 3 * 60 * 1000;
 const WAIVER_TIMER_TICK_MS = 1000;
+const WAIVER_CPU_ACTION_DELAY_MS = 10 * 1000;
 
 function normalizeWaiverMode(mode) {
   return String(mode || '').trim().toLowerCase() === 'skill' ? 'skill' : 'random';
@@ -3698,11 +3699,13 @@ function getCurrentWaiverTurnTeamName(waiverState) {
 
 function resetWaiverTurnTimer(waiverState) {
   if (!waiverState) return;
+  const now = Date.now();
   const durationMs = Number.isFinite(Number(waiverState.turnDurationMs))
     ? Math.max(1000, Number(waiverState.turnDurationMs))
     : WAIVER_PICK_TIMER_MS;
   waiverState.turnDurationMs = durationMs;
-  waiverState.turnEndsAt = Date.now() + durationMs;
+  waiverState.turnStartedAt = now;
+  waiverState.turnEndsAt = now + durationMs;
 }
 
 function advanceWaiverTurn(waiverState) {
@@ -3931,32 +3934,31 @@ function processCpuWaiverTurns(draftCode, draft) {
     : (Array.isArray(draft.teams) ? draft.teams : []);
   if (!Array.isArray(teams) || teams.length === 0) return false;
 
+  const teamName = getCurrentWaiverTurnTeamName(waiverState);
+  if (!teamName || !isCpuSummaryTeam(teamName, draft)) return false;
+
+  const turnStartedAt = Number(waiverState.turnStartedAt || 0);
+  const turnAgeMs = Number.isFinite(turnStartedAt) && turnStartedAt > 0
+    ? (Date.now() - turnStartedAt)
+    : 0;
+  if (turnAgeMs < WAIVER_CPU_ACTION_DELAY_MS) {
+    return false;
+  }
+
   let changed = false;
-  // Strict order guardrail: process at most one full pass over the configured order
-  // per invocation, advancing one turn at a time.
-  const maxLoops = Math.max(1, (Array.isArray(waiverState.order) ? waiverState.order.length : 0));
-  let loops = 0;
-
-  while (loops < maxLoops && waiverState.active && !waiverState.completed) {
-    loops += 1;
-    const teamName = getCurrentWaiverTurnTeamName(waiverState);
-    if (!teamName || !isCpuSummaryTeam(teamName, draft)) break;
-
-    const team = teams.find(t => String(t && t.name || '').trim() === teamName);
-    if (!team || !Array.isArray(team.roster)) {
-      waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
-      waiverState.lastAction = {
-        type: 'cpuPass',
-        by: teamName,
-        reason: 'team_not_found',
-        at: Date.now()
-      };
-      advanceWaiverTurn(waiverState);
-      finalizeWaiverStateProgress(draft, waiverState);
-      changed = true;
-      continue;
-    }
-
+  const team = teams.find(t => String(t && t.name || '').trim() === teamName);
+  if (!team || !Array.isArray(team.roster)) {
+    waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
+    waiverState.lastAction = {
+      type: 'cpuPass',
+      by: teamName,
+      reason: 'team_not_found',
+      at: Date.now()
+    };
+    advanceWaiverTurn(waiverState);
+    finalizeWaiverStateProgress(draft, waiverState);
+    changed = true;
+  } else {
     const move = findBestCpuWaiverMove(draft, team);
     if (!move) {
       waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
@@ -3969,36 +3971,34 @@ function processCpuWaiverTurns(draftCode, draft) {
       advanceWaiverTurn(waiverState);
       finalizeWaiverStateProgress(draft, waiverState);
       changed = true;
-      continue;
+    } else {
+      const applied = applyWaiverAddDropForTeam(draft, team, teamName, move.addPlayerId, move.dropPlayerId);
+      if (!applied.ok) {
+        waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
+        waiverState.lastAction = {
+          type: 'cpuPass',
+          by: teamName,
+          reason: applied.reason || 'apply_failed',
+          at: Date.now()
+        };
+        advanceWaiverTurn(waiverState);
+        finalizeWaiverStateProgress(draft, waiverState);
+        changed = true;
+      } else {
+        waiverState.passesInRow = 0;
+        waiverState.lastAction = {
+          type: 'cpuAddDrop',
+          by: teamName,
+          addPlayerId: move.addPlayerId,
+          dropPlayerId: move.dropPlayerId,
+          scoreGain: Number(move.scoreGain.toFixed(3)),
+          at: Date.now()
+        };
+        advanceWaiverTurn(waiverState);
+        finalizeWaiverStateProgress(draft, waiverState);
+        changed = true;
+      }
     }
-
-    const applied = applyWaiverAddDropForTeam(draft, team, teamName, move.addPlayerId, move.dropPlayerId);
-    if (!applied.ok) {
-      waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
-      waiverState.lastAction = {
-        type: 'cpuPass',
-        by: teamName,
-        reason: applied.reason || 'apply_failed',
-        at: Date.now()
-      };
-      advanceWaiverTurn(waiverState);
-      finalizeWaiverStateProgress(draft, waiverState);
-      changed = true;
-      continue;
-    }
-
-    waiverState.passesInRow = 0;
-    waiverState.lastAction = {
-      type: 'cpuAddDrop',
-      by: teamName,
-      addPlayerId: move.addPlayerId,
-      dropPlayerId: move.dropPlayerId,
-      scoreGain: Number(move.scoreGain.toFixed(3)),
-      at: Date.now()
-    };
-    advanceWaiverTurn(waiverState);
-    finalizeWaiverStateProgress(draft, waiverState);
-    changed = true;
   }
 
   if (draft.draftState && Array.isArray(draft.draftState.teams)) {
@@ -5892,68 +5892,75 @@ io.on('connection', (socket) => {
 
   // Member accepts round results
   socket.on('acceptRoundResults', (code, username, cb) => {
-    console.log(`[acceptRoundResults] ${username} accepted results in ${code}`);
-    
-    if(!drafts[code].draftState.acceptedMembers) {
-      drafts[code].draftState.acceptedMembers = [];
-    }
-    
-    // Track this member's acceptance
-    if(!drafts[code].draftState.acceptedMembers.includes(username)) {
-      drafts[code].draftState.acceptedMembers.push(username);
-    }
-    
-    // Only count human members (non-CPU) for acceptance tracking
-    const humanMembers = drafts[code].members || [];
-    const acceptedCount = drafts[code].draftState.acceptedMembers.length;
-    
-    console.log(`[acceptRoundResults] ${acceptedCount}/${humanMembers.length} human members have accepted`);
-    
-    // Broadcast acceptance status
-    const remaining = humanMembers.length - acceptedCount;
-    io.to(`draft_${code}`).emit('memberAcceptedResults', {
-      username,
-      acceptedCount,
-      totalMembers: humanMembers.length,
-      message: remaining > 0 ? `Waiting for ${remaining} more member(s) to accept...` : 'All members accepted!'
-    });
-    
-    // Check if all human members have accepted (CPU teams don't need to accept)
-    if(acceptedCount >= humanMembers.length) {
-      console.log(`[acceptRoundResults] All ${humanMembers.length} human members accepted - advancing to next round`);
-      
-      // Store tied bids from last round results for automatic auction processing
-      const lastResults = drafts[code].draftState.lastRoundResults;
-      console.log(`[acceptRoundResults] lastResults structure:`, JSON.stringify(lastResults, null, 2));
-      
-      // Always emit allMembersAccepted to close the results modal
-      // (auctions will be handled separately via liveAuctionStarted event)
-      io.to(`draft_${code}`).emit('allMembersAccepted');
-      
-      if (lastResults && lastResults.tiedBids && lastResults.tiedBids.length > 0) {
-        console.log(`[acceptRoundResults] Found ${lastResults.tiedBids.length} tied bids, will start auctions automatically`);
-        try {
-          drafts[code].draftState.pendingAuctions = [...lastResults.tiedBids];
-          
-          // Start the first auction immediately
-          const firstTie = drafts[code].draftState.pendingAuctions.shift();
-          console.log(`[acceptRoundResults] Starting first auction for:`, firstTie);
-          startServerLiveAuction(code, firstTie);
-        } catch (err) {
-          console.error(`[acceptRoundResults] ERROR starting auction:`, err);
-          console.error(err.stack);
-        }
-      } else {
-        console.log(`[acceptRoundResults] No tied bids detected, proceeding to next round`);
+    try {
+      const draft = drafts[code];
+      if (!draft || !draft.draftState) {
+        if (cb) cb({ ok: false, reason: 'draft_not_ready' });
+        return;
       }
-      
-      // Reset tracking for next round
-      drafts[code].draftState.acceptedMembers = [];
-      drafts[code].draftState.submittedMembers = [];
-      drafts[code].draftState.isProcessingRound = false; // Reset round processing flag
+
+      const socketUser = String(socket.data.username || '').trim();
+      const providedUser = String(username || '').trim();
+      const resolvedUser = socketUser || providedUser;
+
+      console.log(`[acceptRoundResults] ${resolvedUser} accepted results in ${code}`);
+
+      if (!draft.draftState.acceptedMembers) {
+        draft.draftState.acceptedMembers = [];
+      }
+
+      if (resolvedUser && !draft.draftState.acceptedMembers.includes(resolvedUser)) {
+        draft.draftState.acceptedMembers.push(resolvedUser);
+      }
+
+      const humanMembers = Array.isArray(draft.members) ? draft.members : [];
+      const acceptedCount = draft.draftState.acceptedMembers.length;
+      const totalMembers = humanMembers.length;
+      const allAccepted = totalMembers === 0 || acceptedCount >= totalMembers;
+
+      console.log(`[acceptRoundResults] ${acceptedCount}/${totalMembers} human members have accepted`);
+
+      const remaining = Math.max(0, totalMembers - acceptedCount);
+      io.to(`draft_${code}`).emit('memberAcceptedResults', {
+        username: resolvedUser,
+        acceptedCount,
+        totalMembers,
+        message: remaining > 0 ? `Waiting for ${remaining} more member(s) to accept...` : 'All members accepted!'
+      });
+
+      if (allAccepted) {
+        console.log(`[acceptRoundResults] All ${totalMembers} human members accepted - advancing to next round`);
+
+        const lastResults = draft.draftState.lastRoundResults;
+        console.log(`[acceptRoundResults] lastResults structure:`, JSON.stringify(lastResults, null, 2));
+
+        io.to(`draft_${code}`).emit('allMembersAccepted');
+
+        if (lastResults && lastResults.tiedBids && lastResults.tiedBids.length > 0) {
+          console.log(`[acceptRoundResults] Found ${lastResults.tiedBids.length} tied bids, will start auctions automatically`);
+          try {
+            draft.draftState.pendingAuctions = [...lastResults.tiedBids];
+            const firstTie = draft.draftState.pendingAuctions.shift();
+            console.log(`[acceptRoundResults] Starting first auction for:`, firstTie);
+            startServerLiveAuction(code, firstTie);
+          } catch (err) {
+            console.error(`[acceptRoundResults] ERROR starting auction:`, err);
+            console.error(err.stack);
+          }
+        } else {
+          console.log(`[acceptRoundResults] No tied bids detected, proceeding to next round`);
+        }
+
+        draft.draftState.acceptedMembers = [];
+        draft.draftState.submittedMembers = [];
+        draft.draftState.isProcessingRound = false;
+      }
+
+      if (cb) cb({ ok: true, acceptedCount, totalMembers, allAccepted });
+    } catch (error) {
+      console.error('[acceptRoundResults] Unexpected error:', error);
+      if (cb) cb({ ok: false, reason: 'server_error' });
     }
-    
-    if(cb) cb({ ok: true });
   });
 
   // Start next round (host only)
@@ -7078,6 +7085,7 @@ io.on('connection', (socket) => {
       order,
       turnIndex: 0,
       turnDurationMs: WAIVER_PICK_TIMER_MS,
+      turnStartedAt: Date.now(),
       turnEndsAt: Date.now() + WAIVER_PICK_TIMER_MS,
       pool: buildWaiverPoolFromDraft(draft),
       passesInRow: 0,
