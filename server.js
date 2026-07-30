@@ -39,6 +39,48 @@ const POSITION_FILE_MAP = {
   K: { fileName: 'k.json', rankField: 'Krank', rankPrefix: '#' },
   DEF: { fileName: 'def.json', rankField: 'DEFrank', rankPrefix: '#' }
 };
+const BYE_WEEK_BY_TEAM = Object.freeze({
+  ATL: 5,
+  ARI: 8,
+  BAL: 7,
+  BUF: 7,
+  CAR: 5,
+  CHI: 5,
+  CIN: 6,
+  CLE: 9,
+  DAL: 10,
+  DEN: 10,
+  DET: 6,
+  GB: 5,
+  HOU: 6,
+  IND: 11,
+  JAC: 7,
+  KC: 5,
+  LAC: 7,
+  LAR: 8,
+  LV: 13,
+  MIA: 6,
+  MIN: 6,
+  NE: 11,
+  NO: 8,
+  NYG: 8,
+  NYJ: 9,
+  PHI: 9,
+  PIT: 5,
+  SEA: 8,
+  SF: 8,
+  TB: 9,
+  TEN: 9,
+  WAS: 7
+});
+const TEAM_ABBREVIATION_ALIASES = Object.freeze({
+  JAX: 'JAC',
+  LA: 'LAR',
+  OAK: 'LV',
+  SD: 'LAC',
+  STL: 'LAR',
+  WSH: 'WAS'
+});
 
 const deliveryDebugState = {
   lastEmail: null,
@@ -248,6 +290,26 @@ function formatPositionRankValue(position, rankNumber) {
   return meta.rankPrefix ? `${meta.rankPrefix}${rank}` : rank;
 }
 
+function normalizeTeamAbbreviation(value) {
+  const team = String(value || '').trim().toUpperCase();
+  return TEAM_ABBREVIATION_ALIASES[team] || team;
+}
+
+function normalizeByeWeekValue(rawValue) {
+  const numeric = Number.parseInt(rawValue, 10);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  return null;
+}
+
+function resolvePlayerByeWeek(player) {
+  const explicitBye = normalizeByeWeekValue(
+    player && (player.byeWeek ?? player.bye ?? player.bye_week ?? player.BYE ?? player.BYEWEEK ?? player.byeweek)
+  );
+  if (explicitBye !== null) return explicitBye;
+  const teamAbbr = normalizeTeamAbbreviation(player && player.team);
+  return BYE_WEEK_BY_TEAM[teamAbbr] || null;
+}
+
 function normalizePositionFilePlayer(rawPlayer, position, index = 0) {
   const normalizedPos = normalizePosition(position || rawPlayer.position);
   const meta = getPositionFileMeta(normalizedPos);
@@ -266,6 +328,7 @@ function normalizePositionFilePlayer(rawPlayer, position, index = 0) {
     team: String(rawPlayer.team || '').trim().toUpperCase(),
     avgValue: toNumber(rawPlayer.avgValue, 0),
     draftChance: toNumber(rawPlayer.draftChance, 0),
+    byeWeek: resolvePlayerByeWeek(rawPlayer),
     tier: String(rawPlayer.tier || rawPlayer.tierName || rawPlayer.tierId || '').trim() || undefined,
     img: String(rawPlayer.img || '').trim() || undefined
   };
@@ -349,6 +412,11 @@ async function writePositionRankingsData(position, players) {
       output.tier = String(player.tier).trim();
     }
 
+    const byeWeek = normalizeByeWeekValue(player && player.byeWeek);
+    if (byeWeek !== null) {
+      output.byeWeek = byeWeek;
+    }
+
     if (player.img) {
       output.img = player.img;
     }
@@ -417,6 +485,7 @@ function normalizeRankingPlayer(rawPlayer, index = 0) {
     team: String(rawPlayer.team || '').trim().toUpperCase(),
     prerank: toNumber(rawPlayer.prerank, index + 1),
     avgValue: toNumber(rawPlayer.avgValue, 1),
+    byeWeek: resolvePlayerByeWeek(rawPlayer),
     tier: String(rawPlayer.tier || rawPlayer.tierId || rawPlayer.tierName || '').trim() || null
   };
 }
@@ -2270,6 +2339,9 @@ function applySimulationWinner(team, player, pricePaid) {
     id: player.id,
     name: player.name,
     position: player.position,
+    team: String(player && player.team || '').trim().toUpperCase(),
+    byeWeek: resolvePlayerByeWeek(player),
+    avgValue: Number(player && player.avgValue || 0),
     bid: safePrice,
     prerank: player.prerank,
     positionRank: player.positionRank
@@ -2627,6 +2699,8 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
     id: Number(player && player.id) || null,
     name: String(player && player.name || ''),
     position: normalizePosition(player && player.position),
+    team: String(player && player.team || '').trim().toUpperCase(),
+    byeWeek: resolvePlayerByeWeek(player),
     bid: Number(player && player.bid) || 0,
     prerank: Number(player && player.prerank) || null,
     positionRank: Number(player && player.positionRank) || null,
@@ -3709,6 +3783,7 @@ function toWaiverPoolPlayer(player) {
     name: String(player && player.name || '').trim(),
     position: String(player && player.position || 'UNK').trim().toUpperCase(),
     team: String(player && player.team || '').trim().toUpperCase(),
+    byeWeek: resolvePlayerByeWeek(player),
     avgValue: Number(player && (player.avgValue || player.value) || 0),
     positionRank: resolveWaiverPositionRank(player),
     prerank: Number(player && (player.prerank || player.positionRank) || 999)
@@ -3920,6 +3995,7 @@ function buildWaiverRosterPlayer(addPlayer) {
     name: String(addPlayer && addPlayer.name || '').trim(),
     position: String(addPlayer && addPlayer.position || 'UNK').trim().toUpperCase(),
     team: String(addPlayer && addPlayer.team || '').trim().toUpperCase(),
+    byeWeek: resolvePlayerByeWeek(addPlayer),
     avgValue: Number(addPlayer && (addPlayer.avgValue || addPlayer.value) || 0),
     value: Number(addPlayer && (addPlayer.value || addPlayer.avgValue) || 0),
     bid: 0,
@@ -4894,6 +4970,8 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
         playerId: player.id,
         playerName: player.name,
         playerPosition: player.position,
+        playerTeam: String(player && player.team || '').trim().toUpperCase(),
+        playerByeWeek: resolvePlayerByeWeek(player),
         playerPrerank: player.prerank || player.avgValue,
         playerPositionRank: player.positionRank,
         winnerTeam: winner.name,
@@ -4911,6 +4989,8 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
         playerId: player.id,
         playerName: player.name,
         position: player.position,
+        team: String(player && player.team || '').trim().toUpperCase(),
+        byeWeek: resolvePlayerByeWeek(player),
         avgValue: player.avgValue,
         positionRank: player.positionRank,
         tiedTeams: topBidders.map(b => b.team.name),
@@ -6310,7 +6390,7 @@ io.on('connection', (socket) => {
       drafts[code].draftState.liveAuctions = {};
     }
     
-    const { playerId, playerName, tiedTeams, bidAmount, position, avgValue, positionRank } = tiedBid;
+    const { playerId, playerName, tiedTeams, bidAmount, position, avgValue, positionRank, team, byeWeek } = tiedBid;
     
     // Server generates the auctionId
     const auctionId = `${code}_${playerId}_${Date.now()}`;
@@ -6320,6 +6400,8 @@ io.on('connection', (socket) => {
       playerId,
       playerName,
       playerPosition: position || 'UNK',
+      playerTeam: String(team || '').trim().toUpperCase(),
+      playerByeWeek: normalizeByeWeekValue(byeWeek),
       playerAvgValue: avgValue || 1,
       playerPositionRank: positionRank,
       tiedTeams: [...tiedTeams],
@@ -6678,11 +6760,31 @@ io.on('connection', (socket) => {
       
       // Award player to winner
       const winnerTeam = drafts[code].draftState.teams.find(t => t.name === winner);
-      const player = { id: auction.playerId, playerName: auction.playerName, position: auction.playerPosition || 'UNK', avgValue: auction.playerAvgValue || 1, bidAmount: winningBid, positionRank: auction.playerPositionRank };
+      const sourcePlayer = drafts[code].draftState.allPlayers?.find((p) => Number(p && p.id) === Number(auction.playerId));
+      const player = {
+        id: auction.playerId,
+        playerName: auction.playerName,
+        position: auction.playerPosition || 'UNK',
+        team: String((sourcePlayer && sourcePlayer.team) || auction.playerTeam || '').trim().toUpperCase(),
+        byeWeek: normalizeByeWeekValue((sourcePlayer && sourcePlayer.byeWeek) ?? auction.playerByeWeek),
+        avgValue: auction.playerAvgValue || 1,
+        bidAmount: winningBid,
+        positionRank: auction.playerPositionRank
+      };
       
       if (winnerTeam) {
         winnerTeam.budget -= winningBid;
-        winnerTeam.roster.push({ id: player.id, name: player.playerName, position: player.position, bid: player.bidAmount, prerank: player.avgValue, positionRank: player.positionRank });
+        winnerTeam.roster.push({
+          id: player.id,
+          name: player.playerName,
+          position: player.position,
+          team: player.team,
+          byeWeek: player.byeWeek,
+          avgValue: player.avgValue,
+          bid: player.bidAmount,
+          prerank: player.avgValue,
+          positionRank: player.positionRank
+        });
         
         // Reorder roster: sort by position, then by prerank (lower = better)
         winnerTeam.roster.sort((a, b) => {

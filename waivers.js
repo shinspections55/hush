@@ -66,6 +66,70 @@ document.addEventListener('DOMContentLoaded', () => {
         return fallback;
     }
 
+    const BYE_WEEK_BY_TEAM = Object.freeze({
+        ATL: 5,
+        ARI: 8,
+        BAL: 7,
+        BUF: 7,
+        CAR: 5,
+        CHI: 5,
+        CIN: 6,
+        CLE: 9,
+        DAL: 10,
+        DEN: 10,
+        DET: 6,
+        GB: 5,
+        HOU: 6,
+        IND: 11,
+        JAC: 7,
+        KC: 5,
+        LAC: 7,
+        LAR: 8,
+        LV: 13,
+        MIA: 6,
+        MIN: 6,
+        NE: 11,
+        NO: 8,
+        NYG: 8,
+        NYJ: 9,
+        PHI: 9,
+        PIT: 5,
+        SEA: 8,
+        SF: 8,
+        TB: 9,
+        TEN: 9,
+        WAS: 7
+    });
+
+    const TEAM_ABBREVIATION_ALIASES = Object.freeze({
+        JAX: 'JAC',
+        LA: 'LAR',
+        OAK: 'LV',
+        SD: 'LAC',
+        STL: 'LAR',
+        WSH: 'WAS'
+    });
+
+    function normalizeTeamAbbreviation(value) {
+        const team = String(value || '').trim().toUpperCase();
+        return TEAM_ABBREVIATION_ALIASES[team] || team;
+    }
+
+    function normalizeByeWeekValue(rawValue) {
+        const parsed = Number.parseInt(rawValue, 10);
+        if (Number.isFinite(parsed) && parsed > 0) return parsed;
+        return null;
+    }
+
+    function resolvePlayerByeWeek(player) {
+        const explicit = normalizeByeWeekValue(
+            player && (player.byeWeek ?? player.bye ?? player.bye_week ?? player.BYE ?? player.BYEWEEK ?? player.byeweek)
+        );
+        if (explicit !== null) return explicit;
+        const teamAbbr = normalizeTeamAbbreviation(player && player.team);
+        return BYE_WEEK_BY_TEAM[teamAbbr] || null;
+    }
+
     function getPlayerPositionRank(player) {
         const pos = String(player && player.position || '').trim().toUpperCase();
         const positionRankFieldByPos = {
@@ -118,6 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     name: String(player.name || '').trim(),
                     position: String(player.position || 'UNK').trim().toUpperCase(),
                     team: String(player.team || '').trim().toUpperCase(),
+                    byeWeek: resolvePlayerByeWeek(player),
                     avgValue: Number(player.avgValue || 0),
                     positionRank: getPlayerPositionRank(player),
                     prerank: Number(player.prerank || 999)
@@ -135,6 +200,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     id: player.id,
                     name: player.name,
                     position: player.position,
+                    team: String(player && player.team || '').trim().toUpperCase(),
+                    byeWeek: resolvePlayerByeWeek(player),
+                    avgValue: Number(player && player.avgValue || 0),
                     bid: player.bid,
                     prerank: player.prerank
                 }))
@@ -258,6 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: String(player.name || '').trim(),
                 position: String(player.position || 'UNK').trim().toUpperCase(),
                 team: String(player.team || '').trim().toUpperCase(),
+                byeWeek: resolvePlayerByeWeek(player),
                 avgValue: Number(player.avgValue || 0),
                 positionRank: getPlayerPositionRank(player),
                 prerank: Number(player.prerank || 999)
@@ -464,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ? filtered.map(player => `
                 <div class="waiver-pool-item">
                     <span class="pos-badge pos-${escapeHtml(player.position)}">${escapeHtml(player.position)}</span>
-                    <span class="waiver-name">${escapeHtml(player.name)} <span class="waiver-meta">${escapeHtml(player.position || 'UNK')} #${getPlayerPositionRank(player)}</span></span>
+                    <span class="waiver-name">${escapeHtml(player.name)} <span class="waiver-meta">${escapeHtml(player.position || 'UNK')} #${getPlayerPositionRank(player)}${resolvePlayerByeWeek(player) ? ` | BYE ${resolvePlayerByeWeek(player)}` : ''}</span></span>
                     <button type="button" class="account-btn waiver-add-btn" data-player-id="${Number(player.id)}" ${canAct ? '' : 'disabled'}>+</button>
                 </div>
             `).join('')
@@ -749,12 +818,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!slot.player) {
                     return `<div class="waiver-team-row"><span class="waiver-team-pos">${escapeHtml(slot.label || '--')}</span><span class="waiver-team-player">Empty</span><span class="waiver-team-cost">-</span></div>`;
                 }
-                return `<div class="waiver-team-row"><span class="waiver-team-pos">${escapeHtml(slot.label || slot.player.position || 'UNK')}</span><span class="waiver-team-player">${escapeHtml(slot.player.name || 'Unknown')}</span><span class="waiver-team-cost">$${Number(slot.player.bid || 0)}</span></div>`;
+                const byeWeek = resolvePlayerByeWeek(slot.player);
+                const byeMarkup = byeWeek ? `<span class="waiver-player-bye-badge">BYE ${byeWeek}</span>` : '';
+                return `<div class="waiver-team-row"><span class="waiver-team-pos">${escapeHtml(slot.label || slot.player.position || 'UNK')}</span><span class="waiver-team-player">${escapeHtml(slot.player.name || 'Unknown')} ${byeMarkup}</span><span class="waiver-team-cost">$${Number(slot.player.bid || 0)}</span></div>`;
             }).join('')
             : '<div class="bench-empty">No starters configured.</div>';
 
         waiverOnClockBench.innerHTML = bench.length
-            ? bench.map(player => `<div class="waiver-team-row"><span class="waiver-team-pos">${escapeHtml(player.position || 'BN')}</span><span class="waiver-team-player">${escapeHtml(player.name || 'Unknown')}</span><span class="waiver-team-cost">$${Number(player.bid || 0)}</span></div>`).join('')
+            ? bench.map(player => {
+                const byeWeek = resolvePlayerByeWeek(player);
+                const byeMarkup = byeWeek ? `<span class="waiver-player-bye-badge">BYE ${byeWeek}</span>` : '';
+                return `<div class="waiver-team-row"><span class="waiver-team-pos">${escapeHtml(player.position || 'BN')}</span><span class="waiver-team-player">${escapeHtml(player.name || 'Unknown')} ${byeMarkup}</span><span class="waiver-team-cost">$${Number(player.bid || 0)}</span></div>`;
+            }).join('')
             : '<div class="bench-empty">No bench players.</div>';
     }
 
