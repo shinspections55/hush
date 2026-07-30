@@ -386,27 +386,29 @@ document.addEventListener('DOMContentLoaded', () => {
         waiverOrderList.innerHTML = order.length
             ? order.map((teamName, index) => {
                 const activity = getTeamWaiverActivity(teamName);
-                const activityMarkup = activity
+                const activityMarkup = activity && activity.type === 'addDrop'
                     ? `
-                        <div style="margin-top:6px; font-size:11px; display:flex; flex-direction:column; gap:2px; color:#cbd5e1;">
-                            ${activity.type === 'addDrop'
-                                ? `<div style="color:#86efac;">+ ${escapeHtml(activity.addPlayerPosition || 'UNK')} ${escapeHtml(activity.addPlayerName || 'Player')}</div><div style="color:#fda4af;">- ${escapeHtml(activity.dropPlayerPosition || 'UNK')} ${escapeHtml(activity.dropPlayerName || 'Player')}</div>`
-                                : '<div style="color:#fef3c7;">Passed</div>'}
+                        <div class="waiver-activity">
+                            <div class="waiver-activity-line waiver-activity-add">
+                                <span class="waiver-activity-team">${escapeHtml(teamName)}</span>
+                                <span class="waiver-activity-move">+ ${escapeHtml(activity.addPlayerPosition || 'UNK')} ${escapeHtml(activity.addPlayerName || 'Player')}</span>
+                            </div>
+                            <div class="waiver-activity-line waiver-activity-drop">
+                                - ${escapeHtml(activity.dropPlayerPosition || 'UNK')} ${escapeHtml(activity.dropPlayerName || 'Player')}
+                            </div>
                         </div>
                     `
                     : '';
                 const badgeText = waiverState && waiverState.active && currentTurn === teamName
                     ? 'On clock'
                     : activity
-                        ? (activity.type === 'addDrop'
-                            ? `Added ${escapeHtml(activity.addPlayerName || 'Player')} / Dropped ${escapeHtml(activity.dropPlayerName || 'Player')}`
-                            : 'Passed')
+                        ? (activity.type === 'addDrop' ? '' : 'Passed')
                         : '';
                 return `
                     <div class="waiver-order-item ${waiverState && waiverState.active && currentTurn === teamName ? 'active' : ''}">
                         <span class="waiver-order-rank">${index + 1}</span>
-                        <div style="display:flex; flex-direction:column; gap:2px; flex:1; min-width:0;">
-                            <span>${escapeHtml(teamName)}</span>
+                        <div class="waiver-order-main">
+                            ${activity && activity.type === 'addDrop' ? '' : `<span class="waiver-order-team">${escapeHtml(teamName)}</span>`}
                             ${activityMarkup}
                         </div>
                         <span class="bench-rank">${badgeText}</span>

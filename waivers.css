@@ -183,6 +183,47 @@
   background: rgba(34,197,94,0.12);
 }
 
+.waiver-order-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.waiver-order-team {
+  color: #f8fafc;
+}
+
+.waiver-activity {
+  margin-top: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.waiver-activity-line {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.waiver-activity-team {
+  font-weight: 700;
+  color: #f8fafc;
+  margin-right: 6px;
+}
+
+.waiver-activity-add {
+  color: #86efac;
+}
+
+.waiver-activity-drop {
+  color: #fda4af;
+}
+
 .waiver-modal-backdrop {
   position: fixed;
   inset: 0;
