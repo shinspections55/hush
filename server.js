@@ -3616,6 +3616,7 @@ const drafts = {};
 const WAIVER_PICK_TIMER_MS = 2 * 60 * 1000;
 const WAIVER_TIMER_TICK_MS = 1000;
 const WAIVER_CPU_ACTION_DELAY_MS = 10 * 1000;
+const WAIVER_PRESTART_COUNTDOWN_MS = 10 * 1000;
 
 function normalizeWaiverMode(mode) {
   return String(mode || '').trim().toLowerCase() === 'skill' ? 'skill' : 'random';
@@ -3751,6 +3752,12 @@ function getCurrentWaiverTurnTeamName(waiverState) {
   if (!waiverState || !Array.isArray(waiverState.order) || waiverState.order.length === 0) return '';
   const idx = Math.max(0, Math.min(Number(waiverState.turnIndex || 0), waiverState.order.length - 1));
   return String(waiverState.order[idx] || '').trim();
+}
+
+function isWaiverPrestartActive(waiverState) {
+  if (!waiverState || !waiverState.active || waiverState.completed) return false;
+  const preStartEndsAt = Number(waiverState.preStartEndsAt || 0);
+  return Number.isFinite(preStartEndsAt) && preStartEndsAt > Date.now();
 }
 
 function getWaiverActedTeams(waiverState) {
@@ -4060,6 +4067,7 @@ function recordWaiverTeamActivity(waiverState, teamName, action) {
 function processCpuWaiverTurns(draftCode, draft) {
   if (!draft || !draft.waiverState || !draft.waiverState.active || draft.waiverState.completed) return false;
   const waiverState = draft.waiverState;
+  if (isWaiverPrestartActive(waiverState)) return false;
   const currentTeamName = getCurrentWaiverTurnTeamName(waiverState);
   if (!currentTeamName || !isCpuSummaryTeam(currentTeamName, draft)) {
     return false;
@@ -4205,6 +4213,26 @@ function applyWaiverAutoPassIfExpired(draftCode, draft) {
   if (!draft || !draft.waiverState) return false;
   const waiverState = draft.waiverState;
   if (!waiverState.active || waiverState.completed) return false;
+
+  const preStartEndsAt = Number(waiverState.preStartEndsAt || 0);
+  if (Number.isFinite(preStartEndsAt) && preStartEndsAt > 0) {
+    if (Date.now() < preStartEndsAt) return false;
+    waiverState.preStartEndsAt = 0;
+    resetWaiverTurnTimer(waiverState, draft, getCurrentWaiverTurnTeamName(waiverState));
+    waiverState.updatedAt = Date.now();
+
+    const teams = draft.draftState && Array.isArray(draft.draftState.teams)
+      ? draft.draftState.teams
+      : (Array.isArray(draft.teams) ? draft.teams : []);
+
+    io.to(draftCode).emit('waiverStateUpdated', {
+      draftCode,
+      waiverState,
+      teams,
+      allPlayersSnapshot: (draft.draftState && Array.isArray(draft.draftState.allPlayers)) ? draft.draftState.allPlayers : []
+    });
+    return true;
+  }
 
   if (processCpuWaiverTurns(draftCode, draft)) {
     return true;
@@ -7365,8 +7393,9 @@ io.on('connection', (socket) => {
       order,
       turnIndex: 0,
       turnDurationMs: WAIVER_PICK_TIMER_MS,
-      turnStartedAt: Date.now(),
-      turnEndsAt: Date.now() + WAIVER_PICK_TIMER_MS,
+      turnStartedAt: 0,
+      turnEndsAt: 0,
+      preStartEndsAt: Date.now() + WAIVER_PRESTART_COUNTDOWN_MS,
       pool: buildWaiverPoolFromDraft(draft),
       passesInRow: 0,
       actedTeams: [],
@@ -7378,8 +7407,6 @@ io.on('connection', (socket) => {
         at: Date.now()
       }
     };
-
-    processCpuWaiverTurns(draftCode, draft);
 
     const payload = {
       draftCode,
@@ -7407,6 +7434,11 @@ io.on('connection', (socket) => {
     const waiverState = draft.waiverState;
     if (!waiverState.active || waiverState.completed) {
       if (cb) cb({ ok: false, reason: 'waiver_not_active' });
+      return;
+    }
+
+    if (isWaiverPrestartActive(waiverState)) {
+      if (cb) cb({ ok: false, reason: 'waiver_countdown' });
       return;
     }
 
