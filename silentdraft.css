@@ -1690,31 +1690,40 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-s
 
 /* Keep roster starters and bench sections from visually colliding in PWA roster view. */
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-section="roster"] #center-column {
+    min-height: 0;
+    max-height: 100%;
     overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
     gap: 0;
+    padding-bottom: calc(20px + var(--draft-app-nav-height) + env(safe-area-inset-bottom));
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-section="roster"] #your-team,
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-section="roster"] #bench-players {
-    position: relative;
+    position: static;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    flex: 0 0 auto;
+    min-height: 0;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-section="roster"] #your-team {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     padding-bottom: 12px;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-section="roster"] #bench-players {
     margin-top: 0;
+    margin-bottom: 0;
+    padding-bottom: 8px;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-section="roster"] #your-team .roster-slot-card,
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-section="roster"] #bench-players .bench-player-card {
-    position: relative;
-    z-index: 1;
+    position: static;
+    z-index: auto;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .right-view-tabs {
