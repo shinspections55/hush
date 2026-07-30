@@ -4010,8 +4010,8 @@ function initSilentDraft() {
                         <p><span style="font-weight: bold; font-size: 20px; background: #3498db; color: white; padding: 4px 8px; border-radius: 4px; margin-right: 8px; display: inline-block;">${playerPosition}</span> <span style="font-size: 15px;">${playerName}</span> (<span style="font-weight: bold;">${playerTeam}</span>)</p>
                         ${ownershipBadge}
                     </div>
-                    <input type="tel" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Your bid" data-player-id="${player.id}" 
-                           style="width:80px;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:14px;" 
+                    <input type="tel" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Bid" data-player-id="${player.id}" maxlength="3" size="3"
+                           style="width:56px;padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:14px;text-align:center;" 
                            min="0" max="${yourTeam ? yourTeam.budget : 200}" 
                            value="${storedBids[player.id] || ''}">
                 `;
