@@ -876,6 +876,8 @@ function initSilentDraft() {
                         player.position = player.position || pos.toUpperCase();
                         player.id = loadedPlayers.length + index + 1; // Unique ID
                         player.owner = null; // Initially no owner
+                        player.team = String(player.team || '').trim().toUpperCase();
+                        player.byeWeek = extractPlayerByeWeek(player) ?? (BYE_WEEK_BY_TEAM[normalizeTeamAbbreviation(player.team)] || null);
                         
                         // Set position-specific rank using the same field mapping as the draft room.
                         player.positionRank = parseDraftRoomPositionRank(player.position, player, 999);
@@ -2856,6 +2858,55 @@ function initSilentDraft() {
         return normalizeTeamAbbreviation(rawTeam);
     }
 
+    function normalizePlayerLookupKey(name) {
+        return String(name || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '');
+    }
+
+    function findDraftRoomMasterPlayer(player) {
+        if (!player || typeof player !== 'object') return null;
+
+        const playerId = Number.parseInt(player.id, 10);
+        if (Number.isFinite(playerId) && playerId > 0) {
+            const byId = players.find((entry) => Number.parseInt(entry && entry.id, 10) === playerId);
+            if (byId) return byId;
+        }
+
+        const lookupKey = normalizePlayerLookupKey(player.name);
+        if (!lookupKey) return null;
+        return players.find((entry) => normalizePlayerLookupKey(entry && entry.name) === lookupKey) || null;
+    }
+
+    function hydrateRosterPlayerMetadata(player) {
+        if (!player || typeof player !== 'object') return player;
+
+        const master = findDraftRoomMasterPlayer(player);
+        if (!player.team && master && master.team) {
+            player.team = String(master.team).trim().toUpperCase();
+        }
+
+        const currentBye = extractPlayerByeWeek(player);
+        if (currentBye !== null) {
+            player.byeWeek = currentBye;
+            return player;
+        }
+
+        const masterBye = extractPlayerByeWeek(master);
+        if (masterBye !== null) {
+            player.byeWeek = masterBye;
+            return player;
+        }
+
+        const teamAbbr = resolvePlayerTeamAbbreviation(player) || resolvePlayerTeamAbbreviation(master);
+        if (teamAbbr && BYE_WEEK_BY_TEAM[teamAbbr]) {
+            player.byeWeek = BYE_WEEK_BY_TEAM[teamAbbr];
+        }
+
+        return player;
+    }
+
     function extractPlayerByeWeek(player) {
         if (!player || typeof player !== 'object') return null;
         return normalizeByeWeekValue(
@@ -2869,6 +2920,8 @@ function initSilentDraft() {
     }
 
     function resolveDraftRoomByeWeek(player) {
+        hydrateRosterPlayerMetadata(player);
+
         const directBye = extractPlayerByeWeek(player);
         if (directBye !== null) {
             return directBye;
@@ -2879,10 +2932,7 @@ function initSilentDraft() {
             return BYE_WEEK_BY_TEAM[directTeam];
         }
 
-        const playerId = Number.parseInt(player && player.id, 10);
-        const matched = Number.isFinite(playerId)
-            ? players.find(p => Number.parseInt(p && p.id, 10) === playerId)
-            : players.find(p => p && String(p.name || '').trim() === String(player && player.name || '').trim());
+        const matched = findDraftRoomMasterPlayer(player);
 
         const matchedBye = extractPlayerByeWeek(matched);
         if (matchedBye !== null) {
@@ -2925,6 +2975,7 @@ function initSilentDraft() {
 
     function buildRosterPlayerInline(player) {
         if (!player) return '';
+        hydrateRosterPlayerMetadata(player);
         const byeWeek = resolveDraftRoomByeWeek(player);
         const byeBadge = `<span class="roster-player-bye">BYE ${byeWeek !== null ? byeWeek : '--'}</span>`;
         const finalPrice = resolveDraftRoomFinalPrice(player);
@@ -3813,6 +3864,11 @@ function initSilentDraft() {
 
     // Update UI
     function updateUI(roundPlayers) {
+        (Array.isArray(teams) ? teams : []).forEach((team) => {
+            if (!team || !Array.isArray(team.roster)) return;
+            team.roster.forEach((player) => hydrateRosterPlayerMetadata(player));
+        });
+
         // Only reset to page 1 when round players actually change (new round)
         const isNewRound = !window.currentRoundPlayers || 
                           !roundPlayers || 
