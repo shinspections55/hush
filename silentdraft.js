@@ -2819,12 +2819,35 @@ function initSilentDraft() {
             return directBye;
         }
 
-        const matched = players.find(p => p && p.name === player.name);
+        const playerId = Number.parseInt(player && player.id, 10);
+        const matched = Number.isFinite(playerId)
+            ? players.find(p => Number.parseInt(p && p.id, 10) === playerId)
+            : players.find(p => p && p.name === player.name);
         return extractPlayerByeWeek(matched);
     }
 
+    function resolveDraftRoomFinalPrice(player) {
+        const direct = formatFinalPrice(player);
+        if (direct !== null) return direct;
+
+        const playerId = Number.parseInt(player && player.id, 10);
+        const matched = Number.isFinite(playerId)
+            ? players.find(p => Number.parseInt(p && p.id, 10) === playerId)
+            : players.find(p => p && p.name === player.name);
+        return formatFinalPrice(matched);
+    }
+
     function formatFinalPrice(player) {
-        const raw = Number(player && (player.bid ?? player.bidAmount ?? player.pricePaid));
+        const raw = Number(player && (
+            player.bid
+            ?? player.bidAmount
+            ?? player.pricePaid
+            ?? player.finalBid
+            ?? player.finalPrice
+            ?? player.winningBid
+            ?? player.cost
+            ?? player.price
+        ));
         if (!Number.isFinite(raw)) return null;
         return Math.max(0, Math.round(raw));
     }
@@ -2832,9 +2855,9 @@ function initSilentDraft() {
     function buildRosterPlayerInline(player) {
         if (!player) return '';
         const byeWeek = resolveDraftRoomByeWeek(player);
-        const byeBadge = byeWeek ? `<span class="roster-player-bye">BYE ${byeWeek}</span>` : '';
-        const finalPrice = formatFinalPrice(player);
-        const finalPriceBadge = finalPrice !== null ? `<span class="roster-player-price">Final $${finalPrice}</span>` : '';
+        const byeBadge = `<span class="roster-player-bye">BYE ${byeWeek !== null ? byeWeek : '--'}</span>`;
+        const finalPrice = resolveDraftRoomFinalPrice(player);
+        const finalPriceBadge = `<span class="roster-player-price">Final $${finalPrice !== null ? finalPrice : 0}</span>`;
 
         return `
             <span class="roster-player-name">${player.name}</span>
