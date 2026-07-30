@@ -1320,12 +1320,20 @@ function initSilentDraft() {
     
     console.log('[DEBUG] teamProfiles after teams built:', teamProfiles);
 
+    function normalizeParticipantName(value) {
+        return String(value || '').trim().toLowerCase();
+    }
+
+    function sameParticipantName(a, b) {
+        return normalizeParticipantName(a) !== '' && normalizeParticipantName(a) === normalizeParticipantName(b);
+    }
+
     // Make draft socket global for bid synchronization
     window.draftSocket = null;
     window.syncedRoundPlayers = null; // Store synced players from server
     window.currentRoundPlayers = null; // Track current round players for pagination
     // Determine if current user is the host using the server-provided host when available.
-    window.isHost = Boolean((draftHostName && draftHostName === username) || (!draftHostName && allDraftMembers.length > 0 && allDraftMembers[0] === username));
+    window.isHost = Boolean((draftHostName && sameParticipantName(draftHostName, username)) || (!draftHostName && allDraftMembers.length > 0 && sameParticipantName(allDraftMembers[0], username)));
     updatePauseButtonVisibility();
     const hasPersonalRankings = hasDraftRoomPersonalRankings();
     draftRoomRankingsMode = hasPersonalRankings ? 'personal' : 'default';
@@ -1442,7 +1450,38 @@ function initSilentDraft() {
             if (!(window.draftSocket && currentDraftCode)) return;
             window.draftSocket.emit('getDraftState', currentDraftCode, (response) => {
                 if (response && response.ok && response.draft) {
-                    console.log('[silentdraft] Fresh draft state requested after connect');
+                    const draft = response.draft;
+                    draftHostName = draft.host || (Array.isArray(draft.members) ? draft.members[0] : draftHostName);
+                    allDraftMembers = Array.isArray(draft.members) ? draft.members.slice() : allDraftMembers;
+                    lobbyMembers = Array.isArray(allDraftMembers)
+                        ? allDraftMembers.filter(member => !sameParticipantName(member, username))
+                        : lobbyMembers;
+
+                    const hostFromState = Boolean((draftHostName && sameParticipantName(draftHostName, username)) || (!draftHostName && allDraftMembers.length > 0 && sameParticipantName(allDraftMembers[0], username)));
+                    if (window.isHost !== hostFromState) {
+                        window.isHost = hostFromState;
+                        updatePauseButtonVisibility();
+                        console.log('[silentdraft] Host role updated from fresh state:', window.isHost);
+                    }
+
+                    const draftState = draft.draftState || {};
+                    const currentPlayers = Array.isArray(draftState.currentPlayers)
+                        ? draftState.currentPlayers
+                        : (Array.isArray(draft.currentPlayers) ? draft.currentPlayers : []);
+
+                    if (Number.isFinite(Number(draftState.currentRound)) && Number(draftState.currentRound) > 0) {
+                        currentRound = Number(draftState.currentRound);
+                    }
+
+                    if (currentPlayers.length > 0) {
+                        window.syncedRoundPlayers = currentPlayers;
+                        if (!window.isHost) {
+                            displayRoundPlayers(currentPlayers);
+                        }
+                        console.log('[silentdraft] Fresh state restored current round players:', currentPlayers.length);
+                    } else {
+                        console.log('[silentdraft] Fresh draft state requested after connect (no current players yet)');
+                    }
                 } else if (response) {
                     console.warn('[silentdraft] Fresh draft state request rejected:', response);
                 }
@@ -6065,6 +6104,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 updateUI(window.syncedRoundPlayers);
             } else {
                 console.log('[silentdraft] Waiting for host to set round players...');
+                requestFreshDraftState();
                 // Show loading state
                 const playerList = document.getElementById('players-list');
                 if (playerList) {
