@@ -211,9 +211,13 @@
 }
 
 .waiver-activity-team {
-  font-weight: 700;
+  font-weight: 800;
   color: #f8fafc;
   margin-right: 6px;
+}
+
+.waiver-activity-move {
+  font-weight: 400;
 }
 
 .waiver-activity-add {

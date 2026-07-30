@@ -3786,20 +3786,14 @@ function getNextUnactedWaiverTeam(waiverState) {
   return '';
 }
 
-function getWaiverTurnDurationMs(waiverState, draft, teamName) {
-  if (!waiverState) return WAIVER_PICK_TIMER_MS;
-  const currentTeamName = String(teamName || '').trim();
-  if (currentTeamName && isCpuSummaryTeam(currentTeamName, draft)) {
-    return WAIVER_CPU_ACTION_DELAY_MS;
-  }
-  const configured = Number(waiverState.turnDurationMs || WAIVER_PICK_TIMER_MS);
-  return Number.isFinite(configured) ? Math.max(1000, configured) : WAIVER_PICK_TIMER_MS;
+function getWaiverTurnDurationMs() {
+  return WAIVER_PICK_TIMER_MS;
 }
 
 function resetWaiverTurnTimer(waiverState, draft, teamName) {
   if (!waiverState) return;
   const now = Date.now();
-  const durationMs = getWaiverTurnDurationMs(waiverState, draft, teamName);
+  const durationMs = getWaiverTurnDurationMs();
   waiverState.turnDurationMs = durationMs;
   waiverState.turnStartedAt = now;
   waiverState.turnEndsAt = now + durationMs;
@@ -4076,12 +4070,15 @@ function processCpuWaiverTurns(draftCode, draft) {
     : (Array.isArray(draft.teams) ? draft.teams : []);
   if (!Array.isArray(teams) || teams.length === 0) return false;
 
-  const durationMs = getWaiverTurnDurationMs(waiverState, draft, currentTeamName);
-  waiverState.turnDurationMs = durationMs;
-  waiverState.turnStartedAt = Date.now();
-  waiverState.turnEndsAt = Date.now() + durationMs;
-  waiverState.updatedAt = Date.now();
-  return true;
+  const turnStartedAt = Number(waiverState.turnStartedAt || 0);
+  const turnAgeMs = Number.isFinite(turnStartedAt) && turnStartedAt > 0
+    ? (Date.now() - turnStartedAt)
+    : 0;
+  if (turnAgeMs < WAIVER_CPU_ACTION_DELAY_MS) {
+    return false;
+  }
+
+  return resolveCpuWaiverTurnAction(draftCode, draft);
 }
 
 function emitWaiverStateUpdate(draftCode, draft) {
@@ -4209,6 +4206,10 @@ function applyWaiverAutoPassIfExpired(draftCode, draft) {
   const waiverState = draft.waiverState;
   if (!waiverState.active || waiverState.completed) return false;
 
+  if (processCpuWaiverTurns(draftCode, draft)) {
+    return true;
+  }
+
   const turnEndsAt = Number(waiverState.turnEndsAt || 0);
   if (!Number.isFinite(turnEndsAt) || turnEndsAt <= 0) {
     resetWaiverTurnTimer(waiverState);
@@ -4219,9 +4220,6 @@ function applyWaiverAutoPassIfExpired(draftCode, draft) {
   if (Date.now() < turnEndsAt) return false;
 
   const expectedTeamName = getCurrentWaiverTurnTeamName(waiverState);
-  if (expectedTeamName && isCpuSummaryTeam(expectedTeamName, draft)) {
-    return resolveCpuWaiverTurnAction(draftCode, draft);
-  }
 
   markWaiverTeamActed(waiverState, expectedTeamName);
   waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;

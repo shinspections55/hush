@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
             mode: normalizeWaiverMode(rawState.mode),
             order: Array.isArray(rawState.order) ? rawState.order.map(name => String(name || '').trim()).filter(Boolean) : [],
             turnIndex: Math.max(0, Number(rawState.turnIndex || 0)),
-            turnDurationMs: Math.max(1000, Number(rawState.turnDurationMs || 180000)),
+            turnDurationMs: Math.max(1000, Number(rawState.turnDurationMs || 120000)),
             turnEndsAt: Number(rawState.turnEndsAt || 0),
             updatedAt: Number(rawState.updatedAt || Date.now()),
             passesInRow: Math.max(0, Number(rawState.passesInRow || 0)),
