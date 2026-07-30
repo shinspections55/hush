@@ -242,7 +242,7 @@ body.color-blind {
 
 .container {
     display: flex;
-    --left-right-width-shift: clamp(84px, 8vw, 164px);
+    --left-right-width-shift: clamp(66px, 6vw, 120px);
     gap: 12px;
     max-width: 1800px;
     margin: 0 auto;
@@ -265,18 +265,18 @@ body.color-blind {
 }
 
 #left-column {
-    flex: 1.95 1 calc((100% - 24px) * 0.39 - var(--left-right-width-shift));
+    flex: 2.125 1 calc((100% - 24px) * 0.425 - var(--left-right-width-shift));
     min-width: 240px;
 }
 
 #center-column {
-    flex: 1.45 1 calc((100% - 24px) * 0.27);
+    flex: 1.475 1 calc((100% - 24px) * 0.285);
     min-width: 250px;
 }
 
 #right-column {
-    flex: 1.7 1 calc((100% - 24px) * 0.34 + var(--left-right-width-shift));
-    min-width: 360px;
+    flex: 1.45 1 calc((100% - 24px) * 0.29 + var(--left-right-width-shift));
+    min-width: 320px;
     display: flex;
     flex-direction: column;
     position: relative;
