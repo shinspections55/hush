@@ -24,6 +24,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let waiverState = null;
     let selectedPosition = 'ALL';
     let onClockRosterCount = 0;
+    const WAIVER_APP_SECTION_VIEW_KEY = 'waiverAppSectionViewMode';
+    let waiverAppSectionViewMode = 'players';
+
+    try {
+        const savedWaiverSection = String(localStorage.getItem(WAIVER_APP_SECTION_VIEW_KEY) || '').trim().toLowerCase();
+        if (savedWaiverSection === 'order' || savedWaiverSection === 'teams' || savedWaiverSection === 'players') {
+            waiverAppSectionViewMode = savedWaiverSection;
+        }
+    } catch (_error) {
+        // ignore localStorage read failures
+    }
 
     const socket = window.io ? window.io({ reconnection: false }) : null;
 
@@ -733,6 +744,61 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    function isWaiverAppNavSupported() {
+        return Boolean(document.body && document.body.classList.contains('pwa-installed'));
+    }
+
+    function applyWaiverAppSectionMode(section, options = {}) {
+        const mode = (section === 'order' || section === 'teams' || section === 'players') ? section : 'players';
+        waiverAppSectionViewMode = mode;
+
+        if (document.body && document.body.classList.contains('waiver-app-nav-enabled')) {
+            document.body.setAttribute('data-waiver-app-section', mode);
+        }
+
+        document.querySelectorAll('.waiver-app-nav-btn').forEach((button) => {
+            button.classList.toggle('is-active', String(button.dataset.waiverSection || '') === mode);
+        });
+
+        if (options.persist !== false) {
+            try {
+                localStorage.setItem(WAIVER_APP_SECTION_VIEW_KEY, mode);
+            } catch (_error) {
+                // ignore localStorage write failures
+            }
+        }
+    }
+
+    function refreshWaiverAppNavState() {
+        const nav = document.getElementById('waiver-app-nav');
+        if (!nav || !document.body) return;
+
+        const enabled = isWaiverAppNavSupported();
+        nav.hidden = !enabled;
+        document.body.classList.toggle('waiver-app-nav-enabled', enabled);
+
+        if (!enabled) {
+            document.body.removeAttribute('data-waiver-app-section');
+            return;
+        }
+
+        applyWaiverAppSectionMode(waiverAppSectionViewMode, { persist: false });
+    }
+
+    function setupWaiverAppNav() {
+        const nav = document.getElementById('waiver-app-nav');
+        if (!nav) return;
+
+        nav.querySelectorAll('.waiver-app-nav-btn').forEach((button) => {
+            button.addEventListener('click', () => {
+                applyWaiverAppSectionMode(button.dataset.waiverSection, { persist: true });
+            });
+        });
+
+        refreshWaiverAppNavState();
+        window.addEventListener('resize', refreshWaiverAppNavState);
+    }
+
     function render() {
         const waiverMode = normalizeWaiverMode(draftSummary && draftSummary.waiverMode);
         const allCutsComplete = areAllTeamsCutComplete();
@@ -872,5 +938,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    setupWaiverAppNav();
     syncFromServer();
 });

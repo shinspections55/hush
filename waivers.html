@@ -35,12 +35,12 @@
             <div id="waiverPageNotice" class="cut-alert waiver-status"></div>
 
             <section class="waiver-page-layout">
-                <aside class="summary-panel waiver-sidebar">
+                <aside id="waiver-order-panel" class="summary-panel waiver-sidebar">
                     <h2 class="summary-section-title">Waiver Order</h2>
                     <div id="waiverOrderList" class="bench-list"></div>
                 </aside>
 
-                <section class="summary-panel waiver-center-panel">
+                <section id="waiver-team-panel" class="summary-panel waiver-center-panel">
                     <div class="waiver-center-header">
                         <h2 id="waiverOnClockTitle" class="summary-section-title">On The Clock Team</h2>
                         <div class="waiver-team-picker-wrap">
@@ -61,7 +61,7 @@
                     </div>
                 </section>
 
-                <section class="summary-panel waiver-main-panel">
+                <section id="waiver-players-panel" class="summary-panel waiver-main-panel">
                     <h2 class="summary-section-title">Rankings</h2>
                     <div class="waiver-filter-bar">
                         <div class="waiver-position-tabs" id="waiverPositionTabs">
@@ -81,6 +81,12 @@
             </section>
         </section>
     </main>
+
+    <nav id="waiver-app-nav" class="waiver-app-nav" aria-label="Waiver sections" hidden>
+        <button type="button" class="waiver-app-nav-btn" data-waiver-section="order">Order</button>
+        <button type="button" class="waiver-app-nav-btn" data-waiver-section="teams">Teams</button>
+        <button type="button" class="waiver-app-nav-btn" data-waiver-section="players">Players</button>
+    </nav>
 
 
     <script src="/socket.io/socket.io.js"></script>
