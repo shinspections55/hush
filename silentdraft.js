@@ -2801,6 +2801,61 @@ function initSilentDraft() {
         return null;
     }
 
+    const BYE_WEEK_BY_TEAM = Object.freeze({
+        ATL: 5,
+        ARI: 8,
+        BAL: 7,
+        BUF: 7,
+        CAR: 5,
+        CHI: 5,
+        CIN: 6,
+        CLE: 9,
+        DAL: 10,
+        DEN: 10,
+        DET: 6,
+        GB: 5,
+        HOU: 6,
+        IND: 11,
+        JAC: 7,
+        KC: 5,
+        LAC: 7,
+        LAR: 8,
+        LV: 13,
+        MIA: 6,
+        MIN: 6,
+        NE: 11,
+        NO: 8,
+        NYG: 8,
+        NYJ: 9,
+        PHI: 9,
+        PIT: 5,
+        SEA: 8,
+        SF: 8,
+        TB: 9,
+        TEN: 9,
+        WAS: 7
+    });
+
+    const TEAM_ABBREVIATION_ALIASES = Object.freeze({
+        JAX: 'JAC',
+        LA: 'LAR',
+        OAK: 'LV',
+        SD: 'LAC',
+        STL: 'LAR',
+        WSH: 'WAS'
+    });
+
+    function normalizeTeamAbbreviation(value) {
+        const team = String(value || '').trim().toUpperCase();
+        return TEAM_ABBREVIATION_ALIASES[team] || team;
+    }
+
+    function resolvePlayerTeamAbbreviation(player) {
+        if (!player || typeof player !== 'object') return '';
+        const rawTeam = player.team ?? player.playerTeam ?? player.teamAbbr ?? player.abbr ?? player.nflTeam;
+        return normalizeTeamAbbreviation(rawTeam);
+    }
+
     function extractPlayerByeWeek(player) {
         if (!player || typeof player !== 'object') return null;
         return normalizeByeWeekValue(
@@ -2819,11 +2874,27 @@ function initSilentDraft() {
             return directBye;
         }
 
+        const directTeam = resolvePlayerTeamAbbreviation(player);
+        if (directTeam && BYE_WEEK_BY_TEAM[directTeam]) {
+            return BYE_WEEK_BY_TEAM[directTeam];
+        }
+
         const playerId = Number.parseInt(player && player.id, 10);
         const matched = Number.isFinite(playerId)
             ? players.find(p => Number.parseInt(p && p.id, 10) === playerId)
-            : players.find(p => p && p.name === player.name);
-        return extractPlayerByeWeek(matched);
+            : players.find(p => p && String(p.name || '').trim() === String(player && player.name || '').trim());
+
+        const matchedBye = extractPlayerByeWeek(matched);
+        if (matchedBye !== null) {
+            return matchedBye;
+        }
+
+        const matchedTeam = resolvePlayerTeamAbbreviation(matched);
+        if (matchedTeam && BYE_WEEK_BY_TEAM[matchedTeam]) {
+            return BYE_WEEK_BY_TEAM[matchedTeam];
+        }
+
+        return null;
     }
 
     function resolveDraftRoomFinalPrice(player) {
@@ -5136,6 +5207,9 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                     id: player.id,
                     name: player.name,
                     position: player.position,
+                    team: String(player && (player.team || player.playerTeam || '')).trim().toUpperCase(),
+                    byeWeek: resolveDraftRoomByeWeek(player),
+                    avgValue: Number(player && (player.avgValue || player.value) || 0),
                     bid: player.bid,
                     prerank: player.prerank
                 }))
