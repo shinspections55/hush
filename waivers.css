@@ -112,19 +112,22 @@
   white-space: nowrap;
 }
 
-.waiver-player-bye-badge {
+.waiver-player-bye-badge,
+.rank-player-bye {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   margin-left: 6px;
-  padding: 1px 6px;
+  padding: 1px 5px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.02em;
-  color: #f8df7a;
-  border: 1px solid rgba(255, 214, 10, 0.34);
-  background: rgba(255, 214, 10, 0.18);
+  line-height: 1;
+  letter-spacing: 0.25px;
+  color: #111827;
+  background: linear-gradient(180deg, #fde68a 0%, #f59e0b 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
   vertical-align: middle;
 }
 
@@ -424,10 +427,9 @@ body.dashboard-light-mode .waiver-team-player {
 }
 
 body.light-mode .waiver-player-bye-badge,
+body.light-mode .rank-player-bye,
 body.dashboard-light-mode .waiver-player-bye-badge {
-  background: rgba(138, 106, 55, 0.16);
-  color: #5b441f;
-  border-color: rgba(138, 106, 55, 0.36);
+  color: #111827;
 }
 
 body.light-mode .waiver-meta,
