@@ -10,6 +10,95 @@ function isRankingsPage() {
     }
 }
 
+const HUSH_CRITICAL_BACKUP_KEY = 'hushCriticalBackupV1';
+const HUSH_CRITICAL_KEYS = Object.freeze([
+    'firebaseLocalProfiles',
+    'lastSignedInUsername',
+    'lastSignedInEmail',
+    'rememberedEmail',
+    'users',
+    'wallet',
+    'userRankings',
+    'rankingsDraftState',
+    'rankingsStarredPlayers',
+    'defaultRankingsStarred',
+    'completedDrafts'
+]);
+
+function readCriticalBackupStore() {
+    try {
+        const raw = localStorage.getItem(HUSH_CRITICAL_BACKUP_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_error) {
+        return {};
+    }
+}
+
+function writeCriticalBackupStore(store) {
+    try {
+        localStorage.setItem(HUSH_CRITICAL_BACKUP_KEY, JSON.stringify(store));
+    } catch (_error) {
+        // Ignore quota/private-mode failures; this is a best-effort safety net.
+    }
+}
+
+function snapshotCriticalLocalData() {
+    const store = readCriticalBackupStore();
+    let changed = false;
+
+    HUSH_CRITICAL_KEYS.forEach((key) => {
+        const value = localStorage.getItem(key);
+        if (typeof value === 'string') {
+            if (store[key] !== value) {
+                store[key] = value;
+                changed = true;
+            }
+        } else if (Object.prototype.hasOwnProperty.call(store, key)) {
+            delete store[key];
+            changed = true;
+        }
+    });
+
+    if (changed) {
+        writeCriticalBackupStore(store);
+    }
+}
+
+function restoreCriticalLocalDataIfMissing() {
+    const store = readCriticalBackupStore();
+    let restored = false;
+
+    HUSH_CRITICAL_KEYS.forEach((key) => {
+        const liveValue = localStorage.getItem(key);
+        const backupValue = store[key];
+        if (liveValue === null && typeof backupValue === 'string') {
+            try {
+                localStorage.setItem(key, backupValue);
+                restored = true;
+            } catch (_error) {
+                // Ignore storage write failures.
+            }
+        }
+    });
+
+    return restored;
+}
+
+function protectCriticalLocalData() {
+    restoreCriticalLocalDataIfMissing();
+    snapshotCriticalLocalData();
+
+    window.addEventListener('storage', (event) => {
+        if (!event || !event.key) return;
+        if (!HUSH_CRITICAL_KEYS.includes(event.key)) return;
+        snapshotCriticalLocalData();
+    });
+
+    window.addEventListener('beforeunload', snapshotCriticalLocalData);
+}
+
 // Apply light mode styling to all relevant elements
 function applyLightModeStyles(theme) {
     if (isRankingsPage()) {
@@ -323,10 +412,12 @@ function setupThemeListeners() {
 // Call this when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
+        protectCriticalLocalData();
         initializePageTheme();
         setupThemeListeners();
     });
 } else {
+    protectCriticalLocalData();
     initializePageTheme();
     setupThemeListeners();
 }

@@ -8,7 +8,86 @@ import {
   syncSessionFromUser
 } from './firebase-auth.js';
 
+const HUSH_CRITICAL_BACKUP_KEY = 'hushCriticalBackupV1';
+const HUSH_CRITICAL_KEYS = Object.freeze([
+  'firebaseLocalProfiles',
+  'lastSignedInUsername',
+  'lastSignedInEmail',
+  'rememberedEmail',
+  'users',
+  'wallet',
+  'userRankings',
+  'rankingsDraftState',
+  'rankingsStarredPlayers',
+  'defaultRankingsStarred',
+  'completedDrafts'
+]);
+
+function readCriticalBackupStore() {
+  try {
+    const raw = localStorage.getItem(HUSH_CRITICAL_BACKUP_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (_error) {
+    return {};
+  }
+}
+
+function writeCriticalBackupStore(store) {
+  try {
+    localStorage.setItem(HUSH_CRITICAL_BACKUP_KEY, JSON.stringify(store));
+  } catch (_error) {
+    // Ignore quota/private-mode failures; this is a best-effort safety net.
+  }
+}
+
+function snapshotCriticalLocalData() {
+  const store = readCriticalBackupStore();
+  let changed = false;
+
+  HUSH_CRITICAL_KEYS.forEach((key) => {
+    const value = localStorage.getItem(key);
+    if (typeof value === 'string') {
+      if (store[key] !== value) {
+        store[key] = value;
+        changed = true;
+      }
+    } else if (Object.prototype.hasOwnProperty.call(store, key)) {
+      delete store[key];
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    writeCriticalBackupStore(store);
+  }
+}
+
+function restoreCriticalLocalDataIfMissing() {
+  const store = readCriticalBackupStore();
+
+  HUSH_CRITICAL_KEYS.forEach((key) => {
+    const liveValue = localStorage.getItem(key);
+    const backupValue = store[key];
+    if (liveValue === null && typeof backupValue === 'string') {
+      try {
+        localStorage.setItem(key, backupValue);
+      } catch (_error) {
+        // Ignore storage write failures.
+      }
+    }
+  });
+}
+
+function protectCriticalLocalData() {
+  restoreCriticalLocalDataIfMissing();
+  snapshotCriticalLocalData();
+  window.addEventListener('beforeunload', snapshotCriticalLocalData);
+}
+
 document.addEventListener('DOMContentLoaded', ()=>{
+  protectCriticalLocalData();
   const signup = document.getElementById('signupForm');
   const login = document.getElementById('loginForm');
   const rememberCheckbox = document.getElementById('rememberPassword');
