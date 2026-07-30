@@ -76,7 +76,12 @@ module.exports = {
     "budgetPenaltyMid": 0.72,
     "backoutBase": 0.08,
     "backoutAggressionScale": 0.35,
-    "clockBoost": 1.04
+    "clockBoost": 1.04,
+    "earlyRoundTieRateMultiplier": 0.4,
+    "midRoundTieRateMultiplier": 0.72,
+    "lateRoundTieRateMultiplier": 1.02,
+    "roundTieRateFloor": 0.0012,
+    "roundTieRateCeiling": 0.01
   },
   "silentProfiles": [
     {

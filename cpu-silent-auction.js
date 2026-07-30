@@ -641,6 +641,23 @@ function calculateMinimumInterest(completionPressure) {
 }
 
 /**
+ * Round-aware threshold bias for player consideration.
+ * Early rounds should be a bit more selective to avoid overbidding on the opening wave.
+ * Later rounds should loosen slightly so CPU teams stay involved and continue to compete.
+ */
+function calculateRoundThresholdBias(roundNumber) {
+  const round = Math.max(1, Math.min(10, Number(roundNumber) || 1));
+
+  if (round === 1) return 0.06;
+  if (round === 2) return 0.03;
+  if (round === 3) return 0.01;
+  if (round >= 6) return -0.03;
+  if (round === 4) return 0;
+  if (round === 5) return -0.01;
+  return 0;
+}
+
+/**
  * Convert minimumInterest (40–88) to teamValue threshold (0.20–0.75).
  * The teamValue scale used inside valuedPlayers.filter().
  */
@@ -1900,11 +1917,20 @@ function pruneTeamBidsByPositionPlan(teamBids, team, strategy, rosterLimits = {}
 
 function enforceCpuTieRates(cpuBids, cpuTeams, roundPlayers, roundNumber, rosterLimits, maxRosterSize) {
   roundNumber = Number(roundNumber) || 1;
+  const cfg = loadCpuLogicConfig();
+  const tiedCfg = cfg?.tied || {};
   const playerById = new Map((Array.isArray(roundPlayers) ? roundPlayers : []).map(player => [Number(player?.id || 0), player]));
   const cpuBudgetByTeam = cpuTeams.reduce((acc, team) => {
     acc[team.name] = team.budget;
     return acc;
   }, {});
+  const roundTieMultiplier = roundNumber <= 2
+    ? Number(tiedCfg.earlyRoundTieRateMultiplier ?? 0.4)
+    : roundNumber <= 5
+      ? Number(tiedCfg.midRoundTieRateMultiplier ?? 0.72)
+      : Number(tiedCfg.lateRoundTieRateMultiplier ?? 1.02);
+  const roundTieFloor = Math.max(0.0004, Number(tiedCfg.roundTieRateFloor ?? 0.0012) * 0.55);
+  const roundTieCeiling = Math.max(roundTieFloor, Math.min(0.008, Number(tiedCfg.roundTieRateCeiling ?? 0.01) * 0.72));
 
   const bidRefsByPlayer = {};
 
@@ -1934,28 +1960,26 @@ function enforceCpuTieRates(cpuBids, cpuTeams, roundPlayers, roundNumber, roster
     if (topRefs.length < 2) return;
 
     const isTwoWayTie = topRefs.length === 2;
-    // Preserve ties organically: common on cheap players, uncommon on premium players.
-    let allowTieRate = 0.02;
+    let allowTieRate = roundTieFloor;
     if (isTwoWayTie) {
-      // Keep some natural ties, but at a more realistic frequency.
       if (maxBid <= 2 || playerAv <= 3) {
-        allowTieRate = 0.22;
+        allowTieRate = Math.max(roundTieFloor, 0.0068 * roundTieMultiplier);
       } else if (playerAv <= 10) {
-        allowTieRate = 0.14;
+        allowTieRate = Math.max(roundTieFloor, 0.0032 * roundTieMultiplier);
       } else if (playerAv <= 25) {
-        allowTieRate = 0.07;
+        allowTieRate = Math.max(roundTieFloor, 0.0019 * roundTieMultiplier);
       } else {
-        allowTieRate = 0.03;
+        allowTieRate = Math.max(roundTieFloor, 0.0011 * roundTieMultiplier);
       }
 
-      // Tiny late-round bump for cheap pools, not enough to create tie floods.
       if (roundNumber >= 8 && playerAv <= 10) {
-        allowTieRate = Math.min(0.28, allowTieRate + 0.03);
+        allowTieRate = Math.min(roundTieCeiling, allowTieRate + 0.0004);
       }
     } else {
-      // Three-plus exact ties should be extremely rare.
-      allowTieRate = playerAv <= 5 ? 0.006 : 0.002;
+      allowTieRate = Math.max(roundTieFloor, (playerAv <= 5 ? 0.00028 : 0.00016) * roundTieMultiplier);
     }
+
+    allowTieRate = Math.min(roundTieCeiling, allowTieRate);
 
     if (Math.random() <= allowTieRate) {
       if (isTwoWayTie) twoWayObserved++;
@@ -2160,23 +2184,30 @@ function applyLowCostBidShaping(player, bidAmount, strategy, bidRemainingBudget)
   const roundsLeft = strategy?.roundsIncludingCurrent || draftRoundCount;
 
   if (player.avgValue <= 10) {
-    shapedBid = Math.round(shapedBid * (0.76 + Math.random() * 0.18));
+    const lowAvSpread = player.avgValue <= 3
+      ? 0.62 + (Math.random() * 0.86)
+      : player.avgValue <= 6
+        ? 0.72 + (Math.random() * 0.62)
+        : 0.76 + (Math.random() * 0.24);
+    shapedBid = Math.round(shapedBid * lowAvSpread);
 
-    // Encourage more realistic cheap-end outcomes for depth and specialists.
+    // Encourage more realistic cheap-end outcomes for depth and specialists, but with wider variance.
     if (player.position === 'K' || player.position === 'DEF') {
       const cheapRoll = Math.random();
-      if (cheapRoll < 0.62) {
-        shapedBid = Math.min(shapedBid, 1 + Math.floor(Math.random() * 4)); // 1-4
+      if (cheapRoll < 0.55) {
+        shapedBid = Math.min(shapedBid, 1 + Math.floor(Math.random() * 5)); // 1-5
       }
 
-      // Missing starter K/DEF should still be affordable, not panic overbids.
       if ((strategy?.mustFillPositions || []).includes(player.position)) {
         const lateRoundCap = roundsLeft <= 2 ? 6 : 4;
         shapedBid = Math.min(shapedBid, lateRoundCap);
       }
     } else {
-      if (Math.random() < 0.45) {
-        shapedBid = Math.min(shapedBid, 1 + Math.floor(Math.random() * 4)); // 1-4
+      const cheapRoll = Math.random();
+      if (cheapRoll < 0.5) {
+        shapedBid = Math.min(shapedBid, 1 + Math.floor(Math.random() * 5)); // 1-5
+      } else if (cheapRoll > 0.85) {
+        shapedBid = Math.min(shapedBid + 2, bidRemainingBudget);
       }
     }
   }
@@ -2248,6 +2279,11 @@ function getDynamicBidBand(avgValue, roundNumber, strategy) {
   }
 
   // Lower-value players need wider practical variance due to small-dollar granularity.
+  if (avgValue <= 10) {
+    if (isEarlyRound) return { minPct: 0.42, maxPct: 1.38, rareMaxPct: 1.6, rareChance: 0.12 };
+    if (isMidRound) return { minPct: 0.4, maxPct: 1.4, rareMaxPct: 1.65, rareChance: 0.14 };
+    return { minPct: 0.38, maxPct: 1.34, rareMaxPct: 1.58, rareChance: 0.12 };
+  }
   if (isEarlyRound) return { minPct: 0.58, maxPct: 1.26, rareMaxPct: 1.35, rareChance: 0.08 };
   if (isMidRound) return { minPct: 0.54, maxPct: 1.28, rareMaxPct: 1.4, rareChance: 0.1 };
   return { minPct: 0.52, maxPct: 1.22, rareMaxPct: 1.34, rareChance: 0.09 };
@@ -2878,7 +2914,8 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
         : completionPressure;
 
       const minimumInterest = calculateMinimumInterest(effectiveCompletionPressure);
-      const interestThreshold = minimumInterestToThreshold(minimumInterest);
+      const roundThresholdBias = calculateRoundThresholdBias(roundNumber);
+      const interestThreshold = minimumInterestToThreshold(minimumInterest + roundThresholdBias * 18);
 
       // Need Ratio: how many players I need vs how many nomination rounds remain
       // This is the "Roster Completion Score" — works with any lobby size
@@ -3142,6 +3179,7 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       const debugLateRoundPaceWidening = (lateRoundPaceThresholdHitEnabled && debugStageSinceLateStart > 0 && debugIsBehindPace && debugHasOpenRosterNeed)
         ? Math.min(lateRoundPaceThresholdMaxHit, debugStageSinceLateStart * lateRoundPaceThresholdPerRoundHit)
         : 0;
+      const debugRoundThresholdBias = calculateRoundThresholdBias(debugRoundNumber);
       const debugEffectiveThreshold = Math.max(
         0.02,
         debugThresholdBase
@@ -3151,6 +3189,7 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
           - debugFloorWidening
           - debugFloorEndgameWidening
           - debugLateRoundPaceWidening
+          + debugRoundThresholdBias * 0.08
       );
 
       const shouldCollectRoundSnapshot = !!(
@@ -4227,20 +4266,31 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
 
         baseBid = Math.round(baseBid * situationalMultiplier);
 
-        // Add randomization for unpredictability
-        // Widened for high-value players — ±5% produced only ~6 distinct integers on a $56 player causing constant ties
+        // Add randomized jitter for unpredictability without collapsing to the same integer bids.
         let randomFactor;
         if (player.avgValue >= 50) {
-          randomFactor = 0.76 + Math.random() * 0.48; // 0.76–1.24 (~±24%)
+          randomFactor = 0.78 + Math.random() * 0.34; // 0.78–1.12 for premium players
         } else if (player.avgValue >= 35) {
-          randomFactor = 0.72 + Math.random() * 0.56; // 0.72–1.28 (~±28%)
+          randomFactor = 0.74 + Math.random() * 0.36; // 0.74–1.10
+        } else if (player.avgValue >= 20) {
+          randomFactor = 0.70 + Math.random() * 0.42; // 0.70–1.12
+        } else if (player.avgValue <= 10) {
+          randomFactor = 0.56 + Math.random() * 0.72; // 0.56–1.28 for low-AV players
         } else {
-          randomFactor = 0.68 + Math.random() * 0.64; // 0.68–1.32 for mid/low-value players
+          randomFactor = 0.64 + Math.random() * 0.48; // 0.64–1.12 for mid-tier players
         }
         baseBid = Math.round(baseBid * randomFactor);
 
         if (player.avgValue <= 8) {
           baseBid = Math.round(baseBid * (0.8 + Math.random() * 0.2));
+        }
+
+        if (player.avgValue <= 10 && baseBid <= 8) {
+          const cheapPlayerJitter = player.avgValue <= 3 ? 2 : 1;
+          const cheapBoostRoll = Math.random();
+          if (cheapBoostRoll < 0.7) {
+            baseBid = Math.max(1, Math.min(maxBid, baseBid + cheapPlayerJitter));
+          }
         }
 
         // Organic tie reduction: each team values the same player a touch differently.
@@ -4525,14 +4575,18 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
 
         // Team/player deterministic micro-jitter to reduce same-price collisions.
         const jitterRoll = getTeamPlayerNoise(team.name, player.id, roundNumber);
-        if (jitterRoll < 0.18 && baseBid < maxBid) {
+        if (jitterRoll < 0.12 && baseBid < maxBid) {
           baseBid += 1;
-        } else if (jitterRoll > 0.9 && baseBid > 1) {
+        } else if (jitterRoll > 0.88 && baseBid > 1) {
+          baseBid -= 1;
+        } else if (jitterRoll > 0.5 && jitterRoll < 0.62 && baseBid > 1) {
           baseBid -= 1;
         }
 
         // Absolute guardrail: no bid can exceed AV soft cap, except target players allowed +$2-$3.
-        baseBid = Math.max(1, Math.min(baseBid, hardPlayerBidCap, maxBid));
+        // Make the cap slightly less rigid so reasonable variations around AV are preserved.
+        const slightlyRelaxedCap = Math.max(hardPlayerBidCap, Math.min(maxBid, hardPlayerBidCap + (player.avgValue >= 30 ? 2 : 1)));
+        baseBid = Math.max(1, Math.min(baseBid, slightlyRelaxedCap, maxBid));
 
         // Strategic bid evaluation: Only bid if team believes it can win
         const bidDecision = evaluateBidStrategy(baseBid, player, team, strategy, cpuTeams, roundPlayers, teamStrategies, rosterLimits, maxRosterSize);

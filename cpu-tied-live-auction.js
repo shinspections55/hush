@@ -661,7 +661,11 @@ function runTiedAuctionRound(state) {
         rosterSpotsLeft: Number(aggressor?.rosterSpotsLeft || 0)
       });
 
-      if (currentBid + 1 > maxPrice) {
+      const extraStep = Math.max(1, (Number(round || 1) <= 2 && playerAV >= 15) ? 2 : 1);
+      const randomLift = Math.random() < 0.35 ? 1 : 0;
+      const proposedBid = currentBid + extraStep + randomLift;
+
+      if (proposedBid > maxPrice) {
         aggressor.isIn = false;
         return {
           type: 'hold'
@@ -671,7 +675,7 @@ function runTiedAuctionRound(state) {
         return {
             type: 'bid',
             bidder: aggressor,
-            newBid: currentBid + 1
+            newBid: proposedBid
         };
     }
 
@@ -908,10 +912,11 @@ function placeForcedBid(code, auctionId, cpuName, bidAmount, drafts, io) {
   const auction = drafts[code].draftState.liveAuctions[auctionId];
   if (!auction) return;
 
-  console.log(`[TIE BREAKER] Forcing ${cpuName} to bid $${bidAmount}`);
+  const finalBid = Math.max(Number(bidAmount || 0), Number(auction.currentBid || 0) + (Math.random() < 0.4 ? 1 : 0));
+  console.log(`[TIE BREAKER] Forcing ${cpuName} to bid $${finalBid}`);
 
   // Update auction state
-  auction.currentBid = bidAmount;
+  auction.currentBid = finalBid;
   auction.currentWinner = cpuName;
   auction.bids[cpuName] = bidAmount;
   auction.timer = 10; // Reset timer

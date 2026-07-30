@@ -877,13 +877,8 @@ function initSilentDraft() {
                         player.id = loadedPlayers.length + index + 1; // Unique ID
                         player.owner = null; // Initially no owner
                         
-                        // Set position-specific rank
-                        const rankKey = player.position + 'rank';
-                        if (player[rankKey]) {
-                            player.positionRank = parseInt(player[rankKey].replace('#', ''));
-                        } else {
-                            player.positionRank = 999; // Fallback
-                        }
+                        // Set position-specific rank using the same field mapping as the draft room.
+                        player.positionRank = parseDraftRoomPositionRank(player.position, player, 999);
                     });
                     loadedPlayers.push(...positionPlayers);
                 } else {
@@ -1992,6 +1987,27 @@ function initSilentDraft() {
                         lockRoundBidsUI(lockLabel);
                     }
                     return true;
+                }
+
+                const transientReject = response && (response.reason === 'draft_not_ready' || response.reason === 'not_found' || response.reason === 'draft_missing');
+                if (transientReject) {
+                    console.warn('[silentdraft] submitBids transiently rejected; retrying once after state sync:', response);
+                    return new Promise((resolve) => {
+                        window.setTimeout(() => {
+                            emitSocketAckWithRetry('submitBids', [currentDraftCode, username, autoDraftEnabled], { timeoutMs: 7000, overallTimeoutMs: 15000, maxRetries: 0 }).then((retryResponse) => {
+                                if (retryResponse && retryResponse.ok) {
+                                    console.log('[silentdraft] Retry succeeded for bid submission');
+                                    if (lockUI) {
+                                        lockRoundBidsUI(lockLabel);
+                                    }
+                                    resolve(true);
+                                    return;
+                                }
+                                console.warn('[silentdraft] submitBids rejected after retry:', retryResponse);
+                                resolve(false);
+                            });
+                        }, 1000);
+                    });
                 }
 
                 console.warn('[silentdraft] submitBids rejected:', response);

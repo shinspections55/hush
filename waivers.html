@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="waivers.css">
     <script src="theme-utils.js?v=20260726c"></script>
 </head>
-<body class="bg-overlay">
+<body class="bg-overlay waiver-page-body">
     <header class="site-header">
         <div class="header-left">
             <img src="HUSHLOGO.png" alt="Logo" class="logo">
@@ -27,10 +27,6 @@
                     <div id="waiverPageMeta" class="summary-meta">Loading waiver state...</div>
                 </div>
                 <div class="waiver-page-actions">
-                    <div class="waiver-inline-drop-wrap">
-                        <label for="waiverInlineDropSelect" class="team-nav-label">Drop Player</label>
-                        <select id="waiverInlineDropSelect" class="team-select waiver-inline-drop-select"></select>
-                    </div>
                     <button id="waiverStartBtn" type="button" class="account-btn">Start Waivers</button>
                     <button id="waiverPassBtn" type="button" class="team-nav-btn waiver-pass-btn">Pass Turn</button>
                 </div>
@@ -45,7 +41,13 @@
                 </aside>
 
                 <section class="summary-panel waiver-center-panel">
-                    <h2 id="waiverOnClockTitle" class="summary-section-title">On The Clock Team</h2>
+                    <div class="waiver-center-header">
+                        <h2 id="waiverOnClockTitle" class="summary-section-title">On The Clock Team</h2>
+                        <div class="waiver-team-picker-wrap">
+                            <label class="waiver-team-picker-label" for="waiverTeamSelect">Team</label>
+                            <select id="waiverTeamSelect" class="team-select waiver-team-select"></select>
+                        </div>
+                    </div>
                     <div id="waiverOnClockMeta" class="summary-meta">Waiting for waivers to start...</div>
                     <div class="waiver-team-columns">
                         <div>
@@ -80,12 +82,6 @@
         </section>
     </main>
 
-    <div id="waiverTurnAlert" class="waiver-turn-alert" hidden>
-        <div class="waiver-turn-alert-card">
-            <h3 id="waiverTurnAlertText">Your turn</h3>
-            <p>Make your waiver move or pass.</p>
-        </div>
-    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="preferences.js"></script>

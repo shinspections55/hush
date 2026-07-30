@@ -2492,6 +2492,8 @@ function resolveSimulationRound(roundPlayers, teams, cpuBids, maxRosterSize, rou
   let contestedAuctions = 0;
   let bidEntries = 0;
   let winningPriceTotal = 0;
+  let tiesTotal = 0;
+  const tiesByTeamCount = {};
 
   (Array.isArray(roundPlayers) ? roundPlayers : []).forEach((player) => {
     const bids = [];
@@ -2528,6 +2530,12 @@ function resolveSimulationRound(roundPlayers, teams, cpuBids, maxRosterSize, rou
     const maxBid = Math.max(...eligibleBids.map(entry => entry.amount), 0);
     const topBidders = eligibleBids.filter(entry => entry.amount === maxBid);
 
+    if (topBidders.length > 1) {
+      const tiedTeamCount = topBidders.length;
+      tiesTotal += 1;
+      tiesByTeamCount[tiedTeamCount] = (tiesByTeamCount[tiedTeamCount] || 0) + 1;
+    }
+
     if (topBidders.length === 1) {
       const winner = topBidders[0].team;
       if (!isValidRosterAddition(winner, player, rosterLimits, maxRosterSize)) return;
@@ -2562,7 +2570,11 @@ function resolveSimulationRound(roundPlayers, teams, cpuBids, maxRosterSize, rou
     auctionsWithBid,
     contestedAuctions,
     bidEntries,
-    winningPriceTotal
+    winningPriceTotal,
+    tieSummary: {
+      totalTies: tiesTotal,
+      byTeamCount: tiesByTeamCount
+    }
   };
 }
 
@@ -2598,6 +2610,11 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
   let winsTotal = 0;
   const roundSpendAccumulator = Array.from({ length: Math.max(1, Number(rounds || 10)) }, () => ({
     totalSpend: 0,
+    samples: 0
+  }));
+  const roundTieAccumulator = Array.from({ length: Math.max(1, Number(rounds || 10)) }, () => ({
+    totalTies: 0,
+    byTeamCount: {},
     samples: 0
   }));
   const roundBudgetAccumulator = Array.from({ length: Math.max(1, Number(rounds || 10)) }, () => ({
@@ -2718,6 +2735,16 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
       bidEntriesTotal += Number(roundResult && roundResult.bidEntries || 0);
       winningPriceTotal += Number(roundResult && roundResult.winningPriceTotal || 0);
       winsTotal += Number(roundResult && roundResult.wins || 0);
+      const tieSummary = roundResult && roundResult.tieSummary ? roundResult.tieSummary : { totalTies: 0, byTeamCount: {} };
+      if (roundTieAccumulator[roundIdx]) {
+        roundTieAccumulator[roundIdx].totalTies += Number(tieSummary && tieSummary.totalTies || 0);
+        roundTieAccumulator[roundIdx].samples += 1;
+        Object.keys(tieSummary && tieSummary.byTeamCount || {}).forEach((teamCountKey) => {
+          const teamCount = Number(teamCountKey);
+          if (!Number.isFinite(teamCount) || teamCount <= 0) return;
+          roundTieAccumulator[roundIdx].byTeamCount[teamCount] = (roundTieAccumulator[roundIdx].byTeamCount[teamCount] || 0) + Number(tieSummary.byTeamCount[teamCountKey] || 0);
+        });
+      }
       const totalBudgetAfterRound = (teams || []).reduce((sum, team) => sum + Math.max(0, Number(team && team.budget || 0)), 0);
       if (roundBudgetAccumulator[roundIdx]) {
         roundBudgetAccumulator[roundIdx].totalBudgetAfterRound += totalBudgetAfterRound;
@@ -2779,7 +2806,8 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
         totalBidAmount: Number(placedBidSummary && placedBidSummary.totalBidAmount || 0),
         avgBidAmountPerTeam: Number(placedBidSummary && placedBidSummary.avgBidAmountPerTeam || 0),
         playerBidTotals: playerBidTotalsList,
-        roundPlayerResults
+        roundPlayerResults,
+        tieSummary
       });
 
       if (shouldCollectTeamTraceForDraft) {
@@ -2981,6 +3009,24 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
     round: idx + 1,
     avgSpend: entry.samples > 0 ? Number((entry.totalSpend / entry.samples).toFixed(2)) : 0
   }));
+  const roundTieByRound = roundTieAccumulator.map((entry, idx) => {
+    const sampleCount = Math.max(1, Number(entry.samples || 1));
+    const tieCountByTeam = {};
+    [2, 3, 4, 5, 6].forEach((teamCount) => {
+      tieCountByTeam[teamCount] = Number(entry.byTeamCount[teamCount] || 0);
+    });
+    return {
+      round: idx + 1,
+      avgTiesPerAuction: Number((Number(entry.totalTies || 0) / sampleCount).toFixed(2)),
+      avgTwoWayTies: Number((Number(tieCountByTeam[2] || 0) / sampleCount).toFixed(2)),
+      avgThreeWayTies: Number((Number(tieCountByTeam[3] || 0) / sampleCount).toFixed(2)),
+      avgFourWayTies: Number((Number(tieCountByTeam[4] || 0) / sampleCount).toFixed(2)),
+      avgFivePlusWayTies: Number((Object.keys(tieCountByTeam).reduce((sum, teamCountKey) => {
+        const teamCount = Number(teamCountKey);
+        return sum + (teamCount >= 5 ? Number(tieCountByTeam[teamCount] || 0) : 0);
+      }, 0) / sampleCount).toFixed(2))
+    };
+  });
   const roundBudgetByRound = roundBudgetAccumulator.map((entry, idx) => ({
     round: idx + 1,
     avgBudgetBeforeRound: entry.samples > 0 ? Number((entry.totalBudgetBeforeRound / entry.samples).toFixed(2)) : 0,
@@ -3142,7 +3188,17 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
         avgStarterCompletionRound,
         roundSpendConsistency,
         roundBudgetTracker,
-        spendSmoothness
+        spendSmoothness,
+        tieStats: {
+          overall: {
+            avgTiesPerRound: roundTieByRound.length > 0 ? Number((roundTieByRound.reduce((sum, row) => sum + Number(row.avgTiesPerAuction || 0), 0) / roundTieByRound.length).toFixed(2)) : 0,
+            avgTwoWayTiesPerRound: roundTieByRound.length > 0 ? Number((roundTieByRound.reduce((sum, row) => sum + Number(row.avgTwoWayTies || 0), 0) / roundTieByRound.length).toFixed(2)) : 0,
+            avgThreeWayTiesPerRound: roundTieByRound.length > 0 ? Number((roundTieByRound.reduce((sum, row) => sum + Number(row.avgThreeWayTies || 0), 0) / roundTieByRound.length).toFixed(2)) : 0,
+            avgFourWayTiesPerRound: roundTieByRound.length > 0 ? Number((roundTieByRound.reduce((sum, row) => sum + Number(row.avgFourWayTies || 0), 0) / roundTieByRound.length).toFixed(2)) : 0,
+            avgFivePlusWayTiesPerRound: roundTieByRound.length > 0 ? Number((roundTieByRound.reduce((sum, row) => sum + Number(row.avgFivePlusWayTies || 0), 0) / roundTieByRound.length).toFixed(2)) : 0
+          },
+          rounds: roundTieByRound
+        }
       },
       overall: {
         realismScore: realism.realismScore,
@@ -3557,7 +3613,7 @@ const io = new Server(server, {
 
 // In-memory map of drafts for real-time sync. This mirrors client localStorage but is ephemeral.
 const drafts = {};
-const WAIVER_PICK_TIMER_MS = 3 * 60 * 1000;
+const WAIVER_PICK_TIMER_MS = 2 * 60 * 1000;
 const WAIVER_TIMER_TICK_MS = 1000;
 const WAIVER_CPU_ACTION_DELAY_MS = 10 * 1000;
 
@@ -3697,28 +3753,82 @@ function getCurrentWaiverTurnTeamName(waiverState) {
   return String(waiverState.order[idx] || '').trim();
 }
 
-function resetWaiverTurnTimer(waiverState) {
+function getWaiverActedTeams(waiverState) {
+  if (!waiverState || !Array.isArray(waiverState.actedTeams)) return [];
+  return waiverState.actedTeams.map((name) => String(name || '').trim()).filter(Boolean);
+}
+
+function hasWaiverTeamActed(waiverState, teamName) {
+  const normalizedTeamName = String(teamName || '').trim().toLowerCase();
+  if (!normalizedTeamName) return false;
+  return getWaiverActedTeams(waiverState).some((actedTeamName) => String(actedTeamName || '').trim().toLowerCase() === normalizedTeamName);
+}
+
+function markWaiverTeamActed(waiverState, teamName) {
+  if (!waiverState || !teamName) return;
+  const normalizedTeamName = String(teamName || '').trim().toLowerCase();
+  if (!normalizedTeamName) return;
+  const actedTeams = getWaiverActedTeams(waiverState);
+  if (actedTeams.some((actedTeamName) => String(actedTeamName || '').trim().toLowerCase() === normalizedTeamName)) return;
+  actedTeams.push(String(teamName || '').trim());
+  waiverState.actedTeams = actedTeams;
+}
+
+function getNextUnactedWaiverTeam(waiverState) {
+  if (!waiverState || !Array.isArray(waiverState.order) || waiverState.order.length === 0) return '';
+  const order = waiverState.order.map((name) => String(name || '').trim()).filter(Boolean);
+  const currentIndex = Math.max(0, Math.min(Number(waiverState.turnIndex || 0), order.length - 1));
+  for (let offset = 1; offset <= order.length; offset += 1) {
+    const idx = (currentIndex + offset) % order.length;
+    const candidate = order[idx];
+    if (!hasWaiverTeamActed(waiverState, candidate)) return candidate;
+  }
+  return '';
+}
+
+function getWaiverTurnDurationMs(waiverState, draft, teamName) {
+  if (!waiverState) return WAIVER_PICK_TIMER_MS;
+  const currentTeamName = String(teamName || '').trim();
+  if (currentTeamName && isCpuSummaryTeam(currentTeamName, draft)) {
+    return WAIVER_CPU_ACTION_DELAY_MS;
+  }
+  const configured = Number(waiverState.turnDurationMs || WAIVER_PICK_TIMER_MS);
+  return Number.isFinite(configured) ? Math.max(1000, configured) : WAIVER_PICK_TIMER_MS;
+}
+
+function resetWaiverTurnTimer(waiverState, draft, teamName) {
   if (!waiverState) return;
   const now = Date.now();
-  const durationMs = Number.isFinite(Number(waiverState.turnDurationMs))
-    ? Math.max(1000, Number(waiverState.turnDurationMs))
-    : WAIVER_PICK_TIMER_MS;
+  const durationMs = getWaiverTurnDurationMs(waiverState, draft, teamName);
   waiverState.turnDurationMs = durationMs;
   waiverState.turnStartedAt = now;
   waiverState.turnEndsAt = now + durationMs;
 }
 
-function advanceWaiverTurn(waiverState) {
+function advanceWaiverTurn(waiverState, draft) {
   if (!waiverState || !Array.isArray(waiverState.order) || waiverState.order.length === 0) return;
-  waiverState.turnIndex = (Number(waiverState.turnIndex || 0) + 1) % waiverState.order.length;
-  resetWaiverTurnTimer(waiverState);
+
+  const nextTeamName = getNextUnactedWaiverTeam(waiverState);
+  if (!nextTeamName) {
+    waiverState.active = false;
+    waiverState.completed = true;
+    waiverState.updatedAt = Date.now();
+    return;
+  }
+
+  const nextIndex = waiverState.order.findIndex((name) => String(name || '').trim() === nextTeamName);
+  waiverState.turnIndex = nextIndex >= 0 ? nextIndex : 0;
+  resetWaiverTurnTimer(waiverState, draft, nextTeamName);
   waiverState.updatedAt = Date.now();
 }
 
 function finalizeWaiverStateProgress(draft, waiverState) {
   if (!draft || !waiverState) return;
   waiverState.pool = buildWaiverPoolFromDraft(draft);
-  if (waiverState.pool.length === 0 || Number(waiverState.passesInRow || 0) >= waiverState.order.length) {
+  const order = Array.isArray(waiverState.order) ? waiverState.order.map((name) => String(name || '').trim()).filter(Boolean) : [];
+  const actedTeams = getWaiverActedTeams(waiverState);
+  const allTeamsActed = order.length > 0 && order.every((teamName) => actedTeams.some((actedTeamName) => String(actedTeamName || '').trim().toLowerCase() === String(teamName || '').trim().toLowerCase()));
+  if (waiverState.pool.length === 0 || Number(waiverState.passesInRow || 0) >= order.length || allTeamsActed) {
     waiverState.active = false;
     waiverState.completed = true;
   }
@@ -3923,31 +4033,84 @@ function applyWaiverAddDropForTeam(draft, team, teamName, addPlayerId, dropPlaye
     droppedStatePlayer.bid = 0;
   }
 
-  return { ok: true, addPlayer, dropPlayer };
+  return {
+    ok: true,
+    addPlayer,
+    dropPlayer,
+    addPlayerName: String(addPlayer && addPlayer.name || '').trim(),
+    addPlayerPosition: String(addPlayer && addPlayer.position || '').trim().toUpperCase(),
+    dropPlayerName: String(dropPlayer && dropPlayer.name || '').trim(),
+    dropPlayerPosition: String(dropPlayer && dropPlayer.position || '').trim().toUpperCase()
+  };
+}
+
+function recordWaiverTeamActivity(waiverState, teamName, action) {
+  if (!waiverState) return;
+  if (!Array.isArray(waiverState.teamActivity)) {
+    waiverState.teamActivity = [];
+  }
+  const entry = {
+    teamName: String(teamName || '').trim(),
+    type: String(action && action.type || 'addDrop').trim(),
+    addPlayerName: String(action && action.addPlayerName || '').trim(),
+    addPlayerPosition: String(action && action.addPlayerPosition || '').trim().toUpperCase(),
+    dropPlayerName: String(action && action.dropPlayerName || '').trim(),
+    dropPlayerPosition: String(action && action.dropPlayerPosition || '').trim().toUpperCase(),
+    at: Number(action && action.at || Date.now())
+  };
+  if (!entry.teamName) return;
+  waiverState.teamActivity.push(entry);
+  waiverState.teamActivity = waiverState.teamActivity.slice(-20);
 }
 
 function processCpuWaiverTurns(draftCode, draft) {
   if (!draft || !draft.waiverState || !draft.waiverState.active || draft.waiverState.completed) return false;
   const waiverState = draft.waiverState;
+  const currentTeamName = getCurrentWaiverTurnTeamName(waiverState);
+  if (!currentTeamName || !isCpuSummaryTeam(currentTeamName, draft)) {
+    return false;
+  }
+
   const teams = draft.draftState && Array.isArray(draft.draftState.teams)
     ? draft.draftState.teams
     : (Array.isArray(draft.teams) ? draft.teams : []);
   if (!Array.isArray(teams) || teams.length === 0) return false;
 
+  const durationMs = getWaiverTurnDurationMs(waiverState, draft, currentTeamName);
+  waiverState.turnDurationMs = durationMs;
+  waiverState.turnStartedAt = Date.now();
+  waiverState.turnEndsAt = Date.now() + durationMs;
+  waiverState.updatedAt = Date.now();
+  return true;
+}
+
+function emitWaiverStateUpdate(draftCode, draft) {
+  const teams = draft.draftState && Array.isArray(draft.draftState.teams)
+    ? draft.draftState.teams
+    : (Array.isArray(draft.teams) ? draft.teams : []);
+
+  io.to(draftCode).emit('waiverStateUpdated', {
+    draftCode,
+    waiverState: draft.waiverState,
+    teams,
+    allPlayersSnapshot: (draft.draftState && Array.isArray(draft.draftState.allPlayers)) ? draft.draftState.allPlayers : []
+  });
+}
+
+function resolveCpuWaiverTurnAction(draftCode, draft) {
+  if (!draft || !draft.waiverState || !draft.waiverState.active || draft.waiverState.completed) return false;
+  const waiverState = draft.waiverState;
   const teamName = getCurrentWaiverTurnTeamName(waiverState);
   if (!teamName || !isCpuSummaryTeam(teamName, draft)) return false;
 
-  const turnStartedAt = Number(waiverState.turnStartedAt || 0);
-  const turnAgeMs = Number.isFinite(turnStartedAt) && turnStartedAt > 0
-    ? (Date.now() - turnStartedAt)
-    : 0;
-  if (turnAgeMs < WAIVER_CPU_ACTION_DELAY_MS) {
-    return false;
-  }
+  const teams = draft.draftState && Array.isArray(draft.draftState.teams)
+    ? draft.draftState.teams
+    : (Array.isArray(draft.teams) ? draft.teams : []);
+  if (!Array.isArray(teams) || teams.length === 0) return false;
 
-  let changed = false;
   const team = teams.find(t => String(t && t.name || '').trim() === teamName);
   if (!team || !Array.isArray(team.roster)) {
+    markWaiverTeamActed(waiverState, teamName);
     waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
     waiverState.lastAction = {
       type: 'cpuPass',
@@ -3955,60 +4118,90 @@ function processCpuWaiverTurns(draftCode, draft) {
       reason: 'team_not_found',
       at: Date.now()
     };
-    advanceWaiverTurn(waiverState);
+    recordWaiverTeamActivity(waiverState, teamName, {
+      type: 'pass',
+      at: Date.now()
+    });
+    advanceWaiverTurn(waiverState, draft);
     finalizeWaiverStateProgress(draft, waiverState);
-    changed = true;
-  } else {
-    const move = findBestCpuWaiverMove(draft, team);
-    if (!move) {
-      waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
-      waiverState.lastAction = {
-        type: 'cpuPass',
-        by: teamName,
-        reason: 'no_upgrade_found',
-        at: Date.now()
-      };
-      advanceWaiverTurn(waiverState);
-      finalizeWaiverStateProgress(draft, waiverState);
-      changed = true;
-    } else {
-      const applied = applyWaiverAddDropForTeam(draft, team, teamName, move.addPlayerId, move.dropPlayerId);
-      if (!applied.ok) {
-        waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
-        waiverState.lastAction = {
-          type: 'cpuPass',
-          by: teamName,
-          reason: applied.reason || 'apply_failed',
-          at: Date.now()
-        };
-        advanceWaiverTurn(waiverState);
-        finalizeWaiverStateProgress(draft, waiverState);
-        changed = true;
-      } else {
-        waiverState.passesInRow = 0;
-        waiverState.lastAction = {
-          type: 'cpuAddDrop',
-          by: teamName,
-          addPlayerId: move.addPlayerId,
-          dropPlayerId: move.dropPlayerId,
-          scoreGain: Number(move.scoreGain.toFixed(3)),
-          at: Date.now()
-        };
-        advanceWaiverTurn(waiverState);
-        finalizeWaiverStateProgress(draft, waiverState);
-        changed = true;
-      }
-    }
+    if (draft.draftState && Array.isArray(draft.draftState.teams)) draft.draftState.teams = teams;
+    if (Array.isArray(draft.teams)) draft.teams = teams;
+    emitWaiverStateUpdate(draftCode, draft);
+    return true;
   }
 
-  if (draft.draftState && Array.isArray(draft.draftState.teams)) {
-    draft.draftState.teams = teams;
-  }
-  if (Array.isArray(draft.teams)) {
-    draft.teams = teams;
+  const move = findBestCpuWaiverMove(draft, team);
+  if (!move) {
+    markWaiverTeamActed(waiverState, teamName);
+    waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
+    waiverState.lastAction = {
+      type: 'cpuPass',
+      by: teamName,
+      reason: 'no_upgrade_found',
+      at: Date.now()
+    };
+    recordWaiverTeamActivity(waiverState, teamName, {
+      type: 'pass',
+      at: Date.now()
+    });
+    advanceWaiverTurn(waiverState, draft);
+    finalizeWaiverStateProgress(draft, waiverState);
+    if (draft.draftState && Array.isArray(draft.draftState.teams)) draft.draftState.teams = teams;
+    if (Array.isArray(draft.teams)) draft.teams = teams;
+    emitWaiverStateUpdate(draftCode, draft);
+    return true;
   }
 
-  return changed;
+  const applied = applyWaiverAddDropForTeam(draft, team, teamName, move.addPlayerId, move.dropPlayerId);
+  if (!applied.ok) {
+    markWaiverTeamActed(waiverState, teamName);
+    waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
+    waiverState.lastAction = {
+      type: 'cpuPass',
+      by: teamName,
+      reason: applied.reason || 'apply_failed',
+      at: Date.now()
+    };
+    recordWaiverTeamActivity(waiverState, teamName, {
+      type: 'pass',
+      at: Date.now()
+    });
+    advanceWaiverTurn(waiverState, draft);
+    finalizeWaiverStateProgress(draft, waiverState);
+    if (draft.draftState && Array.isArray(draft.draftState.teams)) draft.draftState.teams = teams;
+    if (Array.isArray(draft.teams)) draft.teams = teams;
+    emitWaiverStateUpdate(draftCode, draft);
+    return true;
+  }
+
+  markWaiverTeamActed(waiverState, teamName);
+  waiverState.passesInRow = 0;
+  waiverState.lastAction = {
+    type: 'cpuAddDrop',
+    by: teamName,
+    addPlayerId: move.addPlayerId,
+    dropPlayerId: move.dropPlayerId,
+    addPlayerName: String(applied.addPlayerName || '').trim(),
+    addPlayerPosition: String(applied.addPlayerPosition || '').trim().toUpperCase(),
+    dropPlayerName: String(applied.dropPlayerName || '').trim(),
+    dropPlayerPosition: String(applied.dropPlayerPosition || '').trim().toUpperCase(),
+    scoreGain: Number(move.scoreGain.toFixed(3)),
+    at: Date.now()
+  };
+  recordWaiverTeamActivity(waiverState, teamName, {
+    type: 'addDrop',
+    addPlayerName: String(applied.addPlayerName || '').trim(),
+    addPlayerPosition: String(applied.addPlayerPosition || '').trim().toUpperCase(),
+    dropPlayerName: String(applied.dropPlayerName || '').trim(),
+    dropPlayerPosition: String(applied.dropPlayerPosition || '').trim().toUpperCase(),
+    at: Date.now()
+  });
+  advanceWaiverTurn(waiverState, draft);
+  finalizeWaiverStateProgress(draft, waiverState);
+  if (draft.draftState && Array.isArray(draft.draftState.teams)) draft.draftState.teams = teams;
+  if (Array.isArray(draft.teams)) draft.teams = teams;
+  emitWaiverStateUpdate(draftCode, draft);
+  return true;
 }
 
 function applyWaiverAutoPassIfExpired(draftCode, draft) {
@@ -4026,6 +4219,11 @@ function applyWaiverAutoPassIfExpired(draftCode, draft) {
   if (Date.now() < turnEndsAt) return false;
 
   const expectedTeamName = getCurrentWaiverTurnTeamName(waiverState);
+  if (expectedTeamName && isCpuSummaryTeam(expectedTeamName, draft)) {
+    return resolveCpuWaiverTurnAction(draftCode, draft);
+  }
+
+  markWaiverTeamActed(waiverState, expectedTeamName);
   waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
   waiverState.lastAction = {
     type: 'autoPass',
@@ -4033,7 +4231,7 @@ function applyWaiverAutoPassIfExpired(draftCode, draft) {
     reason: 'timer_expired',
     at: Date.now()
   };
-  advanceWaiverTurn(waiverState);
+  advanceWaiverTurn(waiverState, draft);
   finalizeWaiverStateProgress(draft, waiverState);
   processCpuWaiverTurns(draftCode, draft);
 
@@ -4512,6 +4710,22 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
     return Math.min(safeAmount, hardGuardrail);
   }
 
+  function applyCpuBidJitter(baseAmount, player, teamName, state) {
+    const safeBase = Math.max(0, Number(baseAmount || 0));
+    const safeBudget = Math.max(0, Number(state?.budgetRemaining || 0));
+    if (safeBase <= 0 || safeBudget <= 0) return Math.min(safeBase, safeBudget);
+
+    const round = Math.max(1, Number(roundNumber || 1));
+    const av = Math.max(1, Number(player?.avgValue || 1));
+    const shouldJitter = round <= 3 && (av >= 12 || Math.random() < 0.55);
+    if (!shouldJitter) return Math.min(safeBase, safeBudget);
+
+    const maxExtra = round <= 2 ? 4 : 2;
+    const extra = Math.floor(Math.random() * (maxExtra + 1));
+    const jittered = Math.min(safeBudget, safeBase + extra);
+    return Math.max(1, jittered);
+  }
+
   safeRoundPlayers.forEach(player => {
     try {
     const bids = [];
@@ -4551,25 +4765,26 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
       const cappedCpuBid = cpuBidObj
         ? capCpuBidByAvGuardrail(player, specialistCappedBid, state?.budgetRemaining || 0)
         : 0;
+      const jitteredCpuBid = applyCpuBidJitter(cappedCpuBid, player, cpuName, state);
       const canBid = state
         && state.rosterCount < maxRosterSize
         && cpuBidObj
-        && cappedCpuBid > 0
-        && cappedCpuBid <= state.budgetRemaining
+        && jitteredCpuBid > 0
+        && jitteredCpuBid <= state.budgetRemaining
         && isValidRosterAddition(cpuTeam, player, rosterLimits, maxRosterSize);
       if (cpuBidObj && cpuTeam && canBid) {
-        bids.push({ team: cpuTeam, amount: cappedCpuBid, source: 'cpu' });
+        bids.push({ team: cpuTeam, amount: jitteredCpuBid, source: 'cpu' });
         // Collect for bulk logging instead of individual logging
         allIndividualBids.push({
           draftId: currentDraftId || 'default_draft',
           roundNumber,
           player,
           bidderTeam: cpuName,
-          bidAmount: cappedCpuBid,
+          bidAmount: jitteredCpuBid,
           isWinning: false,
           isSecondHighest: false
         });
-        console.log(`[processAuctions] ${player.name}: CPU bid from ${cpuName} = $${cappedCpuBid}`);
+        console.log(`[processAuctions] ${player.name}: CPU bid from ${cpuName} = $${jitteredCpuBid}`);
       }
     });
 
@@ -4833,6 +5048,100 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
 
 // ==================== SOCKET.IO HANDLERS ====================
 
+function normalizeServerRoundTimerMinutes(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return 10;
+  return Math.max(3, Math.min(parsed, 10));
+}
+
+function ensureDraftStateForSocket(code, socket, options = {}) {
+  const draftCode = String(code || '').trim();
+  if (!draftCode) {
+    return null;
+  }
+
+  if (!drafts[draftCode]) {
+    drafts[draftCode] = {
+      members: [],
+      type: null,
+      capacity: 10,
+      public: false
+    };
+  }
+
+  const draft = drafts[draftCode];
+  draft.members = Array.isArray(draft.members) ? draft.members : [];
+  if (!draft.host && draft.members.length > 0) {
+    draft.host = draft.members[0];
+  }
+
+  const username = String(options.username || socket?.data?.username || '').trim();
+  if (username && !draft.members.includes(username)) {
+    draft.members.push(username);
+  }
+
+  if (!draft.draftState || typeof draft.draftState !== 'object') {
+    const roundTimerMinutes = normalizeServerRoundTimerMinutes(draft.roundTimerMinutes);
+    draft.draftState = {
+      currentRound: 1,
+      roundTimer: roundTimerMinutes * 60,
+      roundTimerMinutes,
+      currentPlayers: [],
+      completedRounds: [],
+      bids: {},
+      autoDraftStatus: {},
+      autoDraftStarTargets: {},
+      chatMessages: [],
+      participationTracker: {
+        history: [],
+        lastRound: null,
+        baselineAvgBidPerPlayer: 0,
+        dropFromBaselinePct: 0
+      },
+      submittedMembers: []
+    };
+  }
+
+  if (!draft.draftState.autoDraftStatus || typeof draft.draftState.autoDraftStatus !== 'object') {
+    draft.draftState.autoDraftStatus = {};
+  }
+
+  if (!draft.draftState.autoDraftStarTargets || typeof draft.draftState.autoDraftStarTargets !== 'object') {
+    draft.draftState.autoDraftStarTargets = {};
+  }
+
+  if (!Array.isArray(draft.draftState.chatMessages)) {
+    draft.draftState.chatMessages = [];
+  }
+
+  if (!draft.draftState.participationTracker || typeof draft.draftState.participationTracker !== 'object') {
+    draft.draftState.participationTracker = {
+      history: [],
+      lastRound: null,
+      baselineAvgBidPerPlayer: 0,
+      dropFromBaselinePct: 0
+    };
+  }
+
+  if (!Array.isArray(draft.draftState.submittedMembers)) {
+    draft.draftState.submittedMembers = [];
+  }
+
+  if (!draft.draftState.bids || typeof draft.draftState.bids !== 'object') {
+    draft.draftState.bids = {};
+  }
+
+  if (typeof draft.draftState.roundTimerMinutes === 'undefined' || draft.draftState.roundTimerMinutes === null) {
+    draft.draftState.roundTimerMinutes = normalizeServerRoundTimerMinutes(draft.roundTimerMinutes);
+  }
+
+  if (!Number.isFinite(Number(draft.draftState.roundTimer))) {
+    draft.draftState.roundTimer = Number(draft.draftState.roundTimerMinutes || normalizeServerRoundTimerMinutes(draft.roundTimerMinutes)) * 60;
+  }
+
+  return draft;
+}
+
 io.on('connection', (socket) => {
   console.log(`[connection] New socket connected: ${socket.id}`);
   
@@ -5014,18 +5323,20 @@ io.on('connection', (socket) => {
 
   // Get current draft state from server (for draft page to load)
   socket.on('getDraftState', (code, cb) => {
-    console.log(`[getDraftState] ${code} requested by ${socket.data.username}`);
-    if(drafts[code]){
-      const autoCutResult = autoCutCpuTeamsForSummary(drafts[code]);
-      if (!drafts[code].host && drafts[code].members && drafts[code].members.length > 0) {
-        drafts[code].host = drafts[code].members[0];
+    const draftCode = String(code || '').trim();
+    console.log(`[getDraftState] ${draftCode} requested by ${socket.data.username}`);
+    const draft = ensureDraftStateForSocket(draftCode, socket, { username: socket.data.username });
+    if (draft) {
+      const autoCutResult = autoCutCpuTeamsForSummary(draft);
+      if (!draft.host && draft.members && draft.members.length > 0) {
+        draft.host = draft.members[0];
       }
 
       if (autoCutResult.changedTeamNames.length > 0) {
         autoCutResult.changedTeamNames.forEach((cpuTeamName) => {
           const cpuTeam = autoCutResult.teams.find(t => String(t && t.name || '').trim() === cpuTeamName);
           if (cpuTeam) {
-            io.to(code).emit('benchUpdated', {
+            io.to(draftCode).emit('benchUpdated', {
               teamName: cpuTeamName,
               newRoster: cpuTeam.roster
             });
@@ -5033,10 +5344,10 @@ io.on('connection', (socket) => {
         });
       }
 
-      logDraftCutDebug(drafts[code], code, 'getDraftState.afterAutoCut');
+      logDraftCutDebug(draft, draftCode, 'getDraftState.afterAutoCut');
 
-      console.log(`[getDraftState] ${code} host=${drafts[code].host || drafts[code].members?.[0] || 'unknown'} members=${(drafts[code].members || []).join(', ')}`);
-      if(cb) cb({ ok: true, draft: drafts[code] });
+      console.log(`[getDraftState] ${draftCode} host=${draft.host || draft.members?.[0] || 'unknown'} members=${(draft.members || []).join(', ')}`);
+      if(cb) cb({ ok: true, draft });
     } else {
       if(cb) cb({ ok: false, reason: 'not_found' });
     }
@@ -5044,16 +5355,23 @@ io.on('connection', (socket) => {
 
   // Join the active draft room for real-time bidding
   socket.on('joinActiveDraft', (code, username) => {
-    if (!drafts[code]) {
-      console.warn(`[joinActiveDraft] Draft not found for code ${code}`);
+    const draftCode = String(code || '').trim();
+    if (!draftCode) {
+      console.warn(`[joinActiveDraft] Draft code missing`);
+      return;
+    }
+
+    const draft = ensureDraftStateForSocket(draftCode, socket, { username });
+    if (!draft) {
+      console.warn(`[joinActiveDraft] Draft not found for code ${draftCode}`);
       return;
     }
 
     const providedName = String(username || '').trim();
     const normalizedProvidedName = providedName.toLowerCase();
     let resolvedUsername = providedName;
-    if (Array.isArray(drafts[code].members)) {
-      const matchedMember = drafts[code].members.find((member) => (
+    if (Array.isArray(draft.members)) {
+      const matchedMember = draft.members.find((member) => (
         String(member || '').trim().toLowerCase() === normalizedProvidedName
       ));
       if (matchedMember) {
@@ -5061,71 +5379,29 @@ io.on('connection', (socket) => {
       }
     }
 
-    socket.join(`draft_${code}`);
-    socket.data.activeDraftCode = code;
+    socket.join(`draft_${draftCode}`);
+    socket.data.activeDraftCode = draftCode;
     socket.data.username = resolvedUsername;
-    console.log(`[joinActiveDraft] ${resolvedUsername} joined active draft ${code}`);
+    console.log(`[joinActiveDraft] ${resolvedUsername} joined active draft ${draftCode}`);
     
-    const roundTimerMinutes = Number.isFinite(Number.parseInt(drafts[code] && drafts[code].roundTimerMinutes, 10))
-      ? Math.max(3, Math.min(Number.parseInt(drafts[code].roundTimerMinutes, 10), 10))
-      : 10;
+    const roundTimerMinutes = normalizeServerRoundTimerMinutes(draft.roundTimerMinutes);
 
-    // Initialize draft state if not exists
-    if(!drafts[code].draftState) {
-      drafts[code].draftState = {
-        currentRound: 1,
-        roundTimer: roundTimerMinutes * 60,
-        roundTimerMinutes,
-        currentPlayers: [], // The 10 players for the current round
-        completedRounds: [],
-        bids: {}, // playerId: { teamName: bidAmount }
-        autoDraftStatus: {}, // teamName: boolean
-        autoDraftStarTargets: {}, // teamName: [playerName]
-        chatMessages: [],
-        participationTracker: {
-          history: [],
-          lastRound: null,
-          baselineAvgBidPerPlayer: 0,
-          dropFromBaselinePct: 0
-        }
-      };
-    } else {
-      drafts[code].draftState.roundTimer = roundTimerMinutes * 60;
-      drafts[code].draftState.roundTimerMinutes = roundTimerMinutes;
-    }
-
-    if (!drafts[code].draftState.autoDraftStatus) {
-      drafts[code].draftState.autoDraftStatus = {};
-    }
-
-    if (!drafts[code].draftState.autoDraftStarTargets || typeof drafts[code].draftState.autoDraftStarTargets !== 'object') {
-      drafts[code].draftState.autoDraftStarTargets = {};
-    }
-
-    if (!Array.isArray(drafts[code].draftState.chatMessages)) {
-      drafts[code].draftState.chatMessages = [];
-    }
-
-    if (!drafts[code].draftState.participationTracker || typeof drafts[code].draftState.participationTracker !== 'object') {
-      drafts[code].draftState.participationTracker = {
-        history: [],
-        lastRound: null,
-        baselineAvgBidPerPlayer: 0,
-        dropFromBaselinePct: 0
-      };
+    if (draft.draftState) {
+      draft.draftState.roundTimer = roundTimerMinutes * 60;
+      draft.draftState.roundTimerMinutes = roundTimerMinutes;
     }
 
     // Default each joining user to OFF until they explicitly toggle ON.
-    if (typeof drafts[code].draftState.autoDraftStatus[resolvedUsername] === 'undefined') {
-      drafts[code].draftState.autoDraftStatus[resolvedUsername] = false;
+    if (typeof draft.draftState.autoDraftStatus[resolvedUsername] === 'undefined') {
+      draft.draftState.autoDraftStatus[resolvedUsername] = false;
     }
     
     // Send current draft state to the joining player
-    socket.emit('draftStateSync', drafts[code].draftState);
+    socket.emit('draftStateSync', draft.draftState);
 
     // Rehydrate any active live auction so a reconnecting PWA client can recover
     // the tied-auction UI instead of freezing at the last disconnected screen.
-    const liveAuctions = drafts[code].draftState.liveAuctions || {};
+    const liveAuctions = draft.draftState.liveAuctions || {};
     const activeAuctionEntry = Object.entries(liveAuctions).find(([, auction]) => auction && auction.active);
     if (activeAuctionEntry) {
       const [auctionId, auction] = activeAuctionEntry;
@@ -5147,7 +5423,7 @@ io.on('connection', (socket) => {
     }
 
     // Also sync current auto-draft statuses for UI badges.
-    socket.emit('autoDraftStatusSync', drafts[code].draftState.autoDraftStatus);
+    socket.emit('autoDraftStatusSync', draft.draftState.autoDraftStatus);
   });
 
   // Update and broadcast auto-draft toggle status for a team/user.
@@ -5314,7 +5590,7 @@ io.on('connection', (socket) => {
   // Sync all bids for the current round in one payload to avoid submit-time socket churn.
   socket.on('syncRoundBids', (code, bidEntries, cb) => {
     const username = socket.data.username;
-    const draft = drafts[code];
+    const draft = ensureDraftStateForSocket(code, socket, { username });
     if (!draft || !draft.draftState || !draft.draftState.bids) {
       if (cb) cb({ ok: false, reason: 'draft_not_ready' });
       return;
@@ -5341,7 +5617,7 @@ io.on('connection', (socket) => {
   // Place a bid on a player
   socket.on('placeBid', (code, playerId, bidAmount, cb) => {
     const username = socket.data.username;
-    const draft = drafts[code];
+    const draft = ensureDraftStateForSocket(code, socket, { username });
     if (!draft || !draft.draftState || !draft.draftState.bids) {
       if (cb) cb({ ok: false, reason: 'draft_not_ready' });
       return;
@@ -5368,49 +5644,52 @@ io.on('connection', (socket) => {
   socket.on('submitBids', (code, username, autoDraftEnabledOrCb, cbMaybe) => {
     const autoDraftEnabled = typeof autoDraftEnabledOrCb === 'boolean' ? autoDraftEnabledOrCb : undefined;
     const cb = typeof autoDraftEnabledOrCb === 'function' ? autoDraftEnabledOrCb : cbMaybe;
-    console.log(`[submitBids] ${username} submitted bids in ${code}`);
+    const draftCode = String(code || '').trim();
+    const submissionUsername = String(username || socket.data.username || '').trim();
+    console.log(`[submitBids] ${submissionUsername} submitted bids in ${draftCode}`);
 
-    if (!drafts[code] || !drafts[code].draftState) {
+    const draft = ensureDraftStateForSocket(draftCode, socket, { username: submissionUsername });
+    if (!draft || !draft.draftState) {
       if (cb) cb({ ok: false, reason: 'draft_not_ready' });
       return;
     }
 
-    if (!drafts[code].draftState.autoDraftStatus) {
-      drafts[code].draftState.autoDraftStatus = {};
+    if (!draft.draftState.autoDraftStatus) {
+      draft.draftState.autoDraftStatus = {};
     }
 
     // Keep server authority aligned with the client's current toggle at submit time.
     if (typeof autoDraftEnabled === 'boolean') {
-      drafts[code].draftState.autoDraftStatus[username] = autoDraftEnabled;
+      draft.draftState.autoDraftStatus[submissionUsername] = autoDraftEnabled;
     }
     
-    if(!drafts[code].draftState.submittedMembers) {
-      drafts[code].draftState.submittedMembers = [];
+    if(!draft.draftState.submittedMembers) {
+      draft.draftState.submittedMembers = [];
     }
     
     // Track this member's submission
-    if(!drafts[code].draftState.submittedMembers.includes(username)) {
-      drafts[code].draftState.submittedMembers.push(username);
+    if(!draft.draftState.submittedMembers.includes(submissionUsername)) {
+      draft.draftState.submittedMembers.push(submissionUsername);
     }
     
     // Broadcast to all other members in the draft room (not the sender)
-    socket.to(`draft_${code}`).emit('bidsSubmitted', { username });
+    socket.to(`draft_${draftCode}`).emit('bidsSubmitted', { username: submissionUsername });
     
     // Only members with auto-draft OFF are required to submit manually.
-    const allMembers = drafts[code].members || [];
-    const autoDraftStatus = drafts[code].draftState.autoDraftStatus || {};
+    const allMembers = Array.isArray(draft.members) ? draft.members : [];
+    const autoDraftStatus = draft.draftState.autoDraftStatus || {};
     const requiredManualMembers = allMembers.filter(member => !autoDraftStatus[member]);
-    const submittedCount = drafts[code].draftState.submittedMembers.filter(member => requiredManualMembers.includes(member)).length;
-    console.log('[submitBids][debug] submittedMembers:', drafts[code].draftState.submittedMembers);
+    const submittedCount = draft.draftState.submittedMembers.filter(member => requiredManualMembers.includes(member)).length;
+    console.log('[submitBids][debug] submittedMembers:', draft.draftState.submittedMembers);
     console.log('[submitBids][debug] requiredManualMembers:', requiredManualMembers);
-    console.log('[submitBids][debug] current bids snapshot:', JSON.stringify(drafts[code].draftState.bids || {}, null, 2));
+    console.log('[submitBids][debug] current bids snapshot:', JSON.stringify(draft.draftState.bids || {}, null, 2));
     
     console.log(`[submitBids] ${submittedCount}/${requiredManualMembers.length} manual members have submitted`);
     
     if(submittedCount >= requiredManualMembers.length) {
       console.log(`[submitBids] All members submitted - triggering round processing`);
       // All members have submitted, trigger round processing
-      io.to(`draft_${code}`).emit('allBidsSubmitted');
+      io.to(`draft_${draftCode}`).emit('allBidsSubmitted');
     }
     
     if(cb) cb({ ok: true });
@@ -6045,6 +6324,8 @@ io.on('connection', (socket) => {
   
   // Start auction timer (extracted from old socket handler)
   function startAuctionTimer(code, auctionId) {
+    const configuredRosterSize = Math.max(1, Number(drafts[code]?.draftState?.rosterSize || 0));
+
     // Start timer
     const timerInterval = setInterval(() => {
       if (!drafts[code]) {
@@ -6086,7 +6367,6 @@ io.on('connection', (socket) => {
           // Get player data
           const player = drafts[code].draftState.allPlayers?.find(p => p.id === auction.playerId);
           const position = player?.position || 'UNK';
-          const configuredRosterSize = Math.max(1, Number(drafts[code].draftState.rosterSize || 0));
 
           // Each CPU recalculates aggression with current context
           const remainingAfterBackout = [];
@@ -6147,9 +6427,11 @@ io.on('connection', (socket) => {
 
           // Case 2: multiple remain → force final bid
           if (remainingAfterBackout.length > 1) {
-            console.log(`[TIE BREAKER] ${remainingAfterBackout.length} CPUs still tied, forcing +$1 bid`);
+            console.log(`[TIE BREAKER] ${remainingAfterBackout.length} CPUs still tied, forcing a final bid`);
             const aggressor = pickRandomCPU(remainingAfterBackout);
-            placeForcedBid(code, auctionId, aggressor, auction.currentBid + 1, drafts, io);
+            const forceStep = Math.max(1, (auction.playerAvgValue >= 15 || (drafts[code].draftState.currentRound || 1) <= 2) ? 2 : 1);
+            const forcedBid = Math.min(999, auction.currentBid + forceStep + (Math.random() < 0.4 ? 1 : 0));
+            placeForcedBid(code, auctionId, aggressor, forcedBid, drafts, io);
             return;
           }
 
@@ -7089,7 +7371,9 @@ io.on('connection', (socket) => {
       turnEndsAt: Date.now() + WAIVER_PICK_TIMER_MS,
       pool: buildWaiverPoolFromDraft(draft),
       passesInRow: 0,
+      actedTeams: [],
       updatedAt: Date.now(),
+      teamActivity: [],
       lastAction: {
         type: 'start',
         by: requestUser || null,
@@ -7154,13 +7438,19 @@ io.on('connection', (socket) => {
     }
 
     if (action === 'pass') {
+      markWaiverTeamActed(waiverState, expectedTeamName);
+      markWaiverTeamActed(waiverState, expectedTeamName);
       waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
       waiverState.lastAction = {
         type: 'pass',
         by: expectedTeamName,
         at: Date.now()
       };
-      advanceWaiverTurn(waiverState);
+      recordWaiverTeamActivity(waiverState, expectedTeamName, {
+        type: 'pass',
+        at: Date.now()
+      });
+      advanceWaiverTurn(waiverState, draft);
     } else if (action === 'adddrop') {
       const addPlayerId = Number(data && data.addPlayerId);
       const dropPlayerId = Number(data && data.dropPlayerId);
@@ -7175,15 +7465,28 @@ io.on('connection', (socket) => {
         return;
       }
 
+      markWaiverTeamActed(waiverState, expectedTeamName);
       waiverState.passesInRow = 0;
       waiverState.lastAction = {
         type: 'addDrop',
         by: expectedTeamName,
         addPlayerId,
         dropPlayerId,
+        addPlayerName: String(applied.addPlayerName || '').trim(),
+        addPlayerPosition: String(applied.addPlayerPosition || '').trim().toUpperCase(),
+        dropPlayerName: String(applied.dropPlayerName || '').trim(),
+        dropPlayerPosition: String(applied.dropPlayerPosition || '').trim().toUpperCase(),
         at: Date.now()
       };
-      advanceWaiverTurn(waiverState);
+      recordWaiverTeamActivity(waiverState, expectedTeamName, {
+        type: 'addDrop',
+        addPlayerName: String(applied.addPlayerName || '').trim(),
+        addPlayerPosition: String(applied.addPlayerPosition || '').trim().toUpperCase(),
+        dropPlayerName: String(applied.dropPlayerName || '').trim(),
+        dropPlayerPosition: String(applied.dropPlayerPosition || '').trim().toUpperCase(),
+        at: Date.now()
+      });
+      advanceWaiverTurn(waiverState, draft);
     } else {
       if (cb) cb({ ok: false, reason: 'invalid_action' });
       return;
