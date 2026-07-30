@@ -242,7 +242,7 @@ body.color-blind {
 
 .container {
     display: flex;
-    --left-right-width-shift: 48px;
+    --left-right-width-shift: clamp(84px, 8vw, 164px);
     gap: 12px;
     max-width: 1800px;
     margin: 0 auto;
@@ -265,15 +265,18 @@ body.color-blind {
 }
 
 #left-column {
-    flex: 2.3 1 calc((100% - 24px) * 0.46 - var(--left-right-width-shift));
+    flex: 1.95 1 calc((100% - 24px) * 0.39 - var(--left-right-width-shift));
+    min-width: 240px;
 }
 
 #center-column {
-    flex: 1.5 1 calc((100% - 24px) * 0.3);
+    flex: 1.45 1 calc((100% - 24px) * 0.27);
+    min-width: 250px;
 }
 
 #right-column {
-    flex: 1.2 1 calc((100% - 24px) * 0.24 + var(--left-right-width-shift));
+    flex: 1.7 1 calc((100% - 24px) * 0.34 + var(--left-right-width-shift));
+    min-width: 360px;
     display: flex;
     flex-direction: column;
     position: relative;
@@ -281,7 +284,9 @@ body.color-blind {
 
 .right-view-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
+    row-gap: 6px;
     margin-bottom: 12px;
     position: sticky;
     top: 0;
@@ -291,6 +296,8 @@ body.color-blind {
 }
 
 .right-view-tab {
+    flex: 1 1 0;
+    min-width: 0;
     border: 1px solid var(--hush-steel)33;
     background: transparent;
     color: var(--hush-steel);
@@ -298,6 +305,7 @@ body.color-blind {
     padding: 6px 10px;
     font-size: 12px;
     font-weight: 700;
+    text-align: center;
     cursor: pointer;
 }
 
