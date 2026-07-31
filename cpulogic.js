@@ -69,7 +69,13 @@ module.exports = {
     "round9ThresholdBias": -0.11,
     "round10ThresholdBias": -0.13,
     "band1to9NoBidChance": 0.68,
-    "bandLowAvNoBidLateRoundRelief": 0.13
+    "bandLowAvNoBidLateRoundRelief": 0.13,
+    "lowAvEarlyRoundNoBidBoost": 0.1,
+    "lowAvLateRoundReliefStartRound": 7,
+    "lowAvCompletionGuardEnabled": 1,
+    "lowAvCompletionGuardStartRound": 7,
+    "lowAvCompletionGuardMinRosterRatio": 0.8,
+    "lowAvCompletionGuardMinBidders": 1
   },
   "tied": {
     "baseBidProb": 0.34,

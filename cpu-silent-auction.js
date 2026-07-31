@@ -1798,13 +1798,26 @@ function enforceAvMarketDepth(cpuBids, cpuTeams, roundPlayers, teamStrategies, r
   return added;
 }
 
-function applyAvParticipationCurve(cpuBids, roundPlayers, roundNumber) {
+function applyAvParticipationCurve(cpuBids, roundPlayers, roundNumber, cpuTeams = [], maxRosterSize = defaultCompletedRosterSize) {
   const safeBids = cpuBids && typeof cpuBids === 'object' ? cpuBids : {};
   const cfg = loadCpuLogicConfig();
+  const silentCfg = cfg?.silent || {};
   const enabled = cfg?.silent?.avParticipationCurveEnabled === true;
   if (!enabled) return 0;
   const totalTeamCount = Math.max(0, Object.keys(safeBids).length);
   const playerById = new Map((Array.isArray(roundPlayers) ? roundPlayers : []).map((player) => [Number(player?.id || 0), player]));
+  const safeTeams = Array.isArray(cpuTeams) ? cpuTeams : [];
+  const safeMaxRosterSize = Math.max(1, Number(maxRosterSize || defaultCompletedRosterSize));
+  const rosterFillRatio = safeTeams.length > 0
+    ? safeTeams.reduce((sum, team) => sum + Math.min(safeMaxRosterSize, Math.max(0, Number(team?.roster?.length || 0))), 0) / (safeTeams.length * safeMaxRosterSize)
+    : 1;
+  const completionGuardEnabledRaw = silentCfg.lowAvCompletionGuardEnabled;
+  const completionGuardEnabled = typeof completionGuardEnabledRaw === 'boolean'
+    ? completionGuardEnabledRaw
+    : Number(completionGuardEnabledRaw ?? 1) >= 0.5;
+  const completionGuardStartRound = Math.max(1, Math.floor(Number(silentCfg.lowAvCompletionGuardStartRound ?? 7)));
+  const completionGuardMinRosterRatio = Math.max(0.4, Math.min(0.98, Number(silentCfg.lowAvCompletionGuardMinRosterRatio ?? 0.8)));
+  const completionGuardMinBidders = Math.max(0, Math.min(4, Math.floor(Number(silentCfg.lowAvCompletionGuardMinBidders ?? 1))));
   let removed = 0;
 
   Object.keys(safeBids).forEach((teamName) => {
@@ -1826,7 +1839,14 @@ function applyAvParticipationCurve(cpuBids, roundPlayers, roundNumber) {
     const player = playerById.get(Number(playerId)) || null;
     const av = getCpuEffectiveAv(player);
     const trueZeroAv = isTrueZeroAv(player);
-    const targetCount = pickParticipationTargetCountFromCurve(cfg?.silent || {}, av, roundNumber, totalTeamCount, { isTrueZeroAv: trueZeroAv });
+    const targetCountRaw = pickParticipationTargetCountFromCurve(silentCfg, av, roundNumber, totalTeamCount, { isTrueZeroAv: trueZeroAv });
+    const lowAvCompletionProtection = completionGuardEnabled
+      && Number(roundNumber) >= completionGuardStartRound
+      && av <= 9
+      && rosterFillRatio < completionGuardMinRosterRatio;
+    const targetCount = lowAvCompletionProtection
+      ? Math.max(completionGuardMinBidders, targetCountRaw)
+      : targetCountRaw;
 
     if (entries.length <= targetCount) return;
 
@@ -5071,7 +5091,9 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
     const avParticipationRemovals = applyAvParticipationCurve(
       cpuBids,
       roundPlayers,
-      roundNumber
+      roundNumber,
+      cpuTeams,
+      maxRosterSize
     );
     if (avParticipationRemovals > 0) {
       console.log(`[generateCPUBids] AV participation curve removed ${avParticipationRemovals} excess bids`);
@@ -5098,7 +5120,9 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
     const finalCurveRemovals = applyAvParticipationCurve(
       cpuBids,
       roundPlayers,
-      roundNumber
+      roundNumber,
+      cpuTeams,
+      maxRosterSize
     );
     if (finalCurveRemovals > 0) {
       console.log(`[generateCPUBids] Final AV participation pass removed ${finalCurveRemovals} excess bids after rebalance`);
@@ -5686,6 +5710,8 @@ function getLowAvNoBidChance(silentCfg, avgValue, roundNumber, options = {}) {
   const av = Math.max(0, Number(avgValue || 0));
   const round = Math.max(1, Number(roundNumber || 1));
   const lateRoundRelief = Math.max(0, Math.min(0.5, Number(silentCfg?.bandLowAvNoBidLateRoundRelief ?? 0.08)));
+  const earlyRoundBoost = Math.max(0, Math.min(0.4, Number(silentCfg?.lowAvEarlyRoundNoBidBoost ?? 0.1)));
+  const lateReliefStartRound = Math.max(1, Math.floor(Number(silentCfg?.lowAvLateRoundReliefStartRound ?? 7)));
   const trueZeroPenalty = Math.max(0, Math.min(0.5, Number(silentCfg?.trueZeroAvNoBidPenalty ?? 0.16)));
 
   let baseNoBidChance = 0;
@@ -5697,7 +5723,12 @@ function getLowAvNoBidChance(silentCfg, avgValue, roundNumber, options = {}) {
 
   if (baseNoBidChance <= 0) return 0;
 
-  const lateStage = Math.max(0, round - 6);
+  if (round <= 3) {
+    const earlyBoost = av <= 9 ? earlyRoundBoost : earlyRoundBoost * 0.5;
+    baseNoBidChance += earlyBoost;
+  }
+
+  const lateStage = Math.max(0, round - lateReliefStartRound + 1);
   let adjusted = baseNoBidChance - (lateStage * lateRoundRelief);
   if (options?.isTrueZeroAv) {
     adjusted += trueZeroPenalty;

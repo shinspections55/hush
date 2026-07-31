@@ -248,6 +248,12 @@ document.addEventListener('DOMContentLoaded', () => {
       band1to9NoBidChance: 0.68,
       band10to19NoBidChance: 0.25,
       bandLowAvNoBidLateRoundRelief: 0.13,
+      lowAvEarlyRoundNoBidBoost: 0.1,
+      lowAvLateRoundReliefStartRound: 7,
+      lowAvCompletionGuardEnabled: 1,
+      lowAvCompletionGuardStartRound: 7,
+      lowAvCompletionGuardMinRosterRatio: 0.8,
+      lowAvCompletionGuardMinBidders: 1,
       band50PlusPullChance: 0.9,
       band40to49PullChance: 0.84,
       bandDefaultPullChance: 0.75,
@@ -1379,6 +1385,12 @@ document.addEventListener('DOMContentLoaded', () => {
         band1to9NoBidChance: 'Chance that an AV 1-9 player gets no CPU market at all in this round. Higher = more undrafted low-value players.',
         band10to19NoBidChance: 'Chance that an AV 10-19 player gets no CPU market at all in this round.',
         bandLowAvNoBidLateRoundRelief: 'How much AV 1-19 no-bid chance drops per round after round 6. Higher = noticeably more low-AV bidding in rounds 7-10.',
+        lowAvEarlyRoundNoBidBoost: 'Extra AV 1-9 no-bid chance applied in rounds 1-3. Higher = fewer cheap early-round bids.',
+        lowAvLateRoundReliefStartRound: 'Round when low-AV no-bid relief starts. Earlier start increases cheap-player bidding sooner.',
+        lowAvCompletionGuardEnabled: 'If enabled, late rounds enforce a minimum AV 1-9 bidder count when league roster fill is behind.',
+        lowAvCompletionGuardStartRound: 'Round when completion guard can begin protecting AV 1-9 participation for roster fill.',
+        lowAvCompletionGuardMinRosterRatio: 'Completion guard trigger threshold. If average roster fill ratio is below this, AV 1-9 participation floor is enforced.',
+        lowAvCompletionGuardMinBidders: 'Minimum bidder count for AV 1-9 players when completion guard is active.',
         band50PlusPullChance: 'How strongly AV 50+ bidder counts are pulled back into the preferred percent band. Higher = tighter adherence.',
         band40to49PullChance: 'How strongly AV 40-49 bidder counts are pulled back into the preferred percent band. Higher = tighter adherence.',
         bandDefaultPullChance: 'Shared pull strength for AV 1-39 preferred bands. Higher = tighter adherence to each bucket band.',
@@ -1689,6 +1701,12 @@ document.addEventListener('DOMContentLoaded', () => {
           ${makeCpuField('silent', 'band1to9NoBidChance', 'AV 1-9 No-Bid Chance', { type: 'range', min: 0, max: 0.95, step: 0.01, typicalMin: 0.35, typicalMax: 0.75 })}
           ${makeCpuField('silent', 'band10to19NoBidChance', 'AV 10-19 No-Bid Chance', { type: 'range', min: 0, max: 0.9, step: 0.01, typicalMin: 0.1, typicalMax: 0.4 })}
           ${makeCpuField('silent', 'bandLowAvNoBidLateRoundRelief', 'Low-AV Late-Round Relief', { type: 'range', min: 0, max: 0.25, step: 0.01, typicalMin: 0.06, typicalMax: 0.16 })}
+          ${makeCpuField('silent', 'lowAvEarlyRoundNoBidBoost', 'Low-AV Early No-Bid Boost (R1-3)', { type: 'range', min: 0, max: 0.4, step: 0.01, typicalMin: 0.06, typicalMax: 0.16 })}
+          ${makeCpuField('silent', 'lowAvLateRoundReliefStartRound', 'Low-AV Relief Start Round', { type: 'range', min: 4, max: 10, step: 1, precision: 0, typicalMin: 6, typicalMax: 8 })}
+          ${makeCpuField('silent', 'lowAvCompletionGuardEnabled', 'Low-AV Completion Guard Enabled (0/1)', { type: 'range', min: 0, max: 1, step: 1, precision: 0, typicalMin: 1, typicalMax: 1 })}
+          ${makeCpuField('silent', 'lowAvCompletionGuardStartRound', 'Completion Guard Start Round', { type: 'range', min: 5, max: 10, step: 1, precision: 0, typicalMin: 7, typicalMax: 9 })}
+          ${makeCpuField('silent', 'lowAvCompletionGuardMinRosterRatio', 'Completion Guard Min Roster Fill Ratio', { type: 'range', min: 0.5, max: 0.95, step: 0.01, typicalMin: 0.72, typicalMax: 0.88 })}
+          ${makeCpuField('silent', 'lowAvCompletionGuardMinBidders', 'Completion Guard Min Low-AV Bidders', { type: 'range', min: 0, max: 4, step: 1, precision: 0, typicalMin: 1, typicalMax: 2 })}
           ${makeCpuField('silent', 'band50PlusPullChance', 'AV 50+ Pull Strength', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.8, typicalMax: 1.0 })}
           ${makeCpuField('silent', 'band40to49PullChance', 'AV 40-49 Pull Strength', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.7, typicalMax: 0.95 })}
           ${makeCpuField('silent', 'bandDefaultPullChance', 'AV 1-39 Pull Strength', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.55, typicalMax: 0.9 })}
