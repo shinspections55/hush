@@ -4440,8 +4440,31 @@ function getRequiredCutsForTeamSummary(team, draft) {
 
 function isCpuSummaryTeam(teamName, draft) {
   const normalizedTeam = String(teamName || '').trim().toLowerCase();
+  if (!normalizedTeam) return true;
+
+  const humanTeamNames = new Set();
   const members = Array.isArray(draft && draft.members) ? draft.members : [];
-  return !members.some(member => String(member || '').trim().toLowerCase() === normalizedTeam);
+  members.forEach((member) => {
+    const normalized = String(member || '').trim().toLowerCase();
+    if (normalized) humanTeamNames.add(normalized);
+  });
+
+  const persistedNames = Array.isArray(draft && draft.userTeamNames) ? draft.userTeamNames : [];
+  persistedNames.forEach((name) => {
+    const normalized = String(name || '').trim().toLowerCase();
+    if (normalized) humanTeamNames.add(normalized);
+  });
+
+  // Users who were auto-drafting are still user-owned teams in waivers.
+  const autoDraftStatus = draft && draft.draftState && draft.draftState.autoDraftStatus && typeof draft.draftState.autoDraftStatus === 'object'
+    ? draft.draftState.autoDraftStatus
+    : {};
+  Object.keys(autoDraftStatus).forEach((name) => {
+    const normalized = String(name || '').trim().toLowerCase();
+    if (normalized) humanTeamNames.add(normalized);
+  });
+
+  return !humanTeamNames.has(normalizedTeam);
 }
 
 function buildDraftCutDebugRows(draft) {
@@ -5186,6 +5209,17 @@ function ensureDraftStateForSocket(code, socket, options = {}) {
     draft.members.push(username);
   }
 
+  if (!Array.isArray(draft.userTeamNames)) {
+    draft.userTeamNames = [];
+  }
+  if (username) {
+    const normalizedUsername = username.toLowerCase();
+    const alreadyTracked = draft.userTeamNames.some((name) => String(name || '').trim().toLowerCase() === normalizedUsername);
+    if (!alreadyTracked) {
+      draft.userTeamNames.push(username);
+    }
+  }
+
   if (!draft.draftState || typeof draft.draftState !== 'object') {
     const roundTimerMinutes = normalizeServerRoundTimerMinutes(draft.roundTimerMinutes);
     draft.draftState = {
@@ -5411,6 +5445,19 @@ io.on('connection', (socket) => {
       draft.started = true;
       draft.type = draftType;
       draft.startedAt = Date.now();
+
+      const memberSnapshot = Array.isArray(draft.members) ? draft.members : [];
+      const existingSnapshot = Array.isArray(draft.userTeamNames) ? draft.userTeamNames : [];
+      const mergedSnapshot = [...existingSnapshot];
+      memberSnapshot.forEach((member) => {
+        const normalizedMember = String(member || '').trim().toLowerCase();
+        if (!normalizedMember) return;
+        const alreadyIncluded = mergedSnapshot.some((name) => String(name || '').trim().toLowerCase() === normalizedMember);
+        if (!alreadyIncluded) {
+          mergedSnapshot.push(member);
+        }
+      });
+      draft.userTeamNames = mergedSnapshot;
       
       // Get all sockets in this room
       const roomSockets = io.sockets.adapter.rooms.get(code);
