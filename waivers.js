@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let waiverState = null;
     let selectedPosition = 'ALL';
     let onClockRosterCount = 0;
+    let waiverCompletionHandled = false;
+    let waiverCompletionRedirectTimer = null;
     const WAIVER_APP_SECTION_VIEW_KEY = 'waiverAppSectionViewMode';
     let waiverAppSectionViewMode = 'players';
 
@@ -431,6 +433,71 @@ document.addEventListener('DOMContentLoaded', () => {
     function persistSummary() {
         if (!draftSummary) return;
         sessionStorage.setItem('latestDraftSummary', JSON.stringify(draftSummary));
+    }
+
+    function persistCompletedDraftSummaryWithWaiverChanges() {
+        if (!draftSummary) return;
+
+        const normalizedTeams = Array.isArray(draftSummary.teams)
+            ? draftSummary.teams.map(normalizeSummaryTeam)
+            : [];
+
+        const mergedSummary = {
+            ...draftSummary,
+            completed: true,
+            teams: normalizedTeams,
+            waiverState: waiverState ? { ...waiverState } : null,
+            waiverCompletedAt: new Date().toISOString()
+        };
+
+        draftSummary = mergedSummary;
+
+        try {
+            sessionStorage.setItem('latestDraftSummary', JSON.stringify(mergedSummary));
+        } catch (_error) {
+            // ignore sessionStorage write failures
+        }
+
+        try {
+            const completedRaw = localStorage.getItem('completedDrafts');
+            const completedDrafts = completedRaw ? JSON.parse(completedRaw) : [];
+            const list = Array.isArray(completedDrafts) ? completedDrafts : [];
+            const draftCode = String(mergedSummary.draftCode || '').trim();
+            const existingIndex = list.findIndex((entry) => String(entry && entry.draftCode || '').trim() === draftCode);
+
+            if (existingIndex >= 0) {
+                list[existingIndex] = {
+                    ...list[existingIndex],
+                    ...mergedSummary,
+                    completed: true
+                };
+            } else {
+                list.push(mergedSummary);
+            }
+
+            localStorage.setItem('completedDrafts', JSON.stringify(list));
+        } catch (_error) {
+            // ignore localStorage parse/write failures
+        }
+    }
+
+    function handleWaiverCompletionFlow() {
+        if (!waiverState || !waiverState.completed || waiverCompletionHandled) {
+            return;
+        }
+
+        waiverCompletionHandled = true;
+        persistCompletedDraftSummaryWithWaiverChanges();
+
+        waiverPageNotice.textContent = 'Waivers are complete. Returning to updated draft summary...';
+
+        if (waiverCompletionRedirectTimer) {
+            clearTimeout(waiverCompletionRedirectTimer);
+        }
+
+        waiverCompletionRedirectTimer = setTimeout(() => {
+            window.location.href = 'draft-summary.html';
+        }, 900);
     }
 
     function loadSummary() {
@@ -963,6 +1030,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderOnClockTeamPanel();
         renderPool();
         maybeNotifyTurnChange();
+        handleWaiverCompletionFlow();
     }
 
     waiverPassBtn.addEventListener('click', () => {
