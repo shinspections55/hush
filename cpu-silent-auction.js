@@ -641,16 +641,16 @@ function calculateMinimumInterest(completionPressure) {
 }
 
 const DEFAULT_ROUND_THRESHOLD_BIAS_BY_ROUND = Object.freeze({
-  1: 0.06,
-  2: 0.03,
-  3: 0.01,
+  1: 0.12,
+  2: 0.09,
+  3: 0.06,
   4: 0,
   5: -0.01,
-  6: -0.03,
-  7: -0.03,
-  8: -0.03,
-  9: -0.03,
-  10: -0.03
+  6: -0.04,
+  7: -0.07,
+  8: -0.09,
+  9: -0.11,
+  10: -0.13
 });
 
 /**

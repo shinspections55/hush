@@ -165,16 +165,16 @@ document.addEventListener('DOMContentLoaded', () => {
       personalityVarianceStep: 0.1,
       roundVarianceMax: 0.15,
       maxAggressionCap: 0.95,
-      round1ThresholdBias: 0.06,
-      round2ThresholdBias: 0.03,
-      round3ThresholdBias: 0.01,
+      round1ThresholdBias: 0.12,
+      round2ThresholdBias: 0.09,
+      round3ThresholdBias: 0.06,
       round4ThresholdBias: 0,
       round5ThresholdBias: -0.01,
-      round6ThresholdBias: -0.03,
-      round7ThresholdBias: -0.03,
-      round8ThresholdBias: -0.03,
-      round9ThresholdBias: -0.03,
-      round10ThresholdBias: -0.03,
+      round6ThresholdBias: -0.04,
+      round7ThresholdBias: -0.07,
+      round8ThresholdBias: -0.09,
+      round9ThresholdBias: -0.11,
+      round10ThresholdBias: -0.13,
       avCapMult1to5: 1.24,
       avCapMult5to10: 1.2,
       avCapMult10to20: 1.16,
@@ -245,9 +245,9 @@ document.addEventListener('DOMContentLoaded', () => {
       band10to19MaxTeamPct: 0.3,
       band1to9MinTeamPct: 0.1,
       band1to9MaxTeamPct: 0.3,
-      band1to9NoBidChance: 0.55,
+      band1to9NoBidChance: 0.68,
       band10to19NoBidChance: 0.25,
-      bandLowAvNoBidLateRoundRelief: 0.08,
+      bandLowAvNoBidLateRoundRelief: 0.13,
       band50PlusPullChance: 0.9,
       band40to49PullChance: 0.84,
       bandDefaultPullChance: 0.75,
@@ -1378,6 +1378,7 @@ document.addEventListener('DOMContentLoaded', () => {
         band1to9MaxTeamPct: 'AV 1-9 preferred upper participation bound as a percent of total teams.',
         band1to9NoBidChance: 'Chance that an AV 1-9 player gets no CPU market at all in this round. Higher = more undrafted low-value players.',
         band10to19NoBidChance: 'Chance that an AV 10-19 player gets no CPU market at all in this round.',
+        bandLowAvNoBidLateRoundRelief: 'How much AV 1-19 no-bid chance drops per round after round 6. Higher = noticeably more low-AV bidding in rounds 7-10.',
         band50PlusPullChance: 'How strongly AV 50+ bidder counts are pulled back into the preferred percent band. Higher = tighter adherence.',
         band40to49PullChance: 'How strongly AV 40-49 bidder counts are pulled back into the preferred percent band. Higher = tighter adherence.',
         bandDefaultPullChance: 'Shared pull strength for AV 1-39 preferred bands. Higher = tighter adherence to each bucket band.',
@@ -1687,6 +1688,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ${makeCpuField('silent', 'band1to9MaxTeamPct', 'AV 1-9 Preferred Team % Max', { type: 'range', min: 0.1, max: 0.7, step: 0.01, typicalMin: 0.2, typicalMax: 0.4 })}
           ${makeCpuField('silent', 'band1to9NoBidChance', 'AV 1-9 No-Bid Chance', { type: 'range', min: 0, max: 0.95, step: 0.01, typicalMin: 0.35, typicalMax: 0.75 })}
           ${makeCpuField('silent', 'band10to19NoBidChance', 'AV 10-19 No-Bid Chance', { type: 'range', min: 0, max: 0.9, step: 0.01, typicalMin: 0.1, typicalMax: 0.4 })}
+          ${makeCpuField('silent', 'bandLowAvNoBidLateRoundRelief', 'Low-AV Late-Round Relief', { type: 'range', min: 0, max: 0.25, step: 0.01, typicalMin: 0.06, typicalMax: 0.16 })}
           ${makeCpuField('silent', 'band50PlusPullChance', 'AV 50+ Pull Strength', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.8, typicalMax: 1.0 })}
           ${makeCpuField('silent', 'band40to49PullChance', 'AV 40-49 Pull Strength', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.7, typicalMax: 0.95 })}
           ${makeCpuField('silent', 'bandDefaultPullChance', 'AV 1-39 Pull Strength', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.55, typicalMax: 0.9 })}
