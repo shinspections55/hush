@@ -640,21 +640,36 @@ function calculateMinimumInterest(completionPressure) {
   return Math.max(30, 90 - completionPressure * 1.8);
 }
 
+const DEFAULT_ROUND_THRESHOLD_BIAS_BY_ROUND = Object.freeze({
+  1: 0.06,
+  2: 0.03,
+  3: 0.01,
+  4: 0,
+  5: -0.01,
+  6: -0.03,
+  7: -0.03,
+  8: -0.03,
+  9: -0.03,
+  10: -0.03
+});
+
 /**
  * Round-aware threshold bias for player consideration.
  * Early rounds should be a bit more selective to avoid overbidding on the opening wave.
  * Later rounds should loosen slightly so CPU teams stay involved and continue to compete.
  */
-function calculateRoundThresholdBias(roundNumber) {
+function calculateRoundThresholdBias(roundNumber, silentTuning = null) {
   const round = Math.max(1, Math.min(10, Number(roundNumber) || 1));
+  const defaultBias = Number(DEFAULT_ROUND_THRESHOLD_BIAS_BY_ROUND[round] || 0);
 
-  if (round === 1) return 0.06;
-  if (round === 2) return 0.03;
-  if (round === 3) return 0.01;
-  if (round >= 6) return -0.03;
-  if (round === 4) return 0;
-  if (round === 5) return -0.01;
-  return 0;
+  const cfg = silentTuning && typeof silentTuning === 'object' ? silentTuning : {};
+  const key = `round${round}ThresholdBias`;
+  const configured = Number(cfg[key]);
+  if (Number.isFinite(configured)) {
+    return Math.max(-0.25, Math.min(0.25, configured));
+  }
+
+  return defaultBias;
 }
 
 /**
@@ -2914,7 +2929,7 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
         : completionPressure;
 
       const minimumInterest = calculateMinimumInterest(effectiveCompletionPressure);
-      const roundThresholdBias = calculateRoundThresholdBias(roundNumber);
+      const roundThresholdBias = calculateRoundThresholdBias(roundNumber, silentTuning);
       const interestThreshold = minimumInterestToThreshold(minimumInterest + roundThresholdBias * 18);
 
       // Need Ratio: how many players I need vs how many nomination rounds remain
@@ -3179,7 +3194,7 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       const debugLateRoundPaceWidening = (lateRoundPaceThresholdHitEnabled && debugStageSinceLateStart > 0 && debugIsBehindPace && debugHasOpenRosterNeed)
         ? Math.min(lateRoundPaceThresholdMaxHit, debugStageSinceLateStart * lateRoundPaceThresholdPerRoundHit)
         : 0;
-      const debugRoundThresholdBias = calculateRoundThresholdBias(debugRoundNumber);
+      const debugRoundThresholdBias = calculateRoundThresholdBias(debugRoundNumber, silentTuning);
       const debugEffectiveThreshold = Math.max(
         0.02,
         debugThresholdBase

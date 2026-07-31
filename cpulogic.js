@@ -57,7 +57,17 @@ module.exports = {
     "avMarketDepthMinCompetitiveBids": 3,
     "avMarketDepthMaxPlayersPerRound": 8,
     "avMarketDepthBidLowMultiplier": 0.9,
-    "avMarketDepthBidHighMultiplier": 1.04
+    "avMarketDepthBidHighMultiplier": 1.04,
+    "round1ThresholdBias": 0.06,
+    "round2ThresholdBias": 0.03,
+    "round3ThresholdBias": 0.01,
+    "round4ThresholdBias": 0,
+    "round5ThresholdBias": -0.01,
+    "round6ThresholdBias": -0.03,
+    "round7ThresholdBias": -0.03,
+    "round8ThresholdBias": -0.03,
+    "round9ThresholdBias": -0.03,
+    "round10ThresholdBias": -0.03
   },
   "tied": {
     "baseBidProb": 0.34,

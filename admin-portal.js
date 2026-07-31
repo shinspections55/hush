@@ -165,6 +165,16 @@ document.addEventListener('DOMContentLoaded', () => {
       personalityVarianceStep: 0.1,
       roundVarianceMax: 0.15,
       maxAggressionCap: 0.95,
+      round1ThresholdBias: 0.06,
+      round2ThresholdBias: 0.03,
+      round3ThresholdBias: 0.01,
+      round4ThresholdBias: 0,
+      round5ThresholdBias: -0.01,
+      round6ThresholdBias: -0.03,
+      round7ThresholdBias: -0.03,
+      round8ThresholdBias: -0.03,
+      round9ThresholdBias: -0.03,
+      round10ThresholdBias: -0.03,
       avCapMult1to5: 1.24,
       avCapMult5to10: 1.2,
       avCapMult10to20: 1.16,
@@ -1631,6 +1641,16 @@ document.addEventListener('DOMContentLoaded', () => {
           ${makeCpuField('silent', 'lowballIntensity', 'Lowball Intensity', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.55, typicalMax: 0.80 })}
           ${makeCpuField('silent', 'cheapFillerBidFrequency', 'Cheap Filler Bid Frequency', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.25, typicalMax: 0.50 })}
           ${makeCpuField('silent', 'starAvailabilityOverride', 'Star Availability Override', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.60, typicalMax: 0.85 })}
+          ${makeCpuField('silent', 'round1ThresholdBias', 'Round 1 Threshold Bias', { type: 'range', min: -0.25, max: 0.25, step: 0.01, typicalMin: 0.04, typicalMax: 0.09 })}
+          ${makeCpuField('silent', 'round2ThresholdBias', 'Round 2 Threshold Bias', { type: 'range', min: -0.25, max: 0.25, step: 0.01, typicalMin: 0.01, typicalMax: 0.06 })}
+          ${makeCpuField('silent', 'round3ThresholdBias', 'Round 3 Threshold Bias', { type: 'range', min: -0.25, max: 0.25, step: 0.01, typicalMin: -0.01, typicalMax: 0.03 })}
+          ${makeCpuField('silent', 'round4ThresholdBias', 'Round 4 Threshold Bias', { type: 'range', min: -0.25, max: 0.25, step: 0.01, typicalMin: -0.03, typicalMax: 0.02 })}
+          ${makeCpuField('silent', 'round5ThresholdBias', 'Round 5 Threshold Bias', { type: 'range', min: -0.25, max: 0.25, step: 0.01, typicalMin: -0.04, typicalMax: 0.01 })}
+          ${makeCpuField('silent', 'round6ThresholdBias', 'Round 6 Threshold Bias', { type: 'range', min: -0.25, max: 0.25, step: 0.01, typicalMin: -0.07, typicalMax: -0.01 })}
+          ${makeCpuField('silent', 'round7ThresholdBias', 'Round 7 Threshold Bias', { type: 'range', min: -0.25, max: 0.25, step: 0.01, typicalMin: -0.08, typicalMax: -0.01 })}
+          ${makeCpuField('silent', 'round8ThresholdBias', 'Round 8 Threshold Bias', { type: 'range', min: -0.25, max: 0.25, step: 0.01, typicalMin: -0.09, typicalMax: -0.01 })}
+          ${makeCpuField('silent', 'round9ThresholdBias', 'Round 9 Threshold Bias', { type: 'range', min: -0.25, max: 0.25, step: 0.01, typicalMin: -0.10, typicalMax: -0.01 })}
+          ${makeCpuField('silent', 'round10ThresholdBias', 'Round 10 Threshold Bias', { type: 'range', min: -0.25, max: 0.25, step: 0.01, typicalMin: -0.10, typicalMax: -0.01 })}
         </div>
       </div>
 
