@@ -530,12 +530,26 @@ window.initializeLobby = function initializeLobby(opts){
     }, 1000);
   }
 
+  function maybeStartDraftFromServerState(draft, sourceLabel = 'state-sync') {
+    if (!draft || !draft.started) return;
+    const serverType = draft.type || 'silent';
+    console.log(`[lobby] ${sourceLabel}: draft already started, launching countdown for`, serverType);
+    showCountdownBanner(serverType);
+  }
+
   refreshMembers();
   // connect to Socket.IO for real-time updates (guarded)
   let socket = null;
   try{ 
     if(window.io){ 
-      socket = io({ reconnection: false }); 
+      socket = io({
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000,
+        transports: ['polling', 'websocket']
+      }); 
       console.log('[lobby] Socket.IO connecting...', user);
 
       const syncHostWaiverModeToServerIfMissing = (serverDraft) => {
@@ -574,9 +588,33 @@ window.initializeLobby = function initializeLobby(opts){
             localStorage.setItem('drafts', JSON.stringify(drafts));
             console.log('[lobby] Hydrated draft state from server. Host:', resolveDraftHost(response.draft));
             syncHostWaiverModeToServerIfMissing(response.draft);
+            maybeStartDraftFromServerState(response.draft, 'connect-getDraftState');
             refreshMembers();
           }
         });
+      });
+
+      socket.io.on('reconnect_attempt', () => {
+        console.log('[lobby] Reconnect attempt...');
+      });
+
+      socket.io.on('reconnect', () => {
+        console.log('[lobby] Reconnected, requesting fresh draft state');
+        socket.emit('joinDraftRoom', code, user);
+        socket.emit('getDraftState', code, (response) => {
+          if (response && response.ok && response.draft) {
+            const draftsRaw = localStorage.getItem('drafts');
+            const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
+            drafts[code] = Object.assign(drafts[code] || {}, response.draft);
+            localStorage.setItem('drafts', JSON.stringify(drafts));
+            maybeStartDraftFromServerState(response.draft, 'reconnect-getDraftState');
+            refreshMembers();
+          }
+        });
+      });
+
+      socket.io.on('reconnect_error', () => {
+        console.warn('[lobby] Reconnect failed, retrying...');
       });
       
       socket.on('draftUpdate', (serverDraft) => { 
@@ -585,12 +623,28 @@ window.initializeLobby = function initializeLobby(opts){
         const drafts = draftsRaw ? JSON.parse(draftsRaw) : {}; 
         drafts[code] = Object.assign(drafts[code] || {}, serverDraft); 
         localStorage.setItem('drafts', JSON.stringify(drafts)); 
+        maybeStartDraftFromServerState(drafts[code], 'draftUpdate');
         refreshMembers(); 
       }); 
       
       socket.on('draftStarted', (draftType) => { 
         console.log(`[lobby] Draft started event received! Type: ${draftType}, User: ${user}`); 
         showCountdownBanner(draftType); 
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        if (socket && !socket.connected) {
+          try { socket.connect(); } catch (_error) {}
+          return;
+        }
+        if (socket && socket.connected) {
+          socket.emit('getDraftState', code, (response) => {
+            if (response && response.ok && response.draft) {
+              maybeStartDraftFromServerState(response.draft, 'visibility-getDraftState');
+            }
+          });
+        }
       });
     } 
   }catch(e){ 
