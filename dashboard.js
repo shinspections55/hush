@@ -12,8 +12,13 @@ import {
 
 document.addEventListener('DOMContentLoaded', async ()=>{
   const isInstalledApp = (
-    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
-    window.navigator.standalone === true
+    (window.matchMedia && (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches ||
+      window.matchMedia('(display-mode: minimal-ui)').matches
+    )) ||
+    window.navigator.standalone === true ||
+    (typeof document.referrer === 'string' && document.referrer.startsWith('android-app://'))
   );
 
   let resolvedUser = '';
@@ -63,6 +68,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     if (dashboardAppDownload) dashboardAppDownload.classList.add('hidden');
     if (downloadAppBtn) downloadAppBtn.classList.add('download-app-hidden');
     if (installGuideModal) installGuideModal.classList.add('hidden');
+  } else {
+    if (dashboardAppDownload) dashboardAppDownload.classList.remove('hidden');
   }
 
   if(!user){

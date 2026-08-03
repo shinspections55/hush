@@ -437,6 +437,14 @@ body:not(.dashboard-light-mode).dashboard-page .dashboard-cta-row .cta-secondary
     background: linear-gradient(180deg, rgba(65, 166, 232, 0.98) 0%, rgba(34, 117, 176, 0.98) 100%);
 }
 
+@media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
+    .dashboard-app-download,
+    #downloadAppBtn,
+    #installGuideModal {
+        display: none !important;
+    }
+}
+
 .install-guide-modal {
     position: fixed;
     inset: 0;
