@@ -363,6 +363,8 @@ function initSilentDraft() {
     let draftWakeLock = null;
     let draftAudioKeepAliveNode = null;
     let draftAudioKeepAliveGain = null;
+    let keepDraftScreenAwake = true;
+    let wakeLockHeartbeatTimer = null;
     let activeRoundResultsModalRound = null;
 
     function getDraftAudioContext() {
@@ -433,11 +435,19 @@ function initSilentDraft() {
 
     async function requestDraftWakeLock() {
         try {
+            if (!keepDraftScreenAwake) return;
             if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
             if (draftWakeLock) return;
             draftWakeLock = await navigator.wakeLock.request('screen');
             draftWakeLock.addEventListener('release', () => {
                 draftWakeLock = null;
+                // Some devices release wake lock on thermal/battery/power events.
+                // Re-request while draft is active and page is foregrounded.
+                if (keepDraftScreenAwake && document.visibilityState === 'visible') {
+                    setTimeout(() => {
+                        requestDraftWakeLock();
+                    }, 150);
+                }
             });
         } catch (_error) {
             draftWakeLock = null;
@@ -454,6 +464,35 @@ function initSilentDraft() {
         } finally {
             draftWakeLock = null;
         }
+    }
+
+    function startWakeLockHeartbeat() {
+        if (wakeLockHeartbeatTimer) return;
+        wakeLockHeartbeatTimer = setInterval(() => {
+            if (!keepDraftScreenAwake) return;
+            if (document.visibilityState !== 'visible') return;
+            if (!navigator.onLine) return;
+            if (!draftWakeLock) {
+                requestDraftWakeLock();
+            }
+        }, 15000);
+    }
+
+    function stopWakeLockHeartbeat() {
+        if (!wakeLockHeartbeatTimer) return;
+        clearInterval(wakeLockHeartbeatTimer);
+        wakeLockHeartbeatTimer = null;
+    }
+
+    function setDraftScreenAwakeEnabled(enabled) {
+        keepDraftScreenAwake = !!enabled;
+        if (keepDraftScreenAwake) {
+            startWakeLockHeartbeat();
+            requestDraftWakeLock();
+            return;
+        }
+        stopWakeLockHeartbeat();
+        releaseDraftWakeLock();
     }
 
     function setupDraftAudioUnlock() {
@@ -474,10 +513,27 @@ function initSilentDraft() {
             if (document.visibilityState === 'visible') {
                 unlockDraftAudio();
                 requestDraftWakeLock();
+                startWakeLockHeartbeat();
             } else {
                 stopDraftAudioKeepAlive();
+                stopWakeLockHeartbeat();
                 releaseDraftWakeLock();
             }
+        });
+
+        window.addEventListener('focus', () => {
+            if (!keepDraftScreenAwake) return;
+            requestDraftWakeLock();
+        });
+
+        window.addEventListener('pageshow', () => {
+            if (!keepDraftScreenAwake) return;
+            requestDraftWakeLock();
+        });
+
+        window.addEventListener('online', () => {
+            if (!keepDraftScreenAwake) return;
+            requestDraftWakeLock();
         });
     }
 
@@ -778,6 +834,7 @@ function initSilentDraft() {
 
     applyRosterSettings(DEFAULT_ROSTER_SETTINGS);
     setupDraftAudioUnlock();
+    setDraftScreenAwakeEnabled(true);
 
     function validateRoster(team) {
         const positionCounts = team.roster.reduce((counts, p) => {
@@ -1495,6 +1552,89 @@ function initSilentDraft() {
             requestFreshDraftState();
         };
 
+        let lastConnectionResyncAt = 0;
+        let pendingConnectionResyncTimer = null;
+        let connectionWatchdogTimer = null;
+
+        const clearPendingConnectionResync = () => {
+            if (pendingConnectionResyncTimer) {
+                clearTimeout(pendingConnectionResyncTimer);
+                pendingConnectionResyncTimer = null;
+            }
+        };
+
+        const scheduleConnectionResync = (reason = 'unknown', delayMs = 0) => {
+            clearPendingConnectionResync();
+
+            pendingConnectionResyncTimer = setTimeout(() => {
+                pendingConnectionResyncTimer = null;
+
+                const now = Date.now();
+                // Prevent reconnect storms when multiple foreground events fire together.
+                if (now - lastConnectionResyncAt < 1200) {
+                    return;
+                }
+                lastConnectionResyncAt = now;
+
+                if (!(window.draftSocket && currentDraftCode)) {
+                    return;
+                }
+
+                if (!window.draftSocket.connected) {
+                    console.log('[silentdraft] Foreground recovery reconnect attempt:', reason);
+                    try {
+                        window.draftSocket.connect();
+                    } catch (error) {
+                        console.warn('[silentdraft] Socket connect() failed during recovery:', error);
+                    }
+                    return;
+                }
+
+                console.log('[silentdraft] Foreground recovery resync:', reason);
+                resyncDraftConnection();
+
+                // Best effort: push any local bid edits after returning to foreground.
+                if (typeof syncCurrentRoundBidsToServer === 'function') {
+                    syncCurrentRoundBidsToServer().catch(() => {});
+                }
+            }, Math.max(0, delayMs));
+        };
+
+        const onVisibilityChangeResync = () => {
+            if (document.visibilityState === 'visible') {
+                scheduleConnectionResync('visibility-visible', 120);
+            }
+        };
+
+        const onPageshowResync = (event) => {
+            // persisted=true indicates BFCache restore on iOS Safari; always resync.
+            const fromCache = !!(event && event.persisted);
+            scheduleConnectionResync(fromCache ? 'pageshow-bfcache' : 'pageshow', 80);
+        };
+
+        const onOnlineResync = () => {
+            scheduleConnectionResync('network-online', 180);
+        };
+
+        const onFocusResync = () => {
+            scheduleConnectionResync('window-focus', 80);
+        };
+
+        document.addEventListener('visibilitychange', onVisibilityChangeResync);
+        window.addEventListener('pageshow', onPageshowResync);
+        window.addEventListener('online', onOnlineResync);
+        window.addEventListener('focus', onFocusResync);
+
+        // Periodic guard while visible: if the socket dropped silently, reconnect.
+        connectionWatchdogTimer = setInterval(() => {
+            if (!(window.draftSocket && currentDraftCode)) return;
+            if (document.visibilityState !== 'visible') return;
+            if (!navigator.onLine) return;
+            if (!window.draftSocket.connected) {
+                scheduleConnectionResync('watchdog-disconnected', 0);
+            }
+        }, 15000);
+
         console.log('[silentdraft] Connected to active draft room, isHost:', window.isHost);
 
         let reconnectNoticeShown = false;
@@ -1532,6 +1672,10 @@ function initSilentDraft() {
             }
             liveAuctionRecoveryNeeded = true;
             console.warn('[silentdraft] Socket disconnected:', reason);
+
+            if (navigator.onLine) {
+                scheduleConnectionResync(`disconnect-${reason || 'unknown'}`, 600);
+            }
         });
 
         window.draftSocket.io.on('reconnect_attempt', () => {
@@ -5545,6 +5689,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     function endDraft() {
         if (isDraftEnding) return;
         isDraftEnding = true;
+        setDraftScreenAwakeEnabled(false);
 
         logDraftEndDebug('endDraft:start', {
             totalRounds,
@@ -6096,6 +6241,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     }
 
     function startRound() {
+        setDraftScreenAwakeEnabled(true);
         // Guard against duplicate round starts
         if (window.__roundStarting) {
             console.log('[silentdraft] startRound() called while already starting - ignoring duplicate');
