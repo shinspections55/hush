@@ -166,5 +166,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
   }
 
   if (signup) signup.addEventListener('submit', onSignup);
-  if (login) login.addEventListener('submit', onLogin);
+  if (login) {
+    login.addEventListener('submit', onLogin);
+    window.__hushLoginHandlerAttached = true;
+  }
 });

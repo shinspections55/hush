@@ -350,6 +350,7 @@ function initSilentDraft() {
     const STARRED_PLAYERS_KEY = 'rankingsStarredPlayers';
     const DRAFT_TEMP_STARRED_KEY = 'rankingsDraftStarredPlayers';
     let currentRound = 1;
+    let lastServerRoundStarted = 0;
     const totalRounds = 10;
     const DEFAULT_ROUND_TIMER_MINUTES = 3;
     let roundDuration = DEFAULT_ROUND_TIMER_MINUTES * 60;
@@ -362,6 +363,7 @@ function initSilentDraft() {
     let draftWakeLock = null;
     let draftAudioKeepAliveNode = null;
     let draftAudioKeepAliveGain = null;
+    let activeRoundResultsModalRound = null;
 
     function getDraftAudioContext() {
         try {
@@ -1635,10 +1637,9 @@ function initSilentDraft() {
             }
         });
         
-        // Listen for authoritative round results from server
-        window.draftSocket.on('roundResults', (results) => {
+        const handleAuthoritativeRoundResults = (payload, sourceLabel = 'roundResults') => {
             if (isDraftEnding) {
-                console.log('[silentdraft] Ignoring roundResults while draft ending');
+                console.log(`[silentdraft] Ignoring ${sourceLabel} while draft ending`);
                 return;
             }
             if (processRoundRetryTimer) {
@@ -1646,14 +1647,29 @@ function initSilentDraft() {
                 processRoundRetryTimer = null;
             }
             clearAutoDraftSoloGraceWindow();
-            console.log('[silentdraft] Round results received from server:', results.length, 'results');
-            console.log('[silentdraft] Full results data:', JSON.stringify(results, null, 2));
+
+            const payloadResults = payload && Array.isArray(payload.results)
+                ? payload.results
+                : null;
+            const payloadRound = Number(payload && payload.roundNumber);
+            const resultsArray = Array.isArray(payload)
+                ? payload
+                : (payloadResults || []);
+
+            if (Number.isFinite(payloadRound) && payloadRound > 0) {
+                currentRound = payloadRound;
+                if (payloadRound > lastServerRoundStarted) {
+                    lastServerRoundStarted = payloadRound;
+                }
+            }
+
+            console.log(`[silentdraft] ${sourceLabel} received from server:`, resultsArray.length, 'results', 'round=', Number.isFinite(payloadRound) ? payloadRound : currentRound);
+            console.log(`[silentdraft] ${sourceLabel} full payload:`, JSON.stringify(payload, null, 2));
             hideProcessingBidsModal();
-            const resultsArray = Array.isArray(results) ? results : [];
             let safeResults = resultsArray;
             const localRoundPlayers = window.currentRoundPlayers || window.syncedRoundPlayers || [];
             if (safeResults.length === 0 && Array.isArray(localRoundPlayers) && localRoundPlayers.length > 0) {
-                console.warn('[silentdraft] Server returned empty roundResults; synthesizing undrafted fallback from local round players', {
+                console.warn(`[silentdraft] Server returned empty ${sourceLabel}; synthesizing undrafted fallback from local round players`, {
                     currentRound,
                     localRoundPlayers: localRoundPlayers.length
                 });
@@ -1667,6 +1683,21 @@ function initSilentDraft() {
                     }))
                 }));
             }
+
+            const nextModalRound = Number.isFinite(payloadRound) && payloadRound > 0 ? payloadRound : currentRound;
+            if (
+                activeRoundResultsModalRound !== null
+                && Number.isFinite(nextModalRound)
+                && activeRoundResultsModalRound !== nextModalRound
+            ) {
+                const staleModal = document.getElementById('round-results-modal');
+                if (staleModal && staleModal.parentNode) {
+                    staleModal.parentNode.removeChild(staleModal);
+                }
+                activeRoundResultsModalRound = null;
+                document.body.classList.remove('round-results-active');
+            }
+
             const { tiedBids } = applyRoundResults(safeResults);
             showRoundResultsModal(safeResults, localRoundPlayers, () => {
                 if (timerInterval) {
@@ -1677,14 +1708,48 @@ function initSilentDraft() {
                 if (tiedBids.length === 0) {
                     advanceDraftAfterRound();
                 }
+            }, {
+                roundNumber: nextModalRound,
+                acceptedMembers: Array.isArray(payload && payload.acceptedMembers) ? payload.acceptedMembers : []
             });
+        };
+
+        // Listen for authoritative round results from server
+        window.draftSocket.on('roundResults', (payload) => {
+            handleAuthoritativeRoundResults(payload, 'roundResults');
+        });
+
+        // Reconnect/state replay path: server can resend active round results that still need acceptance.
+        window.draftSocket.on('roundResultsSync', (payload) => {
+            handleAuthoritativeRoundResults(payload, 'roundResultsSync');
         });
         
         // Listen for round changes
         window.draftSocket.on('roundStarted', (draftState) => {
-            console.log('[silentdraft] New round started:', draftState.currentRound);
-            currentRound = draftState.currentRound;
+            const nextRound = Number(draftState && draftState.currentRound);
+            if (!Number.isFinite(nextRound) || nextRound <= 0) {
+                console.warn('[silentdraft] Ignoring invalid roundStarted payload:', draftState);
+                return;
+            }
+
+            if (lastServerRoundStarted === nextRound) {
+                console.log('[silentdraft] Ignoring duplicate roundStarted for round', nextRound);
+                return;
+            }
+
+            console.log('[silentdraft] New round started from server:', nextRound);
+            lastServerRoundStarted = nextRound;
+            currentRound = nextRound;
             window.syncedRoundPlayers = null; // Clear for new round
+
+            const existingResultsModal = document.getElementById('round-results-modal');
+            if (existingResultsModal && existingResultsModal.parentNode) {
+                existingResultsModal.parentNode.removeChild(existingResultsModal);
+                document.body.classList.remove('round-results-active');
+            }
+            activeRoundResultsModalRound = null;
+
+            startRound();
         });
         
         // Fetch and log active CPU tuning lab preset
@@ -1709,6 +1774,13 @@ function initSilentDraft() {
         window.draftSocket.on('draftStateSync', (draftState) => {
             console.log('[silentdraft] Draft state synced:', draftState);
             logActiveCpuLogicPreset();
+            const serverRound = Number(draftState && draftState.currentRound);
+            if (Number.isFinite(serverRound) && serverRound > 0) {
+                currentRound = serverRound;
+                if (serverRound > lastServerRoundStarted) {
+                    lastServerRoundStarted = serverRound;
+                }
+            }
             autoDraftStatusByTeam = draftState.autoDraftStatus || autoDraftStatusByTeam;
             draftChatMessages = Array.isArray(draftState.chatMessages) ? draftState.chatMessages.slice(-200) : draftChatMessages;
             renderDraftChatMessages();
@@ -5178,6 +5250,26 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             return;
         }
 
+        // Keep round progression server-authoritative to avoid client desync.
+        if (window.draftSocket && currentDraftCode) {
+            if (!window.isHost) {
+                console.log('[silentdraft] Waiting for host/server to start next round');
+                return;
+            }
+
+            window.draftSocket.emit('startNextRound', currentDraftCode, (response) => {
+                if (response && response.ok) {
+                    console.log('[silentdraft] Requested next round from server successfully');
+                    return;
+                }
+
+                console.warn('[silentdraft] startNextRound rejected, requesting fresh draft state:', response);
+                requestFreshDraftState();
+            });
+            return;
+        }
+
+        // Fallback for local/offline scenarios with no socket.
         currentRound++;
         startRound();
     }
@@ -6104,7 +6196,9 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 updateUI(window.syncedRoundPlayers);
             } else {
                 console.log('[silentdraft] Waiting for host to set round players...');
-                requestFreshDraftState();
+                if (typeof requestFreshDraftState === 'function') {
+                    requestFreshDraftState();
+                }
                 // Show loading state
                 const playerList = document.getElementById('players-list');
                 if (playerList) {
@@ -6913,7 +7007,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     }
 
     // Show round results modal and wait for all users to accept
-function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
+function showRoundResultsModal(serverResults, roundPlayers, onComplete, meta = {}) {
     const draftLightMode = isDraftLightMode();
     const modalBackground = draftLightMode ? 'rgba(247,251,255,0.98)' : 'rgba(15,15,15,0.98)';
     const modalText = draftLightMode ? '#17324d' : '#f5f5f7';
@@ -6923,6 +7017,17 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
     const bidRowBorder = draftLightMode ? 'rgba(98,132,173,0.25)' : 'rgba(255,255,255,0.1)';
     const titleColor = '#2ecc71';
     const headingColor = '#3498db';
+
+        const existingResultsModal = document.getElementById('round-results-modal');
+        if (existingResultsModal && existingResultsModal.parentNode) {
+            existingResultsModal.parentNode.removeChild(existingResultsModal);
+        }
+
+        const requestedRound = Number(meta && meta.roundNumber);
+        const modalRoundNumber = Number.isFinite(requestedRound) && requestedRound > 0
+            ? requestedRound
+            : currentRound;
+        activeRoundResultsModalRound = modalRoundNumber;
 
         let resultsDiv = document.createElement('div');
         resultsDiv.id = 'round-results-modal';
@@ -7050,6 +7155,7 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
             unmatchedPlayerCount: unmatchedPlayerIds.length,
             unmatchedPlayerSamples: unmatchedPlayerIds.slice(0, 8),
             currentRound,
+            modalRoundNumber,
             page1PoolSize: (window.page1Players || []).length,
             page2PoolSize: (window.page2Players || []).length
         };
@@ -7118,7 +7224,7 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
         }).join('') : '<p>No results for Page 2.</p>';
 
         resultsDiv.innerHTML = `
-            <h3 class="round-results-title" style="color:${titleColor};margin:0 0 12px 0;font-size:20px;">Round ${currentRound} Results</h3>
+            <h3 class="round-results-title" style="color:${titleColor};margin:0 0 12px 0;font-size:20px;">Round ${modalRoundNumber} Results</h3>
             <div class="round-results-columns" style="display:flex;gap:20px;flex:1;min-height:0;">
                 <div class="round-results-column" style="flex:1;display:flex;flex-direction:column;min-height:0;">
                     <h4 class="round-results-section-title" style="color:${headingColor};margin:0 0 8px 0;font-size:16px;">Page 1 Results</h4>
@@ -7166,6 +7272,11 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
 
         // Handler for member acceptance updates
         const memberAcceptedHandler = (data) => {
+            const eventRound = Number(data && data.roundNumber);
+            if (Number.isFinite(eventRound) && eventRound > 0 && eventRound !== modalRoundNumber) {
+                return;
+            }
+
             const statusEl = document.getElementById('waiting-status');
             if (statusEl) {
                 statusEl.textContent = data.message;
@@ -7235,7 +7346,7 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
                 console.debug('[silentdraft] acceptRoundResults ack delayed while socket is disconnected; waiting for reconnect');
             }, 7000);
 
-            window.draftSocket.emit('acceptRoundResults', currentDraftCode, username, (response) => {
+            window.draftSocket.emit('acceptRoundResults', currentDraftCode, username, modalRoundNumber, (response) => {
                 if (acceptRequestAcked) return;
                 clearAcceptAckTimeout();
 
@@ -7277,6 +7388,8 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
                 clearTimeout(window.roundResultsTimeoutId);
                 window.roundResultsTimeoutId = null;
             }
+
+            activeRoundResultsModalRound = null;
 
             clearAcceptAckTimeout();
             acceptRequestInFlight = false;
@@ -7326,12 +7439,27 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete) {
             }
             setRoundResultsChromeVisible(false);
 
+            activeRoundResultsModalRound = null;
+
             onComplete();
         }, 600000);
 
         setTimeout(() => {
             const acceptBtn = document.getElementById('accept-results-btn');
             console.log('[silentdraft] Accept button found:', acceptBtn ? 'YES' : 'NO');
+
+            const acceptedMembers = Array.isArray(meta && meta.acceptedMembers) ? meta.acceptedMembers : [];
+            if (acceptBtn && acceptedMembers.includes(username)) {
+                acceptBtn.disabled = true;
+                acceptBtn.style.background = '#95a5a6';
+                acceptBtn.textContent = 'Accepted ✓';
+                const statusEl = document.getElementById('waiting-status');
+                if (statusEl) {
+                    statusEl.textContent = 'You already accepted this round. Waiting for other members...';
+                }
+                acceptRequestAcked = true;
+                acceptRequestInFlight = false;
+            }
 
             if (acceptBtn) {
                 acceptBtn.addEventListener('click', function(e) {

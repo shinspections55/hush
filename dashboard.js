@@ -48,9 +48,22 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   const newsFeedStatus = document.getElementById('newsFeedStatus');
   const newsFeedList = document.getElementById('newsFeedList');
   const downloadAppBtn = document.getElementById('downloadAppBtn');
+  const dashboardAppDownload = document.querySelector('.dashboard-app-download');
+  const openInstallGuideBtn = document.getElementById('openInstallGuideBtn');
+  const installGuideModal = document.getElementById('installGuideModal');
+  const closeInstallGuideBtn = document.getElementById('closeInstallGuideBtn');
+  const installNowBtn = document.getElementById('installNowBtn');
+  const installGuidePromptStatus = document.getElementById('installGuidePromptStatus');
   const appHomeLoginGate = document.getElementById('appHomeLoginGate');
   const appHomeLoginForm = document.getElementById('appHomeLoginForm');
   const draftActionRow = document.querySelector('#draftActions .dashboard-cta-row');
+
+  // Install instructions are website-only; hide all install UI in installed app mode.
+  if (isInstalledApp) {
+    if (dashboardAppDownload) dashboardAppDownload.classList.add('hidden');
+    if (downloadAppBtn) downloadAppBtn.classList.add('download-app-hidden');
+    if (installGuideModal) installGuideModal.classList.add('hidden');
+  }
 
   if(!user){
     if (!isInstalledApp) {
@@ -146,35 +159,109 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   if (greeting) greeting.textContent = `Welcome, ${user}!`;
   if (welcomeText) welcomeText.textContent = 'This is your dashboard. Use the account menu to manage your account, sign out, or open your rankings.';
 
-  // PWA Install Prompt Handler
-  let deferredPrompt = null;
-  window.addEventListener('beforeinstallprompt', (event) => {
-    event.preventDefault();
-    deferredPrompt = event;
-    console.log('[PWA] Install prompt available');
-    if (downloadAppBtn) {
-      downloadAppBtn.classList.remove('download-app-hidden');
+  function openInstallGuideModal() {
+    if (!installGuideModal) return;
+    installGuideModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeInstallGuideModal() {
+    if (!installGuideModal) return;
+    installGuideModal.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  if (openInstallGuideBtn) {
+    openInstallGuideBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      openInstallGuideModal();
+    });
+  }
+
+  if (closeInstallGuideBtn) {
+    closeInstallGuideBtn.addEventListener('click', closeInstallGuideModal);
+  }
+
+  if (installGuideModal) {
+    installGuideModal.addEventListener('click', (event) => {
+      if (event.target === installGuideModal) {
+        closeInstallGuideModal();
+      }
+    });
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && installGuideModal && !installGuideModal.classList.contains('hidden')) {
+      closeInstallGuideModal();
     }
   });
 
-  window.addEventListener('appinstalled', () => {
-    console.log('[PWA] App installed');
+  // PWA Install Prompt Handler
+  let deferredPrompt = null;
+  if (!isInstalledApp) {
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      deferredPrompt = event;
+      console.log('[PWA] Install prompt available');
+      if (downloadAppBtn) {
+        downloadAppBtn.classList.remove('download-app-hidden');
+      }
+      if (installNowBtn) {
+        installNowBtn.classList.remove('hidden');
+      }
+      if (installGuidePromptStatus) {
+        installGuidePromptStatus.textContent = 'One-tap install is available on this device. Tap Install App Now or follow the manual steps.';
+      }
+    });
+
+    window.addEventListener('appinstalled', () => {
+      console.log('[PWA] App installed');
+      deferredPrompt = null;
+      if (downloadAppBtn) {
+        downloadAppBtn.classList.add('download-app-hidden');
+      }
+      if (installNowBtn) {
+        installNowBtn.classList.add('hidden');
+      }
+      if (installGuidePromptStatus) {
+        installGuidePromptStatus.textContent = 'App installed. You can launch it from your Home Screen.';
+      }
+    });
+  }
+
+  async function promptInstallIfAvailable() {
+    if (!deferredPrompt) {
+      openInstallGuideModal();
+      return false;
+    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`[PWA] User response to install prompt: ${outcome}`);
     deferredPrompt = null;
+
+    if (installNowBtn) {
+      installNowBtn.classList.add('hidden');
+    }
     if (downloadAppBtn) {
       downloadAppBtn.classList.add('download-app-hidden');
     }
-  });
+    if (installGuidePromptStatus) {
+      installGuidePromptStatus.textContent = outcome === 'accepted'
+        ? 'Install accepted. The app icon should appear shortly.'
+        : 'Install prompt dismissed. You can still install using the manual steps.';
+    }
+    return outcome === 'accepted';
+  }
 
-  if (downloadAppBtn) {
+  if (!isInstalledApp && downloadAppBtn) {
     downloadAppBtn.addEventListener('click', async () => {
-      if (!deferredPrompt) {
-        console.warn('[PWA] Install prompt not available');
-        return;
-      }
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      console.log(`[PWA] User response to install prompt: ${outcome}`);
-      deferredPrompt = null;
+      await promptInstallIfAvailable();
+    });
+  }
+
+  if (!isInstalledApp && installNowBtn) {
+    installNowBtn.addEventListener('click', async () => {
+      await promptInstallIfAvailable();
     });
   }
 

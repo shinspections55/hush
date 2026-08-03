@@ -5238,7 +5238,8 @@ function ensureDraftStateForSocket(code, socket, options = {}) {
         baselineAvgBidPerPlayer: 0,
         dropFromBaselinePct: 0
       },
-      submittedMembers: []
+      submittedMembers: [],
+      pendingRoundResults: null
     };
   }
 
@@ -5265,6 +5266,10 @@ function ensureDraftStateForSocket(code, socket, options = {}) {
 
   if (!Array.isArray(draft.draftState.submittedMembers)) {
     draft.draftState.submittedMembers = [];
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(draft.draftState, 'pendingRoundResults')) {
+    draft.draftState.pendingRoundResults = null;
   }
 
   if (!draft.draftState.bids || typeof draft.draftState.bids !== 'object') {
@@ -5551,6 +5556,24 @@ io.on('connection', (socket) => {
     
     // Send current draft state to the joining player
     socket.emit('draftStateSync', draft.draftState);
+
+    // If this member reconnects during an active round-results acceptance window,
+    // replay authoritative results so they can accept the correct round.
+    const pendingRoundResults = draft.draftState.pendingRoundResults;
+    if (pendingRoundResults && Array.isArray(pendingRoundResults.results)) {
+      const acceptedMembers = Array.isArray(draft.draftState.acceptedMembers)
+        ? draft.draftState.acceptedMembers
+        : [];
+      const alreadyAccepted = resolvedUsername && acceptedMembers.includes(resolvedUsername);
+      if (!alreadyAccepted) {
+        socket.emit('roundResultsSync', {
+          roundNumber: pendingRoundResults.roundNumber,
+          results: pendingRoundResults.results,
+          acceptedMembers: acceptedMembers.slice(),
+          emittedAt: pendingRoundResults.emittedAt || Date.now()
+        });
+      }
+    }
 
     // Rehydrate any active live auction so a reconnecting PWA client can recover
     // the tied-auction UI instead of freezing at the last disconnected screen.
@@ -6261,6 +6284,13 @@ io.on('connection', (socket) => {
       // Store complete results (including tiedBids) for auction processing
       draftState.lastRoundResults = auctionResults;
 
+      const roundResultsPayload = {
+        roundNumber: Number(draftState.currentRound || 1),
+        results: Array.isArray(auctionResults && auctionResults.results) ? auctionResults.results : [],
+        emittedAt: Date.now()
+      };
+      draftState.pendingRoundResults = roundResultsPayload;
+
       const emittedResults = Array.isArray(auctionResults && auctionResults.results) ? auctionResults.results : [];
       const resultTypeSummary = emittedResults.reduce((acc, result) => {
         const type = String(result && result.type || 'unknown').trim().toLowerCase();
@@ -6285,8 +6315,8 @@ io.on('connection', (socket) => {
         winnerTeamSample
       });
       
-      // Broadcast results array to all members (they expect the results array)
-      io.to(`draft_${code}`).emit('roundResults', auctionResults.results);
+      // Broadcast authoritative results payload (round + results) to all members.
+      io.to(`draft_${code}`).emit('roundResults', roundResultsPayload);
       console.log(`[processRound] Emitted roundResults to room draft_${code}:`, auctionResults.results.length, 'results');
       io.to(`draft_${code}`).emit('roundDiagnostics', {
         ...roundDiagnostics,
@@ -6323,8 +6353,12 @@ io.on('connection', (socket) => {
   });
 
   // Member accepts round results
-  socket.on('acceptRoundResults', (code, username, cb) => {
+  socket.on('acceptRoundResults', (code, username, roundNumberOrCb, cbMaybe) => {
     try {
+      const cb = typeof roundNumberOrCb === 'function' ? roundNumberOrCb : cbMaybe;
+      const requestedRound = typeof roundNumberOrCb === 'function'
+        ? null
+        : Number.parseInt(roundNumberOrCb, 10);
       const draft = drafts[code];
       if (!draft || !draft.draftState) {
         if (cb) cb({ ok: false, reason: 'draft_not_ready' });
@@ -6335,7 +6369,19 @@ io.on('connection', (socket) => {
       const providedUser = String(username || '').trim();
       const resolvedUser = socketUser || providedUser;
 
-      console.log(`[acceptRoundResults] ${resolvedUser} accepted results in ${code}`);
+      const pendingRoundResults = draft.draftState.pendingRoundResults;
+      if (!pendingRoundResults || !Array.isArray(pendingRoundResults.results)) {
+        if (cb) cb({ ok: false, reason: 'no_pending_round_results' });
+        return;
+      }
+
+      const pendingRoundNumber = Number.parseInt(pendingRoundResults.roundNumber, 10);
+      if (Number.isFinite(requestedRound) && Number.isFinite(pendingRoundNumber) && requestedRound !== pendingRoundNumber) {
+        if (cb) cb({ ok: false, reason: 'round_mismatch', pendingRound: pendingRoundNumber });
+        return;
+      }
+
+      console.log(`[acceptRoundResults] ${resolvedUser} accepted results in ${code} for round ${pendingRoundNumber}`);
 
       if (!draft.draftState.acceptedMembers) {
         draft.draftState.acceptedMembers = [];
@@ -6355,6 +6401,7 @@ io.on('connection', (socket) => {
       const remaining = Math.max(0, totalMembers - acceptedCount);
       io.to(`draft_${code}`).emit('memberAcceptedResults', {
         username: resolvedUser,
+        roundNumber: pendingRoundNumber,
         acceptedCount,
         totalMembers,
         message: remaining > 0 ? `Waiting for ${remaining} more member(s) to accept...` : 'All members accepted!'
@@ -6386,9 +6433,10 @@ io.on('connection', (socket) => {
         draft.draftState.acceptedMembers = [];
         draft.draftState.submittedMembers = [];
         draft.draftState.isProcessingRound = false;
+        draft.draftState.pendingRoundResults = null;
       }
 
-      if (cb) cb({ ok: true, acceptedCount, totalMembers, allAccepted });
+      if (cb) cb({ ok: true, acceptedCount, totalMembers, allAccepted, roundNumber: pendingRoundNumber });
     } catch (error) {
       console.error('[acceptRoundResults] Unexpected error:', error);
       if (cb) cb({ ok: false, reason: 'server_error' });
@@ -6407,6 +6455,7 @@ io.on('connection', (socket) => {
       drafts[code].draftState.roundTimerMinutes = roundTimerMinutes;
       drafts[code].draftState.bids = {};
       drafts[code].draftState.recentAcquisitions = {}; // Clear recent acquisitions for new round
+      drafts[code].draftState.pendingRoundResults = null;
       
       console.log(`[startNextRound] Round ${drafts[code].draftState.currentRound} started by ${username}`);
       

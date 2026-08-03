@@ -52,6 +52,11 @@
           <p>You're in app mode. Sign in to draft, use rankings, and sync your account.</p>
           <form id="appHomeLoginForm" class="app-home-login-form"></form>
         </section>
+        <section class="dashboard-app-download" aria-labelledby="appDownloadTitle">
+          <h3 id="appDownloadTitle">APP download</h3>
+          <p>Recommended for mobile users.</p>
+          <button id="openInstallGuideBtn" class="cta cta-primary cta-app-download" type="button">Download the App</button>
+        </section>
         <div class="dashboard-cta-row">
           <a href="#" id="joinDraft" class="cta cta-secondary">Join a Draft</a>
           <a href="#" id="joinPrivate" class="cta cta-secondary">Join a Private Draft</a>
@@ -81,6 +86,95 @@
   <script src="theme-utils.js?v=20260726c"></script>
   <script src="firebase-config.js"></script>
   <script src="preferences.js"></script>
+
+  <div id="installGuideModal" class="install-guide-modal hidden" role="dialog" aria-modal="true" aria-labelledby="installGuideHeading">
+    <div class="install-guide-dialog" role="document">
+      <button id="closeInstallGuideBtn" class="install-guide-close" type="button" aria-label="Close install guide">x</button>
+      <h2 id="installGuideHeading">Install the App (PWA)</h2>
+
+      <div class="install-guide-scroll">
+        <h3>iPhone (Safari)</h3>
+        <p><strong>Important:</strong> Use <strong>Safari</strong>. Apple only allows installing web apps from Safari.</p>
+        <ol>
+          <li>Open the website in <strong>Safari</strong>.</li>
+          <li>Tap the <strong>Share</strong> button (the square with an upward arrow) at the bottom of the screen.</li>
+          <li class="install-guide-visual-item">
+            <figure class="install-guide-visual">
+              <img src="assets/pwa-share-safari.svg" alt="Safari toolbar with the Share button highlighted" loading="lazy">
+              <figcaption>Step 2 visual: Share button highlighted.</figcaption>
+            </figure>
+          </li>
+          <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
+          <li class="install-guide-visual-item">
+            <figure class="install-guide-visual">
+              <img src="assets/pwa-add-home-screen.svg" alt="iPhone share sheet with Add to Home Screen highlighted" loading="lazy">
+              <figcaption>Step 3 visual: Add to Home Screen highlighted.</figcaption>
+            </figure>
+          </li>
+          <li>(Optional) Edit the app name if you would like.</li>
+          <li>Tap <strong>Add</strong> in the upper-right corner.</li>
+          <li>The app icon will appear on your Home Screen just like any other app.</li>
+          <li>Tap the icon anytime to launch the app in full-screen mode.</li>
+        </ol>
+
+        <hr>
+
+        <h3>Android (Chrome, Edge, or Samsung Internet)</h3>
+        <h4>Option 1: Install Prompt (Recommended)</h4>
+        <p>If your browser displays an <strong>Install App</strong> or <strong>Install</strong> prompt:</p>
+        <ol>
+          <li>Tap <strong>Install</strong>.</li>
+          <li>Confirm by tapping <strong>Install</strong> again.</li>
+          <li>The app will be added to your Home Screen and App Drawer.</li>
+        </ol>
+
+        <hr>
+
+        <h4>Option 2: Add to Home Screen</h4>
+        <p>If you do not see an install prompt:</p>
+        <ol>
+          <li>Open the website in your browser.</li>
+          <li>Tap the three-dot menu in the upper-right corner.</li>
+          <li>Tap <strong>Add to Home screen</strong> or <strong>Install app</strong> (wording varies by browser).</li>
+          <li>Confirm by tapping <strong>Add</strong> or <strong>Install</strong>.</li>
+          <li>The app will now appear on your Home Screen.</li>
+        </ol>
+
+        <hr>
+
+        <h3>Tips</h3>
+        <ul>
+          <li>Make sure you are using a supported browser (Safari on iPhone, Chrome/Edge/Samsung Internet on Android).</li>
+          <li>An internet connection is usually required for the initial installation.</li>
+          <li>Once installed, the app launches like a native app with its own icon and full-screen experience.</li>
+          <li>If the website has been updated recently and you do not see an install option, refresh the page and try again.</li>
+        </ul>
+
+        <hr>
+
+        <h3>Need Help?</h3>
+        <p>If you do not see an <strong>Install</strong> or <strong>Add to Home Screen</strong> option:</p>
+        <ul>
+          <li>Make sure you are using the supported browser.</li>
+          <li>Refresh the page and try again.</li>
+          <li>Visit the website over a secure <strong>HTTPS</strong> connection.</li>
+          <li>Ensure your device is running a current version of iOS or Android.</li>
+        </ul>
+        <p>If you are still having trouble, please contact us and let us know:</p>
+        <ul>
+          <li>Your device model</li>
+          <li>Your operating system version</li>
+          <li>The browser you are using</li>
+        </ul>
+      </div>
+
+      <div class="install-guide-footer">
+        <button id="installNowBtn" class="cta cta-primary install-now-btn hidden" type="button">Install App Now</button>
+        <p id="installGuidePromptStatus" class="install-guide-status">Use the steps above if your browser does not show an install prompt.</p>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="dashboard.js"></script>
   <script src="sw-register.js?v=20260726c"></script>
 </body>
