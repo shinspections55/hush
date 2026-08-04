@@ -396,14 +396,16 @@ document.addEventListener('DOMContentLoaded', () => {
       ${sheets
       .map((sheet) => `
         <article class="print-sheet">
-          <div class="print-sheet-name-row">
-            <span class="name-line">__________</span>
-            <span class="name-label">NAME</span>
-            <span class="sheet-code">${escapeHtml(sheet.title)}</span>
-          </div>
-          <header class="print-sheet-header">
+          <div class="print-sheet-top-row">
+            <div class="print-sheet-name-block">
+              <div class="print-sheet-name-row">
+                <span class="name-line" aria-hidden="true"></span>
+                <span class="name-label">NAME</span>
+              </div>
+              <div class="sheet-code-under">${escapeHtml(sheet.title)}</div>
+            </div>
             <h2 class="print-sheet-title">HUSH OFFLINE BID SHEET</h2>
-          </header>
+          </div>
           <table class="bid-table" role="presentation">
             <tbody>
               ${renderPlayerRows(sheet.players)}
@@ -420,7 +422,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return '<tr><td class="bid-empty" colspan="4">No players found for this sheet.</td></tr>';
     }
 
-    return players
+    const shuffledPlayers = shufflePlayers(players);
+
+    return shuffledPlayers
       .map((player) => `
         <tr>
           <td class="bid-cell-line">_____</td>
@@ -430,6 +434,17 @@ document.addEventListener('DOMContentLoaded', () => {
         </tr>
       `)
       .join('');
+  }
+
+  function shufflePlayers(players) {
+    const clone = [...players];
+    for (let i = clone.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = clone[i];
+      clone[i] = clone[j];
+      clone[j] = temp;
+    }
+    return clone;
   }
 
   function setStatus(message) {

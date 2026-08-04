@@ -124,41 +124,48 @@ body.light-mode.offline-print-page .print-sheet {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 }
 
+
+.print-sheet-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.print-sheet-name-block {
+  display: grid;
+  gap: 4px;
+}
+
 .print-sheet-name-row {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  margin-bottom: 8px;
   font-size: 14px;
 }
 
 .print-sheet-name-row .name-line {
-  letter-spacing: 0.04em;
-  font-family: "Courier New", monospace;
+  display: inline-block;
+  width: 1.5in;
+  border-bottom: 1px solid #111;
+  height: 0;
 }
 
 .print-sheet-name-row .name-label {
   font-weight: 700;
 }
 
-.print-sheet-name-row .sheet-code {
-  margin-left: auto;
+.sheet-code-under {
+  font-size: 13px;
   font-weight: 700;
-}
-
-.print-sheet-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  border-bottom: 2px solid #111;
-  padding-bottom: 8px;
-  margin-bottom: 10px;
 }
 
 .print-sheet-title {
   margin: 0;
   font-size: 15px;
   letter-spacing: 0.05em;
+  text-align: right;
 }
 
 .print-sheet-subtitle {
@@ -245,11 +252,23 @@ body.light-mode.offline-print-page .print-sheet {
 }
 
 @media print {
+  @page {
+    size: auto;
+    margin: 8mm;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: #fff !important;
+  }
+
   body.offline-print-page {
     background: #fff !important;
     color: #000 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    -webkit-print-color-adjust: economy;
+    print-color-adjust: economy;
   }
 
   body.offline-print-page .site-header,
@@ -264,23 +283,36 @@ body.light-mode.offline-print-page .print-sheet {
     padding: 0;
   }
 
+  .print-sheets-container {
+    display: block;
+    margin: 0;
+    gap: 0;
+  }
+
   .print-sheet {
     box-shadow: none;
     border: none;
     border-radius: 0;
+    background: #fff !important;
+    color: #000 !important;
     margin: 0;
-    padding: 6mm 6mm 6mm 2mm;
-    min-height: 270mm;
+    padding: 0;
+    min-height: 0;
+    height: auto;
     box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    min-height: 250mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
     page-break-after: always;
     break-after: page;
   }
 
   .bid-table {
-    flex: 1;
+    width: 100%;
     height: 100%;
+    table-layout: fixed;
   }
 
   .bid-table tbody {
@@ -294,12 +326,16 @@ body.light-mode.offline-print-page .print-sheet {
   .bid-table td {
     padding-top: 0;
     padding-bottom: 0;
-    line-height: 2;
+    line-height: 2.05;
     font-size: 13.5px;
   }
 
   .bid-table td:first-child {
     padding-left: 0;
+  }
+
+  .bid-cell-line {
+    width: calc(60px + 2in);
   }
 
   .packet-badge {

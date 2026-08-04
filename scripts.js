@@ -86,6 +86,24 @@ function protectCriticalLocalData() {
   window.addEventListener('beforeunload', snapshotCriticalLocalData);
 }
 
+async function resolveLoginEmail(identifier) {
+  const value = String(identifier || '').trim();
+  if (!value) {
+    throw new Error('Enter your username or email.');
+  }
+
+  const response = await fetch(`/api/auth/resolve-login?identifier=${encodeURIComponent(value)}`, {
+    cache: 'no-store'
+  });
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload || !payload.ok || !payload.email) {
+    throw new Error(payload && payload.error ? payload.error : 'Unable to resolve username. Try email instead.');
+  }
+
+  return String(payload.email).trim();
+}
+
 document.addEventListener('DOMContentLoaded', ()=>{
   protectCriticalLocalData();
   const signup = document.getElementById('signupForm');
@@ -111,8 +129,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
   const rememberedEmail = localStorage.getItem('rememberedEmail') || localStorage.getItem('lastSignedInEmail') || '';
   if (login && rememberedEmail) {
-    const emailInput = login.querySelector('input[name="email"]');
-    if (emailInput) emailInput.value = rememberedEmail;
+    const identifierInput = login.querySelector('input[name="identifier"]');
+    if (identifierInput) identifierInput.value = rememberedEmail;
     if (rememberCheckbox) rememberCheckbox.checked = true;
   }
 
@@ -133,23 +151,24 @@ document.addEventListener('DOMContentLoaded', ()=>{
     e.preventDefault();
     const form = e.target;
     const data = new FormData(form);
-    const email = String(data.get('email') || '').trim();
+    const identifier = String(data.get('identifier') || '').trim();
     const password = String(data.get('password') || '');
     const rememberPassword = !!(rememberCheckbox && rememberCheckbox.checked);
-    if(!email || !email.includes('@')){
-      alert('Login: Please enter a valid email address.');
+    if(!identifier){
+      alert('Login: Please enter your username or email.');
       return;
     }
 
     (async ()=>{
       try{
         const auth = requireFirebaseAuth();
+        const resolvedEmail = await resolveLoginEmail(identifier);
         await setPersistence(auth, rememberPassword ? browserLocalPersistence : browserSessionPersistence);
-        const credential = await signInWithEmailAndPassword(auth, email, password);
+        const credential = await signInWithEmailAndPassword(auth, resolvedEmail, password);
         const profile = syncSessionFromUser(credential.user);
 
         if (rememberPassword) {
-          localStorage.setItem('rememberedEmail', email);
+          localStorage.setItem('rememberedEmail', identifier);
         } else {
           localStorage.removeItem('rememberedEmail');
         }

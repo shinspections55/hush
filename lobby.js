@@ -90,6 +90,7 @@ window.initializeLobby = function initializeLobby(opts){
 
   const draftTitle = document.getElementById('draftTitle');
   const draftCode = document.getElementById('draftCode');
+  const shareLobbyCodeBtn = document.getElementById('shareLobbyCodeBtn');
   const hostDisplay = document.getElementById('hostDisplay');
   const memberCountBadge = document.getElementById('memberCountBadge');
   const memberList = document.getElementById('memberList');
@@ -330,7 +331,7 @@ window.initializeLobby = function initializeLobby(opts){
         const alertedKey = `closed_alerted_${code}`;
         if (!sessionStorage.getItem(alertedKey)) {
           // alert is synchronous and will be shown once per session per draft
-          alert('This session has closed — the host has left and the draft is no longer accepting participants.');
+          alert('The lobby was closed by the host.');
           sessionStorage.setItem(alertedKey, '1');
         }
       } catch (e) {
@@ -630,6 +631,24 @@ window.initializeLobby = function initializeLobby(opts){
       socket.on('draftStarted', (draftType) => { 
         console.log(`[lobby] Draft started event received! Type: ${draftType}, User: ${user}`); 
         showCountdownBanner(draftType); 
+      });
+
+      socket.on('draftClosed', (payload) => {
+        console.log('[lobby] draftClosed event received', payload);
+        const draftsRaw = localStorage.getItem('drafts');
+        const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
+        drafts[code] = Object.assign(drafts[code] || {}, {
+          closed: true,
+          host: null
+        });
+        localStorage.setItem('drafts', JSON.stringify(drafts));
+        refreshMembers();
+
+        const popupKey = `closed_alerted_${code}`;
+        if (!sessionStorage.getItem(popupKey)) {
+          alert('The lobby was closed by the host.');
+          sessionStorage.setItem(popupKey, '1');
+        }
       });
 
       document.addEventListener('visibilitychange', () => {
@@ -1049,6 +1068,30 @@ window.initializeLobby = function initializeLobby(opts){
         sessionStorage.removeItem('currentDraft');
         clearInterval(poll);
         window.location.href = 'dashboard.html';
+      }
+    });
+  }
+
+  if (shareLobbyCodeBtn) {
+    shareLobbyCodeBtn.addEventListener('click', async () => {
+      const shareText = `Join my Hush lobby with code: ${code}`;
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: 'Hush Draft Lobby Invite',
+            text: shareText
+          });
+          return;
+        }
+      } catch (_error) {
+        // Fall through to clipboard path.
+      }
+
+      try {
+        await navigator.clipboard.writeText(code);
+        alert(`Lobby code copied: ${code}`);
+      } catch (_error) {
+        alert(shareText);
       }
     });
   }

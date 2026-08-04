@@ -334,14 +334,66 @@ function initializeDraftTheme() {
 
 function initSilentDraft() {
 
+    function getCurrentDraftTheme() {
+        if (typeof resolveSiteThemePreference === 'function') {
+            return resolveSiteThemePreference() === 'light' ? 'light' : 'dark';
+        }
+        return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    }
+
+    function updateDraftThemeToggleButtonState() {
+        const toggle = document.getElementById('themeToggleBtn');
+        if (!toggle) return;
+        const currentTheme = getCurrentDraftTheme();
+        toggle.innerHTML = currentTheme === 'light' ? '&#9728;' : '&#127769;';
+        toggle.setAttribute('aria-label', currentTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
+        toggle.setAttribute('title', currentTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
+        toggle.setAttribute('aria-pressed', currentTheme === 'light' ? 'true' : 'false');
+    }
+
+    function setupDraftThemeToggle() {
+        const toggle = document.getElementById('themeToggleBtn');
+        if (!toggle) return;
+
+        if (toggle.dataset.bound !== '1') {
+            toggle.dataset.bound = '1';
+            toggle.addEventListener('click', () => {
+                const currentTheme = getCurrentDraftTheme();
+                const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+                if (typeof persistSiteThemePreference === 'function') {
+                    persistSiteThemePreference(nextTheme);
+                } else {
+                    try {
+                        localStorage.setItem('dashboardTheme', nextTheme);
+                    } catch (e) {
+                        // ignore
+                    }
+                }
+
+                if (typeof applySiteThemePreference === 'function') {
+                    applySiteThemePreference(nextTheme);
+                }
+
+                initializeDraftTheme();
+                updateDraftThemeToggleButtonState();
+            });
+        }
+
+        updateDraftThemeToggleButtonState();
+    }
+
     // Listen for storage changes (from other tabs or dashboard theme toggle)
     window.addEventListener('storage', (event) => {
         // Listen for both dashboardTheme and users (where actual theme is stored)
         if (event.key === 'dashboardTheme' || event.key === 'users') {
             console.log('[HUSH JS] Storage event detected for', event.key, ':', event.newValue ? event.newValue.substring(0, 50) + '...' : '(cleared)');
             initializeDraftTheme();
+            updateDraftThemeToggleButtonState();
         }
     });
+
+    setupDraftThemeToggle();
 
     const DRAFTROOM_RANKINGS_MODE_KEY = 'draftroomRankingsMode';
     const DATABASE_RANKINGS_SET_KEY = 'databaseRankingsSet';
@@ -3922,6 +3974,67 @@ function initSilentDraft() {
         return `${hours}:${minutes}`;
     }
 
+    function extractFirstUrl(text) {
+        const value = String(text || '');
+        const match = value.match(/https?:\/\/[^\s]+/i);
+        return match ? match[0] : '';
+    }
+
+    function getDirectGifUrl(text) {
+        const rawUrl = extractFirstUrl(text);
+        if (!rawUrl) return '';
+
+        try {
+            const parsed = new URL(rawUrl);
+            if (!/^https?:$/i.test(parsed.protocol)) return '';
+
+            const pathname = String(parsed.pathname || '').toLowerCase();
+            const search = String(parsed.search || '').toLowerCase();
+            const hash = String(parsed.hash || '').toLowerCase();
+
+            const looksAnimated = /\.(gif|webp)$/i.test(pathname) ||
+                search.includes('format=gif') ||
+                hash.includes('.gif');
+
+            return looksAnimated ? parsed.toString() : '';
+        } catch (_error) {
+            return '';
+        }
+    }
+
+    function renderDraftChatTextContent(container, rawText) {
+        const textValue = String(rawText || '');
+        const gifUrl = getDirectGifUrl(textValue);
+        if (!gifUrl) {
+            container.textContent = textValue;
+            return;
+        }
+
+        const caption = textValue.replace(gifUrl, '').trim();
+        if (caption) {
+            const captionNode = document.createElement('div');
+            captionNode.textContent = caption;
+            container.appendChild(captionNode);
+        }
+
+        const preview = document.createElement('img');
+        preview.className = 'draft-chat-gif-preview';
+        preview.src = gifUrl;
+        preview.alt = 'GIF preview';
+        preview.loading = 'lazy';
+        preview.decoding = 'async';
+        preview.referrerPolicy = 'no-referrer';
+        container.appendChild(preview);
+
+        const link = document.createElement('a');
+        link.className = 'draft-chat-gif-link';
+        link.href = gifUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = 'Open GIF';
+        container.appendChild(link);
+    }
+
     function renderDraftChatMessages() {
         const list = document.getElementById('draft-chat-list');
         if (!list) return;
@@ -3953,7 +4066,7 @@ function initSilentDraft() {
 
             const text = document.createElement('div');
             text.className = 'draft-chat-text';
-            text.textContent = String(message.text || '');
+            renderDraftChatTextContent(text, String(message.text || ''));
 
             meta.appendChild(author);
             meta.appendChild(time);
@@ -3969,9 +4082,12 @@ function initSilentDraft() {
         const form = document.getElementById('draft-chat-form');
         const input = document.getElementById('draft-chat-input');
         const sendButton = document.getElementById('draft-chat-send');
+        const gifAddButton = document.getElementById('draft-chat-gif-add');
         const emojiToggle = document.getElementById('draft-chat-emoji-toggle');
         const emojiPicker = document.getElementById('draft-chat-emoji-picker');
         if (!form || !input || !sendButton) return;
+        const isInstalledPwa = Boolean(document.body && document.body.classList.contains('pwa-installed'));
+        const emojiPickerEnabled = Boolean(!isInstalledPwa && emojiToggle && emojiPicker);
         let emojiPickerExpanded = false;
 
         const emojiOptions = [
@@ -4007,22 +4123,22 @@ function initSilentDraft() {
             }
         }
 
-        function insertEmojiIntoInput(emoji) {
+        function insertTextIntoInput(snippet) {
             const currentText = String(input.value || '');
             const maxLen = Number(input.maxLength || DRAFT_CHAT_MAX_LENGTH);
             const selectionStart = Number.isFinite(input.selectionStart) ? input.selectionStart : currentText.length;
             const selectionEnd = Number.isFinite(input.selectionEnd) ? input.selectionEnd : currentText.length;
-            const nextText = `${currentText.slice(0, selectionStart)}${emoji}${currentText.slice(selectionEnd)}`;
+            const nextText = `${currentText.slice(0, selectionStart)}${snippet}${currentText.slice(selectionEnd)}`;
             input.value = nextText.slice(0, maxLen);
 
-            const caret = Math.min(selectionStart + emoji.length, input.value.length);
+            const caret = Math.min(selectionStart + snippet.length, input.value.length);
             input.focus();
             if (typeof input.setSelectionRange === 'function') {
                 input.setSelectionRange(caret, caret);
             }
         }
 
-        if (emojiPicker) {
+        if (emojiPickerEnabled) {
             emojiPicker.innerHTML = `
                 <div class="draft-chat-emoji-toolbar">
                     <button type="button" class="draft-chat-emoji-action" data-emoji-action="toggle-mode" aria-label="Expand emoji picker" title="Expand">Expand</button>
@@ -4052,11 +4168,19 @@ function initSilentDraft() {
 
                 const emoji = String(target.dataset.emoji || '');
                 if (!emoji) return;
-                insertEmojiIntoInput(emoji);
+                insertTextIntoInput(emoji);
             });
+        } else {
+            if (emojiToggle) {
+                emojiToggle.hidden = true;
+                emojiToggle.setAttribute('aria-hidden', 'true');
+            }
+            if (emojiPicker) {
+                emojiPicker.hidden = true;
+            }
         }
 
-        if (emojiToggle) {
+        if (emojiPickerEnabled) {
             emojiToggle.setAttribute('aria-expanded', 'false');
             emojiToggle.addEventListener('click', () => {
                 if (!emojiPicker) return;
@@ -4068,7 +4192,8 @@ function initSilentDraft() {
             });
         }
 
-        document.addEventListener('click', (event) => {
+        if (emojiPickerEnabled) {
+            document.addEventListener('click', (event) => {
             if (!emojiPicker || emojiPicker.hidden) return;
             const target = event.target;
             if (!(target instanceof Node)) return;
@@ -4077,7 +4202,24 @@ function initSilentDraft() {
             if (!clickedInsidePicker && !clickedToggle) {
                 closeEmojiPicker();
             }
-        });
+            });
+        }
+
+        if (gifAddButton) {
+            gifAddButton.addEventListener('click', () => {
+                const gifUrl = window.prompt('Paste a direct GIF link (ending in .gif or .webp):', '');
+                if (!gifUrl) return;
+                const normalized = getDirectGifUrl(String(gifUrl).trim());
+                if (!normalized) {
+                    showNotification('Use a direct GIF URL (for example, one that ends in .gif).');
+                    return;
+                }
+
+                const prefix = input.value && !/\s$/.test(input.value) ? ' ' : '';
+                insertTextIntoInput(`${prefix}${normalized}`);
+                input.focus();
+            });
+        }
 
         updateDraftChatUnreadBadge();
 

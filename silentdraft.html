@@ -37,7 +37,10 @@
             <div id="players-list"></div>
         </div>
         <div class="column" id="center-column">
-            <h2 id="team-header">My Team</h2>
+            <div class="roster-header-row">
+                <h2 id="team-header">My Team</h2>
+                <button id="themeToggleBtn" type="button" aria-label="Toggle theme" aria-pressed="false" title="Toggle theme">Mode</button>
+            </div>
             <div id="your-team"></div>
             <h3 id="bench-title" hidden></h3>
             <div id="bench-players"></div>
@@ -81,8 +84,9 @@
                     <h3>Lobby Chat</h3>
                     <div id="draft-chat-list" class="draft-chat-list" aria-live="polite"></div>
                     <form id="draft-chat-form" class="draft-chat-form">
-                        <textarea id="draft-chat-input" maxlength="240" placeholder="Message the lobby..." autocomplete="off" rows="2"></textarea>
+                        <textarea id="draft-chat-input" maxlength="240" placeholder="Message the lobby or paste a GIF link..." autocomplete="off" rows="2"></textarea>
                         <button id="draft-chat-emoji-toggle" type="button" aria-label="Open emoji picker" title="Emoji">ðŸ™‚</button>
+                        <button id="draft-chat-gif-add" type="button" aria-label="Add GIF" title="Add GIF">GIF</button>
                         <button id="draft-chat-send" type="submit">Send</button>
                     </form>
                     <div id="draft-chat-emoji-picker" class="draft-chat-emoji-picker" hidden></div>

@@ -372,8 +372,75 @@ h3 {
     color: var(--hush-silver);
 }
 
+.roster-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+    min-width: 0;
+}
+
+.roster-header-row #team-header {
+    margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#themeToggleBtn {
+    appearance: none;
+    border: 1px solid rgba(170, 183, 200, 0.45);
+    background: rgba(13, 27, 45, 0.9);
+    color: #d6e0eb;
+    border-radius: 999px;
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    min-width: 36px;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    box-shadow: 0 6px 14px rgba(3, 5, 9, 0.32);
+}
+
+#themeToggleBtn:hover {
+    transform: translateY(-1px);
+}
+
+#themeToggleBtn:focus-visible {
+    outline: 2px solid rgba(173, 220, 246, 0.85);
+    outline-offset: 2px;
+}
+
+body.light-mode #themeToggleBtn,
+body.dashboard-light-mode #themeToggleBtn,
+html[data-theme="light"] body #themeToggleBtn {
+    border-color: rgba(98, 132, 173, 0.45);
+    background: rgba(255, 252, 247, 0.95);
+    color: #17324d;
+    box-shadow: 0 6px 14px rgba(21, 38, 59, 0.16);
+}
+
+@media (max-width: 1100px) {
+    #themeToggleBtn {
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+        min-height: 34px;
+        font-size: 15px;
+    }
+}
+
 body.color-blind .column > h2,
 body.color-blind .column > h3,
+body.color-blind .roster-header-row > h2,
 body.color-blind .draftroom-rankings > h3 {
     display: inline-flex;
     align-items: center;
@@ -1116,6 +1183,30 @@ body.color-blind .draftroom-rankings-item .r-av {
     word-break: break-word;
 }
 
+.draft-chat-gif-preview {
+    display: block;
+    margin-top: 6px;
+    max-width: min(280px, 100%);
+    width: auto;
+    max-height: 220px;
+    object-fit: contain;
+    border-radius: 8px;
+    border: 1px solid var(--hush-steel)44;
+    background: rgba(0, 0, 0, 0.22);
+}
+
+.draft-chat-gif-link {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 11px;
+    color: #9fd3ff;
+    text-decoration: underline;
+}
+
+.draft-chat-gif-link:hover {
+    color: #d4ebff;
+}
+
 .draft-chat-form {
     display: flex;
     gap: 8px;
@@ -1157,6 +1248,23 @@ body.color-blind .draftroom-rankings-item .r-av {
     cursor: pointer;
 }
 
+#draft-chat-gif-add {
+    border: 1px solid var(--hush-steel)55;
+    border-radius: 8px;
+    background: rgba(62, 139, 123, 0.22);
+    color: var(--hush-ice);
+    font-size: 12px;
+    font-weight: 800;
+    min-width: 44px;
+    padding: 9px 10px;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+}
+
+#draft-chat-gif-add:hover {
+    background: rgba(62, 139, 123, 0.34);
+}
+
 #draft-chat-emoji-toggle {
     border: 1px solid var(--hush-steel)55;
     border-radius: 8px;
@@ -1172,6 +1280,11 @@ body.color-blind .draftroom-rankings-item .r-av {
 
 #draft-chat-emoji-toggle:hover {
     background: rgba(255, 255, 255, 0.14);
+}
+
+body.pwa-installed.silentdraft-page #draft-chat-emoji-toggle,
+body.pwa-installed.silentdraft-page #draft-chat-emoji-picker {
+    display: none !important;
 }
 
 .draft-chat-emoji-picker {

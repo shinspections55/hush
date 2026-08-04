@@ -22,9 +22,11 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   );
 
   let resolvedUser = '';
+  let resolvedProfile = null;
   try {
     const currentUser = await requireCurrentUser();
     const profile = syncSessionFromUser(currentUser);
+    resolvedProfile = profile || null;
     resolvedUser = profile && profile.username ? profile.username : '';
   } catch (_error) {
     clearAuthSession();
@@ -42,6 +44,13 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   const accountBtn = document.getElementById('accountBtn');
   const accountMenu = document.getElementById('accountMenu');
   const editAccountBtn = document.getElementById('editAccountBtn');
+  const openFriendsBtn = document.getElementById('openFriendsBtn');
+  const friendsMenuNotice = document.getElementById('friendsMenuNotice');
+  const friendsMenuPanel = document.getElementById('friendsMenuPanel');
+  const friendUsernameInput = document.getElementById('friendUsernameInput');
+  const addFriendBtn = document.getElementById('addFriendBtn');
+  const friendsMenuStatus = document.getElementById('friendsMenuStatus');
+  const friendsMenuList = document.getElementById('friendsMenuList');
   const deleteAccountMenuBtn = document.getElementById('deleteAccountMenuBtn');
   const joinDraft = document.getElementById('joinDraft');
   const joinPrivate = document.getElementById('joinPrivate');
@@ -94,7 +103,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       }
 
       appHomeLoginForm.innerHTML = [
-        '<input id="appHomeEmail" type="email" name="email" placeholder="Email address" autocomplete="email" required>',
+        '<input id="appHomeEmail" type="text" name="identifier" placeholder="Username or email" autocomplete="username" required>',
         '<input id="appHomePassword" type="password" name="password" placeholder="Password" autocomplete="current-password" required>',
         '<button type="submit" class="btn btn-signup">Sign In</button>'
       ].join('');
@@ -104,10 +113,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
       appHomeLoginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const email = String(emailInput && emailInput.value || '').trim();
+        const identifier = String(emailInput && emailInput.value || '').trim();
         const password = String(passwordInput && passwordInput.value || '');
-        if (!email || !email.includes('@')) {
-          alert('Enter a valid email address.');
+        if (!identifier) {
+          alert('Enter your username or email.');
           return;
         }
         if (!password) {
@@ -117,8 +126,15 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
         try {
           if (!auth) throw new Error('Firebase Auth is not configured yet.');
+          const resolveResponse = await fetch(`/api/auth/resolve-login?identifier=${encodeURIComponent(identifier)}`, {
+            cache: 'no-store'
+          });
+          const resolvePayload = await resolveResponse.json().catch(() => null);
+          if (!resolveResponse.ok || !resolvePayload || !resolvePayload.ok || !resolvePayload.email) {
+            throw new Error((resolvePayload && resolvePayload.error) || 'Unable to resolve username. Try email instead.');
+          }
           await setPersistence(auth, browserLocalPersistence);
-          const credential = await signInWithEmailAndPassword(auth, email, password);
+          const credential = await signInWithEmailAndPassword(auth, String(resolvePayload.email).trim(), password);
           syncSessionFromUser(credential.user);
           window.location.replace(`dashboard.html?login=${Date.now()}#home`);
         } catch (error) {
@@ -165,6 +181,209 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   }
   if (greeting) greeting.textContent = `Welcome, ${user}!`;
   if (welcomeText) welcomeText.textContent = 'This is your dashboard. Use the account menu to manage your account, sign out, or open your rankings.';
+
+  const friendsNoticeStorageKey = `friends_notice_state_${String(user || '').toLowerCase()}`;
+
+  function parseFriendsNoticeState() {
+    try {
+      const raw = localStorage.getItem(friendsNoticeStorageKey);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return {
+        lastOutgoing: Array.isArray(parsed.lastOutgoing) ? parsed.lastOutgoing : [],
+        lastFriends: Array.isArray(parsed.lastFriends) ? parsed.lastFriends : [],
+        unreadAccepted: Array.isArray(parsed.unreadAccepted) ? parsed.unreadAccepted : []
+      };
+    } catch (_error) {
+      return { lastOutgoing: [], lastFriends: [], unreadAccepted: [] };
+    }
+  }
+
+  function saveFriendsNoticeState(state) {
+    try {
+      localStorage.setItem(friendsNoticeStorageKey, JSON.stringify({
+        lastOutgoing: Array.isArray(state.lastOutgoing) ? state.lastOutgoing : [],
+        lastFriends: Array.isArray(state.lastFriends) ? state.lastFriends : [],
+        unreadAccepted: Array.isArray(state.unreadAccepted) ? state.unreadAccepted : []
+      }));
+    } catch (_error) {
+      // ignore storage write issues
+    }
+  }
+
+  function setFriendsNoticeCount(count) {
+    if (!friendsMenuNotice) return;
+    const numeric = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+    if (numeric <= 0) {
+      friendsMenuNotice.classList.add('hidden');
+      friendsMenuNotice.textContent = '0';
+      return;
+    }
+    friendsMenuNotice.classList.remove('hidden');
+    friendsMenuNotice.textContent = numeric > 99 ? '99+' : String(numeric);
+  }
+
+  async function refreshFriendsNotice() {
+    if (!user) return;
+    try {
+      const query = new URLSearchParams({
+        username: user,
+        email: String(resolvedProfile && resolvedProfile.email || '').trim(),
+        fullname: String(resolvedProfile && resolvedProfile.fullname || '').trim(),
+        phone: String(resolvedProfile && resolvedProfile.phone || '').trim()
+      });
+      const response = await fetch(`/api/auth/friends?${query.toString()}`);
+      const payload = await response.json();
+      if (!response.ok || !payload || !payload.ok) return;
+
+      const incoming = Array.isArray(payload.incomingRequests) ? payload.incomingRequests : [];
+      const outgoing = Array.isArray(payload.outgoingRequests) ? payload.outgoingRequests : [];
+      const friends = Array.isArray(payload.friends) ? payload.friends : [];
+
+      const currentOutgoing = outgoing
+        .map((entry) => String(entry && (entry.usernameKey || entry.username) || '').trim().toLowerCase())
+        .filter(Boolean);
+      const currentFriends = friends
+        .map((entry) => String(entry && (entry.usernameKey || entry.username) || '').trim().toLowerCase())
+        .filter(Boolean);
+
+      const previous = parseFriendsNoticeState();
+      const newlyAccepted = previous.lastOutgoing.filter((candidate) => (
+        !currentOutgoing.includes(candidate) &&
+        currentFriends.includes(candidate) &&
+        !previous.lastFriends.includes(candidate)
+      ));
+
+      const unreadAccepted = Array.from(new Set([
+        ...previous.unreadAccepted,
+        ...newlyAccepted
+      ])).filter((candidate) => currentFriends.includes(candidate));
+
+      saveFriendsNoticeState({
+        lastOutgoing: currentOutgoing,
+        lastFriends: currentFriends,
+        unreadAccepted
+      });
+
+      setFriendsNoticeCount(incoming.length + unreadAccepted.length);
+    } catch (_error) {
+      // ignore polling errors silently
+    }
+  }
+
+  let friendsLoadedOnce = false;
+  let currentFriends = [];
+
+  function setFriendsStatus(message, isError = false) {
+    if (!friendsMenuStatus) return;
+    if (!message) {
+      friendsMenuStatus.textContent = '';
+      friendsMenuStatus.classList.add('hidden');
+      friendsMenuStatus.classList.remove('is-error');
+      return;
+    }
+    friendsMenuStatus.textContent = message;
+    friendsMenuStatus.classList.remove('hidden');
+    friendsMenuStatus.classList.toggle('is-error', !!isError);
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function renderFriendsList(friends) {
+    if (!friendsMenuList) return;
+    currentFriends = Array.isArray(friends) ? friends : [];
+
+    if (!currentFriends.length) {
+      friendsMenuList.innerHTML = '<li class="friends-empty">No friends added yet.</li>';
+      return;
+    }
+
+    friendsMenuList.innerHTML = currentFriends.map((friend) => {
+      const friendUsername = String(friend.username || friend.usernameKey || '').trim();
+      const friendName = String(friend.fullname || friendUsername || '').trim();
+      const safeUsername = escapeHtml(friendUsername);
+      const safeName = escapeHtml(friendName);
+      return `
+        <li class="friends-item">
+          <span class="friends-item-label">${safeName} (@${safeUsername})</span>
+          <button type="button" class="friend-remove-btn" data-friend="${safeUsername}">Remove</button>
+        </li>
+      `;
+    }).join('');
+
+    friendsMenuList.querySelectorAll('.friend-remove-btn').forEach((btn) => {
+      btn.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        const friendUsername = String(btn.dataset.friend || '').trim();
+        if (!friendUsername) return;
+        try {
+          const response = await fetch('/api/auth/friends/remove', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user, friendUsername })
+          });
+          const payload = await response.json();
+          if (!response.ok || !payload.ok) {
+            throw new Error(payload && payload.error ? payload.error : 'Unable to remove friend');
+          }
+          renderFriendsList(payload.friends || []);
+          setFriendsStatus(`Removed @${friendUsername}.`, false);
+        } catch (error) {
+          setFriendsStatus(error.message || 'Unable to remove friend.', true);
+        }
+      });
+    });
+  }
+
+  async function loadFriends(force = false) {
+    if (!force && friendsLoadedOnce) return;
+    setFriendsStatus('Loading friends...');
+    try {
+      const response = await fetch(`/api/auth/friends?username=${encodeURIComponent(user)}`);
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload && payload.error ? payload.error : 'Unable to load friends');
+      }
+      renderFriendsList(payload.friends || []);
+      friendsLoadedOnce = true;
+      setFriendsStatus('');
+    } catch (error) {
+      renderFriendsList([]);
+      setFriendsStatus(error.message || 'Unable to load friends.', true);
+    }
+  }
+
+  async function addFriendByUsername() {
+    const friendUsername = String(friendUsernameInput && friendUsernameInput.value || '').trim();
+    if (!friendUsername) {
+      setFriendsStatus('Enter a username first.', true);
+      return;
+    }
+    setFriendsStatus('Adding friend...');
+    try {
+      const response = await fetch('/api/auth/friends/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, friendUsername })
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload && payload.error ? payload.error : 'Unable to add friend');
+      }
+      renderFriendsList(payload.friends || []);
+      if (friendUsernameInput) friendUsernameInput.value = '';
+      setFriendsStatus(`Added @${friendUsername}.`, false);
+      friendsLoadedOnce = true;
+    } catch (error) {
+      setFriendsStatus(error.message || 'Unable to add friend.', true);
+    }
+  }
 
   function openInstallGuideModal() {
     if (!installGuideModal) return;
@@ -448,12 +667,49 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     });
   }
 
+  if (openFriendsBtn) {
+    openFriendsBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const previous = parseFriendsNoticeState();
+      saveFriendsNoticeState({
+        lastOutgoing: previous.lastOutgoing,
+        lastFriends: previous.lastFriends,
+        unreadAccepted: []
+      });
+      setFriendsNoticeCount(0);
+      window.location.href = 'friends.html';
+    });
+  }
+
+  if (addFriendBtn) {
+    addFriendBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await addFriendByUsername();
+    });
+  }
+
+  if (friendUsernameInput) {
+    friendUsernameInput.addEventListener('click', (e) => e.stopPropagation());
+    friendUsernameInput.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        await addFriendByUsername();
+      }
+    });
+  }
+
   if (deleteAccountMenuBtn) {
     deleteAccountMenuBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       window.location.href = 'account.html#delete-account';
     });
   }
+
+  refreshFriendsNotice();
+  const friendsNoticePoll = setInterval(refreshFriendsNotice, 10000);
+  window.addEventListener('beforeunload', () => {
+    clearInterval(friendsNoticePoll);
+  });
 
   // Completed drafts page
   if(completedDraftsBtn){
@@ -468,8 +724,31 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     if (!accountMenu.contains(e.target) && !accountBtn.contains(e.target)) {
       accountMenu.classList.remove('show');
       if (completedDraftsMenu) completedDraftsMenu.classList.remove('show');
+      if (friendsMenuPanel) friendsMenuPanel.classList.add('hidden');
     }
   });
+
+  const LOBBY_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const LOBBY_CODE_LENGTH = 6;
+
+  function generateLobbyCode(existingDrafts = {}) {
+    const draftMap = existingDrafts && typeof existingDrafts === 'object' ? existingDrafts : {};
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      let code = '';
+      for (let i = 0; i < LOBBY_CODE_LENGTH; i += 1) {
+        const idx = Math.floor(Math.random() * LOBBY_CODE_ALPHABET.length);
+        code += LOBBY_CODE_ALPHABET.charAt(idx);
+      }
+      if (!draftMap[code]) return code;
+    }
+
+    let fallback = '';
+    for (let i = 0; i < LOBBY_CODE_LENGTH; i += 1) {
+      const idx = Math.floor(Math.random() * LOBBY_CODE_ALPHABET.length);
+      fallback += LOBBY_CODE_ALPHABET.charAt(idx);
+    }
+    return fallback;
+  }
 
   // CTA: join a public draft (find one with available capacity or create a new public draft)
   if(joinDraft) joinDraft.addEventListener('click', (e)=>{
@@ -488,7 +767,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     }
     // if none found, create one via server if available
     if(!chosen){
-      chosen = (Math.random().toString(36).substr(2,6)).toUpperCase();
+      chosen = generateLobbyCode(drafts);
       drafts[chosen] = { members: [], public: true, capacity: 10 };
     }
     // try server-authoritative join if possible
@@ -529,7 +808,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     startPrivate.addEventListener('click', async (e)=>{
       e.preventDefault();
       // generate a short unique code
-      const code = (Math.random().toString(36).substr(2,6)).toUpperCase();
+      const code = generateLobbyCode(JSON.parse(localStorage.getItem('drafts') || '{}'));
       const usersRaw = localStorage.getItem('users');
       // create draft and add current user
       const draftsRaw = localStorage.getItem('drafts');
@@ -569,7 +848,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   if(startPublic){
     startPublic.addEventListener('click', async (e)=>{
       e.preventDefault();
-      const code = (Math.random().toString(36).substr(2,6)).toUpperCase();
+      const code = generateLobbyCode(JSON.parse(localStorage.getItem('drafts') || '{}'));
       const draftsRaw = localStorage.getItem('drafts');
       const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
       drafts[code] = drafts[code] || { members: [], public: true, capacity: 10 };

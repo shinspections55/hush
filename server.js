@@ -23,6 +23,16 @@ app.use(express.json({ limit: '5mb' }));
 app.disable('x-powered-by');
 app.use(compression({ threshold: 1024 }));
 
+// Ensure API consumers always get JSON for malformed request bodies.
+app.use((err, req, res, next) => {
+  if (err && err instanceof SyntaxError && 'body' in err) {
+    if (req.path && req.path.startsWith('/api')) {
+      return res.status(400).json({ ok: false, error: 'Invalid JSON payload' });
+    }
+  }
+  return next(err);
+});
+
 const AUTH_USERS_FILE = path.join(__dirname, 'auth-users.json');
 const RESET_CODE_TTL_MS = 10 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
@@ -131,12 +141,63 @@ function normalizeAuthUserRecord(rawUser, fallbackKey = '') {
     passwordHash = migrated.hash;
   }
 
+  const rawFriends = Array.isArray(rawUser.friends) ? rawUser.friends : [];
+  const friends = Array.from(new Set(
+    rawFriends
+      .map((entry) => normalizeUsername(entry))
+      .filter((entry) => entry && entry !== usernameKey)
+  ));
+  const rawIncomingRequests = Array.isArray(rawUser.friendRequestsIncoming) ? rawUser.friendRequestsIncoming : [];
+  const friendRequestsIncoming = Array.from(new Set(
+    rawIncomingRequests
+      .map((entry) => normalizeUsername(entry))
+      .filter((entry) => entry && entry !== usernameKey && !friends.includes(entry))
+  ));
+  const rawOutgoingRequests = Array.isArray(rawUser.friendRequestsOutgoing) ? rawUser.friendRequestsOutgoing : [];
+  const friendRequestsOutgoing = Array.from(new Set(
+    rawOutgoingRequests
+      .map((entry) => normalizeUsername(entry))
+      .filter((entry) => entry && entry !== usernameKey && !friends.includes(entry))
+  ));
+
+  const rawFriendMessages = rawUser.friendMessages && typeof rawUser.friendMessages === 'object'
+    ? rawUser.friendMessages
+    : {};
+  const friendMessages = Object.entries(rawFriendMessages).reduce((acc, [friendKeyRaw, threadRaw]) => {
+    const friendKey = normalizeUsername(friendKeyRaw);
+    if (!friendKey || friendKey === usernameKey) return acc;
+    const thread = Array.isArray(threadRaw) ? threadRaw : [];
+    acc[friendKey] = thread
+      .map((message) => {
+        if (!message || typeof message !== 'object') return null;
+        const from = normalizeUsername(message.from);
+        const to = normalizeUsername(message.to);
+        const text = String(message.text || '').trim();
+        const createdAt = Number(message.createdAt || Date.now()) || Date.now();
+        if (!from || !to || !text) return null;
+        return {
+          id: String(message.id || crypto.randomUUID()),
+          from,
+          to,
+          text,
+          createdAt
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+    return acc;
+  }, {});
+
   return {
     fullname,
     email,
     username: username || usernameKey,
     usernameKey,
     phone,
+    friends,
+    friendRequestsIncoming,
+    friendRequestsOutgoing,
+    friendMessages,
     passwordSalt,
     passwordHash,
     createdAt: Number(rawUser.createdAt || rawUser.created || Date.now()) || Date.now(),
@@ -182,8 +243,159 @@ function sanitizeAuthUser(user) {
     username: String(user.username || user.usernameKey || '').trim(),
     usernameKey: normalizeUsername(user.usernameKey || user.username),
     phone: normalizePhone(user.phone),
+    friends: Array.isArray(user.friends)
+      ? user.friends.map((friend) => normalizeUsername(friend)).filter(Boolean)
+      : [],
+    friendRequestsIncoming: Array.isArray(user.friendRequestsIncoming)
+      ? user.friendRequestsIncoming.map((friend) => normalizeUsername(friend)).filter(Boolean)
+      : [],
+    friendRequestsOutgoing: Array.isArray(user.friendRequestsOutgoing)
+      ? user.friendRequestsOutgoing.map((friend) => normalizeUsername(friend)).filter(Boolean)
+      : [],
     createdAt: Number(user.createdAt || 0) || 0
   };
+}
+
+function buildFriendsForResponse(users, user) {
+  if (!user || !Array.isArray(user.friends)) return [];
+
+  return user.friends
+    .map((friendKey) => {
+      const friend = users[normalizeUsername(friendKey)];
+      if (!friend) return null;
+      return {
+        username: String(friend.username || friend.usernameKey || '').trim(),
+        usernameKey: normalizeUsername(friend.usernameKey || friend.username),
+        fullname: String(friend.fullname || friend.username || friend.usernameKey || '').trim()
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.username.localeCompare(b.username));
+}
+
+function buildFriendRequestsForResponse(users, keys) {
+  const source = Array.isArray(keys) ? keys : [];
+  return source
+    .map((friendKey) => {
+      const friend = users[normalizeUsername(friendKey)];
+      if (!friend) return null;
+      return {
+        username: String(friend.username || friend.usernameKey || '').trim(),
+        usernameKey: normalizeUsername(friend.usernameKey || friend.username),
+        fullname: String(friend.fullname || friend.username || friend.usernameKey || '').trim()
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.username.localeCompare(b.username));
+}
+
+function ensureFriendRelationshipArrays(user) {
+  if (!user) return;
+  user.friends = Array.isArray(user.friends) ? user.friends : [];
+  user.friendRequestsIncoming = Array.isArray(user.friendRequestsIncoming) ? user.friendRequestsIncoming : [];
+  user.friendRequestsOutgoing = Array.isArray(user.friendRequestsOutgoing) ? user.friendRequestsOutgoing : [];
+}
+
+function ensureFriendMessageStore(user) {
+  if (!user) return;
+  user.friendMessages = user.friendMessages && typeof user.friendMessages === 'object'
+    ? user.friendMessages
+    : {};
+}
+
+function createLocalAuthUserRecord(profile = {}) {
+  const username = String(profile.username || '').trim();
+  const usernameKey = normalizeUsername(profile.usernameKey || username);
+  const email = normalizeEmail(profile.email);
+  const fullname = String(profile.fullname || username || usernameKey || '').trim();
+  const phone = normalizePhone(profile.phone);
+  const bootstrapPassword = `firebase-bootstrap:${crypto.randomUUID()}`;
+  const { salt, hash } = hashPassword(bootstrapPassword);
+
+  return {
+    fullname,
+    email,
+    username: username || usernameKey,
+    usernameKey,
+    phone,
+    friends: [],
+    friendRequestsIncoming: [],
+    friendRequestsOutgoing: [],
+    friendMessages: {},
+    passwordSalt: salt,
+    passwordHash: hash,
+    createdAt: Date.now(),
+    resetCode: null,
+    resetCodeExpiresAt: 0,
+    resetToken: null,
+    resetTokenExpiresAt: 0
+  };
+}
+
+async function ensureRequesterAccount(users, profile = {}) {
+  const username = String(profile.username || '').trim();
+  const usernameKey = normalizeUsername(username);
+  const email = normalizeEmail(profile.email);
+  const fullname = String(profile.fullname || '').trim();
+  const phone = normalizePhone(profile.phone);
+
+  const hydrateExistingUser = async (targetUser, keyHint = '') => {
+    if (!targetUser) return;
+    let changed = false;
+
+    if (email && normalizeEmail(targetUser.email) !== email) {
+      targetUser.email = email;
+      changed = true;
+    }
+    if (fullname && String(targetUser.fullname || '').trim() !== fullname) {
+      targetUser.fullname = fullname;
+      changed = true;
+    }
+    if (phone && normalizePhone(targetUser.phone) !== phone) {
+      targetUser.phone = phone;
+      changed = true;
+    }
+    if (username && String(targetUser.username || '').trim() !== username) {
+      targetUser.username = username;
+      changed = true;
+    }
+
+    if (changed) {
+      await writeAuthUsers(users);
+      const label = keyHint || normalizeUsername(targetUser.usernameKey || targetUser.username || username);
+      console.log(`[auth/bootstrap] hydrated local profile for ${label}`);
+    }
+  };
+
+  if (!usernameKey) {
+    return { user: null, usernameKey: '', created: false };
+  }
+
+  const existingByUsername = users[usernameKey] || null;
+  if (existingByUsername) {
+    await hydrateExistingUser(existingByUsername, usernameKey);
+    ensureFriendRelationshipArrays(existingByUsername);
+    return { user: existingByUsername, usernameKey, created: false };
+  }
+
+  if (email) {
+    const existingByEmail = Object.values(users).find((candidate) => normalizeEmail(candidate && candidate.email) === email) || null;
+    if (existingByEmail) {
+      await hydrateExistingUser(existingByEmail);
+      ensureFriendRelationshipArrays(existingByEmail);
+      return {
+        user: existingByEmail,
+        usernameKey: normalizeUsername(existingByEmail.usernameKey || existingByEmail.username),
+        created: false
+      };
+    }
+  }
+
+  const created = createLocalAuthUserRecord(profile);
+  users[usernameKey] = created;
+  await writeAuthUsers(users);
+  console.log(`[auth/bootstrap] created local profile for ${usernameKey}`);
+  return { user: created, usernameKey, created: true };
 }
 
 function findAccountForRequest(users, username) {
@@ -1278,6 +1490,9 @@ app.post('/api/auth/register', async (req, res) => {
       username,
       usernameKey,
       phone,
+      friends: [],
+      friendRequestsIncoming: [],
+      friendRequestsOutgoing: [],
       passwordSalt: salt,
       passwordHash: hash,
       createdAt: Date.now(),
@@ -1292,6 +1507,41 @@ app.post('/api/auth/register', async (req, res) => {
   } catch (error) {
     console.error('[AUTH] Register error:', error);
     return res.status(500).json({ ok: false, error: 'Unable to register user' });
+  }
+});
+
+app.get('/api/auth/resolve-login', async (req, res) => {
+  try {
+    const identifier = String(req.query.identifier || '').trim();
+    if (!identifier) {
+      return res.status(400).json({ ok: false, error: 'Identifier is required' });
+    }
+
+    // Firebase accepts email directly; only username needs local lookup.
+    if (identifier.includes('@')) {
+      return res.json({ ok: true, email: normalizeEmail(identifier) });
+    }
+
+    const users = await readAuthUsers();
+    const normalizedUsername = normalizeUsername(identifier);
+    const user = users[normalizedUsername] || findUserByIdentifier(users, identifier);
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'Username not found' });
+    }
+
+    const email = normalizeEmail(user.email);
+    if (!email) {
+      return res.status(404).json({ ok: false, error: 'No email is linked to this username' });
+    }
+
+    return res.json({
+      ok: true,
+      email,
+      username: String(user.username || user.usernameKey || '').trim()
+    });
+  } catch (error) {
+    console.error('[AUTH] Resolve login identifier error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to resolve login identifier' });
   }
 });
 
@@ -1324,12 +1574,15 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/auth/account', async (req, res) => {
   try {
     const username = String(req.query.username || '').trim();
+    const email = normalizeEmail(req.query.email);
+    const fullname = String(req.query.fullname || '').trim();
+    const phone = normalizePhone(req.query.phone);
     if (!username) {
       return res.status(400).json({ ok: false, error: 'Username is required' });
     }
 
     const users = await readAuthUsers();
-    const { user } = findAccountForRequest(users, username);
+    const { user } = await ensureRequesterAccount(users, { username, email, fullname, phone });
     if (!user) {
       return res.status(404).json({ ok: false, error: 'Account not found' });
     }
@@ -1338,6 +1591,506 @@ app.get('/api/auth/account', async (req, res) => {
   } catch (error) {
     console.error('[AUTH] Account fetch error:', error);
     return res.status(500).json({ ok: false, error: 'Unable to load account' });
+  }
+});
+
+app.get('/api/auth/friends', async (req, res) => {
+  try {
+    const username = String(req.query.username || '').trim();
+    const email = normalizeEmail(req.query.email);
+    const fullname = String(req.query.fullname || '').trim();
+    const phone = normalizePhone(req.query.phone);
+    if (!username) {
+      return res.status(400).json({ ok: false, error: 'Username is required' });
+    }
+
+    const users = await readAuthUsers();
+    const { user } = await ensureRequesterAccount(users, { username, email, fullname, phone });
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'Account not found' });
+    }
+
+    ensureFriendRelationshipArrays(user);
+
+    return res.json({
+      ok: true,
+      friends: buildFriendsForResponse(users, user),
+      incomingRequests: buildFriendRequestsForResponse(users, user.friendRequestsIncoming),
+      outgoingRequests: buildFriendRequestsForResponse(users, user.friendRequestsOutgoing)
+    });
+  } catch (error) {
+    console.error('[AUTH] Friends fetch error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to load friends' });
+  }
+});
+
+app.get('/api/auth/friends/search', async (req, res) => {
+  try {
+    const username = String(req.query.username || '').trim();
+    const email = normalizeEmail(req.query.email);
+    const fullname = String(req.query.fullname || '').trim();
+    const phone = normalizePhone(req.query.phone);
+    const query = String(req.query.query || '').trim().toLowerCase();
+    if (!username) {
+      return res.status(400).json({ ok: false, error: 'Username is required' });
+    }
+    if (!query) {
+      return res.json({ ok: true, results: [] });
+    }
+
+    const users = await readAuthUsers();
+    const { user, usernameKey } = await ensureRequesterAccount(users, { username, email, fullname, phone });
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'Account not found' });
+    }
+
+    ensureFriendRelationshipArrays(user);
+    const excluded = new Set([
+      usernameKey,
+      ...user.friends,
+      ...user.friendRequestsIncoming,
+      ...user.friendRequestsOutgoing
+    ]);
+
+    const results = Object.values(users)
+      .filter((candidate) => {
+        if (!candidate) return false;
+        const candidateKey = normalizeUsername(candidate.usernameKey || candidate.username);
+        if (!candidateKey || excluded.has(candidateKey)) return false;
+        const candidateUsername = String(candidate.username || candidate.usernameKey || '').trim().toLowerCase();
+        const candidateName = String(candidate.fullname || '').trim().toLowerCase();
+        return candidateUsername.startsWith(query) || candidateName.startsWith(query);
+      })
+      .slice(0, 12)
+      .map((candidate) => ({
+        username: String(candidate.username || candidate.usernameKey || '').trim(),
+        usernameKey: normalizeUsername(candidate.usernameKey || candidate.username),
+        fullname: String(candidate.fullname || candidate.username || candidate.usernameKey || '').trim()
+      }));
+
+    return res.json({ ok: true, results });
+  } catch (error) {
+    console.error('[AUTH] Friends search error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to search users' });
+  }
+});
+
+async function handleFriendRequest(req, res) {
+  try {
+    const username = String(req.body.username || '').trim();
+    const email = normalizeEmail(req.body.email);
+    const fullname = String(req.body.fullname || '').trim();
+    const phone = normalizePhone(req.body.phone);
+    const friendUsernameRaw = String(req.body.friendUsername || '').trim();
+    console.log(`[friends/request] sender=${username || '<empty>'} target=${friendUsernameRaw || '<empty>'}`);
+
+    if (!username || !friendUsernameRaw) {
+      console.log('[friends/request] rejected: missing username or target');
+      return res.status(400).json({ ok: false, error: 'Username and friend username are required' });
+    }
+
+    const users = await readAuthUsers();
+    const { user, usernameKey } = await ensureRequesterAccount(users, { username, email, fullname, phone });
+    if (!user) {
+      console.log(`[friends/request] rejected: sender account not found for ${username}`);
+      return res.status(404).json({ ok: false, error: 'Account not found' });
+    }
+
+    const friend = users[normalizeUsername(friendUsernameRaw)] || findUserByIdentifier(users, friendUsernameRaw);
+    if (!friend) {
+      console.log(`[friends/request] rejected: friend account not found for ${friendUsernameRaw}`);
+      return res.status(404).json({ ok: false, error: 'Friend account not found' });
+    }
+
+    const normalizedFriendKey = normalizeUsername(friend.usernameKey || friend.username);
+    if (!normalizedFriendKey || normalizedFriendKey === usernameKey) {
+      console.log('[friends/request] rejected: self-request');
+      return res.status(400).json({ ok: false, error: 'You cannot add yourself' });
+    }
+
+    ensureFriendRelationshipArrays(user);
+    ensureFriendRelationshipArrays(friend);
+
+    if (user.friends.includes(normalizedFriendKey)) {
+      console.log(`[friends/request] rejected: already friends (${usernameKey} -> ${normalizedFriendKey})`);
+      return res.status(409).json({ ok: false, error: 'That user is already on your friends list' });
+    }
+
+    if (user.friendRequestsOutgoing.includes(normalizedFriendKey)) {
+      console.log(`[friends/request] rejected: duplicate outgoing (${usernameKey} -> ${normalizedFriendKey})`);
+      return res.status(409).json({ ok: false, error: 'Friend request already sent' });
+    }
+
+    if (user.friendRequestsIncoming.includes(normalizedFriendKey)) {
+      console.log(`[friends/request] rejected: inverse request exists (${normalizedFriendKey} -> ${usernameKey})`);
+      return res.status(409).json({ ok: false, error: 'That user has already sent you a request. Accept it below.' });
+    }
+
+    user.friendRequestsOutgoing.push(normalizedFriendKey);
+    if (!friend.friendRequestsIncoming.includes(usernameKey)) {
+      friend.friendRequestsIncoming.push(usernameKey);
+    }
+
+    await writeAuthUsers(users);
+    console.log(`[friends/request] success: ${usernameKey} -> ${normalizedFriendKey}`);
+    return res.json({
+      ok: true,
+      friends: buildFriendsForResponse(users, user),
+      incomingRequests: buildFriendRequestsForResponse(users, user.friendRequestsIncoming),
+      outgoingRequests: buildFriendRequestsForResponse(users, user.friendRequestsOutgoing),
+      message: 'Friend request sent'
+    });
+  } catch (error) {
+    console.error('[friends/request] server error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to send friend request' });
+  }
+}
+
+app.post('/api/auth/friends/request', handleFriendRequest);
+
+app.post('/api', async (req, res) => {
+  const username = String((req.body && req.body.username) || '').trim();
+  const friendUsername = String((req.body && req.body.friendUsername) || '').trim();
+
+  // Compatibility shim for stale clients that accidentally post to /api.
+  if (username && friendUsername) {
+    console.warn('[friends/request] compatibility route hit: POST /api, forwarding to /api/auth/friends/request');
+    return handleFriendRequest(req, res);
+  }
+
+  return res.status(404).json({
+    ok: false,
+    error: 'Cannot POST /api',
+    expected: '/api/auth/friends/request'
+  });
+});
+
+app.post('/api/auth/friends/accept', async (req, res) => {
+  try {
+    const username = String(req.body.username || '').trim();
+    const friendUsernameRaw = String(req.body.friendUsername || '').trim();
+
+    if (!username || !friendUsernameRaw) {
+      return res.status(400).json({ ok: false, error: 'Username and friend username are required' });
+    }
+
+    const users = await readAuthUsers();
+    const { user, usernameKey } = findAccountForRequest(users, username);
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'Account not found' });
+    }
+
+    const friend = users[normalizeUsername(friendUsernameRaw)] || findUserByIdentifier(users, friendUsernameRaw);
+    if (!friend) {
+      return res.status(404).json({ ok: false, error: 'Friend account not found' });
+    }
+
+    const normalizedFriendKey = normalizeUsername(friend.usernameKey || friend.username);
+    ensureFriendRelationshipArrays(user);
+    ensureFriendRelationshipArrays(friend);
+
+    if (!user.friendRequestsIncoming.includes(normalizedFriendKey)) {
+      return res.status(409).json({ ok: false, error: 'No incoming request from that user' });
+    }
+
+    user.friendRequestsIncoming = user.friendRequestsIncoming.filter((entry) => entry !== normalizedFriendKey);
+    friend.friendRequestsOutgoing = friend.friendRequestsOutgoing.filter((entry) => entry !== usernameKey);
+
+    if (!user.friends.includes(normalizedFriendKey)) {
+      user.friends.push(normalizedFriendKey);
+    }
+    if (!friend.friends.includes(usernameKey)) {
+      friend.friends.push(usernameKey);
+    }
+
+    await writeAuthUsers(users);
+    return res.json({
+      ok: true,
+      friends: buildFriendsForResponse(users, user),
+      incomingRequests: buildFriendRequestsForResponse(users, user.friendRequestsIncoming),
+      outgoingRequests: buildFriendRequestsForResponse(users, user.friendRequestsOutgoing)
+    });
+  } catch (error) {
+    console.error('[AUTH] Accept friend request error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to accept friend request' });
+  }
+});
+
+app.post('/api/auth/friends/decline', async (req, res) => {
+  try {
+    const username = String(req.body.username || '').trim();
+    const friendUsernameRaw = String(req.body.friendUsername || '').trim();
+
+    if (!username || !friendUsernameRaw) {
+      return res.status(400).json({ ok: false, error: 'Username and friend username are required' });
+    }
+
+    const users = await readAuthUsers();
+    const { user, usernameKey } = findAccountForRequest(users, username);
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'Account not found' });
+    }
+
+    const friend = users[normalizeUsername(friendUsernameRaw)] || findUserByIdentifier(users, friendUsernameRaw) || null;
+    const normalizedFriendKey = normalizeUsername(friend && (friend.usernameKey || friend.username) || friendUsernameRaw);
+
+    ensureFriendRelationshipArrays(user);
+    user.friendRequestsIncoming = user.friendRequestsIncoming.filter((entry) => entry !== normalizedFriendKey);
+    user.friendRequestsOutgoing = user.friendRequestsOutgoing.filter((entry) => entry !== normalizedFriendKey);
+
+    if (friend) {
+      ensureFriendRelationshipArrays(friend);
+      friend.friendRequestsIncoming = friend.friendRequestsIncoming.filter((entry) => entry !== usernameKey);
+      friend.friendRequestsOutgoing = friend.friendRequestsOutgoing.filter((entry) => entry !== usernameKey);
+    }
+
+    await writeAuthUsers(users);
+    return res.json({
+      ok: true,
+      friends: buildFriendsForResponse(users, user),
+      incomingRequests: buildFriendRequestsForResponse(users, user.friendRequestsIncoming),
+      outgoingRequests: buildFriendRequestsForResponse(users, user.friendRequestsOutgoing)
+    });
+  } catch (error) {
+    console.error('[AUTH] Decline friend request error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to decline friend request' });
+  }
+});
+
+app.post('/api/auth/friends/add', async (req, res) => {
+  try {
+    const username = String(req.body.username || '').trim();
+    const friendUsernameRaw = String(req.body.friendUsername || '').trim();
+
+    if (!username || !friendUsernameRaw) {
+      return res.status(400).json({ ok: false, error: 'Username and friend username are required' });
+    }
+
+    const users = await readAuthUsers();
+    const { user, usernameKey } = findAccountForRequest(users, username);
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'Account not found' });
+    }
+
+    const friend = users[normalizeUsername(friendUsernameRaw)] || findUserByIdentifier(users, friendUsernameRaw);
+    if (!friend) {
+      return res.status(404).json({ ok: false, error: 'Friend account not found' });
+    }
+
+    const normalizedFriendKey = normalizeUsername(friend.usernameKey || friend.username);
+    ensureFriendRelationshipArrays(user);
+    ensureFriendRelationshipArrays(friend);
+
+    if (user.friendRequestsIncoming.includes(normalizedFriendKey)) {
+      user.friendRequestsIncoming = user.friendRequestsIncoming.filter((entry) => entry !== normalizedFriendKey);
+      friend.friendRequestsOutgoing = friend.friendRequestsOutgoing.filter((entry) => entry !== usernameKey);
+      if (!user.friends.includes(normalizedFriendKey)) user.friends.push(normalizedFriendKey);
+      if (!friend.friends.includes(usernameKey)) friend.friends.push(usernameKey);
+      await writeAuthUsers(users);
+      return res.json({
+        ok: true,
+        friends: buildFriendsForResponse(users, user),
+        incomingRequests: buildFriendRequestsForResponse(users, user.friendRequestsIncoming),
+        outgoingRequests: buildFriendRequestsForResponse(users, user.friendRequestsOutgoing),
+        message: 'Friend request accepted'
+      });
+    }
+
+    if (user.friendRequestsOutgoing.includes(normalizedFriendKey)) {
+      return res.status(409).json({ ok: false, error: 'Friend request already sent' });
+    }
+
+    if (user.friends.includes(normalizedFriendKey)) {
+      return res.status(409).json({ ok: false, error: 'That user is already on your friends list' });
+    }
+
+    user.friendRequestsOutgoing.push(normalizedFriendKey);
+    if (!friend.friendRequestsIncoming.includes(usernameKey)) {
+      friend.friendRequestsIncoming.push(usernameKey);
+    }
+
+    await writeAuthUsers(users);
+    return res.json({
+      ok: true,
+      friends: buildFriendsForResponse(users, user),
+      incomingRequests: buildFriendRequestsForResponse(users, user.friendRequestsIncoming),
+      outgoingRequests: buildFriendRequestsForResponse(users, user.friendRequestsOutgoing),
+      message: 'Friend request sent'
+    });
+  } catch (error) {
+    console.error('[AUTH] Add friend error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to add friend' });
+  }
+});
+
+app.post('/api/auth/friends/remove', async (req, res) => {
+  try {
+    const username = String(req.body.username || '').trim();
+    const friendUsernameRaw = String(req.body.friendUsername || '').trim();
+
+    if (!username || !friendUsernameRaw) {
+      return res.status(400).json({ ok: false, error: 'Username and friend username are required' });
+    }
+
+    const users = await readAuthUsers();
+    const { user, usernameKey } = findAccountForRequest(users, username);
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'Account not found' });
+    }
+
+    const friend = users[normalizeUsername(friendUsernameRaw)] || findUserByIdentifier(users, friendUsernameRaw) || null;
+    const resolvedFriendKey = normalizeUsername(friend && (friend.usernameKey || friend.username) || friendUsernameRaw);
+
+    ensureFriendRelationshipArrays(user);
+    user.friendRequestsIncoming = user.friendRequestsIncoming.filter((entry) => entry !== resolvedFriendKey);
+    user.friendRequestsOutgoing = user.friendRequestsOutgoing.filter((entry) => entry !== resolvedFriendKey);
+    user.friends = user.friends.filter((item) => normalizeUsername(item) !== resolvedFriendKey);
+
+    if (friend) {
+      ensureFriendRelationshipArrays(friend);
+      friend.friendRequestsIncoming = friend.friendRequestsIncoming.filter((entry) => entry !== usernameKey);
+      friend.friendRequestsOutgoing = friend.friendRequestsOutgoing.filter((entry) => entry !== usernameKey);
+      friend.friends = friend.friends.filter((item) => normalizeUsername(item) !== usernameKey);
+    }
+
+    await writeAuthUsers(users);
+    return res.json({
+      ok: true,
+      friends: buildFriendsForResponse(users, user),
+      incomingRequests: buildFriendRequestsForResponse(users, user.friendRequestsIncoming),
+      outgoingRequests: buildFriendRequestsForResponse(users, user.friendRequestsOutgoing)
+    });
+  } catch (error) {
+    console.error('[AUTH] Remove friend error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to remove friend' });
+  }
+});
+
+app.get('/api/auth/friends/messages', async (req, res) => {
+  try {
+    const username = String(req.query.username || '').trim();
+    const email = normalizeEmail(req.query.email);
+    const fullname = String(req.query.fullname || '').trim();
+    const phone = normalizePhone(req.query.phone);
+    const friendUsernameRaw = String(req.query.friendUsername || '').trim();
+
+    if (!username || !friendUsernameRaw) {
+      return res.status(400).json({ ok: false, error: 'Username and friend username are required' });
+    }
+
+    const users = await readAuthUsers();
+    const { user, usernameKey } = await ensureRequesterAccount(users, { username, email, fullname, phone });
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'Account not found' });
+    }
+
+    const friend = users[normalizeUsername(friendUsernameRaw)] || findUserByIdentifier(users, friendUsernameRaw);
+    if (!friend) {
+      return res.status(404).json({ ok: false, error: 'Friend account not found' });
+    }
+
+    const normalizedFriendKey = normalizeUsername(friend.usernameKey || friend.username);
+    ensureFriendRelationshipArrays(user);
+    ensureFriendRelationshipArrays(friend);
+    ensureFriendMessageStore(user);
+    ensureFriendMessageStore(friend);
+
+    if (!user.friends.includes(normalizedFriendKey)) {
+      return res.status(403).json({ ok: false, error: 'You can only message users in your friends list' });
+    }
+
+    const messages = Array.isArray(user.friendMessages[normalizedFriendKey])
+      ? user.friendMessages[normalizedFriendKey].slice().sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0))
+      : [];
+
+    return res.json({
+      ok: true,
+      friend: {
+        username: String(friend.username || friend.usernameKey || '').trim(),
+        usernameKey: normalizedFriendKey,
+        fullname: String(friend.fullname || friend.username || friend.usernameKey || '').trim()
+      },
+      messages
+    });
+  } catch (error) {
+    console.error('[AUTH] Friends messages fetch error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to load messages' });
+  }
+});
+
+app.post('/api/auth/friends/messages/send', async (req, res) => {
+  try {
+    const username = String(req.body.username || '').trim();
+    const email = normalizeEmail(req.body.email);
+    const fullname = String(req.body.fullname || '').trim();
+    const phone = normalizePhone(req.body.phone);
+    const friendUsernameRaw = String(req.body.friendUsername || '').trim();
+    const text = String(req.body.text || '').trim();
+
+    if (!username || !friendUsernameRaw || !text) {
+      return res.status(400).json({ ok: false, error: 'Username, friend username, and message text are required' });
+    }
+    if (text.length > 800) {
+      return res.status(400).json({ ok: false, error: 'Message must be 800 characters or fewer' });
+    }
+
+    const users = await readAuthUsers();
+    const { user, usernameKey } = await ensureRequesterAccount(users, { username, email, fullname, phone });
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'Account not found' });
+    }
+
+    const friend = users[normalizeUsername(friendUsernameRaw)] || findUserByIdentifier(users, friendUsernameRaw);
+    if (!friend) {
+      return res.status(404).json({ ok: false, error: 'Friend account not found' });
+    }
+
+    const normalizedFriendKey = normalizeUsername(friend.usernameKey || friend.username);
+    ensureFriendRelationshipArrays(user);
+    ensureFriendRelationshipArrays(friend);
+    ensureFriendMessageStore(user);
+    ensureFriendMessageStore(friend);
+
+    if (!user.friends.includes(normalizedFriendKey)) {
+      return res.status(403).json({ ok: false, error: 'You can only message users in your friends list' });
+    }
+
+    if (!Array.isArray(user.friendMessages[normalizedFriendKey])) {
+      user.friendMessages[normalizedFriendKey] = [];
+    }
+    if (!Array.isArray(friend.friendMessages[usernameKey])) {
+      friend.friendMessages[usernameKey] = [];
+    }
+
+    const message = {
+      id: crypto.randomUUID(),
+      from: usernameKey,
+      to: normalizedFriendKey,
+      text,
+      createdAt: Date.now()
+    };
+
+    user.friendMessages[normalizedFriendKey].push(message);
+    friend.friendMessages[usernameKey].push(message);
+
+    await writeAuthUsers(users);
+
+    const messages = user.friendMessages[normalizedFriendKey]
+      .slice()
+      .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+
+    return res.json({
+      ok: true,
+      friend: {
+        username: String(friend.username || friend.usernameKey || '').trim(),
+        usernameKey: normalizedFriendKey,
+        fullname: String(friend.fullname || friend.username || friend.usernameKey || '').trim()
+      },
+      messages
+    });
+  } catch (error) {
+    console.error('[AUTH] Friends message send error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to send message' });
   }
 });
 
@@ -1465,6 +2218,13 @@ app.post('/api/auth/account/delete', async (req, res) => {
     }
 
     delete users[usernameKey];
+    Object.values(users).forEach((candidate) => {
+      if (!candidate) return;
+      ensureFriendRelationshipArrays(candidate);
+      candidate.friends = candidate.friends.filter((friendKey) => normalizeUsername(friendKey) !== usernameKey);
+      candidate.friendRequestsIncoming = candidate.friendRequestsIncoming.filter((friendKey) => normalizeUsername(friendKey) !== usernameKey);
+      candidate.friendRequestsOutgoing = candidate.friendRequestsOutgoing.filter((friendKey) => normalizeUsername(friendKey) !== usernameKey);
+    });
     await writeAuthUsers(users);
     return res.json({ ok: true, message: 'Account deleted permanently' });
   } catch (error) {
@@ -5375,6 +6135,18 @@ io.on('connection', (socket) => {
     if(cb) cb({ ok: true, draft: drafts[code] });
   });
 
+  function closeLobbyBecauseHostLeft(code, reason) {
+    if (!drafts[code]) return;
+    drafts[code].closed = true;
+    drafts[code].host = null;
+    io.to(code).emit('draftUpdate', drafts[code]);
+    io.to(code).emit('draftClosed', {
+      code,
+      reason: reason || 'host_left',
+      message: 'The lobby was closed by the host.'
+    });
+  }
+
   // Clients can request to leave a draft; server will update state and broadcast
   socket.on('leaveDraft', (code, username, cb) => {
     if(drafts[code] && drafts[code].members){
@@ -5382,11 +6154,11 @@ io.on('connection', (socket) => {
       const wasHost = drafts[code].members.length && drafts[code].members[0] === username;
       drafts[code].members = drafts[code].members.filter(m => m !== username);
       if(wasHost){
-        // mark draft closed so new joins are rejected and notify remaining clients
-        drafts[code].closed = true;
-        drafts[code].host = null;
+        // host left lobby intentionally: close and notify everyone remaining
+        closeLobbyBecauseHostLeft(code, 'host_left');
+      } else {
+        io.to(code).emit('draftUpdate', drafts[code]);
       }
-      io.to(code).emit('draftUpdate', drafts[code]);
     }
     try{ socket.leave(code); }catch(e){}
     if(cb) cb({ ok: true });
@@ -7741,14 +8513,22 @@ io.on('connection', (socket) => {
     if (cb) cb({ ok: true, waiverState });
   });
 
-  // handle socket disconnect: don't remove from members or close draft
-  // (user might just be refreshing or having connection issues)
+  // handle socket disconnect: if host drops from lobby, close it and notify everyone
   socket.on('disconnect', () => {
-    // Just log the disconnect, don't modify draft state
     const username = socket.data.username;
     const code = socket.data.currentDraft;
     if(username && code){
       console.log(`[disconnect] ${username} disconnected from ${code}`);
+      if (drafts[code] && Array.isArray(drafts[code].members)) {
+        const wasHost = drafts[code].members.length && drafts[code].members[0] === username;
+        if (wasHost) {
+          drafts[code].members = drafts[code].members.filter(m => m !== username);
+          closeLobbyBecauseHostLeft(code, 'host_disconnected');
+        } else {
+          drafts[code].members = drafts[code].members.filter(m => m !== username);
+          io.to(code).emit('draftUpdate', drafts[code]);
+        }
+      }
     }
 
     // Clear auto-draft status on disconnect for active draft room participants.
