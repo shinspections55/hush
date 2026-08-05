@@ -3,10 +3,14 @@
 
 const express = require('express');
 const path = require('path');
+const fsSync = require('fs');
 const http = require('http');
 const fs = require('fs/promises');
 const crypto = require('crypto');
 const compression = require('compression');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const cors = require('cors');
 const nodemailer = require('nodemailer');
 const { Server } = require('socket.io');
 const app = express();
@@ -22,6 +26,37 @@ const { runTiedAuctionRound, pickRandomCPU, placeForcedBid, getAggression, decid
 app.use(express.json({ limit: '5mb' }));
 app.disable('x-powered-by');
 app.use(compression({ threshold: 1024 }));
+app.set('trust proxy', 1);
+
+app.use(helmet({
+  // Keep CSP disabled for now because current pages rely on inline script/style patterns.
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
+
+app.use(cors({
+  origin: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+}));
+
+const authApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many auth requests, please try again shortly.' }
+});
+
+const adminApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many admin requests, please try again shortly.' }
+});
+
+app.use('/api/auth', authApiLimiter);
+app.use('/api/admin', adminApiLimiter);
 
 // Ensure API consumers always get JSON for malformed request bodies.
 app.use((err, req, res, next) => {
@@ -33,10 +68,16 @@ app.use((err, req, res, next) => {
   return next(err);
 });
 
-const AUTH_USERS_FILE = path.join(__dirname, 'auth-users.json');
+const LEGACY_AUTH_USERS_FILE = path.join(__dirname, 'auth-users.json');
+const AUTH_DATA_DIR = path.join(__dirname, '..', '.hush-data');
+const AUTH_USERS_FILE = path.join(AUTH_DATA_DIR, 'auth-users.json');
 const RESET_CODE_TTL_MS = 10 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
-const ADMIN_DEBUG_KEY = String(process.env.ADMIN_DEBUG_KEY || '1218').trim();
+const ADMIN_DEBUG_KEY = String(process.env.ADMIN_DEBUG_KEY || '').trim();
+const GIPHY_API_KEY = String(process.env.GIPHY_API_KEY || process.env.GIPHY_PUBLIC_API_KEY || 'dc6zaTOxFJmzC').trim();
+const GIPHY_CACHE_TTL_MS = 2 * 60 * 1000;
+const giphySearchCache = new Map();
+let giphyRateLimitedUntil = 0;
 const CPU_LOGIC_FILE = path.join(__dirname, 'cpulogic.js');
 const DEFAULT_RANKINGS_FILE = path.join(__dirname, 'top250.generated.json');
 const FALLBACK_RANKINGS_FILE = path.join(__dirname, 'top250.json');
@@ -112,12 +153,33 @@ async function readAuthUsers() {
     const parsed = JSON.parse(raw);
     return normalizeAuthUsers(parsed);
   } catch (error) {
-    if (error.code === 'ENOENT') return {};
+    if (error.code === 'ENOENT') {
+      try {
+        const legacyRaw = await fs.readFile(LEGACY_AUTH_USERS_FILE, 'utf8');
+        const legacyParsed = JSON.parse(legacyRaw);
+        const normalized = normalizeAuthUsers(legacyParsed);
+        await writeAuthUsers(normalized);
+
+        const migratedAt = new Date().toISOString().replace(/[:.]/g, '-');
+        const legacyBackupPath = path.join(__dirname, 'backups', `auth-users.migrated.${migratedAt}.json`);
+        await fs.mkdir(path.dirname(legacyBackupPath), { recursive: true });
+        await fs.rename(LEGACY_AUTH_USERS_FILE, legacyBackupPath).catch(() => {});
+
+        console.log(`[auth/storage] migrated legacy auth users to ${AUTH_USERS_FILE}`);
+        return normalized;
+      } catch (legacyError) {
+        if (legacyError && legacyError.code === 'ENOENT') {
+          return {};
+        }
+        throw legacyError;
+      }
+    }
     throw error;
   }
 }
 
 async function writeAuthUsers(users) {
+  await fs.mkdir(path.dirname(AUTH_USERS_FILE), { recursive: true });
   await fs.writeFile(AUTH_USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
 }
 
@@ -1210,7 +1272,96 @@ async function getEffectiveAV(player) {
   }
 }
 
-const root = path.join(__dirname, '.');
+const publicRootCandidate = path.join(__dirname, 'public');
+const root = fsSync.existsSync(publicRootCandidate)
+  ? publicRootCandidate
+  : path.join(__dirname, '.');
+const BLOCKED_PUBLIC_FILES = new Set([
+  '/auth-users.json',
+  '/authorized-users.json',
+  '/database.sqlite',
+  '/database.sqlite-shm',
+  '/database.sqlite-wal',
+  '/.env'
+]);
+const BLOCKED_PUBLIC_BASENAMES = new Set([
+  'auth-users.json',
+  'authorized-users.json',
+  '.env',
+  'database.sqlite',
+  'database.sqlite-shm',
+  'database.sqlite-wal'
+]);
+const BLOCKED_PUBLIC_PATH_SEGMENTS = new Set([
+  '.git',
+  '.hush-data',
+  'backups',
+  'node_modules',
+  'players file',
+  'hushv3.8.1',
+  'memories'
+]);
+const PUBLIC_JS_BASENAMES = new Set([
+  'account.js',
+  'admin-delivery-debug.js',
+  'admin-portal.js',
+  'admin-simulations.js',
+  'av-trends.js',
+  'dashboard.js',
+  'draft-summary.js',
+  'firebase-auth.js',
+  'firebase-config.js',
+  'forgot-password.js',
+  'friends.js',
+  'join-private.js',
+  'lobby-private.js',
+  'lobby-public.js',
+  'lobby.js',
+  'offline-draft-print.js',
+  'preferences.js',
+  'rankings.js',
+  'recent-drafts.js',
+  'register.js',
+  'reset-password.js',
+  'scripts.js',
+  'service-worker.js',
+  'silentdraft.js',
+  'sw-register.js',
+  'theme-utils.js',
+  'waivers.js',
+  'wallet.js'
+]);
+const PUBLIC_JSON_BASENAMES = new Set([
+  'manifest.json',
+  'manifest-admin.json',
+  'top250.json',
+  'top250.generated.json'
+]);
+
+app.use((req, res, next) => {
+  const requestPath = String(req.path || '').toLowerCase();
+  const baseName = path.posix.basename(requestPath);
+  const extName = path.posix.extname(baseName);
+  const pathParts = requestPath.split('/').filter(Boolean);
+
+  if (pathParts.some((part) => BLOCKED_PUBLIC_PATH_SEGMENTS.has(part))) {
+    return res.status(404).send('Not found');
+  }
+
+  if (BLOCKED_PUBLIC_FILES.has(requestPath) || BLOCKED_PUBLIC_BASENAMES.has(baseName)) {
+    return res.status(404).send('Not found');
+  }
+
+  if (extName === '.js' && !PUBLIC_JS_BASENAMES.has(baseName)) {
+    return res.status(404).send('Not found');
+  }
+
+  if (extName === '.json' && !PUBLIC_JSON_BASENAMES.has(baseName)) {
+    return res.status(404).send('Not found');
+  }
+
+  return next();
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -1450,6 +1601,222 @@ app.get('/api/rss/sports-news', async (req, res) => {
       degraded: true,
       error: 'Failed to fetch sports RSS feeds',
       items: sportsRssCache.items.slice(0, 9)
+    });
+  }
+});
+
+app.get('/api/gifs/search', async (req, res) => {
+  try {
+    if (!GIPHY_API_KEY) {
+      return res.status(503).json({
+        ok: false,
+        error: 'GIF search is not configured on this server.'
+      });
+    }
+
+    const query = String(req.query.q || '').trim();
+    const limitRaw = Number.parseInt(req.query.limit, 10);
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(limitRaw, 30)) : 24;
+    const offsetRaw = Number.parseInt(req.query.offset, 10);
+    const offset = Number.isFinite(offsetRaw) ? Math.max(0, Math.min(offsetRaw, 5000)) : 0;
+    const rating = String(req.query.rating || 'pg-13').trim() || 'pg-13';
+    const cacheKey = `${query || '__trending__'}|${limit}|${offset}|${rating}`;
+    const now = Date.now();
+
+    const cachedFresh = giphySearchCache.get(cacheKey);
+    if (cachedFresh && (now - Number(cachedFresh.cachedAt || 0)) < GIPHY_CACHE_TTL_MS) {
+      return res.json({
+        ok: true,
+        cached: true,
+        items: cachedFresh.items,
+        pagination: cachedFresh.pagination
+      });
+    }
+
+    if (now < giphyRateLimitedUntil) {
+      const cachedAny = giphySearchCache.get(cacheKey);
+      if (cachedAny && Array.isArray(cachedAny.items) && cachedAny.items.length) {
+        return res.json({
+          ok: true,
+          cached: true,
+          rateLimited: true,
+          retryAfterMs: Math.max(0, giphyRateLimitedUntil - now),
+          items: cachedAny.items,
+          pagination: cachedAny.pagination
+        });
+      }
+
+      return res.status(429).json({
+        ok: false,
+        error: 'GIF provider is temporarily rate limited.',
+        retryAfterMs: Math.max(0, giphyRateLimitedUntil - now)
+      });
+    }
+
+    const endpoint = query
+      ? `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(GIPHY_API_KEY)}&q=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}&rating=${encodeURIComponent(rating)}&lang=en`
+      : `https://api.giphy.com/v1/gifs/trending?api_key=${encodeURIComponent(GIPHY_API_KEY)}&limit=${limit}&offset=${offset}&rating=${encodeURIComponent(rating)}`;
+    const response = await fetch(endpoint, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'HUSHFantasyDrafts/1.0'
+      }
+    });
+
+    if (!response.ok) {
+      const responseText = await response.text().catch(() => '');
+      const providerText = String(responseText || '').toLowerCase();
+      const providerSuggestsKeyIssue = providerText.includes('invalid authentication')
+        || providerText.includes('invalid api key')
+        || providerText.includes('api key')
+        || providerText.includes('forbidden');
+      console.warn(`[giphy] Search failed ${response.status}: ${responseText.slice(0, 200)}`);
+
+      if (response.status === 429) {
+        const retryAfterHeader = Number.parseInt(String(response.headers.get('retry-after') || ''), 10);
+        const retryAfterMs = Number.isFinite(retryAfterHeader) && retryAfterHeader > 0
+          ? retryAfterHeader * 1000
+          : 60 * 1000;
+        giphyRateLimitedUntil = Date.now() + retryAfterMs;
+      }
+
+      const cachedAny = giphySearchCache.get(cacheKey);
+      if (response.status === 429 && cachedAny && Array.isArray(cachedAny.items) && cachedAny.items.length) {
+        return res.json({
+          ok: true,
+          cached: true,
+          rateLimited: true,
+          retryAfterMs: Math.max(0, giphyRateLimitedUntil - Date.now()),
+          items: cachedAny.items,
+          pagination: cachedAny.pagination
+        });
+      }
+
+      return res.status(response.status).json({
+        ok: false,
+        error: providerSuggestsKeyIssue
+          ? 'Configured GIPHY key is being rejected by the provider.'
+          : 'GIF search provider returned an error.',
+        providerRejectedKey: providerSuggestsKeyIssue,
+        providerHttpStatus: response.status
+      });
+    }
+
+    const payload = await response.json().catch(() => null);
+    const data = Array.isArray(payload && payload.data) ? payload.data : [];
+
+    const items = data
+      .map((entry) => {
+        const images = entry && entry.images ? entry.images : {};
+        const preferred = (images.fixed_width && images.fixed_width.url) ||
+          (images.downsized && images.downsized.url) ||
+          (images.original && images.original.url) || '';
+
+        return {
+          title: String(entry && entry.title || '').trim() || 'Giphy',
+          tags: String(entry && entry.slug || '').trim(),
+          previewUrl: String((images.fixed_width && images.fixed_width.url) || (images.downsized && images.downsized.url) || preferred || '').trim(),
+          url: String(preferred || '').trim()
+        };
+      })
+      .filter((entry) => Boolean(entry.url));
+
+    const pagination = payload && payload.pagination && typeof payload.pagination === 'object'
+      ? payload.pagination
+      : {};
+
+    const paginationResult = {
+      offset: Number(pagination.offset || offset) || 0,
+      count: Number(pagination.count || items.length) || items.length,
+      total_count: Number(pagination.total_count || 0) || 0
+    };
+
+    giphySearchCache.set(cacheKey, {
+      cachedAt: now,
+      items,
+      pagination: paginationResult
+    });
+
+    return res.json({
+      ok: true,
+      items,
+      pagination: paginationResult
+    });
+  } catch (error) {
+    console.error('[giphy] Unexpected search failure:', error);
+    return res.status(500).json({
+      ok: false,
+      error: 'Unable to search GIFs right now.'
+    });
+  }
+});
+
+app.get('/api/admin/gifs/provider-status', requireAdminDebugKey, async (_req, res) => {
+  const usingPublicFallbackKey = GIPHY_API_KEY === 'dc6zaTOxFJmzC';
+  const configured = Boolean(GIPHY_API_KEY);
+
+  if (!configured) {
+    return res.json({
+      ok: true,
+      configured: false,
+      usingPublicFallbackKey,
+      authenticated: false,
+      providerHttpStatus: null,
+      message: 'GIPHY_API_KEY is not configured.'
+    });
+  }
+
+  try {
+    const probeUrl = `https://api.giphy.com/v1/gifs/trending?api_key=${encodeURIComponent(GIPHY_API_KEY)}&limit=1&rating=pg`;
+    const probeResponse = await fetch(probeUrl, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'HUSHFantasyDrafts/1.0'
+      },
+      signal: typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+        ? AbortSignal.timeout(6000)
+        : undefined
+    });
+
+    const providerBodyText = await probeResponse.text().catch(() => '');
+    const providerBodySnippet = String(providerBodyText || '').slice(0, 240);
+    const providerTextLower = providerBodySnippet.toLowerCase();
+    const providerSuggestsKeyIssue = providerTextLower.includes('invalid authentication')
+      || providerTextLower.includes('invalid api key')
+      || providerTextLower.includes('api key')
+      || providerTextLower.includes('forbidden');
+
+    const rateLimitLimit = Number.parseInt(String(probeResponse.headers.get('x-ratelimit-limit') || ''), 10);
+    const rateLimitRemaining = Number.parseInt(String(probeResponse.headers.get('x-ratelimit-remaining') || ''), 10);
+    const rateLimitReset = Number.parseInt(String(probeResponse.headers.get('x-ratelimit-reset') || ''), 10);
+
+    return res.json({
+      ok: true,
+      configured: true,
+      usingPublicFallbackKey,
+      authenticated: probeResponse.ok,
+      providerHttpStatus: probeResponse.status,
+      providerRejectedKey: providerSuggestsKeyIssue,
+      providerBodySnippet,
+      providerRateLimit: {
+        limit: Number.isFinite(rateLimitLimit) ? rateLimitLimit : null,
+        remaining: Number.isFinite(rateLimitRemaining) ? rateLimitRemaining : null,
+        resetEpochSeconds: Number.isFinite(rateLimitReset) ? rateLimitReset : null
+      },
+      message: probeResponse.ok
+        ? 'GIF provider is reachable and key is accepted.'
+        : (providerSuggestsKeyIssue
+          ? 'GIF provider indicates the configured key is invalid or not authorized for this endpoint.'
+          : 'GIF provider rejected the configured key.')
+    });
+  } catch (error) {
+    return res.json({
+      ok: true,
+      configured: true,
+      usingPublicFallbackKey,
+      authenticated: false,
+      providerHttpStatus: null,
+      message: `GIF provider probe failed: ${error.message || 'unknown error'}`
     });
   }
 });
@@ -5935,6 +6302,133 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
   }
 }
 
+function applyWonRoundResultsToDraftState(draftState, draftCode, roundNumber, results) {
+  if (!draftState || !Array.isArray(draftState.teams) || !Array.isArray(draftState.allPlayers) || !Array.isArray(results)) {
+    return { applied: 0, skipped: 0, removedConflicts: 0 };
+  }
+
+  const normalizeName = (value) => String(value || '').trim().toLowerCase();
+  const teams = draftState.teams;
+  const allPlayers = draftState.allPlayers;
+  const teamByName = new Map(
+    teams
+      .map((team) => [normalizeName(team && team.name), team])
+      .filter(([name, team]) => Boolean(name) && Boolean(team))
+  );
+
+  const positionOrder = { QB: 1, RB: 2, WR: 3, TE: 4, K: 5, DEF: 6 };
+  const sortRoster = (roster) => {
+    if (!Array.isArray(roster)) return;
+    roster.sort((a, b) => {
+      const posA = positionOrder[String(a && a.position || '').toUpperCase()] || 99;
+      const posB = positionOrder[String(b && b.position || '').toUpperCase()] || 99;
+      if (posA !== posB) return posA - posB;
+      const rankA = Number.isFinite(Number(a && a.positionRank)) ? Number(a.positionRank) : Number(a && a.prerank || 999);
+      const rankB = Number.isFinite(Number(b && b.positionRank)) ? Number(b.positionRank) : Number(b && b.prerank || 999);
+      if (rankA !== rankB) return rankA - rankB;
+      return String(a && a.name || '').localeCompare(String(b && b.name || ''));
+    });
+  };
+
+  let applied = 0;
+  let skipped = 0;
+  let removedConflicts = 0;
+
+  results.forEach((result) => {
+    if (!result || String(result.type || '').toLowerCase() !== 'won') return;
+
+    const winnerTeamName = String(result.winnerTeam || '').trim();
+    const winnerKey = normalizeName(winnerTeamName);
+    const winnerTeam = teamByName.get(winnerKey);
+    if (!winnerTeam) {
+      skipped += 1;
+      console.warn(`[round-commit] Missing winner team for drafted player ${String(result.playerName || '').trim()}: ${winnerTeamName}`);
+      return;
+    }
+    if (!Array.isArray(winnerTeam.roster)) winnerTeam.roster = [];
+
+    const safePlayerId = Number(result.playerId);
+    const safePlayerNameKey = normalizeName(result.playerName);
+    const statePlayer = allPlayers.find((player) => {
+      const playerId = Number(player && player.id);
+      if (Number.isFinite(safePlayerId) && Number.isFinite(playerId)) {
+        return playerId === safePlayerId;
+      }
+      return normalizeName(player && player.name) === safePlayerNameKey;
+    });
+
+    if (!statePlayer) {
+      skipped += 1;
+      console.warn(`[round-commit] Could not find state player for result id=${String(result.playerId)} name=${String(result.playerName || '').trim()}`);
+      return;
+    }
+
+    const normalizedWinner = String(winnerTeam.name || winnerTeamName).trim();
+
+    teams.forEach((team) => {
+      if (!team || !Array.isArray(team.roster)) return;
+      if (team === winnerTeam) return;
+      const before = team.roster.length;
+      team.roster = team.roster.filter((candidate) => {
+        const candidateId = Number(candidate && candidate.id);
+        if (Number.isFinite(safePlayerId) && Number.isFinite(candidateId)) {
+          return candidateId !== safePlayerId;
+        }
+        return normalizeName(candidate && candidate.name) !== safePlayerNameKey;
+      });
+      removedConflicts += Math.max(0, before - team.roster.length);
+    });
+
+    const existingRosterPlayer = winnerTeam.roster.find((candidate) => {
+      const candidateId = Number(candidate && candidate.id);
+      if (Number.isFinite(safePlayerId) && Number.isFinite(candidateId)) {
+        return candidateId === safePlayerId;
+      }
+      return normalizeName(candidate && candidate.name) === safePlayerNameKey;
+    });
+
+    const finalPrice = Math.max(1, Number(result.pricePaid || result.bidAmount || 1));
+    const resolvedPosition = String((statePlayer && statePlayer.position) || result.playerPosition || '').trim().toUpperCase() || 'UNK';
+
+    if (existingRosterPlayer) {
+      existingRosterPlayer.bid = finalPrice;
+      existingRosterPlayer.position = resolvedPosition;
+      existingRosterPlayer.team = String((statePlayer && statePlayer.team) || result.playerTeam || '').trim().toUpperCase();
+      existingRosterPlayer.byeWeek = normalizeByeWeekValue((statePlayer && statePlayer.byeWeek) ?? result.playerByeWeek);
+      existingRosterPlayer.avgValue = Number((statePlayer && statePlayer.avgValue) || existingRosterPlayer.avgValue || 0);
+      existingRosterPlayer.prerank = Number((statePlayer && (statePlayer.prerank ?? statePlayer.positionRank)) ?? existingRosterPlayer.prerank ?? 999);
+      existingRosterPlayer.positionRank = Number((statePlayer && statePlayer.positionRank) ?? result.playerPositionRank ?? existingRosterPlayer.positionRank ?? existingRosterPlayer.prerank ?? 999);
+      existingRosterPlayer.name = String((statePlayer && statePlayer.name) || existingRosterPlayer.name || result.playerName || '').trim();
+      existingRosterPlayer.id = Number.isFinite(safePlayerId) ? safePlayerId : existingRosterPlayer.id;
+    } else {
+      winnerTeam.roster.push({
+        id: Number.isFinite(safePlayerId) ? safePlayerId : statePlayer.id,
+        name: String((statePlayer && statePlayer.name) || result.playerName || '').trim(),
+        position: resolvedPosition,
+        team: String((statePlayer && statePlayer.team) || result.playerTeam || '').trim().toUpperCase(),
+        byeWeek: normalizeByeWeekValue((statePlayer && statePlayer.byeWeek) ?? result.playerByeWeek),
+        avgValue: Number((statePlayer && statePlayer.avgValue) || 0),
+        bid: finalPrice,
+        prerank: Number((statePlayer && (statePlayer.prerank ?? statePlayer.positionRank)) ?? 999),
+        positionRank: Number((statePlayer && statePlayer.positionRank) ?? result.playerPositionRank ?? statePlayer?.prerank ?? 999)
+      });
+    }
+
+    statePlayer.owner = normalizedWinner;
+    statePlayer.bid = finalPrice;
+    statePlayer.shown = true;
+
+    sortRoster(winnerTeam.roster);
+    applied += 1;
+  });
+
+  if (applied > 0 || removedConflicts > 0) {
+    console.log(`[round-commit] ${draftCode} round ${Number(roundNumber || 0)} applied=${applied} skipped=${skipped} removedConflicts=${removedConflicts}`);
+  }
+
+  return { applied, skipped, removedConflicts };
+}
+
 // ==================== SOCKET.IO HANDLERS ====================
 
 function normalizeServerRoundTimerMinutes(value) {
@@ -7052,6 +7546,18 @@ io.on('connection', (socket) => {
           return result;
         });
       }
+
+      const roundCommitSummary = applyWonRoundResultsToDraftState(
+        draftState,
+        code,
+        draftState.currentRound,
+        Array.isArray(auctionResults && auctionResults.results) ? auctionResults.results : []
+      );
+      console.log('[processRound][debug] round commit summary:', {
+        draftCode: code,
+        round: draftState.currentRound,
+        ...roundCommitSummary
+      });
 
       // Store complete results (including tiedBids) for auction processing
       draftState.lastRoundResults = auctionResults;
