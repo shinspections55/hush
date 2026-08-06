@@ -18,7 +18,6 @@ const port = process.env.PORT || 8000;
 
 // Import database module
 const { logAuctionResult, logIndividualBid, bulkLogIndividualBids, getPlayerAV, getPlayerAuctionCount, getPlayerAvTrends, closeDatabase } = require('./database');
-const { loadCpuLogicConfig, saveCpuLogicConfig } = require('./cpu-logic-store');
 
 // Import CPU logic modules
 const { generateServerCPUBids, evaluateBidStrategy } = require('./cpu-silent-auction');
@@ -75,20 +74,11 @@ const AUTH_USERS_FILE = path.join(AUTH_DATA_DIR, 'auth-users.json');
 const RESET_CODE_TTL_MS = 10 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 const ADMIN_DEBUG_KEY = String(process.env.ADMIN_DEBUG_KEY || '').trim();
-const ADMIN_SESSION_COOKIE_NAME = 'hush_admin_session';
-const ADMIN_PORTAL_PASSWORD = String(process.env.ADMIN_PORTAL_PASSWORD || '1218').trim();
-const ADMIN_PORTAL_2FA_PHONE = normalizePhone(process.env.ADMIN_PORTAL_2FA_PHONE || '2187807155');
-const ADMIN_SESSION_TTL_MS = 20 * 60 * 1000;
-const ADMIN_LOGIN_CODE_TTL_MS = 10 * 60 * 1000;
-const ADMIN_LOGIN_WINDOW_MS = 15 * 60 * 1000;
-const ADMIN_LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
-const ADMIN_LOGIN_MAX_PASSWORD_ATTEMPTS = 5;
-const ADMIN_LOGIN_MAX_CODE_ATTEMPTS = 5;
-const ADMIN_LOGIN_MAX_CODE_SENDS = 3;
 const GIPHY_API_KEY = String(process.env.GIPHY_API_KEY || process.env.GIPHY_PUBLIC_API_KEY || 'dc6zaTOxFJmzC').trim();
 const GIPHY_CACHE_TTL_MS = 2 * 60 * 1000;
 const giphySearchCache = new Map();
 let giphyRateLimitedUntil = 0;
+const CPU_LOGIC_FILE = path.join(__dirname, 'cpulogic.js');
 const DEFAULT_RANKINGS_FILE = path.join(__dirname, 'top250.generated.json');
 const FALLBACK_RANKINGS_FILE = path.join(__dirname, 'top250.json');
 const VALID_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
@@ -147,26 +137,6 @@ const deliveryDebugState = {
   lastEmail: null,
   lastSms: null
 };
-
-const adminSessions = new Map();
-const adminLoginChallenges = new Map();
-const adminLoginAttemptState = new Map();
-const ADMIN_CPU_SCENARIO_DEFAULTS = Object.freeze({
-  profileIndex: 0,
-  tiedProfileIndex: 3,
-  position: 'WR',
-  avgValue: 30,
-  round: 5,
-  budgetRemaining: 85,
-  currentBid: 21,
-  playerAV: 24,
-  timeLeft: 3,
-  teamsRemaining: 6,
-  positionNeed: 0.5,
-  rosterSpotsLeft: 6,
-  playersNeededForMinimum: 2,
-  currentBidRatio: 1
-});
 
 const trafficStats = {
   startedAt: Date.now(),
@@ -1187,65 +1157,6 @@ async function sendResetSms(to, code, resetLink) {
   return { delivered: true, simulated: false };
 }
 
-async function sendAdminLoginSms(to, code) {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_FROM_NUMBER;
-  const body = `Your Hush admin portal verification code is ${code}. It expires in 10 minutes.`;
-
-  if (!sid || !token || !from) {
-    console.log('[ADMIN] Twilio not configured. Simulated admin login SMS delivery.');
-    console.log('[ADMIN] Login SMS to:', to, 'code:', code);
-    deliveryDebugState.lastSms = {
-      at: Date.now(),
-      to,
-      simulated: true,
-      ok: true,
-      note: 'Twilio not configured'
-    };
-    return { delivered: false, simulated: true };
-  }
-
-  const authHeader = Buffer.from(`${sid}:${token}`).toString('base64');
-  const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
-  const payload = new URLSearchParams({
-    From: from,
-    To: to,
-    Body: body
-  });
-
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${authHeader}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: payload
-  });
-
-  if (!response.ok) {
-    const twilioErr = await response.text();
-    deliveryDebugState.lastSms = {
-      at: Date.now(),
-      to,
-      simulated: false,
-      ok: false,
-      note: `Twilio error ${response.status}`
-    };
-    throw new Error(`Twilio SMS failed: ${response.status} ${twilioErr}`);
-  }
-
-  deliveryDebugState.lastSms = {
-    at: Date.now(),
-    to,
-    simulated: false,
-    ok: true,
-    note: 'Delivered via Twilio'
-  };
-
-  return { delivered: true, simulated: false };
-}
-
 function requireAdminDebugKey(req, res, next) {
   if (!ADMIN_DEBUG_KEY) {
     return res.status(503).json({
@@ -1255,9 +1166,6 @@ function requireAdminDebugKey(req, res, next) {
   }
 
   const key = String(req.get('x-admin-key') || req.body.adminKey || '').trim();
-  if (isValidAdminSession(req)) {
-    return next();
-  }
   if (!key || !safeEq(key, ADMIN_DEBUG_KEY)) {
     return res.status(401).json({ ok: false, error: 'Unauthorized' });
   }
@@ -1265,209 +1173,17 @@ function requireAdminDebugKey(req, res, next) {
   return next();
 }
 
-function parseCookies(req) {
-  const cookieHeader = String(req.headers && req.headers.cookie || '').trim();
-  if (!cookieHeader) return {};
-
-  return cookieHeader.split(';').reduce((acc, part) => {
-    const [nameRaw, ...valueParts] = String(part || '').split('=');
-    const name = String(nameRaw || '').trim();
-    if (!name) return acc;
-    acc[name] = decodeURIComponent(valueParts.join('=').trim());
-    return acc;
-  }, {});
-}
-
-function cleanupExpiredAdminSessions() {
-  const now = Date.now();
-  for (const [token, session] of adminSessions.entries()) {
-    if (!session || Number(session.expiresAt || 0) <= now) {
-      adminSessions.delete(token);
+function loadCpuLogicConfig() {
+  try {
+    delete require.cache[require.resolve('./cpulogic')];
+    const loaded = require('./cpulogic');
+    if (loaded && typeof loaded === 'object') {
+      return loaded;
     }
+    return {};
+  } catch (_error) {
+    return {};
   }
-}
-
-function cleanupExpiredAdminChallenges() {
-  const now = Date.now();
-  for (const [challengeId, challenge] of adminLoginChallenges.entries()) {
-    if (!challenge || Number(challenge.expiresAt || 0) <= now) {
-      adminLoginChallenges.delete(challengeId);
-    }
-  }
-}
-
-function createAdminSession() {
-  cleanupExpiredAdminSessions();
-  const token = crypto.randomBytes(32).toString('hex');
-  adminSessions.set(token, {
-    createdAt: Date.now(),
-    expiresAt: Date.now() + ADMIN_SESSION_TTL_MS
-  });
-  return token;
-}
-
-function createAdminLoginChallenge() {
-  cleanupExpiredAdminChallenges();
-  const challengeId = crypto.randomUUID();
-  const code = String(Math.floor(100000 + Math.random() * 900000));
-  adminLoginChallenges.set(challengeId, {
-    code,
-    createdAt: Date.now(),
-    expiresAt: Date.now() + ADMIN_LOGIN_CODE_TTL_MS,
-    phone: ADMIN_PORTAL_2FA_PHONE
-  });
-  return { challengeId, code };
-}
-
-function getAdminRequesterKey(req) {
-  const forwardedFor = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-  const ip = forwardedFor || String(req.ip || req.socket?.remoteAddress || 'unknown').trim();
-  return ip || 'unknown';
-}
-
-function getAdminAttemptState(key) {
-  const now = Date.now();
-  const existing = adminLoginAttemptState.get(key);
-  if (!existing) {
-    const fresh = {
-      windowStartedAt: now,
-      passwordFailures: 0,
-      codeFailures: 0,
-      codeSendCount: 0,
-      lockedUntil: 0
-    };
-    adminLoginAttemptState.set(key, fresh);
-    return fresh;
-  }
-
-  if (Number(existing.windowStartedAt || 0) + ADMIN_LOGIN_WINDOW_MS <= now) {
-    existing.windowStartedAt = now;
-    existing.passwordFailures = 0;
-    existing.codeFailures = 0;
-    existing.codeSendCount = 0;
-  }
-
-  if (Number(existing.lockedUntil || 0) <= now) {
-    existing.lockedUntil = 0;
-  }
-
-  adminLoginAttemptState.set(key, existing);
-  return existing;
-}
-
-function getAdminLockoutMessage(lockedUntil) {
-  const seconds = Math.max(1, Math.ceil((Number(lockedUntil || 0) - Date.now()) / 1000));
-  return `Too many admin login attempts. Try again in ${seconds} seconds.`;
-}
-
-function ensureAdminLoginAllowed(req, res) {
-  const key = getAdminRequesterKey(req);
-  const state = getAdminAttemptState(key);
-  if (Number(state.lockedUntil || 0) > Date.now()) {
-    res.status(429).json({ ok: false, error: getAdminLockoutMessage(state.lockedUntil) });
-    return null;
-  }
-  return { key, state };
-}
-
-function registerAdminPasswordFailure(key) {
-  const state = getAdminAttemptState(key);
-  state.passwordFailures += 1;
-  if (state.passwordFailures >= ADMIN_LOGIN_MAX_PASSWORD_ATTEMPTS) {
-    state.lockedUntil = Date.now() + ADMIN_LOGIN_LOCKOUT_MS;
-  }
-  adminLoginAttemptState.set(key, state);
-  return state;
-}
-
-function registerAdminCodeFailure(key) {
-  const state = getAdminAttemptState(key);
-  state.codeFailures += 1;
-  if (state.codeFailures >= ADMIN_LOGIN_MAX_CODE_ATTEMPTS) {
-    state.lockedUntil = Date.now() + ADMIN_LOGIN_LOCKOUT_MS;
-  }
-  adminLoginAttemptState.set(key, state);
-  return state;
-}
-
-function registerAdminCodeSend(key) {
-  const state = getAdminAttemptState(key);
-  state.codeSendCount += 1;
-  adminLoginAttemptState.set(key, state);
-  return state;
-}
-
-function resetAdminAttemptState(key) {
-  adminLoginAttemptState.delete(key);
-}
-
-function isValidAdminSession(req) {
-  cleanupExpiredAdminSessions();
-  const cookies = parseCookies(req);
-  const token = String(cookies[ADMIN_SESSION_COOKIE_NAME] || '').trim();
-  if (!token) return false;
-  const session = adminSessions.get(token);
-  if (!session) return false;
-  session.expiresAt = Date.now() + ADMIN_SESSION_TTL_MS;
-  adminSessions.set(token, session);
-  return true;
-}
-
-function setAdminSessionCookie(res, token) {
-  if (!token) return;
-
-  const parts = [
-    `${ADMIN_SESSION_COOKIE_NAME}=${encodeURIComponent(token)}`,
-    'Path=/',
-    'HttpOnly',
-    'SameSite=Lax',
-    `Max-Age=${Math.floor(ADMIN_SESSION_TTL_MS / 1000)}`
-  ];
-
-  if (process.env.NODE_ENV === 'production') {
-    parts.push('Secure');
-  }
-
-  res.setHeader('Set-Cookie', parts.join('; '));
-}
-
-function clearAdminSessionCookie(res) {
-  const parts = [
-    `${ADMIN_SESSION_COOKIE_NAME}=`,
-    'Path=/',
-    'HttpOnly',
-    'SameSite=Lax',
-    'Max-Age=0'
-  ];
-
-  if (process.env.NODE_ENV === 'production') {
-    parts.push('Secure');
-  }
-
-  res.setHeader('Set-Cookie', parts.join('; '));
-}
-
-function destroyAdminSession(req) {
-  cleanupExpiredAdminSessions();
-  const cookies = parseCookies(req);
-  const token = String(cookies[ADMIN_SESSION_COOKIE_NAME] || '').trim();
-  if (token) {
-    adminSessions.delete(token);
-  }
-}
-
-function requireAdminPageSession(req, res, next) {
-  if (isValidAdminSession(req)) {
-    return next();
-  }
-
-  const requestPath = String(req.path || '').toLowerCase();
-  if (requestPath.endsWith('.html')) {
-    const nextPath = encodeURIComponent(String(req.originalUrl || req.path || '/admin-portal.html'));
-    return res.redirect(`/admin-login.html?next=${nextPath}`);
-  }
-
-  return res.status(404).send('Not found');
 }
 
 function getTeamProfileSeed(teamName) {
@@ -1531,6 +1247,10 @@ function normalizeCpuLogicPayload(rawPayload) {
   return normalized;
 }
 
+function serializeCpuLogicConfig(config) {
+  return `module.exports = ${JSON.stringify(config, null, 2)};\n`;
+}
+
 // Helper function to get effective AV for CPU bidding (learned value if enough data, otherwise static)
 async function getEffectiveAV(player) {
   try {
@@ -1553,7 +1273,9 @@ async function getEffectiveAV(player) {
 }
 
 const publicRootCandidate = path.join(__dirname, 'public');
-const root = publicRootCandidate;
+const root = fsSync.existsSync(publicRootCandidate)
+  ? publicRootCandidate
+  : path.join(__dirname, '.');
 const BLOCKED_PUBLIC_FILES = new Set([
   '/auth-users.json',
   '/authorized-users.json',
@@ -1583,7 +1305,6 @@ const PUBLIC_JS_BASENAMES = new Set([
   'account.js',
   'admin-delivery-debug.js',
   'admin-portal.js',
-  'admin-session.js',
   'admin-simulations.js',
   'av-trends.js',
   'dashboard.js',
@@ -1616,126 +1337,9 @@ const PUBLIC_JSON_BASENAMES = new Set([
   'top250.json',
   'top250.generated.json'
 ]);
-const PROTECTED_ADMIN_STATIC_PATHS = new Set([
-  '/admin-portal.html',
-  '/admin-portal.js',
-  '/admin-session.js',
-  '/admin-data.html',
-  '/admin-delivery-debug.html',
-  '/admin-delivery-debug.js',
-  '/admin-simulations.html',
-  '/admin-simulations.js',
-  '/admin-rankings-manager.html',
-  '/admin-rankings-nav.html'
-]);
-
-app.get('/api/admin/session', (req, res) => {
-  return res.json({
-    ok: true,
-    authenticated: isValidAdminSession(req),
-    sessionTtlMs: ADMIN_SESSION_TTL_MS
-  });
-});
-
-app.post('/api/admin/session/request-code', async (req, res) => {
-  if (!ADMIN_PORTAL_PASSWORD || !ADMIN_PORTAL_2FA_PHONE) {
-    return res.status(503).json({ ok: false, error: 'Admin portal 2-step settings are not configured on the server' });
-  }
-
-  const attempt = ensureAdminLoginAllowed(req, res);
-  if (!attempt) return;
-  const { key, state } = attempt;
-
-  if (Number(state.codeSendCount || 0) >= ADMIN_LOGIN_MAX_CODE_SENDS) {
-    state.lockedUntil = Date.now() + ADMIN_LOGIN_LOCKOUT_MS;
-    adminLoginAttemptState.set(key, state);
-    return res.status(429).json({ ok: false, error: getAdminLockoutMessage(state.lockedUntil) });
-  }
-
-  const password = String(req.body && req.body.password || '').trim();
-  if (!password || !safeEq(password, ADMIN_PORTAL_PASSWORD)) {
-    const failureState = registerAdminPasswordFailure(key);
-    if (Number(failureState.lockedUntil || 0) > Date.now()) {
-      return res.status(429).json({ ok: false, error: getAdminLockoutMessage(failureState.lockedUntil) });
-    }
-    return res.status(401).json({ ok: false, error: 'Unauthorized' });
-  }
-
-  try {
-    registerAdminCodeSend(key);
-    const { challengeId, code } = createAdminLoginChallenge();
-    await sendAdminLoginSms(ADMIN_PORTAL_2FA_PHONE, code);
-    return res.json({
-      ok: true,
-      challengeId,
-      expiresInMs: ADMIN_LOGIN_CODE_TTL_MS,
-      phoneHint: maskPhone(ADMIN_PORTAL_2FA_PHONE)
-    });
-  } catch (error) {
-    console.error('[ADMIN] request-code error:', error);
-    return res.status(500).json({ ok: false, error: 'Unable to send verification code' });
-  }
-});
-
-app.post('/api/admin/session/verify', (req, res) => {
-  const attempt = ensureAdminLoginAllowed(req, res);
-  if (!attempt) return;
-  const { key } = attempt;
-
-  cleanupExpiredAdminChallenges();
-  const challengeId = String(req.body && req.body.challengeId || '').trim();
-  const code = String(req.body && req.body.code || '').trim();
-  const challenge = adminLoginChallenges.get(challengeId);
-
-  if (!challenge || !code || !safeEq(code, String(challenge.code || ''))) {
-    const failureState = registerAdminCodeFailure(key);
-    if (Number(failureState.lockedUntil || 0) > Date.now()) {
-      return res.status(429).json({ ok: false, error: getAdminLockoutMessage(failureState.lockedUntil) });
-    }
-    return res.status(401).json({ ok: false, error: 'Invalid verification code' });
-  }
-
-  adminLoginChallenges.delete(challengeId);
-  resetAdminAttemptState(key);
-  const sessionToken = createAdminSession();
-  setAdminSessionCookie(res, sessionToken);
-  return res.json({ ok: true, authenticated: true });
-});
-
-app.post('/api/admin/session/logout', (req, res) => {
-  destroyAdminSession(req);
-  clearAdminSessionCookie(res);
-  return res.json({ ok: true });
-});
-
-app.get('/api/admin/cpu-logic/reference', requireAdminDebugKey, (_req, res) => {
-  try {
-    const config = loadCpuLogicConfig();
-    return res.json({
-      ok: true,
-      reference: {
-        defaults: {
-          silent: config && config.silent && typeof config.silent === 'object' ? config.silent : {},
-          tied: config && config.tied && typeof config.tied === 'object' ? config.tied : {},
-          scenario: { ...ADMIN_CPU_SCENARIO_DEFAULTS }
-        },
-        silentProfiles: Array.isArray(config && config.silentProfiles) ? config.silentProfiles : [],
-        tiedProfiles: Array.isArray(config && config.tiedProfiles) ? config.tiedProfiles : [],
-        silentBidRanges: config && config.silentBidRanges && typeof config.silentBidRanges === 'object' ? config.silentBidRanges : {},
-        builtinModels: {}
-      }
-    });
-  } catch (error) {
-    console.error('[ADMIN] CPU logic reference error:', error);
-    return res.status(500).json({ ok: false, error: 'Unable to load CPU logic reference data' });
-  }
-});
 
 app.use((req, res, next) => {
   const requestPath = String(req.path || '').toLowerCase();
-  if (PROTECTED_ADMIN_STATIC_PATHS.has(requestPath)) {
-    return requireAdminPageSession(req, res, next);
-  }
   const baseName = path.posix.basename(requestPath);
   const extName = path.posix.extname(baseName);
   const pathParts = requestPath.split('/').filter(Boolean);
@@ -3306,10 +2910,10 @@ app.get('/api/admin/all-data', requireAdminDebugKey, async (req, res) => {
 app.get('/api/admin/cpu-logic', requireAdminDebugKey, async (_req, res) => {
   try {
     const config = loadCpuLogicConfig();
-    return res.json({ ok: true, sourceFile: 'cpu-logic.json', config });
+    return res.json({ ok: true, sourceFile: 'cpulogic.js', config });
   } catch (error) {
     console.error('[ADMIN] CPU logic read error:', error);
-    return res.status(500).json({ ok: false, error: 'Unable to load CPU logic config' });
+    return res.status(500).json({ ok: false, error: 'Unable to load cpulogic.js' });
   }
 });
 
@@ -3320,13 +2924,13 @@ app.get('/api/public/cpu-logic-preset', (_req, res) => {
     return res.json({
       ok: true,
       presetName: config && config.presetName ? String(config.presetName).trim() : 'Unknown',
-      sourceFile: 'cpu-logic.json'
+      sourceFile: 'cpulogic.js'
     });
   } catch (error) {
     return res.json({
       ok: false,
       presetName: 'Error',
-      sourceFile: 'cpu-logic.json'
+      sourceFile: 'cpulogic.js'
     });
   }
 });
@@ -3382,16 +2986,16 @@ app.post('/api/admin/cpu-logic/save', requireAdminDebugKey, async (req, res) => 
       return res.status(400).json({ ok: false, error: 'Invalid CPU logic payload' });
     }
 
-    saveCpuLogicConfig(normalized);
+    await fs.writeFile(CPU_LOGIC_FILE, serializeCpuLogicConfig(normalized), 'utf8');
     return res.json({
       ok: true,
-      sourceFile: 'cpu-logic.json',
+      sourceFile: 'cpulogic.js',
       updatedAt: normalized.updatedAt,
       presetName: normalized.presetName
     });
   } catch (error) {
     console.error('[ADMIN] CPU logic save error:', error);
-    return res.status(500).json({ ok: false, error: 'Unable to save CPU logic config' });
+    return res.status(500).json({ ok: false, error: 'Unable to save cpulogic.js' });
   }
 });
 
@@ -5210,9 +4814,6 @@ const io = new Server(server, {
 
 // In-memory map of drafts for real-time sync. This mirrors client localStorage but is ephemeral.
 const drafts = {};
-const voiceLobbies = new Map();
-const pendingHostCloseTimers = new Map();
-const HOST_DISCONNECT_GRACE_MS = Number.parseInt(process.env.HOST_DISCONNECT_GRACE_MS || '180000', 10);
 const WAIVER_PICK_TIMER_MS = 2 * 60 * 1000;
 const WAIVER_TIMER_TICK_MS = 1000;
 const WAIVER_CPU_ACTION_DELAY_MS = 10 * 1000;
@@ -5226,106 +4827,6 @@ function normalizeWaiverLobbyMode(mode) {
   const normalized = String(mode || '').trim().toLowerCase();
   if (normalized === 'random' || normalized === 'skill') return normalized;
   return 'off';
-}
-
-function getOrCreateVoiceLobby(draftCode) {
-  const key = String(draftCode || '').trim();
-  if (!key) return null;
-  if (!voiceLobbies.has(key)) {
-    voiceLobbies.set(key, {
-      participants: new Map()
-    });
-  }
-  return voiceLobbies.get(key);
-}
-
-function listVoiceParticipants(draftCode) {
-  const lobby = voiceLobbies.get(String(draftCode || '').trim());
-  if (!lobby || !lobby.participants) return [];
-  return [...lobby.participants.values()].map((entry) => ({ ...entry }));
-}
-
-function removeVoiceParticipant(draftCode, socketId) {
-  const key = String(draftCode || '').trim();
-  if (!key) return null;
-  const lobby = voiceLobbies.get(key);
-  if (!lobby || !lobby.participants) return null;
-  const removed = lobby.participants.get(socketId) || null;
-  if (!removed) return null;
-  lobby.participants.delete(socketId);
-  if (lobby.participants.size === 0) {
-    voiceLobbies.delete(key);
-  }
-  return removed;
-}
-
-function isHostForDraft(code, username) {
-  const draft = drafts[code];
-  if (!draft || !username) return false;
-  const normalizedUser = String(username || '').trim().toLowerCase();
-  const host = String(draft.host || '').trim().toLowerCase();
-  if (host) return host === normalizedUser;
-  const firstMember = Array.isArray(draft.members) && draft.members.length ? String(draft.members[0] || '').trim().toLowerCase() : '';
-  return !!firstMember && firstMember === normalizedUser;
-}
-
-function clearPendingHostClose(code) {
-  const key = String(code || '').trim();
-  if (!key) return;
-  const pending = pendingHostCloseTimers.get(key);
-  if (!pending) return;
-  try { clearTimeout(pending.timerId); } catch (_) {}
-  pendingHostCloseTimers.delete(key);
-}
-
-function scheduleHostDisconnectClose(code, username) {
-  const key = String(code || '').trim();
-  const hostUsername = String(username || '').trim();
-  if (!key || !hostUsername) return;
-
-  clearPendingHostClose(key);
-
-  const timerId = setTimeout(() => {
-    pendingHostCloseTimers.delete(key);
-
-    const draft = drafts[key];
-    if (!draft) return;
-
-    const members = Array.isArray(draft.members) ? draft.members : [];
-    const hostStillMissing = !members.some((member) => String(member || '').trim().toLowerCase() === hostUsername.toLowerCase());
-    const hostUnchanged = isHostForDraft(key, hostUsername);
-    if (!hostStillMissing || !hostUnchanged) return;
-
-    draft.members = members.filter((member) => String(member || '').trim().toLowerCase() !== hostUsername.toLowerCase());
-    draft.closed = true;
-    draft.host = null;
-    io.to(key).emit('draftUpdate', draft);
-    io.to(key).emit('draftClosed', {
-      code: key,
-      reason: 'host_inactive',
-      message: 'The lobby was closed due to host inactivity.'
-    });
-  }, Number.isFinite(HOST_DISCONNECT_GRACE_MS) ? Math.max(15000, HOST_DISCONNECT_GRACE_MS) : 180000);
-
-  pendingHostCloseTimers.set(key, {
-    timerId,
-    hostUsername
-  });
-}
-
-function cancelHostDisconnectCloseOnRejoin(code, username) {
-  const key = String(code || '').trim();
-  const rejoiningUser = String(username || '').trim();
-  if (!key || !rejoiningUser) return;
-
-  const pending = pendingHostCloseTimers.get(key);
-  if (!pending) return;
-
-  if (String(pending.hostUsername || '').trim().toLowerCase() !== rejoiningUser.toLowerCase()) {
-    return;
-  }
-
-  clearPendingHostClose(key);
 }
 
 function shuffleList(values = []) {
@@ -7053,7 +6554,6 @@ io.on('connection', (socket) => {
     if (username) {
       socket.data.username = username;
       socket.data.currentDraft = code;
-      cancelHostDisconnectCloseOnRejoin(code, username);
       console.log(`[joinDraftRoom] ${username} (${socket.id}) joined room ${code}`);
     }
     socket.emit('draftUpdate', drafts[code] || { members: [], type: null, capacity: null, public: false });
@@ -7081,7 +6581,6 @@ io.on('connection', (socket) => {
     socket.join(code);
     socket.data.username = username;
     socket.data.currentDraft = code;
-    cancelHostDisconnectCloseOnRejoin(code, username);
     io.to(code).emit('draftUpdate', drafts[code]);
     if(cb) cb({ ok: true, draft: drafts[code] });
   });
@@ -7125,7 +6624,6 @@ io.on('connection', (socket) => {
     socket.join(code);
     socket.data.username = username;
     socket.data.currentDraft = code;
-    cancelHostDisconnectCloseOnRejoin(code, username);
     console.log(`[requestJoin] ${username} joined ${code} successfully. Total members: ${drafts[code].members.length}`);
     io.to(code).emit('draftUpdate', drafts[code]);
     if(cb) cb({ ok: true, draft: drafts[code] });
@@ -7147,10 +6645,9 @@ io.on('connection', (socket) => {
   socket.on('leaveDraft', (code, username, cb) => {
     if(drafts[code] && drafts[code].members){
       // determine if leaving user is the host (first member)
-      const wasHost = isHostForDraft(code, username);
+      const wasHost = drafts[code].members.length && drafts[code].members[0] === username;
       drafts[code].members = drafts[code].members.filter(m => m !== username);
       if(wasHost){
-        clearPendingHostClose(code);
         // host left lobby intentionally: close and notify everyone remaining
         closeLobbyBecauseHostLeft(code, 'host_left');
       } else {
@@ -7369,209 +6866,6 @@ io.on('connection', (socket) => {
 
     // Also sync current auto-draft statuses for UI badges.
     socket.emit('autoDraftStatusSync', draft.draftState.autoDraftStatus);
-  });
-
-  socket.on('voice:join', (code, state = {}, cb) => {
-    const draftCode = String(code || '').trim();
-    const username = String(socket.data.username || '').trim();
-    const activeDraftCode = String(socket.data.activeDraftCode || '').trim();
-    const currentDraftCode = String(socket.data.currentDraft || '').trim();
-    const draft = drafts[draftCode];
-
-    if (!draftCode || !username || !draft || !Array.isArray(draft.members)) {
-      if (cb) cb({ ok: false, reason: 'draft_not_found' });
-      return;
-    }
-
-    const inActiveDraftRoom = activeDraftCode === draftCode;
-    const inLobbyRoom = currentDraftCode === draftCode;
-    if (!inActiveDraftRoom && !inLobbyRoom) {
-      if (cb) cb({ ok: false, reason: 'not_in_draft_room' });
-      return;
-    }
-
-    const matchedMember = draft.members.find((member) => String(member || '').trim().toLowerCase() === username.toLowerCase());
-    const isMember = Boolean(matchedMember);
-    if (!isMember) {
-      if (cb) cb({ ok: false, reason: 'not_in_draft' });
-      return;
-    }
-
-    const previousVoiceCode = String(socket.data.voiceDraftCode || '').trim();
-    if (previousVoiceCode && previousVoiceCode !== draftCode) {
-      const removed = removeVoiceParticipant(previousVoiceCode, socket.id);
-      if (removed) {
-        socket.leave(`voice_${previousVoiceCode}`);
-        socket.to(`voice_${previousVoiceCode}`).emit('voice:peer-left', {
-          socketId: socket.id,
-          username: removed.username
-        });
-      }
-    }
-
-    const lobby = getOrCreateVoiceLobby(draftCode);
-    if (!lobby) {
-      if (cb) cb({ ok: false, reason: 'voice_lobby_error' });
-      return;
-    }
-
-    const participant = {
-      socketId: socket.id,
-      username: String(matchedMember || username || 'Member').trim(),
-      muted: !!state.muted,
-      deafened: !!state.deafened,
-      speaking: false,
-      joinedAt: Date.now()
-    };
-
-    lobby.participants.set(socket.id, participant);
-    socket.join(`voice_${draftCode}`);
-    socket.data.voiceDraftCode = draftCode;
-
-    socket.emit('voice:participants', listVoiceParticipants(draftCode));
-    socket.to(`voice_${draftCode}`).emit('voice:peer-joined', participant);
-    if (cb) cb({ ok: true, participants: listVoiceParticipants(draftCode) });
-  });
-
-  socket.on('voice:leave', (code, cb) => {
-    const draftCode = String(code || socket.data.voiceDraftCode || '').trim();
-    if (!draftCode) {
-      if (cb) cb({ ok: true });
-      return;
-    }
-
-    const removed = removeVoiceParticipant(draftCode, socket.id);
-    socket.leave(`voice_${draftCode}`);
-    if (String(socket.data.voiceDraftCode || '').trim() === draftCode) {
-      socket.data.voiceDraftCode = null;
-    }
-
-    if (removed) {
-      socket.to(`voice_${draftCode}`).emit('voice:peer-left', {
-        socketId: socket.id,
-        username: removed.username
-      });
-    }
-
-    if (cb) cb({ ok: true });
-  });
-
-  socket.on('voice:signal-offer', (code, targetSocketId, sdp, cb) => {
-    const draftCode = String(code || '').trim();
-    const fromDraftCode = String(socket.data.voiceDraftCode || '').trim();
-    const targetId = String(targetSocketId || '').trim();
-    if (!draftCode || !targetId || fromDraftCode !== draftCode) {
-      if (cb) cb({ ok: false, reason: 'invalid_voice_state' });
-      return;
-    }
-
-    const lobby = voiceLobbies.get(draftCode);
-    if (!lobby || !lobby.participants.has(targetId)) {
-      if (cb) cb({ ok: false, reason: 'target_not_found' });
-      return;
-    }
-
-    io.to(targetId).emit('voice:signal-offer', {
-      fromSocketId: socket.id,
-      sdp
-    });
-    if (cb) cb({ ok: true });
-  });
-
-  socket.on('voice:signal-answer', (code, targetSocketId, sdp, cb) => {
-    const draftCode = String(code || '').trim();
-    const fromDraftCode = String(socket.data.voiceDraftCode || '').trim();
-    const targetId = String(targetSocketId || '').trim();
-    if (!draftCode || !targetId || fromDraftCode !== draftCode) {
-      if (cb) cb({ ok: false, reason: 'invalid_voice_state' });
-      return;
-    }
-
-    const lobby = voiceLobbies.get(draftCode);
-    if (!lobby || !lobby.participants.has(targetId)) {
-      if (cb) cb({ ok: false, reason: 'target_not_found' });
-      return;
-    }
-
-    io.to(targetId).emit('voice:signal-answer', {
-      fromSocketId: socket.id,
-      sdp
-    });
-    if (cb) cb({ ok: true });
-  });
-
-  socket.on('voice:signal-ice', (code, targetSocketId, candidate, cb) => {
-    const draftCode = String(code || '').trim();
-    const fromDraftCode = String(socket.data.voiceDraftCode || '').trim();
-    const targetId = String(targetSocketId || '').trim();
-    if (!draftCode || !targetId || fromDraftCode !== draftCode) {
-      if (cb) cb({ ok: false, reason: 'invalid_voice_state' });
-      return;
-    }
-
-    const lobby = voiceLobbies.get(draftCode);
-    if (!lobby || !lobby.participants.has(targetId)) {
-      if (cb) cb({ ok: false, reason: 'target_not_found' });
-      return;
-    }
-
-    io.to(targetId).emit('voice:signal-ice', {
-      fromSocketId: socket.id,
-      candidate
-    });
-    if (cb) cb({ ok: true });
-  });
-
-  socket.on('voice:mute-state', (code, state = {}, cb) => {
-    const draftCode = String(code || '').trim();
-    const fromDraftCode = String(socket.data.voiceDraftCode || '').trim();
-    if (!draftCode || fromDraftCode !== draftCode) {
-      if (cb) cb({ ok: false, reason: 'invalid_voice_state' });
-      return;
-    }
-
-    const lobby = voiceLobbies.get(draftCode);
-    const participant = lobby && lobby.participants ? lobby.participants.get(socket.id) : null;
-    if (!participant) {
-      if (cb) cb({ ok: false, reason: 'participant_not_found' });
-      return;
-    }
-
-    participant.muted = !!state.muted;
-    participant.deafened = !!state.deafened;
-    lobby.participants.set(socket.id, participant);
-
-    io.to(`voice_${draftCode}`).emit('voice:peer-updated', {
-      socketId: socket.id,
-      muted: participant.muted,
-      deafened: participant.deafened,
-      speaking: participant.speaking
-    });
-
-    if (cb) cb({ ok: true });
-  });
-
-  socket.on('voice:speaking', (code, isSpeaking) => {
-    const draftCode = String(code || '').trim();
-    const fromDraftCode = String(socket.data.voiceDraftCode || '').trim();
-    if (!draftCode || fromDraftCode !== draftCode) return;
-
-    const lobby = voiceLobbies.get(draftCode);
-    const participant = lobby && lobby.participants ? lobby.participants.get(socket.id) : null;
-    if (!participant) return;
-
-    const nextSpeaking = !!isSpeaking;
-    if (participant.speaking === nextSpeaking) return;
-
-    participant.speaking = nextSpeaking;
-    lobby.participants.set(socket.id, participant);
-
-    socket.to(`voice_${draftCode}`).emit('voice:peer-updated', {
-      socketId: socket.id,
-      muted: participant.muted,
-      deafened: participant.deafened,
-      speaking: participant.speaking
-    });
   });
 
   // Update and broadcast auto-draft toggle status for a team/user.
@@ -9732,11 +9026,10 @@ io.on('connection', (socket) => {
     if(username && code){
       console.log(`[disconnect] ${username} disconnected from ${code}`);
       if (drafts[code] && Array.isArray(drafts[code].members)) {
-        const wasHost = isHostForDraft(code, username);
+        const wasHost = drafts[code].members.length && drafts[code].members[0] === username;
         if (wasHost) {
           drafts[code].members = drafts[code].members.filter(m => m !== username);
-          scheduleHostDisconnectClose(code, username);
-          io.to(code).emit('draftUpdate', drafts[code]);
+          closeLobbyBecauseHostLeft(code, 'host_disconnected');
         } else {
           drafts[code].members = drafts[code].members.filter(m => m !== username);
           io.to(code).emit('draftUpdate', drafts[code]);
@@ -9756,18 +9049,6 @@ io.on('connection', (socket) => {
         enabled: false,
         statuses: drafts[activeCode].draftState.autoDraftStatus
       });
-    }
-
-    const voiceDraftCode = String(socket.data.voiceDraftCode || '').trim();
-    if (voiceDraftCode) {
-      const removed = removeVoiceParticipant(voiceDraftCode, socket.id);
-      if (removed) {
-        socket.to(`voice_${voiceDraftCode}`).emit('voice:peer-left', {
-          socketId: socket.id,
-          username: removed.username
-        });
-      }
-      socket.data.voiceDraftCode = null;
     }
   });
 });
