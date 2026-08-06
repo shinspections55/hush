@@ -6648,8 +6648,11 @@ io.on('connection', (socket) => {
       const wasHost = drafts[code].members.length && drafts[code].members[0] === username;
       drafts[code].members = drafts[code].members.filter(m => m !== username);
       if(wasHost){
-        // host left lobby intentionally: close and notify everyone remaining
-        closeLobbyBecauseHostLeft(code, 'host_left');
+        // Keep lobby open: promote next member to host if present.
+        const nextHost = drafts[code].members.length ? drafts[code].members[0] : null;
+        drafts[code].host = nextHost;
+        drafts[code].closed = false;
+        io.to(code).emit('draftUpdate', drafts[code]);
       } else {
         io.to(code).emit('draftUpdate', drafts[code]);
       }
@@ -9019,7 +9022,8 @@ io.on('connection', (socket) => {
     if (cb) cb({ ok: true, waiverState });
   });
 
-  // handle socket disconnect: if host drops from lobby, close it and notify everyone
+  // Handle socket disconnects. Host disconnects are treated as temporary to avoid
+  // lobby shutdowns caused by browser/network timeouts.
   socket.on('disconnect', () => {
     const username = socket.data.username;
     const code = socket.data.currentDraft;
@@ -9028,8 +9032,11 @@ io.on('connection', (socket) => {
       if (drafts[code] && Array.isArray(drafts[code].members)) {
         const wasHost = drafts[code].members.length && drafts[code].members[0] === username;
         if (wasHost) {
+          // Keep lobby open: remove disconnected host and promote next member.
           drafts[code].members = drafts[code].members.filter(m => m !== username);
-          closeLobbyBecauseHostLeft(code, 'host_disconnected');
+          drafts[code].host = drafts[code].members.length ? drafts[code].members[0] : null;
+          drafts[code].closed = false;
+          io.to(code).emit('draftUpdate', drafts[code]);
         } else {
           drafts[code].members = drafts[code].members.filter(m => m !== username);
           io.to(code).emit('draftUpdate', drafts[code]);
