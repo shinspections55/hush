@@ -4814,6 +4814,8 @@ const io = new Server(server, {
 
 // In-memory map of drafts for real-time sync. This mirrors client localStorage but is ephemeral.
 const drafts = {};
+const pendingLobbyDisconnectTimers = new Map();
+const LOBBY_DISCONNECT_GRACE_MS = Number.parseInt(process.env.LOBBY_DISCONNECT_GRACE_MS || '120000', 10);
 const WAIVER_PICK_TIMER_MS = 2 * 60 * 1000;
 const WAIVER_TIMER_TICK_MS = 1000;
 const WAIVER_CPU_ACTION_DELAY_MS = 10 * 1000;
@@ -6541,6 +6543,74 @@ function ensureDraftStateForSocket(code, socket, options = {}) {
   return draft;
 }
 
+function normalizeLobbyUserKey(code, username) {
+  return `${String(code || '').trim().toLowerCase()}::${String(username || '').trim().toLowerCase()}`;
+}
+
+function hasActiveUserSocketInLobby(code, username) {
+  const draftCode = String(code || '').trim();
+  const normalizedUsername = String(username || '').trim().toLowerCase();
+  if (!draftCode || !normalizedUsername) return false;
+
+  const room = io && io.sockets && io.sockets.adapter && io.sockets.adapter.rooms
+    ? io.sockets.adapter.rooms.get(draftCode)
+    : null;
+  if (!room || !room.size) return false;
+
+  for (const socketId of room) {
+    const roomSocket = io.sockets.sockets.get(socketId);
+    if (!roomSocket || !roomSocket.data) continue;
+    const roomUsername = String(roomSocket.data.username || '').trim().toLowerCase();
+    if (roomUsername === normalizedUsername) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function clearPendingLobbyDisconnect(code, username) {
+  const key = normalizeLobbyUserKey(code, username);
+  const pending = pendingLobbyDisconnectTimers.get(key);
+  if (!pending) return;
+  try { clearTimeout(pending); } catch (_) {}
+  pendingLobbyDisconnectTimers.delete(key);
+}
+
+function scheduleLobbyDisconnectRemoval(code, username) {
+  const draftCode = String(code || '').trim();
+  const lobbyUsername = String(username || '').trim();
+  if (!draftCode || !lobbyUsername) return;
+
+  const key = normalizeLobbyUserKey(draftCode, lobbyUsername);
+  clearPendingLobbyDisconnect(draftCode, lobbyUsername);
+
+  const delayMs = Number.isFinite(LOBBY_DISCONNECT_GRACE_MS) ? Math.max(15000, LOBBY_DISCONNECT_GRACE_MS) : 120000;
+  const timerId = setTimeout(() => {
+    pendingLobbyDisconnectTimers.delete(key);
+
+    const draft = drafts[draftCode];
+    if (!draft || !Array.isArray(draft.members)) return;
+    if (hasActiveUserSocketInLobby(draftCode, lobbyUsername)) return;
+
+    const normalizedUsername = lobbyUsername.toLowerCase();
+    const wasHost = (
+      String(draft.host || '').trim().toLowerCase() === normalizedUsername
+      || (draft.members.length && String(draft.members[0] || '').trim().toLowerCase() === normalizedUsername)
+    );
+
+    draft.members = draft.members.filter((member) => String(member || '').trim().toLowerCase() !== normalizedUsername);
+    if (wasHost) {
+      draft.host = draft.members.length ? draft.members[0] : null;
+    }
+
+    draft.closed = false;
+    io.to(draftCode).emit('draftUpdate', draft);
+  }, delayMs);
+
+  pendingLobbyDisconnectTimers.set(key, timerId);
+}
+
 io.on('connection', (socket) => {
   console.log(`[connection] New socket connected: ${socket.id}`);
   
@@ -6554,6 +6624,7 @@ io.on('connection', (socket) => {
     if (username) {
       socket.data.username = username;
       socket.data.currentDraft = code;
+      clearPendingLobbyDisconnect(code, username);
       console.log(`[joinDraftRoom] ${username} (${socket.id}) joined room ${code}`);
     }
     socket.emit('draftUpdate', drafts[code] || { members: [], type: null, capacity: null, public: false });
@@ -6581,6 +6652,7 @@ io.on('connection', (socket) => {
     socket.join(code);
     socket.data.username = username;
     socket.data.currentDraft = code;
+    clearPendingLobbyDisconnect(code, username);
     io.to(code).emit('draftUpdate', drafts[code]);
     if(cb) cb({ ok: true, draft: drafts[code] });
   });
@@ -6624,6 +6696,7 @@ io.on('connection', (socket) => {
     socket.join(code);
     socket.data.username = username;
     socket.data.currentDraft = code;
+    clearPendingLobbyDisconnect(code, username);
     console.log(`[requestJoin] ${username} joined ${code} successfully. Total members: ${drafts[code].members.length}`);
     io.to(code).emit('draftUpdate', drafts[code]);
     if(cb) cb({ ok: true, draft: drafts[code] });
@@ -6643,6 +6716,7 @@ io.on('connection', (socket) => {
 
   // Clients can request to leave a draft; server will update state and broadcast
   socket.on('leaveDraft', (code, username, cb) => {
+    clearPendingLobbyDisconnect(code, username);
     if(drafts[code] && drafts[code].members){
       // determine if leaving user is the host (first member)
       const wasHost = drafts[code].members.length && drafts[code].members[0] === username;
@@ -9022,24 +9096,18 @@ io.on('connection', (socket) => {
     if (cb) cb({ ok: true, waiverState });
   });
 
-  // Handle socket disconnects. Host disconnects are treated as temporary to avoid
-  // lobby shutdowns caused by browser/network timeouts.
+  // Handle socket disconnects with a grace window so transient network blips do
+  // not instantly kick users from the lobby.
   socket.on('disconnect', () => {
     const username = socket.data.username;
     const code = socket.data.currentDraft;
     if(username && code){
       console.log(`[disconnect] ${username} disconnected from ${code}`);
       if (drafts[code] && Array.isArray(drafts[code].members)) {
-        const wasHost = drafts[code].members.length && drafts[code].members[0] === username;
-        if (wasHost) {
-          // Keep lobby open: remove disconnected host and promote next member.
-          drafts[code].members = drafts[code].members.filter(m => m !== username);
-          drafts[code].host = drafts[code].members.length ? drafts[code].members[0] : null;
-          drafts[code].closed = false;
+        if (hasActiveUserSocketInLobby(code, username)) {
           io.to(code).emit('draftUpdate', drafts[code]);
         } else {
-          drafts[code].members = drafts[code].members.filter(m => m !== username);
-          io.to(code).emit('draftUpdate', drafts[code]);
+          scheduleLobbyDisconnectRemoval(code, username);
         }
       }
     }
