@@ -9756,8 +9756,11 @@ io.on('connection', (socket) => {
       if (drafts[code] && Array.isArray(drafts[code].members)) {
         const wasHost = isHostForDraft(code, username);
         if (wasHost) {
-          // Host disconnects are treated as temporary. Only explicit leaveDraft closes the lobby.
-          clearPendingHostClose(code);
+          // Keep host and lobby intact for a long grace period so transient inactivity/reloads
+          // do not collapse the room while the host is actively filling user slots.
+          if (!hasActiveHostSocketInRoom(code, username)) {
+            scheduleHostDisconnectClose(code, username);
+          }
           io.to(code).emit('draftUpdate', drafts[code]);
         } else {
           drafts[code].members = drafts[code].members.filter(m => m !== username);
