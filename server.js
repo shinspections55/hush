@@ -5212,7 +5212,7 @@ const io = new Server(server, {
 const drafts = {};
 const voiceLobbies = new Map();
 const pendingHostCloseTimers = new Map();
-const HOST_DISCONNECT_GRACE_MS = Number.parseInt(process.env.HOST_DISCONNECT_GRACE_MS || '180000', 10);
+const HOST_DISCONNECT_GRACE_MS = Number.parseInt(process.env.HOST_DISCONNECT_GRACE_MS || '1800000', 10);
 const WAIVER_PICK_TIMER_MS = 2 * 60 * 1000;
 const WAIVER_TIMER_TICK_MS = 1000;
 const WAIVER_CPU_ACTION_DELAY_MS = 10 * 1000;
@@ -5326,6 +5326,28 @@ function cancelHostDisconnectCloseOnRejoin(code, username) {
   }
 
   clearPendingHostClose(key);
+}
+
+function hasActiveHostSocketInRoom(code, username) {
+  const roomCode = String(code || '').trim();
+  const hostUsername = String(username || '').trim().toLowerCase();
+  if (!roomCode || !hostUsername) return false;
+
+  const room = io && io.sockets && io.sockets.adapter && io.sockets.adapter.rooms
+    ? io.sockets.adapter.rooms.get(roomCode)
+    : null;
+  if (!room || !room.size) return false;
+
+  for (const socketId of room) {
+    const roomSocket = io.sockets.sockets.get(socketId);
+    if (!roomSocket || !roomSocket.data) continue;
+    const roomUsername = String(roomSocket.data.username || '').trim().toLowerCase();
+    if (roomUsername === hostUsername) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function shuffleList(values = []) {
@@ -9734,8 +9756,11 @@ io.on('connection', (socket) => {
       if (drafts[code] && Array.isArray(drafts[code].members)) {
         const wasHost = isHostForDraft(code, username);
         if (wasHost) {
-          drafts[code].members = drafts[code].members.filter(m => m !== username);
-          scheduleHostDisconnectClose(code, username);
+          // Keep host and lobby intact for a long grace period so transient inactivity/reloads
+          // do not collapse the room while the host is actively filling user slots.
+          if (!hasActiveHostSocketInRoom(code, username)) {
+            scheduleHostDisconnectClose(code, username);
+          }
           io.to(code).emit('draftUpdate', drafts[code]);
         } else {
           drafts[code].members = drafts[code].members.filter(m => m !== username);
