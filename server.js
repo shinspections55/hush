@@ -4807,7 +4807,7 @@ const io = new Server(server, {
   pingInterval: 25000,
   pingTimeout: 60000,
   connectionStateRecovery: {
-    maxDisconnectionDuration: 120000,
+    maxDisconnectionDuration: 1800000,
     skipMiddlewares: true
   }
 });
@@ -4815,7 +4815,7 @@ const io = new Server(server, {
 // In-memory map of drafts for real-time sync. This mirrors client localStorage but is ephemeral.
 const drafts = {};
 const pendingLobbyDisconnectTimers = new Map();
-const LOBBY_DISCONNECT_GRACE_MS = Number.parseInt(process.env.LOBBY_DISCONNECT_GRACE_MS || '120000', 10);
+const LOBBY_DISCONNECT_GRACE_MS = Number.parseInt(process.env.LOBBY_DISCONNECT_GRACE_MS || '1800000', 10);
 const WAIVER_PICK_TIMER_MS = 2 * 60 * 1000;
 const WAIVER_TIMER_TICK_MS = 1000;
 const WAIVER_CPU_ACTION_DELAY_MS = 10 * 1000;
@@ -6585,7 +6585,7 @@ function scheduleLobbyDisconnectRemoval(code, username) {
   const key = normalizeLobbyUserKey(draftCode, lobbyUsername);
   clearPendingLobbyDisconnect(draftCode, lobbyUsername);
 
-  const delayMs = Number.isFinite(LOBBY_DISCONNECT_GRACE_MS) ? Math.max(15000, LOBBY_DISCONNECT_GRACE_MS) : 120000;
+  const delayMs = Number.isFinite(LOBBY_DISCONNECT_GRACE_MS) ? Math.max(15000, LOBBY_DISCONNECT_GRACE_MS) : 1800000;
   const timerId = setTimeout(() => {
     pendingLobbyDisconnectTimers.delete(key);
 
