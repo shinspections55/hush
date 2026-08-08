@@ -1,0 +1,518 @@
+const path = require('path');
+
+let sqlite3 = null;
+let sqliteEnabled = true;
+
+try {
+  sqlite3 = require('sqlite3').verbose();
+} catch (error) {
+  sqliteEnabled = false;
+  console.error('[DATABASE] sqlite3 module failed to load; running without persistent DB:', error.message);
+}
+
+// Database file path
+const dbPath = path.join(__dirname, 'auction_data.db');
+
+const noopDb = {
+  run(sql, params, callback) {
+    const cb = typeof params === 'function' ? params : callback;
+    if (cb) cb(null);
+  },
+  get(sql, params, callback) {
+    const cb = typeof params === 'function' ? params : callback;
+    if (cb) cb(null, undefined);
+  },
+  all(sql, params, callback) {
+    const cb = typeof params === 'function' ? params : callback;
+    if (cb) cb(null, []);
+  },
+  close(callback) {
+    if (callback) callback(null);
+  }
+};
+
+let db = noopDb;
+
+// Create database connection when sqlite is available
+if (sqliteEnabled) {
+  db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+      sqliteEnabled = false;
+      db = noopDb;
+      console.error('[DATABASE] Error opening SQLite database; switching to in-memory no-op mode:', err.message);
+    } else {
+      console.log('Connected to SQLite database');
+      initializeDatabase();
+    }
+  });
+}
+
+// Initialize database tables
+function initializeDatabase() {
+  // Create auction_results table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS auction_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      draft_id TEXT NOT NULL,
+      round_number INTEGER NOT NULL,
+      player_id INTEGER NOT NULL,
+      player_name TEXT NOT NULL,
+      player_position TEXT NOT NULL,
+      winning_team TEXT NOT NULL,
+      winning_bid INTEGER NOT NULL,
+      second_highest_bid INTEGER,
+      second_highest_bidder TEXT,
+      auction_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      player_avg_value REAL
+    )
+  `, (err) => {
+    if (err) {
+      console.error('Error creating auction_results table:', err.message);
+    } else {
+      console.log('auction_results table ready');
+    }
+  });
+
+  // Create player_stats table for rolling averages
+  db.run(`
+    CREATE TABLE IF NOT EXISTS player_stats (
+      player_id INTEGER PRIMARY KEY,
+      player_name TEXT NOT NULL,
+      position TEXT NOT NULL,
+      total_auctions INTEGER DEFAULT 0,
+      total_value INTEGER DEFAULT 0,
+      avg_value REAL DEFAULT 0,
+      reported_av REAL DEFAULT 0,
+      previous_reported_av REAL DEFAULT 0,
+      av_step_delta REAL DEFAULT 0,
+      min_value INTEGER,
+      max_value INTEGER,
+      last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => {
+    if (err) {
+      console.error('Error creating player_stats table:', err.message);
+    } else {
+      console.log('player_stats table ready');
+    }
+  });
+
+  // Create individual_bids table to track all bids for analysis
+  db.run(`
+    CREATE TABLE IF NOT EXISTS individual_bids (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      draft_id TEXT NOT NULL,
+      round_number INTEGER NOT NULL,
+      player_id INTEGER NOT NULL,
+      player_name TEXT NOT NULL,
+      player_position TEXT NOT NULL,
+      bidder_team TEXT NOT NULL,
+      bid_amount INTEGER NOT NULL,
+      bid_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      is_winning_bid BOOLEAN DEFAULT FALSE,
+      is_second_highest BOOLEAN DEFAULT FALSE
+    )
+  `, (err) => {
+    if (err) {
+      console.error('Error creating individual_bids table:', err.message);
+    } else {
+      console.log('individual_bids table ready');
+    }
+  });
+
+  // Create indexes for better performance
+  db.run(`CREATE INDEX IF NOT EXISTS idx_auction_results_player_id ON auction_results(player_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_auction_results_draft_id ON auction_results(draft_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_player_stats_position ON player_stats(position)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_individual_bids_player_id ON individual_bids(player_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_individual_bids_draft_id ON individual_bids(draft_id)`);
+
+  // Keep schema backwards compatible with existing DB files.
+  ensurePlayerStatsTrendColumns();
+}
+
+function ensurePlayerStatsTrendColumns() {
+  db.all(`PRAGMA table_info(player_stats)`, [], (err, rows) => {
+    if (err) {
+      console.error('Error inspecting player_stats schema:', err.message);
+      return;
+    }
+
+    const existing = new Set((rows || []).map((row) => String(row && row.name || '').trim()));
+    const migrations = [
+      {
+        name: 'reported_av',
+        sql: `ALTER TABLE player_stats ADD COLUMN reported_av REAL DEFAULT 0`
+      },
+      {
+        name: 'previous_reported_av',
+        sql: `ALTER TABLE player_stats ADD COLUMN previous_reported_av REAL DEFAULT 0`
+      },
+      {
+        name: 'av_step_delta',
+        sql: `ALTER TABLE player_stats ADD COLUMN av_step_delta REAL DEFAULT 0`
+      }
+    ];
+
+    migrations.forEach((migration) => {
+      if (existing.has(migration.name)) return;
+      db.run(migration.sql, (alterErr) => {
+        if (alterErr) {
+          console.error(`Error adding player_stats.${migration.name}:`, alterErr.message);
+        } else {
+          console.log(`[DATABASE] Added player_stats.${migration.name}`);
+        }
+      });
+    });
+  });
+}
+
+// Log auction result
+function logAuctionResult(draftId, roundNumber, player, winner, winningBid, secondHighestBid = null, secondHighestBidder = null) {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO auction_results
+      (draft_id, round_number, player_id, player_name, player_position, winning_team, winning_bid, second_highest_bid, second_highest_bidder, player_avg_value)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const params = [
+      draftId,
+      roundNumber,
+      player.id,
+      player.name,
+      player.position,
+      winner.name,
+      winningBid,
+      secondHighestBid,
+      secondHighestBidder,
+      player.avgValue || 0
+    ];
+
+    db.run(sql, params, function(err) {
+      if (err) {
+        console.error('Error logging auction result:', err.message);
+        reject(err);
+      } else {
+        console.log(`[DATABASE] Logged auction: ${player.name} to ${winner.name} for $${winningBid}`);
+        // Update player stats after logging
+        updatePlayerStats(player.id, player.name, player.position, winningBid, secondHighestBid, player.avgValue)
+          .then(() => {
+            // Mark winning and second highest bids in individual_bids table
+            const promises = [];
+            if (winner) {
+              promises.push(markWinningBid(draftId, roundNumber, player.id, winner.name));
+            }
+            if (secondHighestBidder) {
+              promises.push(markSecondHighestBid(draftId, roundNumber, player.id, secondHighestBidder));
+            }
+            return Promise.all(promises);
+          })
+          .then(() => resolve())
+          .catch(reject);
+      }
+    });
+  });
+}
+
+// Log individual bid for analysis
+function logIndividualBid(draftId, roundNumber, player, bidderTeam, bidAmount, isWinning = false, isSecondHighest = false) {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO individual_bids
+      (draft_id, round_number, player_id, player_name, player_position, bidder_team, bid_amount, is_winning_bid, is_second_highest)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const params = [
+      draftId,
+      roundNumber,
+      player.id,
+      player.name,
+      player.position,
+      bidderTeam,
+      bidAmount,
+      isWinning ? 1 : 0,
+      isSecondHighest ? 1 : 0
+    ];
+
+    db.run(sql, params, function(err) {
+      if (err) {
+        console.error('Error logging individual bid:', err.message);
+        reject(err);
+      } else {
+        console.log(`[DATABASE] Logged bid: ${bidderTeam} bid $${bidAmount} on ${player.name}${isWinning ? ' (WINNING)' : ''}${isSecondHighest ? ' (2ND HIGHEST)' : ''}`);
+        resolve();
+      }
+    });
+  });
+}
+
+// Mark a bid as the winning bid
+function markWinningBid(draftId, roundNumber, playerId, winnerTeam) {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE individual_bids
+      SET is_winning_bid = 1
+      WHERE draft_id = ? AND round_number = ? AND player_id = ? AND bidder_team = ?
+    `;
+
+    db.run(sql, [draftId, roundNumber, playerId, winnerTeam], function(err) {
+      if (err) {
+        console.error('Error marking winning bid:', err.message);
+        reject(err);
+      } else {
+        console.log(`[DATABASE] Marked winning bid for ${winnerTeam} on player ${playerId}`);
+        resolve();
+      }
+    });
+  });
+}
+
+// Mark a bid as the second highest bid
+function markSecondHighestBid(draftId, roundNumber, playerId, secondHighestTeam) {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE individual_bids
+      SET is_second_highest = 1
+      WHERE draft_id = ? AND round_number = ? AND player_id = ? AND bidder_team = ?
+    `;
+
+    db.run(sql, [draftId, roundNumber, playerId, secondHighestTeam], function(err) {
+      if (err) {
+        console.error('Error marking second highest bid:', err.message);
+        reject(err);
+      } else {
+        console.log(`[DATABASE] Marked second highest bid for ${secondHighestTeam} on player ${playerId}`);
+        resolve();
+      }
+    });
+  });
+}
+
+// Get auction count for a player
+function getPlayerAuctionCount(playerId) {
+  return new Promise((resolve, reject) => {
+    db.get(`SELECT total_auctions FROM player_stats WHERE player_id = ?`, [playerId], (err, row) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(row ? row.total_auctions : 0);
+      }
+    });
+  });
+}
+
+// Update player statistics with new auction data
+function updatePlayerStats(playerId, playerName, position, winningBid, secondHighestBid = null, playerCurrentAV = null) {
+  return new Promise((resolve, reject) => {
+    // First, get current stats
+    db.get(`SELECT * FROM player_stats WHERE player_id = ?`, [playerId], (err, row) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      // Calculate market value based on bidding competition
+      let marketValue;
+
+      if (secondHighestBid !== null && secondHighestBid > 0) {
+        // Competitive auction: use top two bids for accurate market value
+        marketValue = (winningBid + secondHighestBid) / 2;
+        console.log(`[LEARNING] Competitive auction: ${playerName} - Winning: $${winningBid}, Second: $${secondHighestBid}, Market: $${marketValue.toFixed(1)}`);
+      } else {
+        // Catch bid scenario: player won with minimal competition
+        // Include catch bids as they represent successful strategies, but use reasonable minimum
+        const minReasonableBid = playerCurrentAV ? Math.max(playerCurrentAV * 0.3, 1) : 1; // At least 30% of current AV or $1
+        marketValue = Math.max(winningBid, minReasonableBid);
+        console.log(`[LEARNING] Catch bid success: ${playerName} - Won for $${winningBid}, Market value: $${marketValue.toFixed(1)} (min threshold: $${minReasonableBid.toFixed(1)})`);
+      }
+
+      let totalAuctions = 1;
+      let totalValue = marketValue;
+      let minValue = marketValue;
+      let maxValue = marketValue;
+
+      if (row) {
+        // Update existing stats
+        totalAuctions = row.total_auctions + 1;
+        totalValue = row.total_value + marketValue;
+        minValue = Math.min(row.min_value || marketValue, marketValue);
+        maxValue = Math.max(row.max_value || marketValue, marketValue);
+      }
+
+      const avgValue = totalValue / totalAuctions;
+
+      // Smoothed AV used for gameplay/UI so values move gradually toward market trend.
+      const previousReported = row
+        ? Number(row.reported_av || row.avg_value || playerCurrentAV || avgValue)
+        : Number(playerCurrentAV || avgValue);
+      const smoothingAlpha = 0.12;
+      const nextReportedAv = previousReported + ((avgValue - previousReported) * smoothingAlpha);
+      const avStepDelta = nextReportedAv - previousReported;
+
+      const sql = row ?
+        `UPDATE player_stats SET total_auctions = ?, total_value = ?, avg_value = ?, reported_av = ?, previous_reported_av = ?, av_step_delta = ?, min_value = ?, max_value = ?, last_updated = CURRENT_TIMESTAMP WHERE player_id = ?` :
+        `INSERT INTO player_stats (player_id, player_name, position, total_auctions, total_value, avg_value, reported_av, previous_reported_av, av_step_delta, min_value, max_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+      const params = row ?
+        [totalAuctions, totalValue, avgValue, nextReportedAv, previousReported, avStepDelta, minValue, maxValue, playerId] :
+        [playerId, playerName, position, totalAuctions, totalValue, avgValue, nextReportedAv, previousReported, avStepDelta, minValue, maxValue];
+
+      db.run(sql, params, function(err) {
+        if (err) {
+          console.error('Error updating player stats:', err.message);
+          reject(err);
+        } else {
+          console.log(`[DATABASE] Updated stats for ${playerName}: ${totalAuctions} auctions, market value $${marketValue.toFixed(1)}, avg $${avgValue.toFixed(1)}, reported AV $${nextReportedAv.toFixed(2)} (${avStepDelta >= 0 ? '+' : ''}${avStepDelta.toFixed(2)})`);
+          resolve();
+        }
+      });
+    });
+  });
+}
+
+// Get updated AV for a player
+function getPlayerAV(playerId) {
+  return new Promise((resolve, reject) => {
+    db.get(`SELECT COALESCE(reported_av, avg_value) AS effective_av FROM player_stats WHERE player_id = ?`, [playerId], (err, row) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(row ? row.effective_av : null);
+      }
+    });
+  });
+}
+
+// Get all player stats for analysis
+function getAllPlayerStats() {
+  return new Promise((resolve, reject) => {
+    db.all(`SELECT * FROM player_stats ORDER BY total_auctions DESC, COALESCE(reported_av, avg_value) DESC`, [], (err, rows) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(rows);
+      }
+    });
+  });
+}
+
+function getPlayerAvTrends(limit = 100, minAuctions = 1) {
+  return new Promise((resolve, reject) => {
+    const safeLimit = Math.max(1, Number(limit || 100));
+    const safeMinAuctions = Math.max(0, Number(minAuctions || 1));
+
+    db.all(`
+      SELECT
+        player_id,
+        player_name,
+        position,
+        total_auctions,
+        avg_value,
+        COALESCE(reported_av, avg_value) AS reported_av,
+        COALESCE(previous_reported_av, COALESCE(reported_av, avg_value)) AS previous_reported_av,
+        COALESCE(av_step_delta, 0) AS av_step_delta,
+        min_value,
+        max_value,
+        last_updated
+      FROM player_stats
+      WHERE total_auctions >= ?
+      ORDER BY ABS(COALESCE(av_step_delta, 0)) DESC, total_auctions DESC, player_name ASC
+      LIMIT ?
+    `, [safeMinAuctions, safeLimit], (err, rows) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(rows || []);
+      }
+    });
+  });
+}
+
+// Get auction history for a player
+function getPlayerAuctionHistory(playerId, limit = 10) {
+  return new Promise((resolve, reject) => {
+    db.all(`
+      SELECT draft_id, round_number, winning_bid, auction_timestamp
+      FROM auction_results
+      WHERE player_id = ?
+      ORDER BY auction_timestamp DESC
+      LIMIT ?
+    `, [playerId, limit], (err, rows) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(rows);
+      }
+    });
+  });
+}
+
+// Close database connection
+function closeDatabase() {
+  db.close((err) => {
+    if (err) {
+      console.error('Error closing database:', err.message);
+    } else {
+      console.log('Database connection closed');
+    }
+  });
+}
+
+// Bulk log individual bids for performance optimization
+function bulkLogIndividualBids(bidDataArray) {
+  return new Promise((resolve, reject) => {
+    if (!bidDataArray || bidDataArray.length === 0) {
+      resolve();
+      return;
+    }
+
+    const placeholders = bidDataArray.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+    const values = [];
+
+    bidDataArray.forEach(bidData => {
+      values.push(
+        bidData.draftId,
+        bidData.roundNumber,
+        bidData.player.id,
+        bidData.player.name,
+        bidData.player.position,
+        bidData.bidderTeam,
+        bidData.bidAmount,
+        bidData.isWinning ? 1 : 0,
+        bidData.isSecondHighest ? 1 : 0
+      );
+    });
+
+    const sql = `
+      INSERT INTO individual_bids
+      (draft_id, round_number, player_id, player_name, player_position, bidder_team, bid_amount, is_winning_bid, is_second_highest)
+      VALUES ${placeholders}
+    `;
+
+    db.run(sql, values, function(err) {
+      if (err) {
+        console.error('[bulkLogIndividualBids] Error:', err);
+        reject(err);
+      } else {
+        console.log(`[bulkLogIndividualBids] Successfully inserted ${bidDataArray.length} bids`);
+        resolve();
+      }
+    });
+  });
+}
+
+module.exports = {
+  logAuctionResult,
+  logIndividualBid,
+  bulkLogIndividualBids,
+  markWinningBid,
+  markSecondHighestBid,
+  getPlayerAV,
+  getPlayerAuctionCount,
+  getAllPlayerStats,
+  getPlayerAvTrends,
+  getPlayerAuctionHistory,
+  closeDatabase
+};

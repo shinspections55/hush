@@ -1,0 +1,272 @@
+[
+    {
+        "Krank": "#1",
+        "name": "Brandon Aubrey",
+        "position": "K",
+        "team": "DAL",
+        "avgValue": 4,
+        "draftChance": 0,
+        "byeWeek": 10
+    },
+    {
+        "Krank": "#2",
+        "name": "Cameron Dicker",
+        "position": "K",
+        "team": "LAC",
+        "avgValue": 4,
+        "draftChance": 0,
+        "byeWeek": 7
+    },
+    {
+        "Krank": "#3",
+        "name": "Jake Bates",
+        "position": "K",
+        "team": "DET",
+        "avgValue": 3,
+        "draftChance": 0,
+        "byeWeek": 6
+    },
+    {
+        "Krank": "#4",
+        "name": "Joshua Karty",
+        "position": "K",
+        "team": "ARI",
+        "avgValue": 3,
+        "draftChance": 0,
+        "byeWeek": 8
+    },
+    {
+        "Krank": "#5",
+        "name": "Tyler Loop",
+        "position": "K",
+        "team": "BAL",
+        "avgValue": 3,
+        "draftChance": 0,
+        "byeWeek": 7
+    },
+    {
+        "Krank": "#6",
+        "name": "Jake Moody",
+        "position": "K",
+        "team": "WAS",
+        "avgValue": 2,
+        "draftChance": 0,
+        "byeWeek": 7
+    },
+    {
+        "Krank": "#7",
+        "name": "Will Reichard",
+        "position": "K",
+        "team": "MIN",
+        "avgValue": 2,
+        "draftChance": 0,
+        "byeWeek": 6
+    },
+    {
+        "Krank": "#8",
+        "name": "Tyler Bass",
+        "position": "K",
+        "team": "BUF",
+        "avgValue": 2,
+        "draftChance": 0,
+        "byeWeek": 7
+    },
+    {
+        "Krank": "#9",
+        "name": "Chase McLaughlin",
+        "position": "K",
+        "team": "TB",
+        "avgValue": 2,
+        "draftChance": 0,
+        "byeWeek": 9
+    },
+    {
+        "Krank": "#10",
+        "name": "Evan McPherson",
+        "position": "K",
+        "team": "CIN",
+        "avgValue": 2,
+        "draftChance": 0,
+        "byeWeek": 6
+    },
+    {
+        "Krank": "#11",
+        "name": "Wil Lutz",
+        "position": "K",
+        "team": "DEN",
+        "avgValue": 2,
+        "draftChance": 0,
+        "byeWeek": 10
+    },
+    {
+        "Krank": "#12",
+        "name": "Younghoe Koo",
+        "position": "K",
+        "team": "NYJ",
+        "avgValue": 2,
+        "draftChance": 0,
+        "byeWeek": 9
+    },
+    {
+        "Krank": "#13",
+        "name": "Jake Elliott",
+        "position": "K",
+        "team": "PHI",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 9
+    },
+    {
+        "Krank": "#14",
+        "name": "Matt Gay",
+        "position": "K",
+        "team": "LV",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 13
+    },
+    {
+        "Krank": "#15",
+        "name": "Cam Little",
+        "position": "K",
+        "team": "JAX",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 7
+    },
+    {
+        "Krank": "#16",
+        "name": "Joey Slye",
+        "position": "K",
+        "team": "TEN",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 9
+    },
+    {
+        "Krank": "#17",
+        "name": "Chris Boswell",
+        "position": "K",
+        "team": "PIT",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 5
+    },
+    {
+        "Krank": "#18",
+        "name": "Jason Myers",
+        "position": "K",
+        "team": "SEA",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 8
+    },
+    {
+        "Krank": "#19",
+        "name": "Ka'imi Fairbairn",
+        "position": "K",
+        "team": "HOU",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 6
+    },
+    {
+        "Krank": "#20",
+        "name": "Andy Borregales",
+        "position": "K",
+        "team": "NE",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 11
+    },
+    {
+        "Krank": "#21",
+        "name": "Harrison Butker",
+        "position": "K",
+        "team": "KC",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 5
+    },
+    {
+        "Krank": "#22",
+        "name": "Nick Folk",
+        "position": "K",
+        "team": "ATL",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 5
+    },
+    {
+        "Krank": "#23",
+        "name": "Blake Grupe",
+        "position": "K",
+        "team": "IND",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 11
+    },
+    {
+        "Krank": "#24",
+        "name": "Spencer Shrader",
+        "position": "K",
+        "team": "IND",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 11
+    },
+    {
+        "Krank": "#25",
+        "name": "Cairo Santos",
+        "position": "K",
+        "team": "CHI",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 5
+    },
+    {
+        "Krank": "#26",
+        "name": "Ryan Fitzgerald",
+        "position": "K",
+        "team": "CAR",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 5
+    },
+    {
+        "Krank": "#27",
+        "name": "Riley Patterson",
+        "position": "K",
+        "team": "MIA",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 6
+    },
+    {
+        "Krank": "#28",
+        "name": "Harrison Mevis",
+        "position": "K",
+        "team": "LAR",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 8
+    },
+    {
+        "Krank": "#29",
+        "name": "Chad Ryland",
+        "position": "K",
+        "team": "ARI",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 8
+    },
+    {
+        "Krank": "#30",
+        "name": "Zane Gonzalez",
+        "position": "K",
+        "team": "MIA",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 6
+    }
+]

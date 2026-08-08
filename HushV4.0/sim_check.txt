@@ -1,0 +1,1 @@
+drafts=60 top20_samples=1200 oneDollar_or_undrafted=30 pct=2.5 oneDollarOnly=30 oneDollarPct=2.5 undraftedOnly=0 undraftedPct=0

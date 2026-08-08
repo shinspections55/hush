@@ -1,0 +1,102 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Waivers</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="draft-summary.css">
+    <link rel="stylesheet" href="waivers.css">
+    <script src="theme-utils.js?v=20260726c"></script>
+</head>
+<body class="bg-overlay waiver-page-body">
+    <header class="site-header">
+        <div class="header-left">
+            <img src="HUSHLOGO.png" alt="Logo" class="logo">
+        </div>
+        <div class="header-right">
+            <a href="draft-summary.html" class="account-btn">Back to Summary</a>
+        </div>
+    </header>
+
+    <main class="page">
+        <section class="box waiver-page-box">
+            <div class="summary-header waiver-page-header">
+                <div>
+                    <h1 class="summary-title">Waiver Wire</h1>
+                    <div id="waiverPageMeta" class="summary-meta">Loading waiver state...</div>
+                </div>
+                <div class="waiver-page-actions">
+                    <button id="waiverStartBtn" type="button" class="account-btn">Start Waivers</button>
+                    <button id="waiverPassBtn" type="button" class="team-nav-btn waiver-pass-btn">Pass Turn</button>
+                </div>
+            </div>
+
+            <div id="waiverClockStrip" class="waiver-clock-strip" aria-live="polite">
+                <div id="waiverClockTeam" class="waiver-clock-team">On the clock: --</div>
+                <div id="waiverClockTimer" class="waiver-clock-timer">--:--</div>
+            </div>
+
+            <div id="waiverPageNotice" class="cut-alert waiver-status"></div>
+
+            <section class="waiver-page-layout">
+                <aside id="waiver-order-panel" class="summary-panel waiver-sidebar">
+                    <h2 class="summary-section-title">Waiver Order</h2>
+                    <div id="waiverOrderList" class="bench-list"></div>
+                </aside>
+
+                <section id="waiver-team-panel" class="summary-panel waiver-center-panel">
+                    <div class="waiver-center-header">
+                        <h2 id="waiverOnClockTitle" class="summary-section-title">On The Clock Team</h2>
+                        <div class="waiver-team-picker-wrap">
+                            <label class="waiver-team-picker-label" for="waiverTeamSelect">Team</label>
+                            <select id="waiverTeamSelect" class="team-select waiver-team-select"></select>
+                        </div>
+                    </div>
+                    <div id="waiverOnClockMeta" class="summary-meta">Waiting for waivers to start...</div>
+                    <div class="waiver-team-columns">
+                        <div>
+                            <h3 class="summary-section-title waiver-team-subtitle">Starters</h3>
+                            <div id="waiverOnClockStarters" class="bench-list"></div>
+                        </div>
+                        <div>
+                            <h3 class="summary-section-title waiver-team-subtitle">Bench</h3>
+                            <div id="waiverOnClockBench" class="bench-list"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="waiver-players-panel" class="summary-panel waiver-main-panel">
+                    <h2 class="summary-section-title">Rankings</h2>
+                    <div class="waiver-filter-bar">
+                        <div class="waiver-position-tabs" id="waiverPositionTabs">
+                            <button type="button" class="team-nav-btn waiver-pos-tab active" data-pos="ALL">ALL</button>
+                            <button type="button" class="team-nav-btn waiver-pos-tab" data-pos="QB">QB</button>
+                            <button type="button" class="team-nav-btn waiver-pos-tab" data-pos="RB">RB</button>
+                            <button type="button" class="team-nav-btn waiver-pos-tab" data-pos="WR">WR</button>
+                            <button type="button" class="team-nav-btn waiver-pos-tab" data-pos="TE">TE</button>
+                            <button type="button" class="team-nav-btn waiver-pos-tab" data-pos="K">K</button>
+                            <button type="button" class="team-nav-btn waiver-pos-tab" data-pos="DEF">DEF</button>
+                        </div>
+                        <input id="waiverSearchInput" class="team-select waiver-search-input" type="search" placeholder="Search undrafted players">
+                    </div>
+
+                    <div id="waiverPoolList" class="waiver-pool-list"></div>
+                </section>
+            </section>
+        </section>
+    </main>
+
+    <nav id="waiver-app-nav" class="waiver-app-nav" aria-label="Waiver sections" hidden>
+        <button type="button" class="waiver-app-nav-btn" data-waiver-section="order">Order</button>
+        <button type="button" class="waiver-app-nav-btn" data-waiver-section="teams">Teams</button>
+        <button type="button" class="waiver-app-nav-btn" data-waiver-section="players">Players</button>
+    </nav>
+
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="preferences.js"></script>
+    <script src="waivers.js"></script>
+</body>
+</html>
+

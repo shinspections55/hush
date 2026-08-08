@@ -1,0 +1,120 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0F2F44">
+    <meta name="description" content="Hush - Silent draft fantasy football league management">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/icon-192x192.png">
+    <link rel="stylesheet" href="silentdraft.css?v=20260804b">
+    <title>Silent Draft</title>
+</head>
+<body class="silentdraft-page" id="silent-draft-body">
+    <div class="header-bar">
+        <div class="draft-controls">
+            <div id="bid-counter" class="header-bid-counter">Total Bids: $0 | Budget: $200 | Remaining: $200</div>
+            <button id="auto-draft-toggle" aria-pressed="false">ðŸ¤– Auto Draft: OFF</button>
+            <button id="pause-draft" class="host-only-control" type="button" aria-label="Pause draft">â¸ Pause Draft</button>
+        </div>
+        <div class="draft-info">
+            <h1>Silent Draft</h1>
+            <div class="draft-stats">
+                <span id="current-round">Round --/--</span>
+                <span id="timer">3:00</span>
+                <span class="budget-display">Budget: $<span id="your-budget">200</span></span>
+            </div>
+        </div>
+        <div class="submit-area">
+            <button id="submit-bids">Submit Bids</button>
+        </div>
+    </div>
+ 
+    <div class="container">
+        <div class="column" id="left-column">
+            <h2>Draftable Players</h2>
+            <div id="players-list"></div>
+        </div>
+        <div class="column" id="center-column">
+            <div class="roster-header-row">
+                <h2 id="team-header">My Team</h2>
+                <button id="themeToggleBtn" type="button" aria-label="Toggle theme" aria-pressed="false" title="Toggle theme">Mode</button>
+            </div>
+            <div id="your-team"></div>
+            <h3 id="bench-title" hidden></h3>
+            <div id="bench-players"></div>
+        </div>
+        <div class="column" id="right-column">
+            <div class="right-view-tabs">
+                <button class="right-view-tab active" data-right-view="budgets">Budgets</button>
+                <button class="right-view-tab" data-right-view="rankings">Rankings</button>
+                <button class="right-view-tab" data-right-view="chat">Chat <span id="chat-tab-badge" class="chat-tab-badge" hidden>0</span></button>
+            </div>
+
+            <div id="right-budgets-view" class="right-view-section">
+                <h2>Budgets</h2>
+                <div id="budgets-list"></div>
+                <ul id="teams-list"></ul>
+            </div>
+
+            <div id="right-rankings-view" class="right-view-section right-view-hidden">
+                <div id="draftroom-rankings" class="draftroom-rankings">
+                    <h3>Rankings</h3>
+                    <div class="draftroom-rankings-tabs">
+                        <button class="draftroom-rankings-tab active" data-rankings-mode="personal">Personal</button>
+                        <button class="draftroom-rankings-tab" data-rankings-mode="default">Default</button>
+                        <button class="draftroom-rankings-tab" data-rankings-mode="database">Database</button>
+                    </div>
+                    <div class="draftroom-rankings-pos-tabs">
+                        <button class="draftroom-rankings-pos-tab active" data-rankings-pos="ALL">ALL</button>
+                        <button class="draftroom-rankings-pos-tab" data-rankings-pos="QB">QB</button>
+                        <button class="draftroom-rankings-pos-tab" data-rankings-pos="RB">RB</button>
+                        <button class="draftroom-rankings-pos-tab" data-rankings-pos="WR">WR</button>
+                        <button class="draftroom-rankings-pos-tab" data-rankings-pos="TE">TE</button>
+                        <button class="draftroom-rankings-pos-tab" data-rankings-pos="K">K</button>
+                        <button class="draftroom-rankings-pos-tab" data-rankings-pos="DEF">DEF</button>
+                    </div>
+                    <div id="draftroom-rankings-list" class="draftroom-rankings-list"></div>
+                </div>
+            </div>
+
+            <div id="right-chat-view" class="right-view-section right-view-hidden" hidden>
+                <div class="draftroom-chat">
+                    <h3>Lobby Chat</h3>
+                    <div id="draft-chat-list" class="draft-chat-list" aria-live="polite"></div>
+                    <form id="draft-chat-form" class="draft-chat-form">
+                        <textarea id="draft-chat-input" maxlength="240" placeholder="Message the lobby or paste a GIF link..." autocomplete="off" rows="2"></textarea>
+                        <button id="draft-chat-emoji-toggle" type="button" aria-label="Open emoji picker" title="Emoji">&#128578;</button>
+                        <button id="draft-chat-gif-add" type="button" aria-label="Add GIF powered by GIPHY" title="Add GIF powered by GIPHY"><img class="gif-btn-logo" src="Poweredby_100px-White_VertLogo.png" alt="Powered by GIPHY" loading="lazy" decoding="async"></button>
+                        <button id="draft-chat-send" type="submit">Send</button>
+                    </form>
+                    <div id="draft-chat-emoji-picker" class="draft-chat-emoji-picker" hidden></div>
+                    <div id="draft-chat-gif-picker" class="draft-chat-gif-picker" hidden></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav id="silentdraft-app-nav" class="silentdraft-app-nav" aria-label="Draft sections" hidden>
+        <button type="button" class="silentdraft-app-nav-btn" data-sd-section="players">Players</button>
+        <button type="button" class="silentdraft-app-nav-btn" data-sd-section="roster">My Roster</button>
+        <button type="button" class="silentdraft-app-nav-btn" data-sd-section="budgets">Budgets</button>
+        <button type="button" class="silentdraft-app-nav-btn" data-sd-section="rankings">Rankings</button>
+        <button type="button" class="silentdraft-app-nav-btn" data-sd-section="chat">Chat <span id="app-chat-badge" class="chat-tab-badge" hidden>0</span></button>
+    </nav>
+
+    <script src="/socket.io/socket.io.js" onerror="(function(){var s=document.createElement('script');s.src='https://cdn.socket.io/4.7.2/socket.io.min.js';document.head.appendChild(s);})();"></script>
+    <script src="theme-utils.js?v=20260726c"></script>
+    <script src="preferences.js?v=20260625a"></script>
+    <script>
+        // Initialize theme from localStorage before loading main app
+        if (typeof initializePageTheme === 'function') {
+            initializePageTheme();
+        }
+    </script>
+    <script src="hushGifs.js"></script>
+    <script src="silentdraft.js?v=20260804b"></script>
+    <script src="sw-register.js?v=20260726c"></script></body>
+</html>
+

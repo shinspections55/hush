@@ -1,0 +1,289 @@
+[
+    {
+        "DEFrank": "#1",
+        "name": "Seattle Seahawks",
+        "position": "DEF",
+        "team": "SEA",
+        "avgValue": 3,
+        "draftChance": 0,
+        "byeWeek": 8
+    },
+    {
+        "DEFrank": "#2",
+        "name": "Houston Texans",
+        "position": "DEF",
+        "team": "HOU",
+        "avgValue": 3,
+        "draftChance": 0,
+        "byeWeek": 6
+    },
+    {
+        "DEFrank": "#3",
+        "name": "Denver Broncos",
+        "position": "DEF",
+        "team": "DEN",
+        "avgValue": 3,
+        "draftChance": 0,
+        "byeWeek": 10
+    },
+    {
+        "DEFrank": "#4",
+        "name": "New England Patriots",
+        "position": "DEF",
+        "team": "NE",
+        "avgValue": 2,
+        "draftChance": 0,
+        "byeWeek": 11
+    },
+    {
+        "DEFrank": "#5",
+        "name": "Los Angeles Rams",
+        "position": "DEF",
+        "team": "LAR",
+        "avgValue": 2,
+        "draftChance": 0,
+        "byeWeek": 8
+    },
+    {
+        "DEFrank": "#6",
+        "name": "Green Bay Packers",
+        "position": "DEF",
+        "team": "GB",
+        "avgValue": 2,
+        "draftChance": 0,
+        "byeWeek": 5
+    },
+    {
+        "DEFrank": "#7",
+        "name": "Jacksonville Jaguars",
+        "position": "DEF",
+        "team": "JAC",
+        "avgValue": 2,
+        "draftChance": 0,
+        "byeWeek": 7
+    },
+    {
+        "DEFrank": "#8",
+        "name": "Buffalo Bills",
+        "position": "DEF",
+        "team": "BUF",
+        "avgValue": 2,
+        "draftChance": 0,
+        "byeWeek": 7
+    },
+    {
+        "DEFrank": "#9",
+        "name": "Baltimore Ravens",
+        "position": "DEF",
+        "team": "BAL",
+        "avgValue": 2,
+        "draftChance": 0,
+        "byeWeek": 7
+    },
+    {
+        "DEFrank": "#10",
+        "name": "Pittsburgh Steelers",
+        "position": "DEF",
+        "team": "PIT",
+        "avgValue": 2,
+        "draftChance": 0,
+        "byeWeek": 5
+    },
+    {
+        "DEFrank": "#11",
+        "name": "Minnesota Vikings",
+        "position": "DEF",
+        "team": "MIN",
+        "avgValue": 2,
+        "draftChance": 0,
+        "byeWeek": 6
+    },
+    {
+        "DEFrank": "#12",
+        "name": "Kansas City Chiefs",
+        "position": "DEF",
+        "team": "KC",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 5
+    },
+    {
+        "DEFrank": "#13",
+        "name": "Los Angeles Chargers",
+        "position": "DEF",
+        "team": "LAC",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 7
+    },
+    {
+        "DEFrank": "#14",
+        "name": "San Francisco 49ers",
+        "position": "DEF",
+        "team": "SF",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 8
+    },
+    {
+        "DEFrank": "#15",
+        "name": "Detroit Lions",
+        "position": "DEF",
+        "team": "DET",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 6
+    },
+    {
+        "DEFrank": "#16",
+        "name": "Chicago Bears",
+        "position": "DEF",
+        "team": "CHI",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 5
+    },
+    {
+        "DEFrank": "#17",
+        "name": "Tampa Bay Buccaneers",
+        "position": "DEF",
+        "team": "TB",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 9
+    },
+    {
+        "DEFrank": "#18",
+        "name": "Philadelphia Eagles",
+        "position": "DEF",
+        "team": "PHI",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 9
+    },
+    {
+        "DEFrank": "#19",
+        "name": "New York Giants",
+        "position": "DEF",
+        "team": "NYG",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 8
+    },
+    {
+        "DEFrank": "#20",
+        "name": "New Orleans Saints",
+        "position": "DEF",
+        "team": "NO",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 8
+    },
+    {
+        "DEFrank": "#21",
+        "name": "Cleveland Browns",
+        "position": "DEF",
+        "team": "CLE",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 9
+    },
+    {
+        "DEFrank": "#22",
+        "name": "Dallas Cowboys",
+        "position": "DEF",
+        "team": "DAL",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 10
+    },
+    {
+        "DEFrank": "#23",
+        "name": "Tennessee Titans",
+        "position": "DEF",
+        "team": "TEN",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 9
+    },
+    {
+        "DEFrank": "#24",
+        "name": "Miami Dolphins",
+        "position": "DEF",
+        "team": "MIA",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 6
+    },
+    {
+        "DEFrank": "#25",
+        "name": "Indianapolis Colts",
+        "position": "DEF",
+        "team": "IND",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 11
+    },
+    {
+        "DEFrank": "#26",
+        "name": "Carolina Panthers",
+        "position": "DEF",
+        "team": "CAR",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 5
+    },
+    {
+        "DEFrank": "#27",
+        "name": "New York Jets",
+        "position": "DEF",
+        "team": "NYJ",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 9
+    },
+    {
+        "DEFrank": "#28",
+        "name": "Arizona Cardinals",
+        "position": "DEF",
+        "team": "ARI",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 8
+    },
+    {
+        "DEFrank": "#29",
+        "name": "Cincinnati Bengals",
+        "position": "DEF",
+        "team": "CIN",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 6
+    },
+    {
+        "DEFrank": "#30",
+        "name": "Las Vegas Raiders",
+        "position": "DEF",
+        "team": "LVR",
+        "avgValue": 1,
+        "draftChance": 0
+    },
+    {
+        "DEFrank": "#31",
+        "name": "Washington Commanders",
+        "position": "DEF",
+        "team": "WAS",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 7
+    },
+    {
+        "DEFrank": "#32",
+        "name": "Atlanta Falcons",
+        "position": "DEF",
+        "team": "ATL",
+        "avgValue": 1,
+        "draftChance": 0,
+        "byeWeek": 5
+    }
+]

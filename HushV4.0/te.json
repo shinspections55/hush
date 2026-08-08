@@ -1,0 +1,302 @@
+[
+    {
+        "TErank": "#1",
+        "name": "Brock Bowers",
+        "position": "TE",
+        "team": "LV",
+        "avgValue": 26,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 13
+    },
+    {
+        "TErank": "#2",
+        "name": "Trey McBride",
+        "position": "TE",
+        "team": "ARI",
+        "avgValue": 26,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 8
+    },
+    {
+        "TErank": "#3",
+        "name": "Colston Loveland",
+        "position": "TE",
+        "team": "CHI",
+        "avgValue": 17,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 5
+    },
+    {
+        "TErank": "#4",
+        "name": "Tyler Warren",
+        "position": "TE",
+        "team": "IND",
+        "avgValue": 13,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 11
+    },
+    {
+        "TErank": "#5",
+        "name": "Harold Fannin Jr.",
+        "position": "TE",
+        "team": "CLE",
+        "avgValue": 6,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 9
+    },
+    {
+        "TErank": "#6",
+        "name": "Tucker Kraft",
+        "position": "TE",
+        "team": "GB",
+        "avgValue": 6,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 5
+    },
+    {
+        "TErank": "#7",
+        "name": "Kyle Pitts Sr.",
+        "position": "TE",
+        "team": "ATL",
+        "avgValue": 4,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 5
+    },
+    {
+        "TErank": "#8",
+        "name": "Sam LaPorta",
+        "position": "TE",
+        "team": "DET",
+        "avgValue": 4,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 6
+    },
+    {
+        "TErank": "#9",
+        "name": "Dallas Goedert",
+        "position": "TE",
+        "team": "PHI",
+        "avgValue": 3,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 9
+    },
+    {
+        "TErank": "#10",
+        "name": "Travis Kelce",
+        "position": "TE",
+        "team": "KC",
+        "avgValue": 2,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 5
+    },
+    {
+        "TErank": "#11",
+        "name": "George Kittle",
+        "position": "TE",
+        "team": "SF",
+        "avgValue": 2,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 8
+    },
+    {
+        "TErank": "#12",
+        "name": "Jake Ferguson",
+        "position": "TE",
+        "team": "DAL",
+        "avgValue": 2,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 10
+    },
+    {
+        "TErank": "#13",
+        "name": "T.J. Hockenson",
+        "position": "TE",
+        "team": "MIN",
+        "avgValue": 1,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 6
+    },
+    {
+        "TErank": "#14",
+        "name": "Mark Andrews",
+        "position": "TE",
+        "team": "BAL",
+        "avgValue": 1,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 7
+    },
+    {
+        "TErank": "#15",
+        "name": "Isaiah Likely",
+        "position": "TE",
+        "team": "NYG",
+        "avgValue": 1,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 8
+    },
+    {
+        "TErank": "#16",
+        "name": "Oronde Gadsden",
+        "position": "TE",
+        "team": "LAC",
+        "avgValue": 1,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 7
+    },
+    {
+        "TErank": "#17",
+        "name": "Juwan Johnson",
+        "position": "TE",
+        "team": "NO",
+        "avgValue": 1,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 8
+    },
+    {
+        "TErank": "#18",
+        "name": "Dalton Kincaid",
+        "position": "TE",
+        "team": "BUF",
+        "avgValue": 1,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 7
+    },
+    {
+        "TErank": "#19",
+        "name": "Brenton Strange",
+        "position": "TE",
+        "team": "JAC",
+        "avgValue": 0,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 7
+    },
+    {
+        "TErank": "#20",
+        "name": "Kenyon Sadiq",
+        "position": "TE",
+        "team": "NYJ",
+        "avgValue": 0,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 9
+    },
+    {
+        "TErank": "#21",
+        "name": "Hunter Henry",
+        "position": "TE",
+        "team": "NE",
+        "avgValue": 0,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 11
+    },
+    {
+        "TErank": "#22",
+        "name": "Pat Freiermuth",
+        "position": "TE",
+        "team": "PIT",
+        "avgValue": 0,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 5
+    },
+    {
+        "TErank": "#23",
+        "name": "Dalton Schultz",
+        "position": "TE",
+        "team": "HOU",
+        "avgValue": 0,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 6
+    },
+    {
+        "TErank": "#24",
+        "name": "Gunnar Helm",
+        "position": "TE",
+        "team": "TEN",
+        "avgValue": 0,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 9
+    },
+    {
+        "TErank": "#25",
+        "name": "Jake Tonges",
+        "position": "TE",
+        "team": "SF",
+        "avgValue": 0,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 8
+    },
+    {
+        "TErank": "#26",
+        "name": "Chig Okonkwo",
+        "position": "TE",
+        "team": "WAS",
+        "avgValue": 0,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 7
+    },
+    {
+        "TErank": "#27",
+        "name": "AJ Barner",
+        "position": "TE",
+        "team": "SEA",
+        "avgValue": 0,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 8
+    },
+    {
+        "TErank": "#28",
+        "name": "Mike Gesicki",
+        "position": "TE",
+        "team": "CIN",
+        "avgValue": 0,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 6
+    },
+    {
+        "TErank": "#29",
+        "name": "Greg Dulcich",
+        "position": "TE",
+        "team": "MIA",
+        "avgValue": 0,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 6
+    },
+    {
+        "TErank": "#30",
+        "name": "David Njoku",
+        "position": "TE",
+        "team": "LAC",
+        "avgValue": 0,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 7
+    }
+]

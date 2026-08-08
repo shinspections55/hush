@@ -1,0 +1,583 @@
+.waiver-page-box {
+  max-width: none;
+  width: 100%;
+  padding: 14px 16px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.waiver-page-header {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.waiver-page-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.waiver-clock-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 2px 0 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(56, 189, 248, 0.34);
+  border-radius: 10px;
+  background: rgba(14, 36, 53, 0.82);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.waiver-clock-team {
+  color: #e2f2ff;
+  font-size: 14px;
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.waiver-clock-timer {
+  color: #f8fdff;
+  font-size: 20px;
+  font-weight: 800;
+  min-width: 70px;
+  text-align: right;
+}
+
+.waiver-inline-drop-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+}
+
+.waiver-inline-drop-select {
+  min-width: 220px;
+}
+
+.waiver-page-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.05fr) minmax(0, 1.4fr);
+  gap: 10px;
+  align-items: start;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.waiver-sidebar,
+.waiver-center-panel,
+.waiver-main-panel {
+  min-height: 0;
+  min-width: 0;
+}
+
+.waiver-center-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.waiver-team-picker-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.waiver-team-picker-label {
+  font-size: 0.82rem;
+  color: #94a3b8;
+}
+
+.waiver-team-select {
+  min-width: 0;
+  width: 100%;
+  max-width: 220px;
+}
+
+.waiver-team-columns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.waiver-team-subtitle {
+  font-size: 0.88rem;
+  margin: 0 0 6px;
+  opacity: 0.85;
+}
+
+.waiver-team-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+}
+
+.waiver-team-pos {
+  font-weight: 700;
+  color: #93c5fd;
+}
+
+.waiver-team-player {
+  min-width: 0;
+  color: #f8fafc;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.waiver-player-bye-badge,
+.rank-player-bye {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.25px;
+  color: #111827;
+  background: linear-gradient(180deg, #fde68a 0%, #f59e0b 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  vertical-align: middle;
+}
+
+.waiver-team-cost {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.waiver-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.waiver-position-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.waiver-pos-tab.active {
+  background: #22c55e;
+  color: #0f172a;
+  border-color: #22c55e;
+}
+
+.waiver-search-input {
+  width: 100%;
+}
+
+.waiver-pool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.waiver-pool-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+}
+
+.waiver-main-panel .team-nav-btn.waiver-pos-tab {
+  min-width: 38px;
+  padding: 5px 8px;
+}
+
+.waiver-rank {
+  color: #93c5fd;
+  font-weight: 700;
+  min-width: 42px;
+}
+
+.waiver-name {
+  min-width: 0;
+  color: #f8fafc;
+}
+
+.waiver-meta {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.waiver-add-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.waiver-order-item.active {
+  border-color: rgba(34,197,94,0.55);
+  background: rgba(34,197,94,0.12);
+}
+
+.waiver-order-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.waiver-order-team {
+  color: #f8fafc;
+}
+
+.waiver-activity {
+  margin-top: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.waiver-activity-line {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.waiver-activity-team {
+  font-weight: 800;
+  color: #f8fafc;
+  margin-right: 6px;
+}
+
+.waiver-activity-move {
+  font-weight: 400;
+}
+
+.waiver-activity-add {
+  color: #86efac;
+}
+
+.waiver-activity-drop {
+  color: #fda4af;
+}
+
+.waiver-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 10010;
+}
+
+.waiver-modal {
+  width: min(100%, 420px);
+  background: #0f172a;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 20px 48px rgba(0,0,0,0.45);
+}
+
+.waiver-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+@media (max-width: 900px) {
+  .waiver-page-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .waiver-sidebar,
+  .waiver-center-panel,
+  .waiver-main-panel {
+    min-width: 0;
+  }
+
+  .waiver-inline-drop-wrap,
+  .waiver-inline-drop-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .waiver-pool-item {
+    grid-template-columns: auto auto 1fr;
+  }
+
+  .waiver-pool-item .account-btn,
+  .waiver-pool-item .waiver-meta {
+    grid-column: 1 / -1;
+  }
+
+  .waiver-clock-strip {
+    top: 0;
+    padding: 9px 10px;
+  }
+
+  .waiver-clock-team {
+    font-size: 13px;
+  }
+
+  .waiver-clock-timer {
+    font-size: 18px;
+    min-width: 62px;
+  }
+}
+
+.waiver-app-nav {
+  display: none;
+}
+
+body.pwa-installed.waiver-page-body.waiver-app-nav-enabled {
+  --waiver-app-nav-height: 78px;
+}
+
+body.pwa-installed.waiver-page-body.waiver-app-nav-enabled .page {
+  padding-bottom: calc(16px + var(--waiver-app-nav-height) + env(safe-area-inset-bottom));
+}
+
+body.pwa-installed.waiver-page-body.waiver-app-nav-enabled .waiver-app-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 12020;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(180deg, rgba(9, 22, 32, 0.96) 0%, rgba(8, 14, 20, 0.98) 100%);
+}
+
+body.pwa-installed.waiver-page-body.waiver-app-nav-enabled .waiver-app-nav-btn {
+  appearance: none;
+  border: 1px solid rgba(173, 220, 246, 0.26);
+  background: rgba(255, 255, 255, 0.06);
+  color: #d9ecf8;
+  min-height: 50px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+body.pwa-installed.waiver-page-body.waiver-app-nav-enabled .waiver-app-nav-btn.is-active {
+  background: rgba(86, 172, 219, 0.28);
+  border-color: rgba(153, 225, 255, 0.56);
+  color: #fff;
+}
+
+body.pwa-installed.waiver-page-body.waiver-app-nav-enabled .waiver-page-layout {
+  grid-template-columns: 1fr;
+}
+
+body.pwa-installed.waiver-page-body.waiver-app-nav-enabled #waiver-order-panel,
+body.pwa-installed.waiver-page-body.waiver-app-nav-enabled #waiver-team-panel,
+body.pwa-installed.waiver-page-body.waiver-app-nav-enabled #waiver-players-panel {
+  display: none;
+}
+
+body.pwa-installed.waiver-page-body.waiver-app-nav-enabled[data-waiver-app-section="order"] #waiver-order-panel,
+body.pwa-installed.waiver-page-body.waiver-app-nav-enabled[data-waiver-app-section="teams"] #waiver-team-panel,
+body.pwa-installed.waiver-page-body.waiver-app-nav-enabled[data-waiver-app-section="players"] #waiver-players-panel {
+  display: block;
+}
+
+body.light-mode.pwa-installed.waiver-page-body.waiver-app-nav-enabled .waiver-app-nav,
+body.dashboard-light-mode.pwa-installed.waiver-page-body.waiver-app-nav-enabled .waiver-app-nav {
+  background: rgba(248, 250, 252, 0.98);
+  border-top-color: rgba(31, 76, 122, 0.2);
+}
+
+body.light-mode.pwa-installed.waiver-page-body.waiver-app-nav-enabled .waiver-app-nav-btn,
+body.dashboard-light-mode.pwa-installed.waiver-page-body.waiver-app-nav-enabled .waiver-app-nav-btn {
+  color: #1f3c57;
+  border-color: rgba(31, 76, 122, 0.24);
+  background: #ffffff;
+}
+
+body.light-mode.pwa-installed.waiver-page-body.waiver-app-nav-enabled .waiver-app-nav-btn.is-active,
+body.dashboard-light-mode.pwa-installed.waiver-page-body.waiver-app-nav-enabled .waiver-app-nav-btn.is-active {
+  background: #dbeafe;
+  border-color: #60a5fa;
+  color: #0f172a;
+}
+
+.waiver-page-body .page {
+  max-width: none;
+  width: 100%;
+  padding: 8px 10px 12px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.waiver-page-body .box {
+  padding: 14px 16px;
+  box-sizing: border-box;
+}
+
+body.light-mode .waiver-pool-item,
+body.light-mode .waiver-team-row,
+body.dashboard-light-mode .waiver-pool-item {
+  border-color: rgba(31, 76, 122, 0.16);
+  background: #ffffff;
+}
+
+body.dashboard-light-mode .waiver-team-row {
+  border-color: rgba(31, 76, 122, 0.16);
+  background: #ffffff;
+}
+
+body.light-mode .waiver-rank,
+body.dashboard-light-mode .waiver-rank {
+  color: #1d4f7a;
+}
+
+body.light-mode .waiver-name,
+body.light-mode .waiver-team-player,
+body.dashboard-light-mode .waiver-name {
+  color: #17324d;
+}
+
+body.dashboard-light-mode .waiver-team-player {
+  color: #17324d;
+}
+
+body.light-mode .waiver-player-bye-badge,
+body.light-mode .rank-player-bye,
+body.dashboard-light-mode .waiver-player-bye-badge {
+  color: #111827;
+}
+
+body.light-mode .waiver-meta,
+body.light-mode .waiver-team-cost,
+body.dashboard-light-mode .waiver-meta {
+  color: #4f6279;
+}
+
+body.dashboard-light-mode .waiver-team-cost {
+  color: #4f6279;
+}
+
+body.light-mode .waiver-order-item.active,
+body.dashboard-light-mode .waiver-order-item.active {
+  border-color: rgba(34, 197, 94, 0.42);
+  background: rgba(34, 197, 94, 0.14);
+}
+
+body.light-mode .waiver-clock-strip,
+body.dashboard-light-mode .waiver-clock-strip {
+  background: rgba(239, 248, 255, 0.96);
+  border-color: rgba(31, 76, 122, 0.28);
+}
+
+body.light-mode .waiver-clock-team,
+body.dashboard-light-mode .waiver-clock-team {
+  color: #17324d;
+}
+
+body.light-mode .waiver-clock-timer,
+body.dashboard-light-mode .waiver-clock-timer {
+  color: #0f172a;
+}
+
+body.light-mode .waiver-modal-backdrop,
+body.dashboard-light-mode .waiver-modal-backdrop {
+  background: rgba(15, 23, 42, 0.34);
+}
+
+.waiver-drop-row {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) 54px;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  background: #1f2937;
+  color: #fff;
+  border: 1px solid #4b5563;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.waiver-drop-row.selected {
+  border-color: #60a5fa;
+  background: #374151;
+}
+
+.waiver-drop-slot {
+  font-weight: 700;
+  color: #93c5fd;
+}
+
+.waiver-drop-player {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.waiver-drop-pos {
+  font-size: 12px;
+  color: #cbd5e1;
+  text-align: right;
+}
+
+body.light-mode .waiver-modal,
+body.dashboard-light-mode .waiver-modal {
+  background: #ffffff;
+  border-color: rgba(31, 76, 122, 0.2);
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.2);
+}
+
+body.light-mode .waiver-drop-row,
+body.dashboard-light-mode .waiver-drop-row {
+  background: #ffffff;
+  border-color: rgba(31, 76, 122, 0.16);
+  color: #17324d;
+}
+
+body.light-mode .waiver-drop-row.selected,
+body.dashboard-light-mode .waiver-drop-row.selected {
+  background: #e0f2fe;
+  border-color: #60a5fa;
+}
+
+body.light-mode .waiver-drop-pos,
+body.dashboard-light-mode .waiver-drop-pos {
+  color: #4f6279;
+}
+

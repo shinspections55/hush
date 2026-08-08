@@ -1,0 +1,92 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Draft Summary</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="draft-summary.css">
+    <script src="theme-utils.js?v=20260726c"></script>
+</head>
+<body class="bg-overlay draft-summary-page-body">
+    <header class="site-header">
+        <div class="header-left">
+            <img src="HUSHLOGO.png" alt="Logo" class="logo">
+        </div>
+        <div class="header-right">
+            <a href="dashboard.html" class="account-btn">Back to Dashboard</a>
+        </div>
+    </header>
+
+    <main class="page">
+        <section class="box draft-summary-box">
+            <div class="summary-header">
+                <div>
+                    <h1 class="summary-title">Draft Summary</h1>
+                    <div id="summaryMeta" class="summary-meta">Loading draft...</div>
+                    <div id="summarySyncStatus" class="summary-sync-status" aria-live="polite" hidden></div>
+                </div>
+                <div class="summary-header-right">
+                    <div class="summary-top-actions">
+                        <button id="startWaiversTopBtn" type="button" class="account-btn start-waivers-top-btn" hidden>Start Waivers</button>
+                    </div>
+                    <div class="team-nav-wrap">
+                        <label for="teamSelect" class="team-nav-label">View Team</label>
+                        <div class="team-nav-controls">
+                            <button id="teamPrevBtn" class="team-nav-btn" type="button" aria-label="Previous team">&#8592;</button>
+                            <select id="teamSelect" class="team-select" aria-label="Select team"></select>
+                            <button id="teamNextBtn" class="team-nav-btn" type="button" aria-label="Next team">&#8594;</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="summary-layout">
+                <section class="summary-panel">
+                    <h2 class="summary-section-title">Teams</h2>
+                    <div id="teamList" class="team-list"></div>
+                    <button id="startWaiversSideBtn" type="button" class="account-btn start-waivers-side-btn">Open Waivers</button>
+                </section>
+
+                <section class="summary-panel">
+                    <div id="teamHeader"></div>
+                    <div id="cutAlertContainer"></div>
+                    <div id="incompleteBannerContainer"></div>
+
+                    <section id="finalRosterSection">
+                        <h3 id="lineupHeading" class="summary-section-title mt-14">Starting Lineup</h3>
+                        <div id="lineupGrid" class="lineup-grid"></div>
+
+                        <h3 id="benchHeading" class="summary-section-title mt-16">Bench</h3>
+                        <div id="benchContainer"></div>
+                    </section>
+
+                    <section id="waiverSection" class="waiver-section">
+                        <h3 class="summary-section-title mt-16">Waiver Pickups</h3>
+                        <p class="summary-meta">If waivers are enabled in the lobby, the host can start them after all teams finish cuts.</p>
+
+                        <div class="waiver-controls">
+                            <label for="waiverModeSelect" class="team-nav-label">Waiver Mode</label>
+                            <select id="waiverModeSelect" class="team-select" aria-label="Waiver mode" disabled>
+                                <option value="off">Off</option>
+                                <option value="random">Random</option>
+                                <option value="skill">Skill (Weakest First)</option>
+                            </select>
+                            <a id="openWaiversPageBtn" href="waivers.html" class="account-btn">Open Waiver Page</a>
+                        </div>
+
+                        <div id="waiverHostPrompt" class="cut-alert waiver-status" hidden></div>
+                        <div id="waiverStatus" class="cut-alert waiver-status">Waivers have not started yet.</div>
+                        <div id="waiverOrderList" class="bench-list"></div>
+                    </section>
+                </section>
+            </div>
+        </section>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="preferences.js"></script>
+    <script src="draft-summary.js"></script>
+</body>
+</html>
+

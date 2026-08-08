@@ -1,0 +1,192 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin Portal</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="theme-utils.js?v=20260726c"></script>
+</head>
+<body class="bg-overlay admin-portal-page">
+  <header class="site-header">
+    <img src="HUSHLOGO.png" alt="Logo" class="logo">
+    <nav class="admin-header-quick-links" aria-label="Admin quick links">
+      <a href="admin-portal.html" class="form-link">Portal Home</a>
+      <a href="admin-simulations.html" class="form-link">Fast Simulations</a>
+      <a href="admin-rankings-manager.html" class="form-link">Rankings Manager</a>
+      <a href="admin-rankings-nav.html" class="form-link">Rankings Navigation</a>
+      <a href="/public/admin/gif-manager.html" class="form-link">GIF Manager</a>
+      <a href="admin-delivery-debug.html" class="form-link">Delivery Debug</a>
+      <a href="admin-data.html" class="form-link">All Data</a>
+    </nav>
+    <section class="admin-header-access" aria-label="Admin access">
+      <h2>Admin Access</h2>
+      <form id="adminConnectForm">
+        <input type="text" id="adminKeyInput" placeholder="Admin key" autocomplete="off" inputmode="numeric" pattern="[0-9]*" required>
+        <button type="submit" class="btn btn-login">Connect</button>
+      </form>
+      <p id="adminConnectStatus" class="form-status"></p>
+    </section>
+  </header>
+
+  <main class="page">
+    <div class="container admin-portal-layout">
+      <section class="box admin-portal-card">
+        <h2>Traffic + System Health</h2>
+        <div class="admin-portal-actions">
+          <button id="refreshOverviewBtn" type="button" class="btn btn-signup">Refresh Overview</button>
+          <button id="toggleRawOverviewBtn" type="button" class="btn btn-login">Show Raw Code/Data</button>
+          <a href="admin-simulations.html" class="form-link">Open Fast Simulations</a>
+          <a href="/public/admin/gif-manager.html" class="form-link">Open GIF Manager</a>
+          <a href="admin-delivery-debug.html" class="form-link">Open Delivery Debug</a>
+          <a href="admin-data.html" class="form-link">Show All Data</a>
+        </div>
+
+        <div class="admin-metric-grid" id="adminMetricGrid">
+          <article class="admin-metric-card">
+            <h3>Uptime</h3>
+            <p id="metricUptime">--</p>
+          </article>
+          <article class="admin-metric-card">
+            <h3>Total Requests</h3>
+            <p id="metricTotalRequests">--</p>
+          </article>
+          <article class="admin-metric-card">
+            <h3>Users with Login</h3>
+            <p id="metricAuthUsers">--</p>
+          </article>
+          <article class="admin-metric-card">
+            <h3>
+              Signed-up Emails
+              <abbr class="admin-metric-help" title="Unique email addresses linked to current website accounts.">?</abbr>
+            </h3>
+            <p id="metricSignedUpEmails">--</p>
+          </article>
+          <article class="admin-metric-card">
+            <h3>Premium Users</h3>
+            <p id="metricPremiumUsers">0</p>
+          </article>
+          <article class="admin-metric-card">
+            <h3>Default Rankings</h3>
+            <p id="metricDefaultRankings">--</p>
+          </article>
+          <article class="admin-metric-card">
+            <h3>Database Update Tracker</h3>
+            <p id="metricDatabaseProgress">--</p>
+            <p id="metricDatabaseProgressDetail" class="form-helper">--</p>
+          </article>
+        </div>
+
+        <div class="admin-overview-charts" id="adminOverviewCharts">
+          <section class="admin-chart-card">
+            <h3>Requests by Method</h3>
+            <canvas id="adminMethodChart" height="160"></canvas>
+          </section>
+          <section class="admin-chart-card">
+            <h3>Status Codes</h3>
+            <canvas id="adminStatusChart" height="160"></canvas>
+          </section>
+          <section class="admin-chart-card admin-chart-card-wide">
+            <h3>Top Paths</h3>
+            <canvas id="adminTopPathsChart" height="190"></canvas>
+          </section>
+        </div>
+
+        <pre id="adminOverviewOutput" class="admin-debug-pre hidden"></pre>
+      </section>
+
+      <section class="box admin-portal-card admin-rankings-card">
+        <h2>Default Rankings Manager</h2>
+        <p class="form-helper">Edit each position file directly. QB loads qb.json, RB loads rb.json, WR loads wr.json, and so on. Drag to reorder, change AV, add players, remove players, then save.</p>
+
+        <div class="admin-portal-actions">
+          <a href="admin-rankings-manager.html" class="form-link">Open Rankings Manager</a>
+        </div>
+      </section>
+
+      <section class="box admin-portal-card admin-cpu-card">
+        <h2>CPU Tuning Lab</h2>
+        <p class="form-helper">Inspect the CPU logic used by silent auctions and tied live auctions, adjust local tuning values, and run previews against a sample scenario. Presets are saved locally in your browser.</p>
+
+        <div class="admin-cpu-layout">
+          <section class="admin-cpu-column">
+            <h3>Silent Auction Logic</h3>
+            <div id="silentCpuReference" class="admin-cpu-reference"></div>
+          </section>
+
+          <section class="admin-cpu-column">
+            <h3>Tied Auction Logic</h3>
+            <div id="tiedCpuReference" class="admin-cpu-reference"></div>
+          </section>
+
+          <section class="admin-cpu-column admin-cpu-preview">
+            <h3>Editable Test Bench</h3>
+            <div class="admin-cpu-model-row">
+              <label for="cpuModelNameInput" class="admin-cpu-model-label">Model Name</label>
+              <input id="cpuModelNameInput" type="text" class="admin-cpu-model-input" placeholder="Example: Week 1 Aggressive" maxlength="64" autocomplete="off">
+              <label for="cpuModelSelect" class="admin-cpu-model-label">Saved Models</label>
+              <select id="cpuModelSelect" class="admin-cpu-model-select">
+                <option value="">Select a model</option>
+              </select>
+              <button id="cpuLoadNamedModelBtn" type="button" class="btn btn-login">Load Selected</button>
+            </div>
+            <div id="cpuTuningControls"></div>
+            <div class="admin-portal-actions admin-cpu-actions">
+              <button id="cpuSaveNamedModelBtn" type="button" class="btn btn-login">Save Named Model</button>
+              <button id="cpuCompareNamedModelBtn" type="button" class="btn btn-login">Compare Selected vs Current</button>
+              <button id="cpuDeleteNamedModelBtn" type="button" class="btn btn-login">Delete Selected</button>
+              <button id="cpuLoadDefaultsBtn" type="button" class="btn btn-signup">Load Defaults</button>
+              <button id="cpuSavePresetBtn" type="button" class="btn btn-login">Save Preset</button>
+              <button id="cpuSaveToServerBtn" type="button" class="btn btn-signup">Save Active To cpulogic.js</button>
+              <button id="cpuLoadFromServerBtn" type="button" class="btn btn-login">Load cpulogic.js</button>
+              <button id="cpuResetPresetBtn" type="button" class="btn btn-login">Reset</button>
+              <button id="cpuRunPreviewBtn" type="button" class="btn btn-signup">Run Preview</button>
+            </div>
+            <section class="admin-cpu-simulations" aria-label="Fast draft simulations">
+              <h4>Fast Draft Simulations</h4>
+              <p class="form-helper">Run accelerated CPU-only drafts on the server to quickly test completion rates.</p>
+              <div class="admin-cpu-model-row">
+                <label for="cpuSimDraftCountInput" class="admin-cpu-model-label">Drafts</label>
+                <input id="cpuSimDraftCountInput" type="number" class="admin-cpu-model-input" min="1" max="200" value="15">
+                <label for="cpuSimTeamCountInput" class="admin-cpu-model-label">Teams</label>
+                <input id="cpuSimTeamCountInput" type="number" class="admin-cpu-model-input" min="2" max="12" value="10">
+                <label for="cpuSimRoundsInput" class="admin-cpu-model-label">Rounds</label>
+                <input id="cpuSimRoundsInput" type="number" class="admin-cpu-model-input" min="1" max="15" value="10">
+                <label for="cpuSimPlayersPerRoundInput" class="admin-cpu-model-label">Players/Round</label>
+                <input id="cpuSimPlayersPerRoundInput" type="number" class="admin-cpu-model-input" min="8" max="40" value="24">
+              </div>
+              <div class="admin-portal-actions admin-cpu-actions">
+                <button id="cpuRunSimulationBtn" type="button" class="btn btn-signup">Run Fast Simulations</button>
+              </div>
+              <pre id="cpuSimulationOutput" class="admin-debug-pre">Run simulations to see completion metrics and per-draft results.</pre>
+            </section>
+            <section class="admin-cpu-model-library" aria-label="Saved CPU logic models">
+              <h4>Saved CPU Logic Models</h4>
+              <p class="form-helper">Names, timestamps, and exact slider values for each saved model.</p>
+              <div id="cpuModelList" class="admin-cpu-model-list"></div>
+              <div id="cpuModelDetailsMeta" class="admin-cpu-model-meta"></div>
+              <pre id="cpuModelDetails" class="admin-debug-pre admin-cpu-model-details">Select a saved model to inspect all slider values.</pre>
+              <div id="cpuModelCompareMeta" class="admin-cpu-model-meta"></div>
+              <pre id="cpuModelCompareOutput" class="admin-debug-pre admin-cpu-model-compare">Run a compare to see slider differences versus current values.</pre>
+            </section>
+            <div id="cpuLogicSourceMeta" class="admin-cpu-model-meta">Current source file: cpulogic.js</div>
+            <div id="cpuTuningStatus" class="form-status"></div>
+            <pre id="cpuPreviewOutput" class="admin-debug-pre"></pre>
+            <section class="admin-cpu-profile-impact" aria-label="Live silent profile impact">
+              <h4>Live Silent Profile Impact</h4>
+              <p class="form-helper">Real-time effect of current sliders on Balanced, Value, Sleeper, Stars & Scrubs, and Conservative behavior.</p>
+              <div id="cpuProfileImpactTable" class="admin-cpu-profile-impact-table"></div>
+              <div id="cpuProfileImpactSummary" class="admin-cpu-profile-impact-summary"></div>
+            </section>
+          </section>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="admin-portal.js"></script>
+  <script src="preferences.js"></script>
+</body>
+</html>
+
+

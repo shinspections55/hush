@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0F2F44">
+  <title>Friends</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="theme-utils.js?v=20260726c"></script>
+</head>
+<body class="bg-overlay friends-page">
+  <header class="site-header">
+    <div class="header-left">
+      <img src="HUSHLOGO.png" alt="Logo" class="logo">
+    </div>
+    <div class="header-right friends-header-actions">
+      <a href="dashboard.html" class="account-btn">Back to Dashboard</a>
+      <button id="friendsLogoutBtn" class="account-btn" type="button">Log out</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="container">
+      <section class="box friends-box">
+        <div class="friends-layout">
+          <div class="friends-main-column">
+            <h2 class="hush-silver">Friends</h2>
+            <p class="friends-subtitle">Send requests, accept incoming requests, and manage your full friends list.</p>
+
+            <div class="friends-view-tabs" aria-label="Friends sections">
+              <button id="viewSendBtn" class="friends-view-tab is-active" type="button">Send Request</button>
+              <button id="viewIncomingBtn" class="friends-view-tab" type="button">Incoming</button>
+              <button id="viewPendingBtn" class="friends-view-tab" type="button">Pending <span id="pendingTabNotice" class="friends-tab-notice hidden">0</span></button>
+              <button id="viewFriendsBtn" class="friends-view-tab" type="button">Friends</button>
+            </div>
+
+            <div id="sendRequestView" class="friends-view-panel">
+              <div class="friends-add-form-row">
+                <input id="friendUsernameInput" type="text" maxlength="32" placeholder="Enter username" aria-label="Friend username">
+                <button id="addFriendBtn" class="btn btn-signup" type="button">Send Request</button>
+              </div>
+              <ul id="friendSuggestions" class="friend-suggestions hidden" aria-live="polite"></ul>
+            </div>
+
+            <p id="friendsStatus" class="friends-status hidden" aria-live="polite"></p>
+
+            <div id="incomingView" class="friends-view-panel hidden">
+              <h3 class="friends-section-title">Incoming Requests</h3>
+              <ul id="incomingRequestsList" class="friends-list"></ul>
+            </div>
+
+            <div id="pendingView" class="friends-view-panel hidden">
+              <h3 class="friends-section-title">Pending Requests</h3>
+              <ul id="outgoingRequestsList" class="friends-list"></ul>
+            </div>
+
+            <div id="friendsView" class="friends-view-panel hidden">
+              <h3 class="friends-section-title">Friends List</h3>
+              <ul id="friendsList" class="friends-list"></ul>
+            </div>
+          </div>
+
+          <aside class="friends-chat-column" aria-label="Friend chat">
+            <h3 id="chatColumnTitle" class="friends-chat-title">Messages</h3>
+            <p id="chatColumnSubtitle" class="friends-chat-subtitle">Select a friend from your friends list to start chatting.</p>
+            <div id="chatMessages" class="friends-chat-messages"></div>
+            <div class="friends-chat-compose-row">
+              <input id="chatMessageInput" type="text" maxlength="800" placeholder="Type a message" aria-label="Type message" disabled>
+              <button id="chatSendBtn" type="button" class="friends-chat-send-btn" disabled>Send</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="firebase-config.js"></script>
+  <script type="module" src="friends.js?v=20260803a"></script>
+</body>
+</html>
