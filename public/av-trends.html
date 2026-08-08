@@ -1,0 +1,73 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0F2F44">
+  <meta name="description" content="Hush AV Market Report">
+  <title>AV Market Report</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="av-trends.css">
+  <script src="theme-utils.js?v=20260726c"></script>
+</head>
+<body class="bg-overlay av-trends-page">
+  <header class="dashboard-header hush-silver-bg">
+    <div class="dashboard-header-left">
+      <img src="HUSHLOGO.png" alt="HUSH Logo" class="dashboard-header-logo">
+    </div>
+    <div class="dashboard-header-center">
+      <span class="dashboard-header-title hush-header-contrast">AV Market Report</span>
+    </div>
+    <div class="dashboard-header-right av-trends-nav">
+      <a class="cta cta-secondary" href="dashboard.html">Back To Dashboard</a>
+    </div>
+  </header>
+
+  <main class="av-trends-main">
+    <section class="dashboard-column-card">
+      <div class="av-tabs" role="tablist" aria-label="AV market report views">
+        <button id="tabMoversBtn" class="av-tab-btn av-tab-btn-active" type="button" role="tab" aria-selected="true" aria-controls="moversPanel">Biggest Movers</button>
+        <button id="tabAllBtn" class="av-tab-btn" type="button" role="tab" aria-selected="false" aria-controls="allPanel">All Players</button>
+      </div>
+
+      <div id="moversPanel" class="av-tab-panel" role="tabpanel" aria-labelledby="tabMoversBtn">
+        <h2>Biggest Movers</h2>
+        <div class="av-movers-grid">
+          <div>
+            <h3 class="av-movers-title">Top Risers</h3>
+            <ul id="topRisersList" class="av-headline-list"></ul>
+          </div>
+          <div>
+            <h3 class="av-movers-title">Top Fallers</h3>
+            <ul id="topFallersList" class="av-headline-list"></ul>
+          </div>
+        </div>
+      </div>
+
+      <div id="allPanel" class="av-tab-panel av-tab-panel-hidden" role="tabpanel" aria-labelledby="tabAllBtn">
+        <h2>Player Trend Table</h2>
+        <div class="av-table-wrap">
+          <table class="av-table">
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Pos</th>
+                <th>Prev AV</th>
+                <th>Now AV</th>
+                <th>Delta</th>
+                <th>Auctions</th>
+              </tr>
+            </thead>
+            <tbody id="trendTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="preferences.js"></script>
+  <script src="av-trends.js"></script>
+</body>
+</html>
+
+

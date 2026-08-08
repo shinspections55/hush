@@ -1,0 +1,52 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin Delivery Debug</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="theme-utils.js?v=20260726c"></script>
+</head>
+<body class="bg-overlay">
+  <header class="site-header">
+    <img src="HUSHLOGO.png" alt="Logo" class="logo">
+  </header>
+
+  <main class="page">
+    <div class="container">
+      <section class="box">
+        <h2>Admin Delivery Debug</h2>
+        <p class="form-helper">Use the admin key to inspect provider status and send test messages.</p>
+        <form id="adminKeyForm" class="admin-data-actions">
+          <input type="text" id="adminKeyInput" class="admin-data-key-input" placeholder="Admin key" autocomplete="off" inputmode="numeric" pattern="[0-9]*" required>
+          <button type="submit" class="btn btn-login">Save key</button>
+        </form>
+
+        <form id="statusForm">
+          <button type="submit" class="btn btn-login">Check delivery status</button>
+        </form>
+
+        <p id="statusText" class="form-status"></p>
+        <pre id="statusJson" class="admin-debug-pre"></pre>
+
+        <h3 class="admin-debug-subtitle">Send Test Email</h3>
+        <form id="testEmailForm">
+          <input type="email" id="testEmailTo" placeholder="Destination email" required>
+          <input type="text" id="testEmailName" placeholder="Recipient name (optional)">
+          <button type="submit" class="btn btn-signup">Send test email</button>
+        </form>
+
+        <p id="sendResult" class="form-status"></p>
+        <p><a class="form-link" href="admin-portal.html">Open full admin portal</a></p>
+        <p><a class="form-link" href="index.html">Back to login</a></p>
+      </section>
+    </div>
+  </main>
+
+  <script src="admin-session.js"></script>
+  <script src="admin-delivery-debug.js"></script>
+  <script src="preferences.js"></script>
+</body>
+</html>
+
+

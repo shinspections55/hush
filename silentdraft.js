@@ -4085,10 +4085,52 @@ function initSilentDraft() {
         const gifAddButton = document.getElementById('draft-chat-gif-add');
         const emojiToggle = document.getElementById('draft-chat-emoji-toggle');
         const emojiPicker = document.getElementById('draft-chat-emoji-picker');
+        const gifPicker = document.getElementById('draft-chat-gif-picker');
         if (!form || !input || !sendButton) return;
-        const isInstalledPwa = Boolean(document.body && document.body.classList.contains('pwa-installed'));
+        if (gifAddButton) {
+            gifAddButton.setAttribute('aria-label', 'Add GIF powered by GIPHY');
+            gifAddButton.setAttribute('title', 'Add GIF powered by GIPHY');
+            gifAddButton.innerHTML = '<span class="gif-btn-label">GIF</span><span class="gif-btn-brand">GIPHY</span>';
+        }
+        const standaloneDisplay = Boolean(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+        const iosStandalone = Boolean(window.navigator && window.navigator.standalone === true);
+        const hasPwaClass = Boolean(document.body && document.body.classList.contains('pwa-installed'));
+        const hasAppNavClass = Boolean(document.body && document.body.classList.contains('silentdraft-app-nav-enabled'));
+        const isInstalledPwa = Boolean(standaloneDisplay || iosStandalone || hasPwaClass || hasAppNavClass);
         const emojiPickerEnabled = Boolean(!isInstalledPwa && emojiToggle && emojiPicker);
         let emojiPickerExpanded = false;
+        let gifCategoryFilter = '';
+        let gifLoading = false;
+        let gifHasMore = true;
+        let gifOffset = 0;
+        let gifCurrentQuery = '';
+        let gifUsingFallback = false;
+        let gifRequestVersion = 0;
+        let gifSuppressToggleUntil = 0;
+        let gifRateLimitedUntil = 0;
+        let gifRateLimitedActive = false;
+        let gifToggleReenableTimer = null;
+
+        const GIF_SEARCH_API_URL = '/api/hush-gifs';
+        const GIF_DEFAULT_CATEGORIES = ['football', 'funny', 'hype', 'victory', 'trashTalk'];
+        let gifFilterCategories = [...GIF_DEFAULT_CATEGORIES];
+        if (!gifFilterCategories.includes(gifCategoryFilter)) {
+            gifCategoryFilter = gifFilterCategories[0] || 'football';
+        }
+        const GIF_PAGE_SIZE = 24;
+        const GIF_FALLBACK_OPTIONS = [
+            { label: 'Yes', category: 'football', tags: 'yes nod approve', url: 'https://media.giphy.com/media/111ebonMs90YLu/giphy.gif' },
+            { label: 'Nope', category: 'trashTalk', tags: 'nope no', url: 'https://media.giphy.com/media/26hkhKd2Cp5WMWU1O/giphy.gif' },
+            { label: 'Lets Go', category: 'hype', tags: 'lets go hype', url: 'https://media.giphy.com/media/26u4cqiYI30juCOGY/giphy.gif' },
+            { label: 'Mic Drop', category: 'hype', tags: 'mic drop', url: 'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif' },
+            { label: 'LOL', category: 'funny', tags: 'lol laugh funny', url: 'https://media.giphy.com/media/3o6Zt481isNVuQI1l6/giphy.gif' },
+            { label: 'Facepalm', category: 'trashTalk', tags: 'facepalm wow', url: 'https://media.giphy.com/media/3og0INyCmHlNylks9O/giphy.gif' },
+            { label: 'Clap', category: 'victory', tags: 'clap applause', url: 'https://media.giphy.com/media/5xaOcLGvzHxDKjufnLW/giphy.gif' },
+            { label: 'Party', category: 'victory', tags: 'party celebrate', url: 'https://media.giphy.com/media/3KC2jD2QcBOSc/giphy.gif' },
+            { label: 'Touchdown', category: 'football', tags: 'touchdown football', url: 'https://media.giphy.com/media/3o6MbeZeKPb2rxqNqg/giphy.gif' },
+            { label: 'Fire', category: 'hype', tags: 'fire hot', url: 'https://media.giphy.com/media/3o72FfM5HJydzafgUE/giphy.gif' }
+        ];
+        let gifOptions = [];
 
         const emojiOptions = [
             '😀', '😁', '😂', '🤣', '😊', '😍', '😎', '🤝',
@@ -4136,6 +4178,285 @@ function initSilentDraft() {
             if (typeof input.setSelectionRange === 'function') {
                 input.setSelectionRange(caret, caret);
             }
+        }
+
+        function closeGifPicker() {
+            if (!gifPicker || !gifAddButton) return;
+            gifPicker.hidden = true;
+            gifAddButton.setAttribute('aria-expanded', 'false');
+        }
+
+        function openGifPicker() {
+            if (!gifPicker || !gifAddButton) return;
+            gifPicker.hidden = false;
+            gifAddButton.setAttribute('aria-expanded', 'true');
+        }
+
+        function suppressGifToggle(ms = 400) {
+            const duration = Math.max(100, Number(ms) || 400);
+            gifSuppressToggleUntil = Date.now() + duration;
+            if (!gifAddButton) return;
+
+            gifAddButton.disabled = true;
+            if (gifToggleReenableTimer) {
+                window.clearTimeout(gifToggleReenableTimer);
+            }
+            gifToggleReenableTimer = window.setTimeout(() => {
+                gifAddButton.disabled = false;
+                gifToggleReenableTimer = null;
+            }, duration);
+        }
+
+        function normalizeGiphyResponse(items) {
+            const list = Array.isArray(items) ? items : [];
+            return list.map((entry) => {
+                const images = entry && entry.images ? entry.images : {};
+                const preferred = (images.fixed_width && images.fixed_width.url) ||
+                    (images.downsized && images.downsized.url) ||
+                    (images.original && images.original.url) || '';
+                const preview = (images.fixed_width && images.fixed_width.url) ||
+                    (images.downsized && images.downsized.url) ||
+                    (images.preview_gif && images.preview_gif.url) ||
+                    (images.fixed_width_still && images.fixed_width_still.url) ||
+                    (images.downsized_still && images.downsized_still.url) ||
+                    preferred ||
+                    String(entry && entry.url || '').trim();
+                const title = String(entry && entry.title || '').trim() || 'Giphy';
+                const directUrl = String(entry && entry.url || '').trim();
+                const url = String(preferred || directUrl || '').trim();
+                return {
+                    label: title,
+                    category: String(entry && entry.category || gifCategoryFilter || 'football').trim() || 'football',
+                    tags: String((entry && (entry.slug || entry.tags)) || ''),
+                    previewUrl: String(preview || '').trim(),
+                    url
+                };
+            }).filter((entry) => Boolean(entry.url));
+        }
+
+        function resolveGifSearchQuery() {
+            return '';
+        }
+
+        async function loadGiphyGifs(queryText, _offset = 0, _limit = GIF_PAGE_SIZE) {
+            const fallbackCategory = gifFilterCategories[0] || 'football';
+            const category = gifFilterCategories.includes(gifCategoryFilter) ? gifCategoryFilter : fallbackCategory;
+            const url = `${GIF_SEARCH_API_URL}?category=${encodeURIComponent(category)}`;
+            const response = await fetch(url, { cache: 'no-store' });
+            if (!response.ok) {
+                const payload = await response.json().catch(() => null);
+                const err = new Error('Hush GIF lookup failed');
+                err.status = response.status;
+                const retryAfterMs = Number(payload && payload.retryAfterMs || 0);
+                if (response.status === 429 && retryAfterMs > 0) {
+                    err.retryAfterMs = retryAfterMs;
+                    gifRateLimitedUntil = Date.now() + retryAfterMs;
+                }
+                throw err;
+            }
+            const payload = await response.json().catch(() => null);
+            if (payload && payload.rateLimited && Number(payload.retryAfterMs || 0) > 0) {
+                gifRateLimitedUntil = Date.now() + Number(payload.retryAfterMs || 0);
+                gifRateLimitedActive = true;
+            }
+
+            const responseCategories = Array.isArray(payload && payload.categories)
+                ? payload.categories
+                    .map((value) => String(value || '').trim())
+                    .filter((value) => value && value.toLowerCase() !== 'favorites')
+                : [];
+            if (responseCategories.length) {
+                gifFilterCategories = responseCategories;
+                if (!gifFilterCategories.includes(gifCategoryFilter)) {
+                    gifCategoryFilter = gifFilterCategories[0];
+                }
+            }
+
+            const normalized = normalizeGiphyResponse(payload && payload.items);
+            return {
+                items: normalized,
+                pagination: {
+                    offset: 0,
+                    count: normalized.length,
+                    total_count: normalized.length
+                }
+            };
+        }
+
+        async function fetchGifPage({ reset = false, force = false } = {}) {
+            if (gifLoading && !(reset && force)) return;
+            if (!reset && (!gifHasMore || gifUsingFallback)) return;
+
+            if (reset && force) {
+                gifLoading = false;
+                gifRequestVersion += 1;
+            }
+
+            let previousScrollTop = 0;
+            let previousScrollHeight = 0;
+            if (!reset && gifPicker) {
+                const previousGrid = gifPicker.querySelector('.draft-chat-gif-grid');
+                if (previousGrid) {
+                    previousScrollTop = previousGrid.scrollTop;
+                    previousScrollHeight = previousGrid.scrollHeight;
+                }
+            }
+
+            const query = resolveGifSearchQuery();
+            if (reset) {
+                gifCurrentQuery = query;
+                gifOffset = 0;
+                gifHasMore = true;
+                gifUsingFallback = false;
+                gifOptions = [];
+            }
+
+            gifLoading = true;
+            const requestVersion = ++gifRequestVersion;
+
+            try {
+                const result = await loadGiphyGifs(gifCurrentQuery, gifOffset, GIF_PAGE_SIZE);
+                if (requestVersion !== gifRequestVersion) return;
+                const pageItems = Array.isArray(result && result.items) ? result.items : [];
+
+                gifOptions = reset ? pageItems : gifOptions.concat(pageItems);
+                gifOffset += pageItems.length;
+
+                const total = Number(result && result.pagination && result.pagination.total_count || 0) || 0;
+                gifHasMore = total > 0 ? gifOffset < total : pageItems.length >= GIF_PAGE_SIZE;
+                gifUsingFallback = false;
+                gifRateLimitedActive = false;
+            } catch (_error) {
+                if (requestVersion !== gifRequestVersion) return;
+                if (_error && Number(_error.retryAfterMs || 0) > 0) {
+                    gifRateLimitedUntil = Date.now() + Number(_error.retryAfterMs || 0);
+                    gifRateLimitedActive = true;
+                }
+                if (reset && (!Array.isArray(gifOptions) || gifOptions.length === 0)) {
+                    gifUsingFallback = true;
+                    gifHasMore = false;
+                    gifOptions = [...GIF_FALLBACK_OPTIONS];
+                } else if (reset) {
+                    gifUsingFallback = false;
+                    gifHasMore = false;
+                }
+            } finally {
+                if (requestVersion !== gifRequestVersion) return;
+                gifLoading = false;
+                renderGifPicker();
+                if (!reset && gifPicker) {
+                    const nextGrid = gifPicker.querySelector('.draft-chat-gif-grid');
+                    if (nextGrid && previousScrollHeight > 0) {
+                        const growth = Math.max(0, nextGrid.scrollHeight - previousScrollHeight);
+                        nextGrid.scrollTop = previousScrollTop + growth;
+                    }
+                }
+            }
+        }
+
+        function filteredGifOptions() {
+            if (!gifUsingFallback) {
+                return Array.isArray(gifOptions) ? gifOptions : [];
+            }
+
+            const source = GIF_FALLBACK_OPTIONS;
+            return source.filter((entry) => {
+                const categoryMatch = gifCategoryFilter === 'all' || String(entry.category || '').toLowerCase() === gifCategoryFilter;
+                return categoryMatch;
+            });
+        }
+
+        function renderGifPicker() {
+            if (!gifPicker) return;
+            const available = filteredGifOptions();
+            const loader = gifLoading ? '<div class="draft-chat-gif-status">Loading GIFs...</div>' : '';
+            const moreHint = (!gifLoading && gifHasMore && !gifUsingFallback) ? '<div class="draft-chat-gif-status">Scroll for more</div>' : '';
+            const fallbackHint = gifUsingFallback ? '<div class="draft-chat-gif-status">Showing fallback GIFs</div>' : '';
+            const rateLimitHint = gifRateLimitedActive ? '<div class="draft-chat-gif-status">Giphy is rate limited right now. Retrying shortly.</div>' : '';
+
+            gifPicker.innerHTML = `
+                <div class="draft-chat-gif-toolbar">
+                    <button type="button" class="draft-chat-gif-close" data-gif-action="close">Close</button>
+                </div>
+                <div class="draft-chat-gif-categories">
+                    ${gifFilterCategories.map((category) => `<button type="button" class="draft-chat-gif-category ${gifCategoryFilter === category ? 'is-active' : ''}" data-gif-category="${category}">${category.toUpperCase()}</button>`).join('')}
+                </div>
+                <div class="draft-chat-gif-grid">
+                    ${available.length ? available.map((entry, index) => {
+                        const thumb = String(entry.previewUrl || entry.url || '').replace(/"/g, '&quot;');
+                        const label = String(entry.label || 'GIF').replace(/"/g, '&quot;');
+                        return `<button type="button" class="draft-chat-gif-option" data-gif-index="${index}" title="${label}" aria-label="Insert GIF: ${label}"><img class="draft-chat-gif-thumb" src="${thumb}" alt="${label}" loading="lazy" decoding="async" referrerpolicy="no-referrer"><span class="draft-chat-gif-title">${label}</span></button>`;
+                    }).join('') : '<p class="draft-chat-gif-empty">No GIF matches your current filter.</p>'}
+                </div>
+                ${loader}
+                ${moreHint}
+                ${fallbackHint}
+                ${rateLimitHint}
+                <div class="draft-chat-gif-attribution" aria-label="Powered by GIPHY">Powered by GIPHY</div>
+            `;
+
+            const grid = gifPicker.querySelector('.draft-chat-gif-grid');
+            if (grid && !gifUsingFallback) {
+                grid.addEventListener('scroll', () => {
+                    if (gifLoading || !gifHasMore) return;
+                    const remaining = grid.scrollHeight - grid.scrollTop - grid.clientHeight;
+                    if (remaining < 160) {
+                        fetchGifPage({ reset: false });
+                    }
+                });
+            }
+        }
+
+        if (gifPicker) {
+            gifPicker.addEventListener('pointerdown', (event) => {
+                const target = event.target;
+                if (!(target instanceof HTMLElement)) return;
+                const actionButton = target.closest('[data-gif-action]');
+                if (!(actionButton instanceof HTMLElement)) return;
+
+                const action = String(actionButton.getAttribute('data-gif-action') || '');
+                if (action === 'close') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    suppressGifToggle(420);
+                    closeGifPicker();
+                    return;
+                }
+            });
+
+            gifPicker.addEventListener('click', (event) => {
+                const target = event.target;
+                if (!(target instanceof HTMLElement)) return;
+
+                const actionButton = target.closest('[data-gif-action]');
+                if (actionButton instanceof HTMLElement) {
+                    const action = String(actionButton.getAttribute('data-gif-action') || '');
+                    if (action === 'close') {
+                        event.preventDefault();
+                        return;
+                    }
+                }
+
+                const categoryButton = target.closest('[data-gif-category]');
+                if (categoryButton instanceof HTMLElement) {
+                    gifCategoryFilter = String(categoryButton.getAttribute('data-gif-category') || gifFilterCategories[0] || 'football').trim();
+                    fetchGifPage({ reset: true });
+                    return;
+                }
+
+                const optionButton = target.closest('.draft-chat-gif-option');
+                if (optionButton instanceof HTMLElement) {
+                    const idx = Number.parseInt(String(optionButton.getAttribute('data-gif-index') || '-1'), 10);
+                    const choices = filteredGifOptions();
+                    const selected = Number.isFinite(idx) ? choices[idx] : null;
+                    suppressGifToggle(420);
+                    if (!selected || !selected.url) return;
+                    const prefix = input.value && !/\s$/.test(input.value) ? ' ' : '';
+                    insertTextIntoInput(`${prefix}${selected.url}`);
+                    closeGifPicker();
+                    input.focus();
+                }
+            });
         }
 
         if (emojiPickerEnabled) {
@@ -4206,20 +4527,47 @@ function initSilentDraft() {
         }
 
         if (gifAddButton) {
-            gifAddButton.addEventListener('click', () => {
-                const gifUrl = window.prompt('Paste a direct GIF link (ending in .gif or .webp):', '');
-                if (!gifUrl) return;
-                const normalized = getDirectGifUrl(String(gifUrl).trim());
-                if (!normalized) {
-                    showNotification('Use a direct GIF URL (for example, one that ends in .gif).');
+            gifAddButton.setAttribute('aria-expanded', 'false');
+            gifAddButton.addEventListener('click', async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (Date.now() < gifSuppressToggleUntil) {
                     return;
                 }
 
-                const prefix = input.value && !/\s$/.test(input.value) ? ' ' : '';
-                insertTextIntoInput(`${prefix}${normalized}`);
-                input.focus();
+                if (gifPicker && gifPicker.hidden) {
+                    if (!gifOptions.length) {
+                        await fetchGifPage({ reset: true });
+                    }
+                    renderGifPicker();
+                    openGifPicker();
+                    return;
+                }
+
+                closeGifPicker();
             });
         }
+
+        const dismissGifPickerIfOutside = (event) => {
+            if (!gifPicker || gifPicker.hidden) return;
+            const target = event.target;
+            if (!(target instanceof Node)) return;
+            const clickedInsidePicker = gifPicker.contains(target);
+            const clickedGifButton = !!(gifAddButton && gifAddButton.contains(target));
+            if (!clickedInsidePicker && !clickedGifButton) {
+                closeGifPicker();
+            }
+        };
+
+        document.addEventListener('pointerdown', dismissGifPickerIfOutside);
+        document.addEventListener('click', dismissGifPickerIfOutside);
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeGifPicker();
+            }
+        });
 
         updateDraftChatUnreadBadge();
 
@@ -4231,6 +4579,7 @@ function initSilentDraft() {
 
             if (event.key === 'Escape') {
                 closeEmojiPicker();
+                closeGifPicker();
             }
         });
 
@@ -4239,6 +4588,9 @@ function initSilentDraft() {
             const raw = String(input.value || '').trim();
             if (!raw) return;
             const text = raw.slice(0, DRAFT_CHAT_MAX_LENGTH);
+
+            closeEmojiPicker();
+            closeGifPicker();
 
             if (!(window.draftSocket && currentDraftCode)) {
                 showNotification('Chat unavailable: not connected.');
@@ -4254,6 +4606,7 @@ function initSilentDraft() {
                 }
                 input.value = '';
                 closeEmojiPicker();
+                closeGifPicker();
                 input.focus();
             });
         });

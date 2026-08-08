@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="theme-color" content="#0F2F44">
+    <meta name="description" content="Hush - Silent draft fantasy football league management">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/icon-192x192.png">
+    <title>Signup — Account System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="site-header">
+        <img src="HUSHLOGO.png" alt="Logo" class="logo">
+    </header>
+
+    <main class="page">
+        <div class="container">
+            <section class="box">
+                <h2>Create Account</h2>
+                <p class="account-intro-copy">Use the full registration page to create your account.</p>
+                <a class="btn btn-signup account-intro-link" href="register.html">Create an account</a>
+            </section>
+
+            <section class="box">
+                <h2>Login</h2>
+                <form id="loginForm" method="post" action="#" novalidate>
+                    <input type="text" name="identifier" placeholder="Username or email" autocomplete="username" required>
+                    <div class="password-field">
+                        <input type="password" name="password" placeholder="Password" autocomplete="current-password" required>
+                        <button type="button" class="password-toggle" data-password-toggle aria-label="Show password">Show</button>
+                    </div>
+                    <label class="form-inline-checkbox" for="rememberPassword">
+                        <input type="checkbox" id="rememberPassword" name="rememberPassword">
+                        Keep me signed in on this browser
+                    </label>
+                    <a class="form-link" href="forgot-password.html">Forgot password?</a>
+                    <button type="submit" class="btn btn-login">Login</button>
+                </form>
+                <p class="form-helper admin-portal-link-hint">
+                    Admin access uses a separate key screen.
+                    <a class="form-link" href="admin-portal.html">Open Admin Portal</a>
+                </p>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        // Safety net: prevent credential query-string submits if module scripts fail to load.
+        window.__hushLoginHandlerAttached = false;
+        document.addEventListener('DOMContentLoaded', function () {
+            var loginForm = document.getElementById('loginForm');
+            if (!loginForm) return;
+
+            loginForm.addEventListener('submit', function (event) {
+                if (window.__hushLoginHandlerAttached) return;
+                event.preventDefault();
+                alert('Login is unavailable right now because required scripts did not load. Please refresh and try again on a stable network.');
+            });
+        });
+    </script>
+    <script src="firebase-config.js?v=20260805a"></script>
+    <script src="preferences.js"></script>
+    <script type="module" src="scripts.js?v=20260805a"></script>
+    <script>
+        // Register service worker for PWA support
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('[PWA] Service Worker registered:', registration);
+                })
+                .catch(error => {
+                    console.warn('[PWA] Service Worker registration failed:', error);
+                });
+        }
+    </script>
+</body>
+</html>

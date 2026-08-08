@@ -9,6 +9,7 @@ __pycache__/
 # Local data and secrets
 auth-users.json
 auction_data.db
+.hush-data/
 .env
 .env.*
 

@@ -1,0 +1,107 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin Fast Simulations</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="theme-utils.js?v=20260726c"></script>
+</head>
+<body class="bg-overlay admin-portal-page">
+  <header class="site-header">
+    <img src="HUSHLOGO.png" alt="Logo" class="logo">
+    <section class="admin-header-access" aria-label="Admin access">
+      <h2>Admin Fast Simulations</h2>
+      <form id="adminKeyForm" class="admin-data-actions">
+        <input type="text" id="adminKeyInput" class="admin-data-key-input" placeholder="Admin key" autocomplete="off" inputmode="numeric" pattern="[0-9]*">
+        <button type="submit" class="btn btn-login">Save key</button>
+      </form>
+      <p id="adminConnectStatus" class="form-status">Use the admin key to run simulations.</p>
+    </section>
+  </header>
+
+  <main class="page">
+    <div class="container admin-portal-layout">
+      <section class="box admin-portal-card">
+        <h2>Fast Draft Simulations</h2>
+        <p class="form-helper">Run accelerated simulation batches using current CPU logic and rankings, then inspect one filtered team's full round-by-round trace.</p>
+
+        <details class="admin-cpu-model-library admin-sim-collapsible" aria-label="Simulation lobby settings" open>
+          <summary class="admin-sim-summary">
+            <span class="admin-sim-title">Simulation Setup</span>
+            <span class="admin-sim-summary-note">Lobby settings, roster size, timer, and A-J complex default</span>
+          </summary>
+          <p class="form-helper admin-sim-note">These settings mirror the current lobby draft setup when available. A-J complex mode is on by default for simulations unless a lobby value overrides it.</p>
+          <div class="admin-cpu-model-row admin-sim-model-row">
+            <label class="admin-cpu-model-label" for="simRosterQB">Roster QB</label><input id="simRosterQB" class="admin-cpu-model-input" type="number" min="0" max="8" step="1" value="1">
+            <label class="admin-cpu-model-label" for="simRosterWR">Roster WR</label><input id="simRosterWR" class="admin-cpu-model-input" type="number" min="0" max="10" step="1" value="2">
+            <label class="admin-cpu-model-label" for="simRosterRB">Roster RB</label><input id="simRosterRB" class="admin-cpu-model-input" type="number" min="0" max="10" step="1" value="2">
+            <label class="admin-cpu-model-label" for="simRosterTE">Roster TE</label><input id="simRosterTE" class="admin-cpu-model-input" type="number" min="0" max="8" step="1" value="1">
+            <label class="admin-cpu-model-label" for="simRosterFLEX">Roster FLEX</label><input id="simRosterFLEX" class="admin-cpu-model-input" type="number" min="0" max="5" step="1" value="1">
+            <label class="admin-cpu-model-label" for="simRosterSPFLEX">Roster SPFLEX</label><input id="simRosterSPFLEX" class="admin-cpu-model-input" type="number" min="0" max="5" step="1" value="0">
+            <label class="admin-cpu-model-label" for="simRosterK">Roster K</label><input id="simRosterK" class="admin-cpu-model-input" type="number" min="0" max="5" step="1" value="1">
+            <label class="admin-cpu-model-label" for="simRosterDEF">Roster DEF</label><input id="simRosterDEF" class="admin-cpu-model-input" type="number" min="0" max="5" step="1" value="1">
+            <label class="admin-cpu-model-label" for="simRosterBN">Roster BN</label><input id="simRosterBN" class="admin-cpu-model-input" type="number" min="0" max="20" step="1" value="5">
+            <label class="admin-cpu-model-label" for="simBenchCutTarget">Bench Cut Target</label><input id="simBenchCutTarget" class="admin-cpu-model-input" type="number" min="0" max="13" step="1" value="5">
+            <label class="admin-cpu-model-label" for="simRoundTimerMinutes">Round Timer (min)</label><input id="simRoundTimerMinutes" class="admin-cpu-model-input" type="number" min="3" max="10" step="1" value="10">
+            <label class="admin-cpu-model-label" for="simAjDraftMode">A-J Complex</label><input id="simAjDraftMode" type="checkbox" checked>
+            <label class="admin-cpu-model-label" for="simWaiverMode">Waiver Mode</label>
+            <select id="simWaiverMode" class="admin-select">
+              <option value="off">Off</option>
+              <option value="random">Random</option>
+              <option value="skill">Skill</option>
+            </select>
+          </div>
+          <div class="admin-portal-actions admin-sim-actions">
+            <button id="loadLobbySettingsBtn" type="button" class="btn btn-login">Load Current Lobby Settings</button>
+            <div id="simulationLobbySummary" class="admin-cpu-model-meta"></div>
+          </div>
+        </details>
+
+        <div class="admin-portal-actions">
+          <label class="form-helper" for="simulationDraftCount">Draft batch size</label>
+          <select id="simulationDraftCount" class="admin-select">
+            <option value="1">1 draft</option>
+            <option value="5">5 drafts</option>
+            <option value="15" selected>15 drafts</option>
+            <option value="30">30 drafts</option>
+            <option value="60">60 drafts</option>
+          </select>
+          <button id="simulateBatchBtn" type="button" class="btn btn-signup">Simulate (15 Drafts)</button>
+          <a href="admin-portal.html" class="form-link">Back to Admin Portal</a>
+        </div>
+
+        <div class="admin-portal-actions" aria-label="Simulation filters">
+          <input type="number" id="filterDraftNumber" min="1" step="1" placeholder="Draft # (all)">
+          <select id="filterTeamName" class="admin-select" aria-label="Team selector">
+            <option value="">All teams / default Team 1 trace</option>
+            <option value="team 1">Team 1</option>
+            <option value="team 2">Team 2</option>
+            <option value="team 3">Team 3</option>
+            <option value="team 4">Team 4</option>
+            <option value="team 5">Team 5</option>
+            <option value="team 6">Team 6</option>
+            <option value="team 7">Team 7</option>
+            <option value="team 8">Team 8</option>
+            <option value="team 9">Team 9</option>
+            <option value="team 10">Team 10</option>
+          </select>
+          <input type="number" id="filterMinBid" min="0" step="1" placeholder="Min bid (all)">
+          <button id="clearFiltersBtn" type="button" class="btn btn-login">Clear Filters</button>
+        </div>
+
+        <div id="simulationStatus" class="form-status"></div>
+        <pre id="simulationOutput" class="admin-debug-pre">Connect with admin key, then click Simulate (15 Drafts).</pre>
+        <h3>Filtered Team Trace</h3>
+        <pre id="teamSummaryOutput" class="admin-debug-pre">Pick a team filter, run a simulation, and this panel will show that team's bids, thresholds, budgets, and roster movement by round.</pre>
+      </section>
+    </div>
+  </main>
+
+  <script src="admin-session.js"></script>
+  <script src="admin-simulations.js"></script>
+  <script src="preferences.js"></script>
+</body>
+</html>
+
+

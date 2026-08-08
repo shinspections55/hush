@@ -1,5 +1,13 @@
 // expose a reusable initializer so public/private lobby pages can call it
 window.initializeLobby = function initializeLobby(opts){
+  const lobbyRoot = document.getElementById('lobbyBox') || document.body;
+  if (lobbyRoot && lobbyRoot.dataset && lobbyRoot.dataset.lobbyInitialized === '1') {
+    return;
+  }
+  if (lobbyRoot && lobbyRoot.dataset) {
+    lobbyRoot.dataset.lobbyInitialized = '1';
+  }
+
   const DEFAULT_DRAFT_BENCH = 5;
   const DEFAULT_BENCH_CUT_TARGET = 5;
   const DEFAULT_ROUND_TIMER_MINUTES = 10;
@@ -87,6 +95,9 @@ window.initializeLobby = function initializeLobby(opts){
   const user = sessionStorage.getItem('username');
   const code = sessionStorage.getItem('currentDraft');
   if(!user || !code){ window.location.href='dashboard.html'; return; }
+  const userEmail = String(sessionStorage.getItem('userEmail') || localStorage.getItem('lastSignedInEmail') || '').trim();
+  const userFullname = String(sessionStorage.getItem('fullname') || '').trim();
+  const userPhone = String(sessionStorage.getItem('phone') || '').trim();
 
   const draftTitle = document.getElementById('draftTitle');
   const draftCode = document.getElementById('draftCode');
@@ -96,6 +107,7 @@ window.initializeLobby = function initializeLobby(opts){
   const memberList = document.getElementById('memberList');
   const leaveBtn = document.getElementById('leaveBtn');
   const draftTypeRadios = document.getElementsByName('draftType');
+  const rounds3DraftTypeRadio = Array.from(draftTypeRadios || []).find((radio) => radio.value === 'rounds3');
   const draftOrderSection = document.getElementById('draftOrderSection');
   const draftOrderRadios = document.getElementsByName('draftOrder');
   const draftCapacityEl = document.getElementById('draftCapacity');
@@ -126,6 +138,7 @@ window.initializeLobby = function initializeLobby(opts){
     DEF: document.getElementById('rosterDEF'),
     BN: document.getElementById('rosterBN')
   };
+  const rosterStepperButtons = Array.from(document.querySelectorAll('.roster-stepper-btn'));
   const startDraftBtn = document.getElementById('startDraftBtn');
   const hostBanner = document.getElementById('hostBanner');
   const dismissBanner = document.getElementById('dismissBanner');
@@ -133,6 +146,18 @@ window.initializeLobby = function initializeLobby(opts){
   // closed overlay elements (may be present in page)
   let closedOverlay = document.getElementById('closedOverlay');
   let closedReturnBtn = document.getElementById('closedReturnBtn');
+
+  function isRounds3UnderConstruction() {
+    return Boolean(rounds3DraftTypeRadio && rounds3DraftTypeRadio.dataset && rounds3DraftTypeRadio.dataset.underConstruction === 'true');
+  }
+
+  function enforceRounds3UnderConstructionDisabled() {
+    if (!isRounds3UnderConstruction()) return;
+    if (rounds3DraftTypeRadio) {
+      rounds3DraftTypeRadio.disabled = true;
+      rounds3DraftTypeRadio.checked = false;
+    }
+  }
 
   // defensive: ensure DOM elements exist before updating
   if(draftTitle) draftTitle.textContent = `Draft Lobby`;
@@ -144,6 +169,282 @@ window.initializeLobby = function initializeLobby(opts){
     console.debug('[lobby] currentDraft:', sessionStorage.getItem('currentDraft'));
     console.debug('[lobby] drafts (raw):', localStorage.getItem('drafts'));
   }catch(e){ console.warn('[lobby] storage access failed', e); }
+
+  const LOBBY_FRIENDS_API_BASE = `${window.location.origin}/api/auth/friends`;
+  let cachedLobbyFriends = [];
+
+  function lobbyFriendsApiUrl(path = '', params) {
+    const base = `${LOBBY_FRIENDS_API_BASE}${path}`;
+    if (!params) return base;
+    const search = new URLSearchParams(params).toString();
+    return search ? `${base}?${search}` : base;
+  }
+
+  function lobbyRequesterProfileParams(extra = {}) {
+    return {
+      username: user,
+      email: userEmail,
+      fullname: userFullname,
+      phone: userPhone,
+      ...extra
+    };
+  }
+
+  function setRosterDisplayValue(key, value) {
+    const valueEl = document.getElementById(`roster${key}Value`);
+    if (valueEl) {
+      valueEl.textContent = String(value);
+    }
+  }
+
+  function syncRosterStepperDisplays() {
+    Object.entries(rosterInputMap).forEach(([key, input]) => {
+      if (!input) return;
+      setRosterDisplayValue(key, input.value);
+    });
+  }
+
+  function adjustRosterValue(key, stepDir) {
+    const input = rosterInputMap[key];
+    if (!input) return;
+    const min = Number.parseInt(input.dataset.min, 10);
+    const max = Number.parseInt(input.dataset.max, 10);
+    const current = Number.parseInt(input.value, 10);
+    const safeCurrent = Number.isFinite(current) ? current : 0;
+    const safeMin = Number.isFinite(min) ? min : 0;
+    const safeMax = Number.isFinite(max) ? max : safeCurrent;
+    const next = Math.max(safeMin, Math.min(safeMax, safeCurrent + stepDir));
+    if (next === safeCurrent) return;
+    input.value = String(next);
+    setRosterDisplayValue(key, next);
+    queueRosterAutosave();
+  }
+
+  function lobbyEscapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  async function parseLobbyJsonResponse(response, fallbackMessage) {
+    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+    const rawText = await response.text();
+    let payload = null;
+
+    if (contentType.includes('application/json')) {
+      try {
+        payload = rawText ? JSON.parse(rawText) : null;
+      } catch (_error) {
+        payload = null;
+      }
+    }
+
+    if (!payload && rawText && rawText.trim().startsWith('{')) {
+      try {
+        payload = JSON.parse(rawText);
+      } catch (_error) {
+        payload = null;
+      }
+    }
+
+    if (!response.ok || !payload || payload.ok === false) {
+      const message = (payload && payload.error) || fallbackMessage || 'Request failed';
+      const error = new Error(message);
+      error.status = response.status;
+      throw error;
+    }
+
+    return payload;
+  }
+
+  function ensureShareFriendsModal() {
+    let modal = document.getElementById('lobbyShareFriendsModal');
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'lobbyShareFriendsModal';
+    modal.className = 'lobby-share-modal hidden';
+    modal.innerHTML = `
+      <div class="lobby-share-modal-card" role="dialog" aria-modal="true" aria-labelledby="lobbyShareFriendsTitle">
+        <h3 id="lobbyShareFriendsTitle">Share Lobby Code With Friends</h3>
+        <p class="lobby-share-modal-copy">Code <strong>${lobbyEscapeHtml(code)}</strong> copied. Select friends to send it to.</p>
+        <label class="lobby-share-select-all">
+          <input id="lobbyShareSelectAll" type="checkbox">
+          <span>Select all friends</span>
+        </label>
+        <div id="lobbyShareFriendsList" class="lobby-share-friends-list"></div>
+        <p id="lobbyShareStatus" class="lobby-share-status"></p>
+        <div class="lobby-share-actions">
+          <button id="lobbyShareSendBtn" type="button" class="btn btn-signup">Share With Selected</button>
+          <button id="lobbyShareCancelBtn" type="button" class="btn">Cancel</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const cancelBtn = document.getElementById('lobbyShareCancelBtn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+    }
+
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) {
+        modal.classList.add('hidden');
+      }
+    });
+
+    return modal;
+  }
+
+  function setLobbyShareStatus(message, isError = false) {
+    const statusEl = document.getElementById('lobbyShareStatus');
+    if (!statusEl) return;
+    statusEl.textContent = String(message || '');
+    statusEl.classList.toggle('is-error', !!isError);
+  }
+
+  function renderLobbyShareFriends(friends) {
+    const listEl = document.getElementById('lobbyShareFriendsList');
+    const selectAllEl = document.getElementById('lobbyShareSelectAll');
+    const sendBtn = document.getElementById('lobbyShareSendBtn');
+    if (!listEl) return;
+
+    const normalized = Array.isArray(friends) ? friends : [];
+    cachedLobbyFriends = normalized.map((entry) => ({
+      username: String(entry && (entry.usernameKey || entry.username) || '').trim(),
+      fullname: String(entry && entry.fullname || '').trim()
+    })).filter((entry) => Boolean(entry.username));
+
+    if (!cachedLobbyFriends.length) {
+      listEl.innerHTML = '<p class="lobby-share-empty">No friends found yet. Add friends first, then share your lobby code.</p>';
+      if (selectAllEl) {
+        selectAllEl.checked = false;
+        selectAllEl.disabled = true;
+      }
+      if (sendBtn) sendBtn.disabled = true;
+      return;
+    }
+
+    listEl.innerHTML = cachedLobbyFriends.map((friend) => {
+      const handle = lobbyEscapeHtml(friend.username);
+      const label = lobbyEscapeHtml(friend.fullname || friend.username);
+      return `
+        <label class="lobby-share-friend-row">
+          <input type="checkbox" class="lobby-share-friend-checkbox" value="${handle}">
+          <span>${label} <small>@${handle}</small></span>
+        </label>
+      `;
+    }).join('');
+
+    if (selectAllEl) {
+      selectAllEl.disabled = false;
+      selectAllEl.checked = false;
+      selectAllEl.onchange = () => {
+        const checked = Boolean(selectAllEl.checked);
+        listEl.querySelectorAll('.lobby-share-friend-checkbox').forEach((checkbox) => {
+          checkbox.checked = checked;
+        });
+        if (sendBtn) sendBtn.disabled = !checked;
+      };
+    }
+
+    if (sendBtn) sendBtn.disabled = true;
+
+    listEl.querySelectorAll('.lobby-share-friend-checkbox').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        if (!selectAllEl) return;
+        const boxes = Array.from(listEl.querySelectorAll('.lobby-share-friend-checkbox'));
+        const allChecked = boxes.length > 0 && boxes.every((item) => item.checked);
+        selectAllEl.checked = allChecked;
+        if (sendBtn) sendBtn.disabled = !boxes.some((item) => item.checked);
+      });
+    });
+  }
+
+  async function loadLobbyFriendsForSharing() {
+    const response = await fetch(
+      lobbyFriendsApiUrl('', lobbyRequesterProfileParams()),
+      { cache: 'no-store' }
+    );
+    const payload = await parseLobbyJsonResponse(response, 'Unable to load friends list.');
+    renderLobbyShareFriends(payload.friends || []);
+    return payload;
+  }
+
+  async function openShareFriendsModal() {
+    const modal = ensureShareFriendsModal();
+    modal.classList.remove('hidden');
+    setLobbyShareStatus('Loading friends...');
+    try {
+      await loadLobbyFriendsForSharing();
+      if (cachedLobbyFriends.length > 0) {
+        setLobbyShareStatus('Select friends and click Share With Selected.');
+      } else {
+        setLobbyShareStatus('Add friends to unlock sharing from this modal.');
+      }
+    } catch (error) {
+      renderLobbyShareFriends([]);
+      setLobbyShareStatus(error.message || 'Unable to load friends list.', true);
+    }
+
+    const sendBtn = document.getElementById('lobbyShareSendBtn');
+    if (!sendBtn) return;
+
+    sendBtn.onclick = async () => {
+      const listEl = document.getElementById('lobbyShareFriendsList');
+      if (!listEl) return;
+      const selected = Array.from(listEl.querySelectorAll('.lobby-share-friend-checkbox:checked'))
+        .map((item) => String(item.value || '').trim())
+        .filter(Boolean);
+
+      if (!selected.length) {
+        setLobbyShareStatus('Select at least one friend first.', true);
+        return;
+      }
+
+      sendBtn.disabled = true;
+      const originalText = sendBtn.textContent;
+      sendBtn.textContent = 'Sharing...';
+
+      const inviteMessage = `Join my Hush lobby. Code: ${code}`;
+      const failed = [];
+      let sentCount = 0;
+
+      for (const friendUsername of selected) {
+        try {
+          const response = await fetch(lobbyFriendsApiUrl('/messages/send'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(lobbyRequesterProfileParams({
+              friendUsername,
+              text: inviteMessage
+            }))
+          });
+          await parseLobbyJsonResponse(response, `Unable to share with @${friendUsername}.`);
+          sentCount += 1;
+        } catch (_error) {
+          failed.push(friendUsername);
+        }
+      }
+
+      sendBtn.disabled = false;
+      sendBtn.textContent = originalText;
+
+      if (sentCount > 0 && failed.length === 0) {
+        setLobbyShareStatus(`Shared lobby code with ${sentCount} friend${sentCount === 1 ? '' : 's'}.`);
+      } else if (sentCount > 0) {
+        setLobbyShareStatus(`Shared with ${sentCount}. Failed: ${failed.map((name) => `@${name}`).join(', ')}`, true);
+      } else {
+        setLobbyShareStatus('Could not share with selected friends right now.', true);
+      }
+    };
+  }
 
   function resolveDraftHost(draft) {
     if (!draft || typeof draft !== 'object') return null;
@@ -206,11 +507,18 @@ window.initializeLobby = function initializeLobby(opts){
       localStorage.setItem('drafts', JSON.stringify(drafts));
       try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
     }
-    const dtype = drafts[code].type || 'silent';
+    let dtype = drafts[code].type || 'silent';
+    if (dtype === 'rounds3' && isRounds3UnderConstruction()) {
+      dtype = 'silent';
+      drafts[code].type = 'silent';
+      localStorage.setItem('drafts', JSON.stringify(drafts));
+      try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (_error) {}
+    }
     // Set the radio button based on current type
     draftTypeRadios.forEach(radio => {
       if (radio.value === dtype) radio.checked = true;
     });
+    enforceRounds3UnderConstructionDisabled();
     // Show/hide draft order section based on draft type
     if (draftOrderSection) {
       draftOrderSection.style.display = dtype === 'rounds3' ? 'flex' : 'none';
@@ -262,6 +570,7 @@ window.initializeLobby = function initializeLobby(opts){
     Object.entries(rosterInputMap).forEach(([key, input]) => {
       if (!input) return;
       input.value = String(rosterSettings[key]);
+      setRosterDisplayValue(key, rosterSettings[key]);
     });
     if (roundTimerMinutesInput) {
       roundTimerMinutesInput.value = String(roundTimerMinutes);
@@ -677,6 +986,15 @@ window.initializeLobby = function initializeLobby(opts){
   // Handle draft type radio button changes
   draftTypeRadios.forEach(radio => {
     radio.addEventListener('change', () => {
+      if (radio.value === 'rounds3' && isRounds3UnderConstruction()) {
+        alert('3 rounds auction is under construction right now.');
+        const silentRadio = Array.from(draftTypeRadios).find((entry) => entry.value === 'silent');
+        if (silentRadio) silentRadio.checked = true;
+        if (draftOrderSection) draftOrderSection.style.display = 'none';
+        enforceRounds3UnderConstructionDisabled();
+        return;
+      }
+
       const draftsRaw = localStorage.getItem('drafts');
       const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
       const isHost = isCurrentUserHost(drafts[code]);
@@ -757,11 +1075,16 @@ window.initializeLobby = function initializeLobby(opts){
     const isClosed = Boolean(drafts[code] && drafts[code].closed);
     const disableControls = !isHost || isClosed;
     draftTypeRadios.forEach((radio) => {
-      radio.disabled = disableControls;
+      const isUnderConstructionType = radio.value === 'rounds3' && isRounds3UnderConstruction();
+      radio.disabled = disableControls || isUnderConstructionType;
+      if (isUnderConstructionType) {
+        radio.checked = false;
+      }
     });
     draftOrderRadios.forEach((radio) => {
       radio.disabled = disableControls;
     });
+    enforceRounds3UnderConstructionDisabled();
   }
 
   // show/hide capacity controls depending on host
@@ -784,6 +1107,7 @@ window.initializeLobby = function initializeLobby(opts){
     const disableControls = !isHost || isClosed;
     if (applyRosterBtn) applyRosterBtn.disabled = disableControls;
     Object.values(rosterInputMap).forEach(input => { if (input) input.disabled = disableControls; });
+    rosterStepperButtons.forEach((button) => { button.disabled = disableControls; });
     if (roundTimerMinutesInput) roundTimerMinutesInput.disabled = disableControls;
     if (ajDraftModeInput) ajDraftModeInput.disabled = disableControls;
     if (waiverModeInput) waiverModeInput.disabled = disableControls;
@@ -920,10 +1244,13 @@ window.initializeLobby = function initializeLobby(opts){
     });
   }
 
-  Object.values(rosterInputMap).forEach((input) => {
-    if (!input) return;
-    input.addEventListener('input', queueRosterAutosave);
-    input.addEventListener('change', queueRosterAutosave);
+  rosterStepperButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const key = String(button.dataset.rosterStep || '').trim();
+      const stepDir = Number.parseInt(button.dataset.stepDir, 10);
+      if (!key || !Number.isFinite(stepDir)) return;
+      adjustRosterValue(key, stepDir);
+    });
   });
   if (roundTimerMinutesInput) {
     roundTimerMinutesInput.addEventListener('change', queueRosterAutosave);
@@ -986,6 +1313,7 @@ window.initializeLobby = function initializeLobby(opts){
   updateDraftTypeControlsState();
   updateCapacityControls();
   updateRosterControlsState();
+  syncRosterStepperDisplays();
   updateCustomBudgetControlsState();
   updateStartDraftControlState();
 
@@ -1074,25 +1402,19 @@ window.initializeLobby = function initializeLobby(opts){
 
   if (shareLobbyCodeBtn) {
     shareLobbyCodeBtn.addEventListener('click', async () => {
-      const shareText = `Join my Hush lobby with code: ${code}`;
-      try {
-        if (navigator.share) {
-          await navigator.share({
-            title: 'Hush Draft Lobby Invite',
-            text: shareText
-          });
-          return;
-        }
-      } catch (_error) {
-        // Fall through to clipboard path.
-      }
-
+      let copied = false;
       try {
         await navigator.clipboard.writeText(code);
-        alert(`Lobby code copied: ${code}`);
+        copied = true;
       } catch (_error) {
-        alert(shareText);
+        copied = false;
       }
+
+      if (!copied) {
+        alert(`Lobby code: ${code}`);
+      }
+
+      await openShareFriendsModal();
     });
   }
 };

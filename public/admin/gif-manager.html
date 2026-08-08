@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hush GIF Manager</title>
+  <link rel="stylesheet" href="../css/gif-manager.css">
+</head>
+<body>
+  <main class="gif-manager-shell">
+    <header class="gif-manager-header">
+      <h1>Hush GIF Manager</h1>
+      <a class="gif-manager-back" href="../admin-portal.html">Back to Admin Portal</a>
+    </header>
+
+    <section class="gif-manager-panel">
+      <p class="gif-manager-help">Paste a GIPHY URL, choose a category, and save the GIF ID to the Hush library.</p>
+      <div class="gif-manager-grid">
+        <label>
+          Admin Key
+          <input id="adminKeyInput" type="password" autocomplete="off" placeholder="Admin key from portal">
+        </label>
+        <label>
+          GIPHY URL
+          <input id="gifUrlInput" type="url" autocomplete="off" placeholder="https://giphy.com/gifs/example-3o7TKF1fSIs1R19B8k">
+        </label>
+        <label>
+          Category
+          <select id="gifCategorySelect"></select>
+        </label>
+      </div>
+      <div class="gif-theme-tools">
+        <label>
+          Create Theme
+          <input id="createCategoryInput" type="text" autocomplete="off" placeholder="ex: rivalry">
+        </label>
+        <button id="createCategoryBtn" type="button">Create Theme</button>
+        <label>
+          Delete Theme
+          <select id="deleteCategorySelect"></select>
+        </label>
+        <button id="deleteCategoryBtn" type="button" class="danger">Delete Theme</button>
+      </div>
+      <div class="gif-cap-tools">
+        <label>
+          GIF Cap (Unique IDs)
+          <input id="gifCapInput" type="number" min="1" max="5000" step="1" placeholder="150">
+        </label>
+        <button id="saveGifCapBtn" type="button">Save Cap</button>
+      </div>
+      <div class="gif-manager-actions">
+        <button id="addGifBtn" type="button">Add To Hush</button>
+        <button id="addBulkGifBtn" type="button">Add Batch</button>
+        <button id="refreshLibraryBtn" type="button" class="secondary">Refresh Library</button>
+      </div>
+      <label class="gif-manager-bulk-label" for="gifBulkInput">
+        Bulk GIPHY Links or IDs
+        <textarea id="gifBulkInput" rows="5" placeholder="Paste one URL per line, or comma-separated IDs"></textarea>
+      </label>
+      <p id="gifManagerStatus" class="gif-manager-status" aria-live="polite"></p>
+    </section>
+
+    <section class="gif-manager-panel">
+      <h2>Current GIF Library</h2>
+      <div class="gif-preview-tools">
+        <button id="playAllPreviewsBtn" type="button">Play All</button>
+        <button id="pauseAllPreviewsBtn" type="button" class="secondary">Pause All</button>
+      </div>
+      <div id="gifLibraryGrid" class="gif-library-grid"></div>
+    </section>
+  </main>
+
+  <script src="../js/gif-manager.js"></script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 // CPU Silent Auction Logic
 // Contains functions for generating CPU bids in silent auction rounds
+const { loadCpuLogicConfig } = require('./cpu-logic-store');
 
 // Bid ranges for silent auctions (adapted from silentdraft.js)
 const silentAuctionBidRanges = {
@@ -107,15 +108,6 @@ const DEFAULT_SILENT_PROFILES = [
   { aggression: 1.08, valueHunter: 0.98, sleeperHunter: 1.0, starsAndScrubs: 1.08, QB: 1.08, RB: 0.94, WR: 1.0, TE: 1.12, K: 0.9, DEF: 1.0 },
   { aggression: 0.9, valueHunter: 1.18, sleeperHunter: 1.08, starsAndScrubs: 0.88, QB: 1.0, RB: 1.05, WR: 0.96, TE: 1.0, K: 1.0, DEF: 1.05 }
 ];
-
-function loadCpuLogicConfig() {
-  try {
-    delete require.cache[require.resolve('./cpulogic')];
-    return require('./cpulogic') || {};
-  } catch (_error) {
-    return {};
-  }
-}
 
 const ROUND_COMMITMENT_CURVE = {
   1: 0.64,

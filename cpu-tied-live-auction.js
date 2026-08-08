@@ -1,5 +1,6 @@
 // CPU Tied Live Auction Logic
 // Contains functions for handling CPU bidding in tied live auctions
+const { loadCpuLogicConfig } = require('./cpu-logic-store');
 
 // Bid ranges for tied live auctions (adapted from server.js)
 const tiedLiveAuctionBidRanges = {
@@ -148,15 +149,6 @@ const DEFAULT_TIED_PROFILES = [
   { aggression: 1.08, patience: 1.0, fear: 1.05, ego: 1.1, discipline: 0.96, desperation: 1.0 },
   { aggression: 0.92, patience: 0.95, fear: 1.12, ego: 1.04, discipline: 1.12, desperation: 1.2 }
 ];
-
-function loadCpuLogicConfig() {
-  try {
-    delete require.cache[require.resolve('./cpulogic')];
-    return require('./cpulogic') || {};
-  } catch (_error) {
-    return {};
-  }
-}
 
 function getTiedTuning() {
   const cfg = loadCpuLogicConfig();

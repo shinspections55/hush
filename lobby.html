@@ -42,10 +42,16 @@
               <input type="radio" name="draftType" value="silent" checked>
               <span>Silent auction</span>
             </label>
-            <label class="radio-label">
-              <input type="radio" name="draftType" value="rounds3">
-              <span>3 rounds auction</span>
-            </label>
+            <div class="draft-type-under-construction">
+              <div class="under-construction-badge">Under Construction</div>
+              <label class="radio-label radio-label-under-construction">
+                <span class="radio-x-wrap">
+                  <input type="radio" name="draftType" value="rounds3" data-under-construction="true" disabled>
+                  <span class="radio-red-x" aria-hidden="true">X</span>
+                </span>
+                <span>3 rounds auction</span>
+              </label>
+            </div>
           </div>
         </div>
         <div id="draftOrderSection" class="lobby-controls draft-order-section">

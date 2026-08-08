@@ -52,10 +52,16 @@
                   <input type="radio" name="draftType" value="silent" checked>
                   <span>Silent auction</span>
                 </label>
-                <label class="radio-label">
-                  <input type="radio" name="draftType" value="rounds3">
-                  <span>3 rounds auction</span>
-                </label>
+                <div class="draft-type-under-construction">
+                  <div class="under-construction-badge">Under Construction</div>
+                  <label class="radio-label radio-label-under-construction">
+                    <span class="radio-x-wrap">
+                      <input type="radio" name="draftType" value="rounds3" data-under-construction="true" disabled>
+                      <span class="radio-red-x" aria-hidden="true">X</span>
+                    </span>
+                    <span>3 rounds auction</span>
+                  </label>
+                </div>
               </div>
             </div>
             <div id="draftOrderSection" class="lobby-controls draft-order-section">
@@ -88,15 +94,15 @@
                 <div class="lobby-controls roster-controls" id="rosterControls">
                   <div class="type-display">Roster Setup:</div>
                   <div class="roster-grid" id="rosterGrid">
-                    <label>QB <input id="rosterQB" type="number" min="0" max="8" step="1" value="1"></label>
-                    <label>WR <input id="rosterWR" type="number" min="0" max="10" step="1" value="2"></label>
-                    <label>RB <input id="rosterRB" type="number" min="0" max="10" step="1" value="2"></label>
-                    <label>TE <input id="rosterTE" type="number" min="0" max="8" step="1" value="1"></label>
-                    <label>FLEX <input id="rosterFLEX" type="number" min="0" max="5" step="1" value="1"></label>
-                    <label>SPFLEX <input id="rosterSPFLEX" type="number" min="0" max="5" step="1" value="0"></label>
-                    <label>K <input id="rosterK" type="number" min="0" max="5" step="1" value="1"></label>
-                    <label>DEF <input id="rosterDEF" type="number" min="0" max="5" step="1" value="1"></label>
-                    <label>BN <input id="rosterBN" type="number" min="0" max="13" step="1" value="5"></label>
+                    <label class="roster-stepper" data-roster-key="QB"><span>QB</span><div class="roster-stepper-controls"><span class="roster-stepper-value" id="rosterQBValue">1</span><div class="roster-stepper-arrows"><button type="button" class="roster-stepper-btn" data-roster-step="QB" data-step-dir="1" aria-label="Increase QB">&#9650;</button><button type="button" class="roster-stepper-btn" data-roster-step="QB" data-step-dir="-1" aria-label="Decrease QB">&#9660;</button></div></div><input id="rosterQB" type="hidden" data-min="0" data-max="8" value="1"></label>
+                    <label class="roster-stepper" data-roster-key="WR"><span>WR</span><div class="roster-stepper-controls"><span class="roster-stepper-value" id="rosterWRValue">2</span><div class="roster-stepper-arrows"><button type="button" class="roster-stepper-btn" data-roster-step="WR" data-step-dir="1" aria-label="Increase WR">&#9650;</button><button type="button" class="roster-stepper-btn" data-roster-step="WR" data-step-dir="-1" aria-label="Decrease WR">&#9660;</button></div></div><input id="rosterWR" type="hidden" data-min="0" data-max="10" value="2"></label>
+                    <label class="roster-stepper" data-roster-key="RB"><span>RB</span><div class="roster-stepper-controls"><span class="roster-stepper-value" id="rosterRBValue">2</span><div class="roster-stepper-arrows"><button type="button" class="roster-stepper-btn" data-roster-step="RB" data-step-dir="1" aria-label="Increase RB">&#9650;</button><button type="button" class="roster-stepper-btn" data-roster-step="RB" data-step-dir="-1" aria-label="Decrease RB">&#9660;</button></div></div><input id="rosterRB" type="hidden" data-min="0" data-max="10" value="2"></label>
+                    <label class="roster-stepper" data-roster-key="TE"><span>TE</span><div class="roster-stepper-controls"><span class="roster-stepper-value" id="rosterTEValue">1</span><div class="roster-stepper-arrows"><button type="button" class="roster-stepper-btn" data-roster-step="TE" data-step-dir="1" aria-label="Increase TE">&#9650;</button><button type="button" class="roster-stepper-btn" data-roster-step="TE" data-step-dir="-1" aria-label="Decrease TE">&#9660;</button></div></div><input id="rosterTE" type="hidden" data-min="0" data-max="8" value="1"></label>
+                    <label class="roster-stepper" data-roster-key="FLEX"><span>FLEX</span><div class="roster-stepper-controls"><span class="roster-stepper-value" id="rosterFLEXValue">1</span><div class="roster-stepper-arrows"><button type="button" class="roster-stepper-btn" data-roster-step="FLEX" data-step-dir="1" aria-label="Increase FLEX">&#9650;</button><button type="button" class="roster-stepper-btn" data-roster-step="FLEX" data-step-dir="-1" aria-label="Decrease FLEX">&#9660;</button></div></div><input id="rosterFLEX" type="hidden" data-min="0" data-max="5" value="1"></label>
+                    <label class="roster-stepper" data-roster-key="SPFLEX"><span>SPFLEX</span><div class="roster-stepper-controls"><span class="roster-stepper-value" id="rosterSPFLEXValue">0</span><div class="roster-stepper-arrows"><button type="button" class="roster-stepper-btn" data-roster-step="SPFLEX" data-step-dir="1" aria-label="Increase SPFLEX">&#9650;</button><button type="button" class="roster-stepper-btn" data-roster-step="SPFLEX" data-step-dir="-1" aria-label="Decrease SPFLEX">&#9660;</button></div></div><input id="rosterSPFLEX" type="hidden" data-min="0" data-max="5" value="0"></label>
+                    <label class="roster-stepper" data-roster-key="K"><span>K</span><div class="roster-stepper-controls"><span class="roster-stepper-value" id="rosterKValue">1</span><div class="roster-stepper-arrows"><button type="button" class="roster-stepper-btn" data-roster-step="K" data-step-dir="1" aria-label="Increase K">&#9650;</button><button type="button" class="roster-stepper-btn" data-roster-step="K" data-step-dir="-1" aria-label="Decrease K">&#9660;</button></div></div><input id="rosterK" type="hidden" data-min="0" data-max="5" value="1"></label>
+                    <label class="roster-stepper" data-roster-key="DEF"><span>DEF</span><div class="roster-stepper-controls"><span class="roster-stepper-value" id="rosterDEFValue">1</span><div class="roster-stepper-arrows"><button type="button" class="roster-stepper-btn" data-roster-step="DEF" data-step-dir="1" aria-label="Increase DEF">&#9650;</button><button type="button" class="roster-stepper-btn" data-roster-step="DEF" data-step-dir="-1" aria-label="Decrease DEF">&#9660;</button></div></div><input id="rosterDEF" type="hidden" data-min="0" data-max="5" value="1"></label>
+                    <label class="roster-stepper" data-roster-key="BN"><span>BN</span><div class="roster-stepper-controls"><span class="roster-stepper-value" id="rosterBNValue">5</span><div class="roster-stepper-arrows"><button type="button" class="roster-stepper-btn" data-roster-step="BN" data-step-dir="1" aria-label="Increase BN">&#9650;</button><button type="button" class="roster-stepper-btn" data-roster-step="BN" data-step-dir="-1" aria-label="Decrease BN">&#9660;</button></div></div><input id="rosterBN" type="hidden" data-min="0" data-max="13" value="5"></label>
                   </div>
                   <div class="capacity-controls">
                     <label for="roundTimerMinutes" class="type-display">Round Timer:</label>
@@ -165,7 +171,6 @@
   </script>
   <script src="preferences.js"></script>
   <script src="lobby.js?v=20260616a"></script>
-  <script src="lobby-public.js?v=20260611c"></script>
 </body>
 </html>
 

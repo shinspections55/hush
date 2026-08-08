@@ -8,9 +8,6 @@ const http = require('http');
 const fs = require('fs/promises');
 const crypto = require('crypto');
 const compression = require('compression');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const cors = require('cors');
 const nodemailer = require('nodemailer');
 const { Server } = require('socket.io');
 const app = express();
@@ -24,39 +21,7 @@ const { generateServerCPUBids, evaluateBidStrategy } = require('./cpu-silent-auc
 const { runTiedAuctionRound, pickRandomCPU, placeForcedBid, getAggression, decideAction } = require('./cpu-tied-live-auction');
 
 app.use(express.json({ limit: '5mb' }));
-app.disable('x-powered-by');
 app.use(compression({ threshold: 1024 }));
-app.set('trust proxy', 1);
-
-app.use(helmet({
-  // Keep CSP disabled for now because current pages rely on inline script/style patterns.
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false
-}));
-
-app.use(cors({
-  origin: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
-}));
-
-const authApiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 120,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { ok: false, error: 'Too many auth requests, please try again shortly.' }
-});
-
-const adminApiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { ok: false, error: 'Too many admin requests, please try again shortly.' }
-});
-
-app.use('/api/auth', authApiLimiter);
-app.use('/api/admin', adminApiLimiter);
 
 // Ensure API consumers always get JSON for malformed request bodies.
 app.use((err, req, res, next) => {
@@ -73,11 +38,66 @@ const AUTH_DATA_DIR = path.join(__dirname, '..', '.hush-data');
 const AUTH_USERS_FILE = path.join(AUTH_DATA_DIR, 'auth-users.json');
 const RESET_CODE_TTL_MS = 10 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
-const ADMIN_DEBUG_KEY = String(process.env.ADMIN_DEBUG_KEY || '').trim();
+const ADMIN_DEBUG_KEY_FILE = path.join(__dirname, 'data', 'admin-key.txt');
+function loadAdminDebugKey() {
+  const envKey = String(process.env.ADMIN_DEBUG_KEY || '').trim();
+  if (envKey) return envKey;
+
+  try {
+    return String(fsSync.readFileSync(ADMIN_DEBUG_KEY_FILE, 'utf8') || '').trim();
+  } catch (_error) {
+    return 'hush-admin';
+  }
+}
+
+const ADMIN_DEBUG_KEY = loadAdminDebugKey();
 const GIPHY_API_KEY = String(process.env.GIPHY_API_KEY || process.env.GIPHY_PUBLIC_API_KEY || 'dc6zaTOxFJmzC').trim();
 const GIPHY_CACHE_TTL_MS = 2 * 60 * 1000;
 const giphySearchCache = new Map();
 let giphyRateLimitedUntil = 0;
+const HUSH_GIF_DATA_DIR = path.join(__dirname, 'data');
+const HUSH_GIF_DATA_FILE = path.join(HUSH_GIF_DATA_DIR, 'hush-gifs.json');
+const HUSH_GIF_BACKUP_DIR = path.join(HUSH_GIF_DATA_DIR, 'backups');
+const HUSH_GIF_BACKUP_PREFIX = 'hush-gifs.backup';
+const HUSH_GIF_BACKUP_MAX_FILES = Math.max(10, Number.parseInt(String(process.env.HUSH_GIF_BACKUP_MAX_FILES || '200'), 10) || 200);
+const HUSH_GIF_SETTINGS_FILE = path.join(HUSH_GIF_DATA_DIR, 'hush-gif-settings.json');
+const HUSH_GIF_MAX_UNIQUE_IDS_DEFAULT = Math.max(1, Number.parseInt(String(process.env.HUSH_GIF_MAX_UNIQUE_IDS || '150'), 10) || 150);
+let HUSH_GIF_MAX_UNIQUE_IDS = HUSH_GIF_MAX_UNIQUE_IDS_DEFAULT;
+const HUSH_GIF_DEFAULT_LIBRARY = Object.freeze({
+  uncategorized: [],
+  football: [],
+  funny: [],
+  hype: [],
+  victory: [],
+  trashTalk: [],
+  fails: [],
+  money: []
+});
+
+function loadHushGifMaxUniqueIds() {
+  try {
+    const raw = fsSync.readFileSync(HUSH_GIF_SETTINGS_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    const value = Number.parseInt(String(parsed && parsed.maxUniqueIds || ''), 10);
+    if (Number.isFinite(value) && value >= 1) {
+      return value;
+    }
+  } catch (_error) {
+    // Ignore missing or malformed settings and fall back to default.
+  }
+
+  return HUSH_GIF_MAX_UNIQUE_IDS_DEFAULT;
+}
+
+async function writeHushGifSettings(maxUniqueIds) {
+  await fs.mkdir(HUSH_GIF_DATA_DIR, { recursive: true });
+  await fs.writeFile(HUSH_GIF_SETTINGS_FILE, JSON.stringify({
+    maxUniqueIds,
+    updatedAt: Date.now()
+  }, null, 2), 'utf8');
+}
+
+HUSH_GIF_MAX_UNIQUE_IDS = loadHushGifMaxUniqueIds();
 const CPU_LOGIC_FILE = path.join(__dirname, 'cpulogic.js');
 const DEFAULT_RANKINGS_FILE = path.join(__dirname, 'top250.generated.json');
 const FALLBACK_RANKINGS_FILE = path.join(__dirname, 'top250.json');
@@ -1173,6 +1193,165 @@ function requireAdminDebugKey(req, res, next) {
   return next();
 }
 
+function normalizeGifId(rawId) {
+  return String(rawId || '').trim();
+}
+
+function normalizeGifCategory(rawCategory) {
+  return String(rawCategory || '').trim();
+}
+
+function buildGiphyMediaUrlsFromId(id) {
+  const safeId = normalizeGifId(id);
+  if (!safeId) {
+    return {
+      gifUrl: '',
+      previewUrl: '',
+      videoUrl: ''
+    };
+  }
+
+  const encodedId = encodeURIComponent(safeId);
+  const gifUrl = `https://media.giphy.com/media/${encodedId}/giphy.gif`;
+  return {
+    gifUrl,
+    previewUrl: gifUrl,
+    videoUrl: `https://media.giphy.com/media/${encodedId}/giphy.mp4`
+  };
+}
+
+function normalizeHushGifLibrary(rawLibrary) {
+  const out = {};
+  const source = (rawLibrary && typeof rawLibrary === 'object') ? rawLibrary : {};
+  const categoryKeys = Object.keys(source)
+    .map((key) => normalizeGifCategory(key))
+    .filter(Boolean);
+
+  categoryKeys.forEach((category) => {
+    const values = Array.isArray(source[category]) ? source[category] : [];
+    out[category] = Array.from(new Set(
+      values
+        .map((id) => normalizeGifId(id))
+        .filter((id) => id && id !== 'GIF_ID_HERE')
+    ));
+  });
+
+  return out;
+}
+
+function getHushGifLibraryStats(library) {
+  const categoryKeys = Object.keys(library || {});
+  const totalEntries = categoryKeys.reduce((sum, category) => {
+    const ids = Array.isArray(library[category]) ? library[category] : [];
+    return sum + ids.length;
+  }, 0);
+  const uniqueIds = new Set(
+    categoryKeys.flatMap((category) => Array.isArray(library[category]) ? library[category] : [])
+  );
+
+  return {
+    totalEntries,
+    uniqueCount: uniqueIds.size,
+    maxUniqueCount: HUSH_GIF_MAX_UNIQUE_IDS,
+    remainingUniqueSlots: Math.max(0, HUSH_GIF_MAX_UNIQUE_IDS - uniqueIds.size)
+  };
+}
+
+function getHushGifBackupFileName() {
+  return `${HUSH_GIF_BACKUP_PREFIX}.${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+}
+
+async function listHushGifBackupFilesNewestFirst() {
+  try {
+    const entries = await fs.readdir(HUSH_GIF_BACKUP_DIR, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry && entry.isFile() && entry.name.startsWith(`${HUSH_GIF_BACKUP_PREFIX}.`) && entry.name.endsWith('.json'))
+      .map((entry) => entry.name)
+      .sort((a, b) => b.localeCompare(a));
+  } catch (error) {
+    if (error && error.code === 'ENOENT') {
+      return [];
+    }
+    throw error;
+  }
+}
+
+async function pruneHushGifBackupsIfNeeded() {
+  const files = await listHushGifBackupFilesNewestFirst();
+  if (files.length <= HUSH_GIF_BACKUP_MAX_FILES) return;
+
+  const filesToDelete = files.slice(HUSH_GIF_BACKUP_MAX_FILES);
+  await Promise.all(filesToDelete.map(async (fileName) => {
+    const filePath = path.join(HUSH_GIF_BACKUP_DIR, fileName);
+    try {
+      await fs.unlink(filePath);
+    } catch (_error) {
+      // Ignore prune errors; backups are best effort.
+    }
+  }));
+}
+
+async function readLatestHushGifBackupLibrary() {
+  const files = await listHushGifBackupFilesNewestFirst();
+  for (const fileName of files) {
+    const filePath = path.join(HUSH_GIF_BACKUP_DIR, fileName);
+    try {
+      const raw = await fs.readFile(filePath, 'utf8');
+      const parsed = JSON.parse(raw);
+      return normalizeHushGifLibrary(parsed);
+    } catch (_error) {
+      // Continue scanning older backups if one is malformed.
+    }
+  }
+  return null;
+}
+
+async function readHushGifLibrary() {
+  try {
+    const raw = await fs.readFile(HUSH_GIF_DATA_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    return normalizeHushGifLibrary(parsed);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') {
+      const defaults = normalizeHushGifLibrary(HUSH_GIF_DEFAULT_LIBRARY);
+      await writeHushGifLibrary(defaults);
+      return defaults;
+    }
+
+    const recovered = await readLatestHushGifBackupLibrary();
+    if (recovered) {
+      console.warn('[giphy] Recovered GIF library from backup after read failure:', error && error.message ? error.message : error);
+      await writeHushGifLibrary(recovered, { writeBackup: false });
+      return recovered;
+    }
+
+    throw error;
+  }
+}
+
+async function writeHushGifLibrary(library, options = {}) {
+  const writeBackup = options.writeBackup !== false;
+  await fs.mkdir(HUSH_GIF_DATA_DIR, { recursive: true });
+  const normalized = normalizeHushGifLibrary(library);
+  const serialized = JSON.stringify(normalized, null, 2);
+  const tempFile = `${HUSH_GIF_DATA_FILE}.tmp`;
+
+  // Write atomically to reduce risk of partial JSON during interrupted writes.
+  await fs.writeFile(tempFile, serialized, 'utf8');
+  await fs.rename(tempFile, HUSH_GIF_DATA_FILE);
+
+  if (writeBackup) {
+    try {
+      await fs.mkdir(HUSH_GIF_BACKUP_DIR, { recursive: true });
+      const backupPath = path.join(HUSH_GIF_BACKUP_DIR, getHushGifBackupFileName());
+      await fs.writeFile(backupPath, serialized, 'utf8');
+      await pruneHushGifBackupsIfNeeded();
+    } catch (error) {
+      console.warn('[giphy] Failed to write GIF backup snapshot:', error && error.message ? error.message : error);
+    }
+  }
+}
+
 function loadCpuLogicConfig() {
   try {
     delete require.cache[require.resolve('./cpulogic')];
@@ -1272,91 +1451,18 @@ async function getEffectiveAV(player) {
   }
 }
 
-const publicRootCandidate = path.join(__dirname, 'public');
-const root = fsSync.existsSync(publicRootCandidate)
-  ? publicRootCandidate
-  : path.join(__dirname, '.');
+const root = path.join(__dirname, '.');
 const BLOCKED_PUBLIC_FILES = new Set([
-  '/auth-users.json',
-  '/authorized-users.json',
-  '/database.sqlite',
-  '/database.sqlite-shm',
-  '/database.sqlite-wal',
-  '/.env'
+  '/auth-users.json'
 ]);
 const BLOCKED_PUBLIC_BASENAMES = new Set([
-  'auth-users.json',
-  'authorized-users.json',
-  '.env',
-  'database.sqlite',
-  'database.sqlite-shm',
-  'database.sqlite-wal'
-]);
-const BLOCKED_PUBLIC_PATH_SEGMENTS = new Set([
-  '.git',
-  '.hush-data',
-  'backups',
-  'node_modules',
-  'players file',
-  'hushv3.8.1',
-  'memories'
-]);
-const PUBLIC_JS_BASENAMES = new Set([
-  'account.js',
-  'admin-delivery-debug.js',
-  'admin-portal.js',
-  'admin-simulations.js',
-  'av-trends.js',
-  'dashboard.js',
-  'draft-summary.js',
-  'firebase-auth.js',
-  'firebase-config.js',
-  'forgot-password.js',
-  'friends.js',
-  'join-private.js',
-  'lobby-private.js',
-  'lobby-public.js',
-  'lobby.js',
-  'offline-draft-print.js',
-  'preferences.js',
-  'rankings.js',
-  'recent-drafts.js',
-  'register.js',
-  'reset-password.js',
-  'scripts.js',
-  'service-worker.js',
-  'silentdraft.js',
-  'sw-register.js',
-  'theme-utils.js',
-  'waivers.js',
-  'wallet.js'
-]);
-const PUBLIC_JSON_BASENAMES = new Set([
-  'manifest.json',
-  'manifest-admin.json',
-  'top250.json',
-  'top250.generated.json'
+  'auth-users.json'
 ]);
 
 app.use((req, res, next) => {
   const requestPath = String(req.path || '').toLowerCase();
   const baseName = path.posix.basename(requestPath);
-  const extName = path.posix.extname(baseName);
-  const pathParts = requestPath.split('/').filter(Boolean);
-
-  if (pathParts.some((part) => BLOCKED_PUBLIC_PATH_SEGMENTS.has(part))) {
-    return res.status(404).send('Not found');
-  }
-
   if (BLOCKED_PUBLIC_FILES.has(requestPath) || BLOCKED_PUBLIC_BASENAMES.has(baseName)) {
-    return res.status(404).send('Not found');
-  }
-
-  if (extName === '.js' && !PUBLIC_JS_BASENAMES.has(baseName)) {
-    return res.status(404).send('Not found');
-  }
-
-  if (extName === '.json' && !PUBLIC_JSON_BASENAMES.has(baseName)) {
     return res.status(404).send('Not found');
   }
 
@@ -1748,6 +1854,264 @@ app.get('/api/gifs/search', async (req, res) => {
       ok: false,
       error: 'Unable to search GIFs right now.'
     });
+  }
+});
+
+app.get('/api/hush-gifs', async (req, res) => {
+  try {
+    const library = await readHushGifLibrary();
+    const categoryKeys = Object.keys(library);
+    const fallbackCategory = categoryKeys.includes('favorites') ? 'favorites' : (categoryKeys[0] || 'favorites');
+    const requestedCategoryRaw = normalizeGifCategory(req.query.category || fallbackCategory);
+    const requestedCategory = categoryKeys.includes(requestedCategoryRaw)
+      ? requestedCategoryRaw
+      : fallbackCategory;
+    const requestedIds = String(req.query.ids || '').trim();
+    const approvedIdSet = new Set(
+      categoryKeys.flatMap((category) => Array.isArray(library[category]) ? library[category] : [])
+    );
+
+    let ids = [];
+    if (requestedIds) {
+      const parsed = requestedIds
+        .split(',')
+        .map((id) => normalizeGifId(id))
+        .filter((id) => id && approvedIdSet.has(id));
+      ids = Array.from(new Set(parsed));
+    } else {
+      const categoryIds = Array.isArray(library[requestedCategory]) ? library[requestedCategory] : [];
+      ids = Array.from(new Set(
+        categoryIds
+          .map((id) => normalizeGifId(id))
+          .filter((id) => id && approvedIdSet.has(id))
+      ));
+    }
+
+    if (!ids.length) {
+      return res.json({
+        ok: true,
+        category: requestedCategory,
+        categories: categoryKeys,
+        count: 0,
+        items: [],
+        emptyLibrary: true,
+        attribution: 'Powered by GIPHY'
+      });
+    }
+
+    const items = ids
+      .map((id) => {
+        const normalizedId = normalizeGifId(id);
+        if (!normalizedId || !approvedIdSet.has(normalizedId)) return null;
+        const media = buildGiphyMediaUrlsFromId(normalizedId);
+        if (!media.gifUrl) return null;
+
+        return {
+          id: normalizedId,
+          title: 'Giphy',
+          tags: '',
+          category: requestedCategory,
+          previewUrl: media.previewUrl,
+          url: media.gifUrl,
+          videoUrl: media.videoUrl
+        };
+      })
+      .filter(Boolean);
+
+    return res.json({
+      ok: true,
+      category: requestedCategory,
+      categories: categoryKeys,
+      count: items.length,
+      items,
+      attribution: 'Powered by GIPHY'
+    });
+  } catch (error) {
+    console.error('[giphy] Hush approved GIF lookup failed:', error);
+    return res.status(500).json({
+      ok: false,
+      error: 'Unable to load approved GIFs right now.'
+    });
+  }
+});
+
+app.get('/api/admin/gifs', requireAdminDebugKey, async (_req, res) => {
+  try {
+    const library = await readHushGifLibrary();
+    return res.json({ ok: true, library, limits: getHushGifLibraryStats(library) });
+  } catch (error) {
+    console.error('[giphy/admin] Failed to read GIF library:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to load GIF library.' });
+  }
+});
+
+app.post('/api/admin/gifs', requireAdminDebugKey, async (req, res) => {
+  try {
+    const id = normalizeGifId(req.body && req.body.id);
+    const category = normalizeGifCategory(req.body && req.body.category);
+    if (!id) {
+      return res.status(400).json({ ok: false, error: 'Missing GIF id.' });
+    }
+
+    const library = await readHushGifLibrary();
+    if (!Object.prototype.hasOwnProperty.call(library, category)) {
+      return res.status(400).json({ ok: false, error: 'Invalid category.' });
+    }
+
+    if (!library[category].includes(id)) {
+      const statsBefore = getHushGifLibraryStats(library);
+      const uniqueIdsBefore = new Set(
+        Object.keys(library).flatMap((key) => Array.isArray(library[key]) ? library[key] : [])
+      );
+      const wouldAddNewUniqueId = !uniqueIdsBefore.has(id);
+      if (wouldAddNewUniqueId && statsBefore.uniqueCount >= HUSH_GIF_MAX_UNIQUE_IDS) {
+        return res.status(400).json({
+          ok: false,
+          error: `GIF limit reached. Keep approved library at ${HUSH_GIF_MAX_UNIQUE_IDS} unique IDs or fewer.`
+        });
+      }
+
+      library[category].push(id);
+      await writeHushGifLibrary(library);
+    }
+
+    return res.json({ ok: true, library, limits: getHushGifLibraryStats(library) });
+  } catch (error) {
+    console.error('[giphy/admin] Failed to add GIF ID:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to add GIF ID.' });
+  }
+});
+
+app.delete('/api/admin/gifs', requireAdminDebugKey, async (req, res) => {
+  try {
+    const id = normalizeGifId(req.body && req.body.id);
+    const category = normalizeGifCategory(req.body && req.body.category);
+    if (!id) {
+      return res.status(400).json({ ok: false, error: 'Missing GIF id.' });
+    }
+
+    const library = await readHushGifLibrary();
+    if (!Object.prototype.hasOwnProperty.call(library, category)) {
+      return res.status(400).json({ ok: false, error: 'Invalid category.' });
+    }
+
+    library[category] = library[category].filter((gifId) => normalizeGifId(gifId) !== id);
+    await writeHushGifLibrary(library);
+
+    return res.json({ ok: true, library, limits: getHushGifLibraryStats(library) });
+  } catch (error) {
+    console.error('[giphy/admin] Failed to remove GIF ID:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to remove GIF ID.' });
+  }
+});
+
+app.post('/api/admin/gifs/move', requireAdminDebugKey, async (req, res) => {
+  try {
+    const id = normalizeGifId(req.body && req.body.id);
+    const fromCategory = normalizeGifCategory(req.body && req.body.fromCategory);
+    const toCategory = normalizeGifCategory(req.body && req.body.toCategory);
+
+    if (!id) {
+      return res.status(400).json({ ok: false, error: 'Missing GIF id.' });
+    }
+    if (!fromCategory || !toCategory) {
+      return res.status(400).json({ ok: false, error: 'Both source and target categories are required.' });
+    }
+
+    const library = await readHushGifLibrary();
+    if (!Object.prototype.hasOwnProperty.call(library, fromCategory)) {
+      return res.status(400).json({ ok: false, error: 'Invalid source category.' });
+    }
+    if (!Object.prototype.hasOwnProperty.call(library, toCategory)) {
+      return res.status(400).json({ ok: false, error: 'Invalid target category.' });
+    }
+
+    if (fromCategory === toCategory) {
+      return res.json({ ok: true, library, limits: getHushGifLibraryStats(library) });
+    }
+
+    const beforeCount = library[fromCategory].length;
+    library[fromCategory] = library[fromCategory].filter((gifId) => normalizeGifId(gifId) !== id);
+    if (library[fromCategory].length === beforeCount) {
+      return res.status(404).json({ ok: false, error: 'GIF ID not found in the source category.' });
+    }
+
+    if (!library[toCategory].includes(id)) {
+      library[toCategory].push(id);
+    }
+
+    await writeHushGifLibrary(library);
+    return res.json({ ok: true, library, limits: getHushGifLibraryStats(library) });
+  } catch (error) {
+    console.error('[giphy/admin] Failed to move GIF ID:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to move GIF ID.' });
+  }
+});
+
+app.post('/api/admin/gif-categories', requireAdminDebugKey, async (req, res) => {
+  try {
+    const category = normalizeGifCategory(req.body && req.body.category);
+    if (!category) {
+      return res.status(400).json({ ok: false, error: 'Category name is required.' });
+    }
+
+    const library = await readHushGifLibrary();
+    if (!Object.prototype.hasOwnProperty.call(library, category)) {
+      library[category] = [];
+      await writeHushGifLibrary(library);
+    }
+
+    return res.json({ ok: true, library });
+  } catch (error) {
+    console.error('[giphy/admin] Failed to create GIF category:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to create category.' });
+  }
+});
+
+app.delete('/api/admin/gif-categories', requireAdminDebugKey, async (req, res) => {
+  try {
+    const category = normalizeGifCategory(req.body && req.body.category);
+    if (!category) {
+      return res.status(400).json({ ok: false, error: 'Category name is required.' });
+    }
+
+    const library = await readHushGifLibrary();
+    if (!Object.prototype.hasOwnProperty.call(library, category)) {
+      return res.status(404).json({ ok: false, error: 'Category not found.' });
+    }
+
+    delete library[category];
+    await writeHushGifLibrary(library);
+
+    return res.json({ ok: true, library });
+  } catch (error) {
+    console.error('[giphy/admin] Failed to delete GIF category:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to delete category.' });
+  }
+});
+
+app.patch('/api/admin/gif-limits', requireAdminDebugKey, async (req, res) => {
+  try {
+    const nextMaxRaw = Number.parseInt(String(req.body && req.body.maxUniqueCount || ''), 10);
+    if (!Number.isFinite(nextMaxRaw) || nextMaxRaw < 1 || nextMaxRaw > 5000) {
+      return res.status(400).json({
+        ok: false,
+        error: 'maxUniqueCount must be an integer between 1 and 5000.'
+      });
+    }
+
+    HUSH_GIF_MAX_UNIQUE_IDS = nextMaxRaw;
+    await writeHushGifSettings(HUSH_GIF_MAX_UNIQUE_IDS);
+
+    const library = await readHushGifLibrary();
+    return res.json({
+      ok: true,
+      library,
+      limits: getHushGifLibraryStats(library)
+    });
+  } catch (error) {
+    console.error('[giphy/admin] Failed to update GIF limits:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to update GIF cap.' });
   }
 });
 
@@ -5866,6 +6230,7 @@ function getBidRange(position, avgValue) {
 // Helper function: Process all auctions for a round
 async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLimits, flexPositions, rosterSize, roundNumber) {
   try {
+    const roundDebugEnabled = process.env.HUSH_ROUND_DEBUG === '1';
     const safeRoundPlayers = Array.isArray(roundPlayers) ? roundPlayers : [];
     const results = [];
     const tiedBids = [];
@@ -5884,20 +6249,24 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
       ])
     );
 
-    console.log(`[processAuctions] Processing ${safeRoundPlayers.length} players`);
-    console.log(`[processAuctions] User bids:`, JSON.stringify(userBids));
-    console.log(`[processAuctions] CPU teams with bids:`, Object.keys(cpuBids));
+    if (roundDebugEnabled) {
+      console.log(`[processAuctions] Processing ${safeRoundPlayers.length} players`);
+      console.log(`[processAuctions] User bids:`, JSON.stringify(userBids));
+      console.log(`[processAuctions] CPU teams with bids:`, Object.keys(cpuBids));
+    }
     
     // Log which players have user bids
     const playersWithUserBids = Object.keys(userBids).filter(playerId => 
       Object.keys(userBids[playerId]).length > 0
     );
-    console.log(`[processAuctions] Players with user bids: ${playersWithUserBids.length} out of ${safeRoundPlayers.length}`);
-    playersWithUserBids.forEach(playerId => {
-      const player = safeRoundPlayers.find(p => p.id == playerId);
-      const bidTeams = Object.keys(userBids[playerId]);
-      console.log(`[processAuctions] ${player ? player.name : 'Unknown player'} (${playerId}): bids from ${bidTeams.join(', ')}`);
-    });
+    if (roundDebugEnabled) {
+      console.log(`[processAuctions] Players with user bids: ${playersWithUserBids.length} out of ${safeRoundPlayers.length}`);
+      playersWithUserBids.forEach(playerId => {
+        const player = safeRoundPlayers.find(p => p.id == playerId);
+        const bidTeams = Object.keys(userBids[playerId]);
+        console.log(`[processAuctions] ${player ? player.name : 'Unknown player'} (${playerId}): bids from ${bidTeams.join(', ')}`);
+      });
+    }
 
   function capCpuBidForSpecialists(player, amount) {
     const pos = String(player && player.position || '').toUpperCase();
@@ -6006,7 +6375,9 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
           isWinning: false,
           isSecondHighest: false
         });
-        console.log(`[processAuctions] ${player.name}: User bid from ${teamName} = $${bidAmount}`);
+        if (roundDebugEnabled) {
+          console.log(`[processAuctions] ${player.name}: User bid from ${teamName} = $${bidAmount}`);
+        }
       }
     });
 
@@ -6038,12 +6409,16 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
           isWinning: false,
           isSecondHighest: false
         });
-        console.log(`[processAuctions] ${player.name}: CPU bid from ${cpuName} = $${jitteredCpuBid}`);
+        if (roundDebugEnabled) {
+          console.log(`[processAuctions] ${player.name}: CPU bid from ${cpuName} = $${jitteredCpuBid}`);
+        }
       }
     });
 
     const gatedBids = applySpecialistParticipationGate(player, bids, rosterLimits);
-    console.log(`[processAuctions] ${player.name}: Total bids = ${gatedBids.length}`);
+    if (roundDebugEnabled) {
+      console.log(`[processAuctions] ${player.name}: Total bids = ${gatedBids.length}`);
+    }
 
     const floorNeedBidders = floorPriorityActive
       ? gatedBids.filter((entry) => {
@@ -6184,32 +6559,38 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
   });
 
   // Bulk database operations - much more efficient!
-  console.log(`[processAuctions] Performing bulk database operations for ${allIndividualBids.length} bids...`);
+  if (roundDebugEnabled) {
+    console.log(`[processAuctions] Performing bulk database operations for ${allIndividualBids.length} bids...`);
+  }
 
   try {
     // Bulk insert all individual bids
     if (allIndividualBids.length > 0) {
       await bulkLogIndividualBids(allIndividualBids);
-      console.log(`[processAuctions] Bulk logged ${allIndividualBids.length} individual bids`);
+      if (roundDebugEnabled) {
+        console.log(`[processAuctions] Bulk logged ${allIndividualBids.length} individual bids`);
+      }
     }
 
     // Log auction results (these are fewer operations)
     const auctionResults = results.filter(r => r.type === 'won');
-    for (const result of auctionResults) {
+    const auctionLogPromises = auctionResults.map((result) => {
       const player = safeRoundPlayers.find(p => p.id === result.playerId);
-      if (player) {
-        await logAuctionResult(
-          currentDraftId || 'default_draft',
-          roundNumber,
-          player,
-          { name: result.winnerTeam },
-          result.pricePaid,
-          result.secondHighestBid,
-          result.secondHighestBidder
-        );
-      }
+      if (!player) return Promise.resolve();
+      return logAuctionResult(
+        currentDraftId || 'default_draft',
+        roundNumber,
+        player,
+        { name: result.winnerTeam },
+        result.pricePaid,
+        result.secondHighestBid,
+        result.secondHighestBidder
+      );
+    });
+    await Promise.all(auctionLogPromises);
+    if (roundDebugEnabled) {
+      console.log(`[processAuctions] Logged ${auctionResults.length} auction results`);
     }
-    console.log(`[processAuctions] Logged ${auctionResults.length} auction results`);
 
   } catch (error) {
     console.error('[processAuctions] Database logging error:', error);
@@ -6528,6 +6909,14 @@ function ensureDraftStateForSocket(code, socket, options = {}) {
     draft.draftState.pendingRoundResults = null;
   }
 
+  if (!Number.isFinite(Number(draft.draftState.stateVersion))) {
+    draft.draftState.stateVersion = 0;
+  }
+
+  if (!Array.isArray(draft.draftState.resumeEventLog)) {
+    draft.draftState.resumeEventLog = [];
+  }
+
   if (!draft.draftState.bids || typeof draft.draftState.bids !== 'object') {
     draft.draftState.bids = {};
   }
@@ -6541,6 +6930,202 @@ function ensureDraftStateForSocket(code, socket, options = {}) {
   }
 
   return draft;
+}
+
+const MAX_DRAFT_RESUME_EVENTS = 250;
+
+function getDraftStateVersion(draft) {
+  const version = draft && draft.draftState ? Number(draft.draftState.stateVersion) : 0;
+  return Number.isFinite(version) && version >= 0 ? Math.floor(version) : 0;
+}
+
+function cloneResumePayload(payload) {
+  try {
+    return JSON.parse(JSON.stringify(payload));
+  } catch (_) {
+    return payload;
+  }
+}
+
+function recordDraftStateEvent(draft, type, payload) {
+  if (!draft || !draft.draftState) return 0;
+
+  if (!Number.isFinite(Number(draft.draftState.stateVersion))) {
+    draft.draftState.stateVersion = 0;
+  }
+
+  if (!Array.isArray(draft.draftState.resumeEventLog)) {
+    draft.draftState.resumeEventLog = [];
+  }
+
+  draft.draftState.stateVersion += 1;
+
+  draft.draftState.resumeEventLog.push({
+    version: draft.draftState.stateVersion,
+    type: String(type || 'unknown').trim(),
+    payload: cloneResumePayload(payload),
+    at: Date.now()
+  });
+
+  if (draft.draftState.resumeEventLog.length > MAX_DRAFT_RESUME_EVENTS) {
+    draft.draftState.resumeEventLog = draft.draftState.resumeEventLog.slice(-MAX_DRAFT_RESUME_EVENTS);
+  }
+
+  return draft.draftState.stateVersion;
+}
+
+function getDraftResumeEventsSince(draft, lastSeenVersion) {
+  if (!draft || !draft.draftState || !Array.isArray(draft.draftState.resumeEventLog)) {
+    return null;
+  }
+
+  const currentVersion = getDraftStateVersion(draft);
+  const normalizedLastSeen = Number.isFinite(Number(lastSeenVersion))
+    ? Math.max(0, Math.floor(Number(lastSeenVersion)))
+    : 0;
+
+  if (normalizedLastSeen >= currentVersion) {
+    return [];
+  }
+
+  const eventLog = draft.draftState.resumeEventLog;
+  if (eventLog.length === 0) {
+    return null;
+  }
+
+  const oldestVersion = Number(eventLog[0] && eventLog[0].version);
+  if (!Number.isFinite(oldestVersion) || normalizedLastSeen < oldestVersion - 1) {
+    return null;
+  }
+
+  const events = eventLog.filter((event) => Number(event && event.version) > normalizedLastSeen);
+  if (events.length !== (currentVersion - normalizedLastSeen)) {
+    return null;
+  }
+
+  return cloneResumePayload(events);
+}
+
+function buildDraftMetaPayload(draft) {
+  return {
+    host: draft && draft.host ? draft.host : null,
+    members: Array.isArray(draft && draft.members) ? draft.members.slice() : []
+  };
+}
+
+function buildDraftPendingRoundResultsPayload(draft, username) {
+  const pendingRoundResults = draft && draft.draftState ? draft.draftState.pendingRoundResults : null;
+  if (!pendingRoundResults || !Array.isArray(pendingRoundResults.results)) {
+    return null;
+  }
+
+  const acceptedMembers = Array.isArray(draft.draftState.acceptedMembers)
+    ? draft.draftState.acceptedMembers
+    : [];
+  const resolvedUsername = String(username || '').trim();
+  if (resolvedUsername && acceptedMembers.includes(resolvedUsername)) {
+    return null;
+  }
+
+  return {
+    roundNumber: pendingRoundResults.roundNumber,
+    results: pendingRoundResults.results,
+    acceptedMembers: acceptedMembers.slice(),
+    emittedAt: pendingRoundResults.emittedAt || Date.now(),
+    stateVersion: getDraftStateVersion(draft)
+  };
+}
+
+function buildDraftActiveAuctionPayload(draft) {
+  const liveAuctions = draft && draft.draftState ? (draft.draftState.liveAuctions || {}) : {};
+  const activeAuctionEntry = Object.entries(liveAuctions).find(([, auction]) => auction && auction.active);
+  if (!activeAuctionEntry) {
+    return null;
+  }
+
+  const [auctionId, auction] = activeAuctionEntry;
+  return {
+    auctionId,
+    playerId: auction.playerId,
+    playerName: auction.playerName,
+    playerPosition: auction.playerPosition,
+    playerAvgValue: auction.playerAvgValue,
+    playerPositionRank: auction.playerPositionRank,
+    tiedTeams: Array.isArray(auction.tiedTeams) ? auction.tiedTeams.slice() : [],
+    startBid: Number(auction.currentBid || 0),
+    currentBid: Number(auction.currentBid || 0),
+    currentWinner: auction.currentWinner || null,
+    timer: Number(auction.timer || 0),
+    isTiedAuction: !!auction.isTiedAuction,
+    backedOutTeams: Array.isArray(auction.backedOutTeams) ? auction.backedOutTeams.slice() : [],
+    stateVersion: getDraftStateVersion(draft)
+  };
+}
+
+function buildDraftStatePayloadForClient(draftState) {
+  if (!draftState || typeof draftState !== 'object') {
+    return {};
+  }
+
+  const liveAuctions = draftState.liveAuctions && typeof draftState.liveAuctions === 'object'
+    ? Object.fromEntries(Object.entries(draftState.liveAuctions).map(([auctionId, auction]) => {
+      if (!auction || typeof auction !== 'object') {
+        return [auctionId, auction];
+      }
+
+      const { timerInterval, ...safeAuction } = auction;
+      return [auctionId, safeAuction];
+    }))
+    : undefined;
+
+  const { resumeEventLog, ...safeDraftState } = draftState;
+  return {
+    ...safeDraftState,
+    liveAuctions,
+    stateVersion: getDraftStateVersion({ draftState })
+  };
+}
+
+function buildDraftPayloadForClient(draft) {
+  if (!draft || typeof draft !== 'object') {
+    return draft;
+  }
+
+  return {
+    ...draft,
+    draftState: buildDraftStatePayloadForClient(draft.draftState)
+  };
+}
+
+function buildDraftResumeResponse(draft, username, lastSeenVersion) {
+  const currentVersion = getDraftStateVersion(draft);
+  const normalizedLastSeen = Number.isFinite(Number(lastSeenVersion))
+    ? Math.max(0, Math.floor(Number(lastSeenVersion)))
+    : 0;
+  const response = {
+    ok: true,
+    mode: 'full',
+    currentVersion,
+    draftMeta: buildDraftMetaPayload(draft),
+    pendingRoundResults: buildDraftPendingRoundResultsPayload(draft, username),
+    activeAuction: buildDraftActiveAuctionPayload(draft)
+  };
+
+  if (normalizedLastSeen >= currentVersion) {
+    response.mode = 'noop';
+    return response;
+  }
+
+  const replayEvents = getDraftResumeEventsSince(draft, normalizedLastSeen);
+  if (Array.isArray(replayEvents)) {
+    response.mode = replayEvents.length > 0 ? 'events' : 'noop';
+    response.events = replayEvents;
+    return response;
+  }
+
+  response.mode = 'full';
+  response.draft = buildDraftPayloadForClient(draft);
+  return response;
 }
 
 function normalizeLobbyUserKey(code, username) {
@@ -6763,13 +7348,15 @@ io.on('connection', (socket) => {
         drafts[code].draftState.roundTimer = normalizedRoundTimerMinutes * 60;
         drafts[code].draftState.roundTimerMinutes = normalizedRoundTimerMinutes;
       }
-      io.to(`draft_${code}`).emit('rosterSettingsUpdated', {
+      const rosterSettingsPayload = {
         rosterSettings: drafts[code].rosterSettings,
         benchCutTarget: drafts[code].benchCutTarget,
         roundTimerMinutes: normalizedRoundTimerMinutes,
         ajDraftMode: !!drafts[code].ajDraftMode,
         ajRoundOrder: Array.isArray(drafts[code].ajRoundOrder) ? drafts[code].ajRoundOrder.slice(0, 10) : undefined
-      });
+      };
+      rosterSettingsPayload.stateVersion = recordDraftStateEvent(drafts[code], 'rosterSettingsUpdated', rosterSettingsPayload);
+      io.to(`draft_${code}`).emit('rosterSettingsUpdated', rosterSettingsPayload);
     }
   });
 
@@ -6848,23 +7435,27 @@ io.on('connection', (socket) => {
       logDraftCutDebug(draft, draftCode, 'getDraftState.afterAutoCut');
 
       console.log(`[getDraftState] ${draftCode} host=${draft.host || draft.members?.[0] || 'unknown'} members=${(draft.members || []).join(', ')}`);
-      if(cb) cb({ ok: true, draft });
+      if(cb) cb({ ok: true, draft: buildDraftPayloadForClient(draft) });
     } else {
       if(cb) cb({ ok: false, reason: 'not_found' });
     }
   });
 
   // Join the active draft room for real-time bidding
-  socket.on('joinActiveDraft', (code, username) => {
+  socket.on('joinActiveDraft', (code, username, optionsOrCb, cbMaybe) => {
+    const options = (optionsOrCb && typeof optionsOrCb === 'object' && !Array.isArray(optionsOrCb)) ? optionsOrCb : {};
+    const cb = typeof optionsOrCb === 'function' ? optionsOrCb : cbMaybe;
     const draftCode = String(code || '').trim();
     if (!draftCode) {
       console.warn(`[joinActiveDraft] Draft code missing`);
+      if (cb) cb({ ok: false, reason: 'missing_code' });
       return;
     }
 
     const draft = ensureDraftStateForSocket(draftCode, socket, { username });
     if (!draft) {
       console.warn(`[joinActiveDraft] Draft not found for code ${draftCode}`);
+      if (cb) cb({ ok: false, reason: 'not_found' });
       return;
     }
 
@@ -6896,53 +7487,58 @@ io.on('connection', (socket) => {
     if (typeof draft.draftState.autoDraftStatus[resolvedUsername] === 'undefined') {
       draft.draftState.autoDraftStatus[resolvedUsername] = false;
     }
-    
-    // Send current draft state to the joining player
-    socket.emit('draftStateSync', draft.draftState);
 
-    // If this member reconnects during an active round-results acceptance window,
-    // replay authoritative results so they can accept the correct round.
-    const pendingRoundResults = draft.draftState.pendingRoundResults;
-    if (pendingRoundResults && Array.isArray(pendingRoundResults.results)) {
-      const acceptedMembers = Array.isArray(draft.draftState.acceptedMembers)
-        ? draft.draftState.acceptedMembers
-        : [];
-      const alreadyAccepted = resolvedUsername && acceptedMembers.includes(resolvedUsername);
-      if (!alreadyAccepted) {
-        socket.emit('roundResultsSync', {
-          roundNumber: pendingRoundResults.roundNumber,
-          results: pendingRoundResults.results,
-          acceptedMembers: acceptedMembers.slice(),
-          emittedAt: pendingRoundResults.emittedAt || Date.now()
-        });
+    if (!options.suppressInitialSync) {
+      // Send current draft state to the joining player
+      socket.emit('draftStateSync', buildDraftStatePayloadForClient(draft.draftState));
+
+      // If this member reconnects during an active round-results acceptance window,
+      // replay authoritative results so they can accept the correct round.
+      const pendingRoundResults = draft.draftState.pendingRoundResults;
+      if (pendingRoundResults && Array.isArray(pendingRoundResults.results)) {
+        const acceptedMembers = Array.isArray(draft.draftState.acceptedMembers)
+          ? draft.draftState.acceptedMembers
+          : [];
+        const alreadyAccepted = resolvedUsername && acceptedMembers.includes(resolvedUsername);
+        if (!alreadyAccepted) {
+          socket.emit('roundResultsSync', {
+            roundNumber: pendingRoundResults.roundNumber,
+            results: pendingRoundResults.results,
+            acceptedMembers: acceptedMembers.slice(),
+            emittedAt: pendingRoundResults.emittedAt || Date.now(),
+            stateVersion: getDraftStateVersion(draft)
+          });
+        }
       }
+
+      // Rehydrate any active live auction so a reconnecting PWA client can recover
+      // the tied-auction UI instead of freezing at the last disconnected screen.
+      const activeAuctionPayload = buildDraftActiveAuctionPayload(draft);
+      if (activeAuctionPayload) {
+        socket.emit('liveAuctionSync', activeAuctionPayload);
+      }
+
+      // Also sync current auto-draft statuses for UI badges.
+      socket.emit('autoDraftStatusSync', draft.draftState.autoDraftStatus);
     }
 
-    // Rehydrate any active live auction so a reconnecting PWA client can recover
-    // the tied-auction UI instead of freezing at the last disconnected screen.
-    const liveAuctions = draft.draftState.liveAuctions || {};
-    const activeAuctionEntry = Object.entries(liveAuctions).find(([, auction]) => auction && auction.active);
-    if (activeAuctionEntry) {
-      const [auctionId, auction] = activeAuctionEntry;
-      socket.emit('liveAuctionSync', {
-        auctionId,
-        playerId: auction.playerId,
-        playerName: auction.playerName,
-        playerPosition: auction.playerPosition,
-        playerAvgValue: auction.playerAvgValue,
-        playerPositionRank: auction.playerPositionRank,
-        tiedTeams: Array.isArray(auction.tiedTeams) ? auction.tiedTeams.slice() : [],
-        startBid: Number(auction.currentBid || 0),
-        currentBid: Number(auction.currentBid || 0),
-        currentWinner: auction.currentWinner || null,
-        timer: Number(auction.timer || 0),
-        isTiedAuction: !!auction.isTiedAuction,
-        backedOutTeams: Array.isArray(auction.backedOutTeams) ? auction.backedOutTeams.slice() : []
-      });
+    if (cb) cb({ ok: true, username: resolvedUsername, stateVersion: getDraftStateVersion(draft) });
+  });
+
+  socket.on('resumeActiveDraft', (code, username, lastSeenVersion, cb) => {
+    const draftCode = String(code || '').trim();
+    const resolvedUsername = String(username || socket.data.username || '').trim();
+    const draft = ensureDraftStateForSocket(draftCode, socket, { username: resolvedUsername });
+    if (!draft) {
+      if (cb) cb({ ok: false, reason: 'not_found' });
+      return;
     }
 
-    // Also sync current auto-draft statuses for UI badges.
-    socket.emit('autoDraftStatusSync', draft.draftState.autoDraftStatus);
+    socket.join(`draft_${draftCode}`);
+    socket.data.activeDraftCode = draftCode;
+    socket.data.username = resolvedUsername;
+
+    if (cb) cb(buildDraftResumeResponse(draft, resolvedUsername, lastSeenVersion));
   });
 
   // Update and broadcast auto-draft toggle status for a team/user.
@@ -6973,11 +7569,13 @@ io.on('connection', (socket) => {
       drafts[code].draftState.autoDraftStarTargets[username] = sanitizeStarredNamesInput(starredPayload);
     }
 
-    io.to(`draft_${code}`).emit('autoDraftStatusChanged', {
+    const autoDraftPayload = {
       username,
       enabled: !!enabled,
       statuses: drafts[code].draftState.autoDraftStatus
-    });
+    };
+    autoDraftPayload.stateVersion = recordDraftStateEvent(drafts[code], 'autoDraftStatusChanged', autoDraftPayload);
+    io.to(`draft_${code}`).emit('autoDraftStatusChanged', autoDraftPayload);
 
     // If toggling auto-draft means all required manual members are already submitted,
     // immediately advance submission state for the round.
@@ -7054,6 +7652,7 @@ io.on('connection', (socket) => {
       draft.draftState.chatMessages = draft.draftState.chatMessages.slice(-200);
     }
 
+    payload.stateVersion = recordDraftStateEvent(draft, 'draftChatMessage', payload);
     io.to(`draft_${code}`).emit('draftChatMessage', payload);
     if (cb) cb({ ok: true });
   });
@@ -7071,7 +7670,9 @@ io.on('connection', (socket) => {
       drafts[code].draftState.submittedMembers = [];
       
       // Broadcast to all members in the draft
-      io.to(`draft_${code}`).emit('roundPlayersSet', players);
+      const roundPlayersPayload = { players };
+      roundPlayersPayload.stateVersion = recordDraftStateEvent(drafts[code], 'roundPlayersSet', roundPlayersPayload);
+      io.to(`draft_${code}`).emit('roundPlayersSet', roundPlayersPayload);
       
       if(cb) cb({ ok: true });
     } else {
@@ -7487,7 +8088,11 @@ io.on('connection', (socket) => {
     console.log(`[processRound] - ${roundPlayers.length} players in round`);
     console.log(`[processRound] - ${humanMembers.length} human members: ${humanMembers.join(', ')}`);
     console.log(`[processRound] - CPU bids generated for ${Object.keys(cpuBids).length} teams`);
-    console.log(`[processRound] - User bids available:`, JSON.stringify(sanitizedUserBids, null, 2));
+    if (process.env.HUSH_ROUND_DEBUG === '1') {
+      console.log(`[processRound] - User bids available:`, JSON.stringify(sanitizedUserBids, null, 2));
+    } else {
+      console.log(`[processRound] - User bid entries: ${Object.keys(sanitizedUserBids || {}).length} teams`);
+    }
 
     const cpuBidTeamCount = Object.keys(cpuBids || {}).length;
     const cpuBidEntryCount = Object.values(cpuBids || {}).reduce((sum, arr) => {
@@ -7509,8 +8114,12 @@ io.on('connection', (socket) => {
       userBidPlayerCount,
       userBidEntryCount
     };
-    console.log('[processRound][debug] diagnostics:', roundDiagnostics);
-    io.to(`draft_${code}`).emit('roundDiagnostics', roundDiagnostics);
+    if (process.env.HUSH_ROUND_DEBUG === '1') {
+      console.log('[processRound][debug] diagnostics:', roundDiagnostics);
+    }
+    if (process.env.HUSH_ROUND_DEBUG === '1') {
+      io.to(`draft_${code}`).emit('roundDiagnostics', roundDiagnostics);
+    }
     
     try {
       // Process each player's auction
@@ -7630,11 +8239,13 @@ io.on('connection', (socket) => {
         draftState.currentRound,
         Array.isArray(auctionResults && auctionResults.results) ? auctionResults.results : []
       );
-      console.log('[processRound][debug] round commit summary:', {
-        draftCode: code,
-        round: draftState.currentRound,
-        ...roundCommitSummary
-      });
+      if (process.env.HUSH_ROUND_DEBUG === '1') {
+        console.log('[processRound][debug] round commit summary:', {
+          draftCode: code,
+          round: draftState.currentRound,
+          ...roundCommitSummary
+        });
+      }
 
       // Store complete results (including tiedBids) for auction processing
       draftState.lastRoundResults = auctionResults;
@@ -7644,6 +8255,7 @@ io.on('connection', (socket) => {
         results: Array.isArray(auctionResults && auctionResults.results) ? auctionResults.results : [],
         emittedAt: Date.now()
       };
+      roundResultsPayload.stateVersion = recordDraftStateEvent(drafts[code], 'roundResults', roundResultsPayload);
       draftState.pendingRoundResults = roundResultsPayload;
 
       const emittedResults = Array.isArray(auctionResults && auctionResults.results) ? auctionResults.results : [];
@@ -7662,24 +8274,28 @@ io.on('connection', (socket) => {
           bidAmount: result && result.bidAmount,
           pricePaid: result && result.pricePaid
         }));
-      console.log('[processRound][debug] roundResults payload summary:', {
-        draftCode: code,
-        round: draftState.currentRound,
-        totalResults: emittedResults.length,
-        resultTypeSummary,
-        winnerTeamSample
-      });
+      if (process.env.HUSH_ROUND_DEBUG === '1') {
+        console.log('[processRound][debug] roundResults payload summary:', {
+          draftCode: code,
+          round: draftState.currentRound,
+          totalResults: emittedResults.length,
+          resultTypeSummary,
+          winnerTeamSample
+        });
+      }
       
       // Broadcast authoritative results payload (round + results) to all members.
       io.to(`draft_${code}`).emit('roundResults', roundResultsPayload);
       console.log(`[processRound] Emitted roundResults to room draft_${code}:`, auctionResults.results.length, 'results');
-      io.to(`draft_${code}`).emit('roundDiagnostics', {
-        ...roundDiagnostics,
-        emittedResults: Array.isArray(auctionResults.results) ? auctionResults.results.length : 0,
-        emittedWon: Array.isArray(auctionResults.results) ? auctionResults.results.filter(r => String(r && r.type || '').toLowerCase() === 'won').length : 0,
-        emittedTied: Array.isArray(auctionResults.results) ? auctionResults.results.filter(r => String(r && r.type || '').toLowerCase() === 'tied').length : 0,
-        emittedUndrafted: Array.isArray(auctionResults.results) ? auctionResults.results.filter(r => String(r && r.type || '').toLowerCase() === 'undrafted').length : 0
-      });
+      if (process.env.HUSH_ROUND_DEBUG === '1') {
+        io.to(`draft_${code}`).emit('roundDiagnostics', {
+          ...roundDiagnostics,
+          emittedResults: Array.isArray(auctionResults.results) ? auctionResults.results.length : 0,
+          emittedWon: Array.isArray(auctionResults.results) ? auctionResults.results.filter(r => String(r && r.type || '').toLowerCase() === 'won').length : 0,
+          emittedTied: Array.isArray(auctionResults.results) ? auctionResults.results.filter(r => String(r && r.type || '').toLowerCase() === 'tied').length : 0,
+          emittedUndrafted: Array.isArray(auctionResults.results) ? auctionResults.results.filter(r => String(r && r.type || '').toLowerCase() === 'undrafted').length : 0
+        });
+      }
       io.to(`draft_${code}`).emit('participationTrackerUpdated', draftState.participationTracker);
       
       // Reset acceptance tracking for the new round results
@@ -7811,6 +8427,12 @@ io.on('connection', (socket) => {
       drafts[code].draftState.bids = {};
       drafts[code].draftState.recentAcquisitions = {}; // Clear recent acquisitions for new round
       drafts[code].draftState.pendingRoundResults = null;
+      const roundStartedPayload = {
+        currentRound: drafts[code].draftState.currentRound,
+        roundTimer: drafts[code].draftState.roundTimer,
+        roundTimerMinutes: drafts[code].draftState.roundTimerMinutes
+      };
+      roundStartedPayload.stateVersion = recordDraftStateEvent(drafts[code], 'roundStarted', roundStartedPayload);
       
       console.log(`[startNextRound] Round ${drafts[code].draftState.currentRound} started by ${username}`);
       
@@ -9119,11 +9741,13 @@ io.on('connection', (socket) => {
         drafts[activeCode].draftState.autoDraftStatus = {};
       }
       drafts[activeCode].draftState.autoDraftStatus[username] = false;
-      io.to(`draft_${activeCode}`).emit('autoDraftStatusChanged', {
+      const disconnectAutoDraftPayload = {
         username,
         enabled: false,
         statuses: drafts[activeCode].draftState.autoDraftStatus
-      });
+      };
+      disconnectAutoDraftPayload.stateVersion = recordDraftStateEvent(drafts[activeCode], 'autoDraftStatusChanged', disconnectAutoDraftPayload);
+      io.to(`draft_${activeCode}`).emit('autoDraftStatusChanged', disconnectAutoDraftPayload);
     }
   });
 });

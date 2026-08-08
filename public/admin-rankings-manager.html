@@ -1,0 +1,158 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin - Rankings Manager</title>
+  <link rel="stylesheet" href="styles.css?v=20260701e">
+  <script src="theme-utils.js?v=20260726c"></script>
+</head>
+<body class="bg-overlay admin-rankings-manager-page">
+  <header class="site-header">
+    <img src="HUSHLOGO.png" alt="Logo" class="logo">
+    <h1 class="admin-rankings-title">Default Rankings Manager</h1>
+    <button id="themeToggleBtn" type="button" class="theme-icon-btn admin-rankings-theme-btn" aria-label="Switch to light mode" title="Switch to light mode" aria-pressed="false">Mode: &#127769;</button>
+    <a href="admin-portal.html" class="admin-rankings-back-link">
+      Back to Portal
+    </a>
+  </header>
+
+  <main class="page">
+    <div class="container admin-portal-layout">
+      <section class="box admin-portal-card admin-rankings-card">
+        <h2>Default Rankings Manager</h2>
+        <p class="form-helper">Edit each position file directly. QB loads qb.json, RB loads rb.json, WR loads wr.json, and so on. Drag to reorder, change AV, add players, remove players, then save.</p>
+
+        <div class="admin-portal-actions">
+          <button id="loadRankingsBtn" type="button" class="btn btn-login">Load Rankings</button>
+          <button id="tierInsertModeBtn" type="button" class="btn btn-login" aria-pressed="false">Easy Tier Breaks: Off</button>
+          <button id="saveRankingsLayoutBtn" type="button" class="btn btn-signup" disabled>Save Order + Tier Breaks</button>
+          <button id="saveJsonFileBtn" type="button" class="btn btn-signup" disabled>Save to .json File</button>
+          <select id="syncTopPositionSelect" title="Position source for TOP sync" aria-label="Position source for TOP sync" class="btn btn-login">
+            <option value="ALL">All Positions</option>
+            <option value="RB" selected>RB Source</option>
+            <option value="QB">QB Source</option>
+            <option value="WR">WR Source</option>
+            <option value="TE">TE Source</option>
+            <option value="K">K Source</option>
+            <option value="DEF">DEF Source</option>
+          </select>
+          <button id="syncTopPositionOrderBtn" type="button" class="btn btn-login">Sync TOP Position Order</button>
+          <button id="clearTierBreaksBtn" type="button" class="btn btn-login" disabled>Remove All Tier Breaks</button>
+          <button id="clearTopBoardBtn" type="button" class="btn btn-login" disabled>Remove All From TOP</button>
+          <button id="undoRankingsEditBtn" type="button" class="btn btn-login" disabled>Undo Last Edit</button>
+          <button id="resetUnsavedBtn" type="button" class="btn btn-login">Reset Unsaved Changes</button>
+          <span id="rankingsSourceLabel" class="form-helper"></span>
+        </div>
+
+        <div class="admin-position-tabs" id="adminPositionTabs" role="tablist" aria-label="Position categories">
+          <button type="button" class="admin-pos-tab" data-pos="TOP" role="tab" aria-selected="false">TOP</button>
+          <button type="button" class="admin-pos-tab active" data-pos="QB" role="tab" aria-selected="true">QB</button>
+          <button type="button" class="admin-pos-tab" data-pos="RB" role="tab" aria-selected="false">RB</button>
+          <button type="button" class="admin-pos-tab" data-pos="WR" role="tab" aria-selected="false">WR</button>
+          <button type="button" class="admin-pos-tab" data-pos="TE" role="tab" aria-selected="false">TE</button>
+          <button type="button" class="admin-pos-tab" data-pos="K" role="tab" aria-selected="false">K</button>
+          <button type="button" class="admin-pos-tab" data-pos="DEF" role="tab" aria-selected="false">DEF</button>
+        </div>
+
+        <div id="jsonSaveBanner" class="admin-save-banner hidden" role="status" aria-live="polite">
+          <div class="admin-save-banner-copy">
+            <strong>Update completed</strong>
+            <span id="jsonSaveBannerText">The selected .json file finished updating.</span>
+          </div>
+          <button id="dismissJsonSaveBannerBtn" type="button" class="admin-save-banner-close" aria-label="Dismiss update banner">Close</button>
+        </div>
+
+        <form id="addPlayerForm" class="admin-inline-form">
+          <input type="text" id="addName" placeholder="Player name" required>
+          <input type="text" id="addTeam" placeholder="Team (e.g. KC)">
+          <select id="addPosition" title="Player position" aria-label="Player position" required>
+            <option value="">Position</option>
+            <option value="QB">QB</option>
+            <option value="RB">RB</option>
+            <option value="WR">WR</option>
+            <option value="TE">TE</option>
+            <option value="K">K</option>
+            <option value="DEF">DEF</option>
+          </select>
+          <input type="number" id="addAvgValue" placeholder="Avg Value" min="0" step="1">
+          <button type="submit" class="btn btn-signup">Add Player</button>
+        </form>
+
+        <form id="removePlayerForm" class="admin-inline-form">
+          <input type="number" id="removeId" placeholder="Remove by current rank" min="1" step="1">
+          <input type="text" id="removeName" placeholder="Or remove by exact player name in active tab">
+          <button type="submit" class="btn btn-login">Remove Player</button>
+        </form>
+
+        <div id="adminTierBoard" class="admin-tier-board" aria-live="polite"></div>
+
+        <p id="rankingsActionStatus" class="form-status"></p>
+      </section>
+    </div>
+  </main>
+
+  <script src="admin-session.js"></script>
+  <script src="admin-portal.js"></script>
+  <script src="preferences.js"></script>
+  <script>
+    // Theme toggle for admin rankings manager
+    document.addEventListener('DOMContentLoaded', () => {
+      const themeToggleBtn = document.getElementById('themeToggleBtn');
+
+      function setThemeToggleIcon(theme) {
+        const isLight = theme === 'light';
+        themeToggleBtn.innerHTML = isLight ? 'Mode: &#9728;' : 'Mode: &#127769;';
+        themeToggleBtn.setAttribute('aria-label', isLight ? 'Switch to dark mode' : 'Switch to light mode');
+        themeToggleBtn.setAttribute('title', isLight ? 'Switch to dark mode' : 'Switch to light mode');
+        themeToggleBtn.setAttribute('aria-pressed', isLight ? 'true' : 'false');
+      }
+      
+      function updateThemeButton() {
+        const htmlElement = document.documentElement;
+        const isDarkMode = !htmlElement.classList.contains('light-mode');
+        setThemeToggleIcon(isDarkMode ? 'dark' : 'light');
+      }
+      
+      updateThemeButton();
+      
+      themeToggleBtn.addEventListener('click', () => {
+        const htmlElement = document.documentElement;
+        const isDarkMode = !htmlElement.classList.contains('light-mode');
+        const username = String(
+          sessionStorage.getItem('username') ||
+          localStorage.getItem('lastSignedInUsername') ||
+          ''
+        ).trim();
+        
+        if (isDarkMode) {
+          if (typeof setUserThemePreference === 'function' && username) {
+            setUserThemePreference(username, 'light');
+          }
+          localStorage.setItem('dashboardTheme', 'light');
+        } else {
+          if (typeof setUserThemePreference === 'function' && username) {
+            setUserThemePreference(username, 'dark');
+          }
+          localStorage.setItem('dashboardTheme', 'dark');
+        }
+        
+        if (typeof applySiteThemePreference === 'function') {
+          applySiteThemePreference(isDarkMode ? 'light' : 'dark');
+        }
+        if (typeof initializePageTheme === 'function') {
+          initializePageTheme();
+        }
+        updateThemeButton();
+      });
+      
+      // Listen for theme changes from other tabs
+      window.addEventListener('storage', () => {
+        updateThemeButton();
+      });
+    });
+  </script>
+</body>
+</html>
+
+

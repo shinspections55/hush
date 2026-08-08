@@ -1,0 +1,188 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0F2F44">
+  <meta name="description" content="Hush - Silent draft fantasy football league management">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
+  <link rel="apple-touch-icon" href="/icon-192x192.png">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-overlay dashboard-page">
+
+  <header class="dashboard-header hush-silver-bg">
+    <div class="dashboard-header-left">
+      <a href="dashboard.html" class="dashboard-home-link" aria-label="Go to Dashboard">
+        <img src="HUSHLOGO.png" alt="HUSH Logo" class="dashboard-header-logo">
+      </a>
+    </div>
+    <div class="dashboard-header-center">
+      <div class="dashboard-header-center-stack">
+        <span class="dashboard-header-title hush-header-contrast">HUSH Fantasy Drafts</span>
+      </div>
+    </div>
+    <div class="dashboard-header-right">
+      <div id="walletBalance" class="wallet-balance hush-header-contrast">$0</div>
+      <div class="account-menu-stack">
+        <span id="welcomeUser" class="welcome-user hush-header-contrast">Timbee12</span>
+        <button id="accountBtn" class="account-btn hush-header-contrast">Account &#9662;</button>
+        <div id="accountMenu" class="account-menu">
+          <button id="toggleDashboardTheme" class="theme-icon-btn" aria-label="Switch to light mode" title="Switch to light mode" aria-pressed="false">Mode: &#127769;</button>
+          <button id="editAccountBtn">Edit Account</button>
+          <a href="friends.html" id="openFriendsBtn" class="account-menu-link">
+            <span>Friends</span>
+            <span id="friendsMenuNotice" class="friends-menu-notice hidden">0</span>
+          </a>
+          <button id="deleteAccountMenuBtn">Delete Account</button>
+          <button id="completedDraftsBtn">Completed Drafts</button>
+          <button id="openWallet">Wallet</button>
+          <a href="rankings.html?draftView=off" id="myRankingsMenu" class="account-menu-link"><span>My Rankings</span></a>
+          <button id="downloadAppBtn" class="download-app-btn download-app-hidden">ðŸ“± Download App</button>
+          <button id="logoutBtn">Log out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+
+  <main class="dashboard-main-centered">
+    <section class="dashboard-three-column">
+      <article class="dashboard-column-card dashboard-column-left" id="draftActions">
+        <section id="appHomeLoginGate" class="app-home-login-gate hidden" aria-live="polite">
+          <h3>Sign In To Continue</h3>
+          <p>You're in app mode. Sign in to draft, use rankings, and sync your account.</p>
+          <form id="appHomeLoginForm" class="app-home-login-form"></form>
+        </section>
+        <section class="dashboard-app-download hidden" aria-labelledby="appDownloadTitle">
+          <h3 id="appDownloadTitle">APP download</h3>
+          <p>Recommended for mobile users.</p>
+          <button id="openInstallGuideBtn" class="cta cta-primary cta-app-download" type="button">Download the App</button>
+        </section>
+        <div class="dashboard-cta-row">
+          <a href="#" id="joinDraft" class="cta cta-secondary">Join a Draft</a>
+          <a href="#" id="joinPrivate" class="cta cta-secondary">Join a Private Draft</a>
+          <a href="#" id="startPrivate" class="cta cta-primary">Start New Private Draft</a>
+          <a href="#" id="startPublic" class="cta cta-primary">Start Public Draft</a>
+        </div>
+      </article>
+
+      <article class="dashboard-column-card dashboard-column-middle">
+        <p id="newsFeedStatus" class="hidden"></p>
+        <ul id="newsFeedList" class="dashboard-placeholder-list">
+          <li>Fetching live RSS feed...</li>
+        </ul>
+      </article>
+
+      <article class="dashboard-column-card dashboard-column-right">
+        <div class="dashboard-cta-row dashboard-tools-row">
+          <a href="rankings.html?draftView=off" id="myRankingsQuickLink" class="cta cta-secondary">My Rankings</a>
+          <a href="learn-hush.html" id="learnHush" class="cta cta-primary">Learn Hush</a>
+          <a href="offline-draft-print.html" id="offlineDraftPrint" class="cta cta-secondary">Offline Draft Print</a>
+          <a href="av-trends.html" id="avMarketReport" class="cta cta-secondary">AV Market Report</a>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="theme-utils.js?v=20260726c"></script>
+  <script src="firebase-config.js?v=20260805a"></script>
+  <script src="preferences.js"></script>
+
+  <div id="installGuideModal" class="install-guide-modal hidden" role="dialog" aria-modal="true" aria-labelledby="installGuideHeading">
+    <div class="install-guide-dialog" role="document">
+      <button id="closeInstallGuideBtn" class="install-guide-close" type="button" aria-label="Close install guide">x</button>
+      <h2 id="installGuideHeading">Install the App (PWA)</h2>
+
+      <div class="install-guide-scroll">
+        <h3>iPhone (Safari)</h3>
+        <p><strong>Important:</strong> Use <strong>Safari</strong>. Apple only allows installing web apps from Safari.</p>
+        <ol>
+          <li>Open the website in <strong>Safari</strong>.</li>
+          <li>Tap the <strong>Share</strong> button (the square with an upward arrow) at the bottom of the screen.</li>
+          <li class="install-guide-visual-item">
+            <figure class="install-guide-visual">
+              <img src="assets/pwa-share-safari.svg" alt="Safari toolbar with the Share button highlighted" loading="lazy">
+              <figcaption>Step 2 visual: Share button highlighted.</figcaption>
+            </figure>
+          </li>
+          <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
+          <li class="install-guide-visual-item">
+            <figure class="install-guide-visual">
+              <img src="assets/pwa-add-home-screen.svg" alt="iPhone share sheet with Add to Home Screen highlighted" loading="lazy">
+              <figcaption>Step 3 visual: Add to Home Screen highlighted.</figcaption>
+            </figure>
+          </li>
+          <li>(Optional) Edit the app name if you would like.</li>
+          <li>Tap <strong>Add</strong> in the upper-right corner.</li>
+          <li>The app icon will appear on your Home Screen just like any other app.</li>
+          <li>Tap the icon anytime to launch the app in full-screen mode.</li>
+        </ol>
+
+        <hr>
+
+        <h3>Android (Chrome, Edge, or Samsung Internet)</h3>
+        <h4>Option 1: Install Prompt (Recommended)</h4>
+        <p>If your browser displays an <strong>Install App</strong> or <strong>Install</strong> prompt:</p>
+        <ol>
+          <li>Tap <strong>Install</strong>.</li>
+          <li>Confirm by tapping <strong>Install</strong> again.</li>
+          <li>The app will be added to your Home Screen and App Drawer.</li>
+        </ol>
+
+        <hr>
+
+        <h4>Option 2: Add to Home Screen</h4>
+        <p>If you do not see an install prompt:</p>
+        <ol>
+          <li>Open the website in your browser.</li>
+          <li>Tap the three-dot menu in the upper-right corner.</li>
+          <li>Tap <strong>Add to Home screen</strong> or <strong>Install app</strong> (wording varies by browser).</li>
+          <li>Confirm by tapping <strong>Add</strong> or <strong>Install</strong>.</li>
+          <li>The app will now appear on your Home Screen.</li>
+        </ol>
+
+        <hr>
+
+        <h3>Tips</h3>
+        <ul>
+          <li>Make sure you are using a supported browser (Safari on iPhone, Chrome/Edge/Samsung Internet on Android).</li>
+          <li>An internet connection is usually required for the initial installation.</li>
+          <li>Once installed, the app launches like a native app with its own icon and full-screen experience.</li>
+          <li>If the website has been updated recently and you do not see an install option, refresh the page and try again.</li>
+        </ul>
+
+        <hr>
+
+        <h3>Need Help?</h3>
+        <p>If you do not see an <strong>Install</strong> or <strong>Add to Home Screen</strong> option:</p>
+        <ul>
+          <li>Make sure you are using the supported browser.</li>
+          <li>Refresh the page and try again.</li>
+          <li>Visit the website over a secure <strong>HTTPS</strong> connection.</li>
+          <li>Ensure your device is running a current version of iOS or Android.</li>
+        </ul>
+        <p>If you are still having trouble, please contact us and let us know:</p>
+        <ul>
+          <li>Your device model</li>
+          <li>Your operating system version</li>
+          <li>The browser you are using</li>
+        </ul>
+      </div>
+
+      <div class="install-guide-footer">
+        <button id="installNowBtn" class="cta cta-primary install-now-btn hidden" type="button">Install App Now</button>
+        <p id="installGuidePromptStatus" class="install-guide-status">Use the steps above if your browser does not show an install prompt.</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="dashboard.js?v=20260805a"></script>
+  <script src="sw-register.js?v=20260726c"></script>
+</body>
+</html>
+
+
+

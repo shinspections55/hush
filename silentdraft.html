@@ -8,7 +8,7 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
     <link rel="apple-touch-icon" href="/icon-192x192.png">
-    <link rel="stylesheet" href="silentdraft.css?v=20260717a">
+    <link rel="stylesheet" href="silentdraft.css?v=20260804b">
     <title>Silent Draft</title>
 </head>
 <body class="silentdraft-page" id="silent-draft-body">
@@ -85,11 +85,12 @@
                     <div id="draft-chat-list" class="draft-chat-list" aria-live="polite"></div>
                     <form id="draft-chat-form" class="draft-chat-form">
                         <textarea id="draft-chat-input" maxlength="240" placeholder="Message the lobby or paste a GIF link..." autocomplete="off" rows="2"></textarea>
-                        <button id="draft-chat-emoji-toggle" type="button" aria-label="Open emoji picker" title="Emoji">ðŸ™‚</button>
-                        <button id="draft-chat-gif-add" type="button" aria-label="Add GIF" title="Add GIF">GIF</button>
+                        <button id="draft-chat-emoji-toggle" type="button" aria-label="Open emoji picker" title="Emoji">&#128578;</button>
+                        <button id="draft-chat-gif-add" type="button" aria-label="Add GIF powered by GIPHY" title="Add GIF powered by GIPHY"><span class="gif-btn-label">GIF</span><span class="gif-btn-brand">GIPHY</span></button>
                         <button id="draft-chat-send" type="submit">Send</button>
                     </form>
                     <div id="draft-chat-emoji-picker" class="draft-chat-emoji-picker" hidden></div>
+                    <div id="draft-chat-gif-picker" class="draft-chat-gif-picker" hidden></div>
                 </div>
             </div>
         </div>
@@ -112,7 +113,8 @@
             initializePageTheme();
         }
     </script>
-    <script src="silentdraft.js?v=20260730a"></script>
+    <script src="hushGifs.js"></script>
+    <script src="silentdraft.js?v=20260804b"></script>
     <script src="sw-register.js?v=20260726c"></script></body>
 </html>
 

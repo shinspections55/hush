@@ -66,24 +66,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const cpuLogicSourceMeta = document.getElementById('cpuLogicSourceMeta');
 
   function getStoredAdminKey() {
-    try {
-      return String(localStorage.getItem(ADMIN_KEY_STORAGE_KEY) || '').trim();
-    } catch (_error) {
-      return '';
-    }
+    return '';
   }
 
   function getAdminKey() {
     const typedKey = String(keyInput?.value || '').trim();
-    return typedKey || getStoredAdminKey();
+    return typedKey;
   }
 
   function restoreAdminKey() {
-    if (!keyInput) return;
-    const storedKey = getStoredAdminKey();
-    if (storedKey && !String(keyInput.value || '').trim()) {
-      keyInput.value = storedKey;
+    try {
+      localStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
+    } catch (_error) {
+      // ignore
     }
+    if (keyInput) keyInput.value = '';
   }
 
   // Only load rankings elements if on the rankings manager page
@@ -122,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let cpuNamedModels = {};
   let activeCpuModelName = '';
   let previousProfileImpactSnapshot = {};
-  let activeCpuLogicSourceFile = 'cpulogic.js';
+  let activeCpuLogicSourceFile = 'cpu-logic.json';
   let cpuSaveToServerResetTimer = null;
   let cpuLoadSelectedResetTimer = null;
 
@@ -586,6 +583,32 @@ document.addEventListener('DOMContentLoaded', () => {
       'Content-Type': 'application/json',
       'x-admin-key': getAdminKey()
     };
+  }
+
+  async function validateAdminKey() {
+    const adminKey = getAdminKey();
+    if (!adminKey) {
+      throw new Error('Enter the admin key.');
+    }
+
+    try {
+      await requestJson('/api/admin/traffic', {
+        headers: {
+          'x-admin-key': adminKey
+        }
+      });
+    } catch (error) {
+      const message = String(error && error.message || 'Unauthorized');
+      if (/unauthorized|401/i.test(message)) {
+        try {
+          localStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
+        } catch (_storageError) {
+          // ignore
+        }
+        throw new Error('Invalid admin key.');
+      }
+      throw error;
+    }
   }
 
   function setConnectStatus(message) {
@@ -1211,7 +1234,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       cpuSaveToServerResetTimer = setTimeout(() => {
         if (!cpuSaveToServerBtn) return;
-        cpuSaveToServerBtn.textContent = 'Save Active To cpulogic.js';
+        cpuSaveToServerBtn.textContent = 'Save Active To cpu-logic.json';
         cpuSaveToServerBtn.title = '';
         cpuSaveToServerBtn.classList.remove('admin-cpu-button-success', 'admin-cpu-button-error');
         cpuSaveToServerResetTimer = null;
@@ -1224,7 +1247,7 @@ document.addEventListener('DOMContentLoaded', () => {
       cpuSaveToServerBtn.classList.add('admin-cpu-button-error');
       cpuSaveToServerResetTimer = setTimeout(() => {
         if (!cpuSaveToServerBtn) return;
-        cpuSaveToServerBtn.textContent = 'Save Active To cpulogic.js';
+        cpuSaveToServerBtn.textContent = 'Save Active To cpu-logic.json';
         cpuSaveToServerBtn.title = '';
         cpuSaveToServerBtn.classList.remove('admin-cpu-button-success', 'admin-cpu-button-error');
         cpuSaveToServerResetTimer = null;
@@ -1232,7 +1255,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    cpuSaveToServerBtn.textContent = 'Save Active To cpulogic.js';
+    cpuSaveToServerBtn.textContent = 'Save Active To cpu-logic.json';
     cpuSaveToServerBtn.title = '';
   }
 
@@ -1246,13 +1269,13 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: authHeaders(),
         body: JSON.stringify(payload)
       });
-      const sourceFile = String(response?.sourceFile || activeCpuLogicSourceFile || 'cpulogic.js').trim() || 'cpulogic.js';
+      const sourceFile = String(response?.sourceFile || activeCpuLogicSourceFile || 'cpu-logic.json').trim() || 'cpu-logic.json';
       activeCpuLogicSourceFile = sourceFile;
       updateCpuLogicSourceMeta();
       setCpuTuningStatus(`Saved "${modelName}" to ${sourceFile}.`, 'success');
       setSaveToServerButtonState('success', sourceFile);
     } catch (error) {
-      setCpuTuningStatus(error.message || 'Failed to save cpulogic.js', 'error');
+      setCpuTuningStatus(error.message || 'Failed to save cpu-logic.json', 'error');
       setSaveToServerButtonState('error');
     }
   }
@@ -1263,13 +1286,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const payload = await requestJson('/api/admin/cpu-logic', {
         headers: { 'x-admin-key': getAdminKey() }
       });
-      const sourceFile = String(payload?.sourceFile || activeCpuLogicSourceFile || 'cpulogic.js').trim() || 'cpulogic.js';
+      const sourceFile = String(payload?.sourceFile || activeCpuLogicSourceFile || 'cpu-logic.json').trim() || 'cpu-logic.json';
       activeCpuLogicSourceFile = sourceFile;
       updateCpuLogicSourceMeta();
       const config = payload && payload.config;
       const applied = applyCpuLogicConfigToState(config);
       if (!applied) {
-        if (!silent) setCpuTuningStatus('No valid cpulogic.js config found.', 'error');
+        if (!silent) setCpuTuningStatus('No valid CPU logic config found.', 'error');
         return;
       }
 
@@ -1286,7 +1309,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (error) {
       if (!silent) {
-        setCpuTuningStatus(error.message || 'Failed to load cpulogic.js', 'error');
+        setCpuTuningStatus(error.message || 'Failed to load CPU logic config', 'error');
       }
     }
   }
@@ -1316,7 +1339,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateCpuLogicSourceMeta() {
     if (!cpuLogicSourceMeta) return;
-    const sourceFile = String(activeCpuLogicSourceFile || 'cpulogic.js').trim() || 'cpulogic.js';
+    const sourceFile = String(activeCpuLogicSourceFile || 'cpu-logic.json').trim() || 'cpu-logic.json';
     cpuLogicSourceMeta.textContent = `Current source file: ${sourceFile} (used by silent draft CPUs)`;
   }
 
@@ -2752,12 +2775,10 @@ document.addEventListener('DOMContentLoaded', () => {
       setConnectApproved(false);
       setConnectStatus('');
       try {
-        const adminKey = getAdminKey();
-        if (adminKey) {
-          localStorage.setItem(ADMIN_KEY_STORAGE_KEY, adminKey);
-        }
+        await validateAdminKey();
       } catch (_e) {
-        // ignore
+        setConnectStatus(_e && _e.message ? _e.message : 'Invalid admin key.');
+        return;
       }
       await loadOverview();
       await loadPositionRankings(activePosition);
@@ -3101,10 +3122,23 @@ document.addEventListener('DOMContentLoaded', () => {
     setOverviewMode(false);
     setConnectApproved(false);
     updateDatabaseProgressCard();
-    refreshCpuModelSelect('');
-    renderCpuTuningLab();
-    updateCpuLogicSourceMeta();
-    void loadCpuLogicFromServer({ silent: true });
+
+    if (!getAdminKey()) {
+      setConnectStatus('Enter the admin key.');
+      return;
+    }
+
+    void validateAdminKey().then(() => {
+      setConnectApproved(true);
+      setConnectStatus('');
+      refreshCpuModelSelect('');
+      renderCpuTuningLab();
+      updateCpuLogicSourceMeta();
+      void loadCpuLogicFromServer({ silent: true });
+    }).catch((error) => {
+      setConnectApproved(false);
+      setConnectStatus(error && error.message ? error.message : 'Invalid admin key.');
+    });
 
     window.addEventListener('resize', () => {
       try {
