@@ -844,43 +844,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   window.location.href = drafts[code].public ? 'lobby-public.html' : 'lobby-private.html';
     });
   }
-  const startPublic = document.getElementById('startPublic');
-  if(startPublic){
-    startPublic.addEventListener('click', async (e)=>{
-      e.preventDefault();
-      const code = generateLobbyCode(JSON.parse(localStorage.getItem('drafts') || '{}'));
-      const draftsRaw = localStorage.getItem('drafts');
-      const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
-      drafts[code] = drafts[code] || { members: [], public: true, capacity: 10 };
-      try{
-        if(window.io){
-          const socket = io({ reconnection: false });
-          socket.emit('createAndJoinDraft', code, drafts[code], user, async (resp)=>{
-            const invite = `${location.origin}/${code}`;
-            if(!resp || !resp.ok){ alert('Could not start public draft'); return; }
-            const draftsRaw2 = localStorage.getItem('drafts');
-            const drafts2 = draftsRaw2 ? JSON.parse(draftsRaw2) : {};
-            drafts2[code] = resp.draft;
-            localStorage.setItem('drafts', JSON.stringify(drafts2));
-            sessionStorage.setItem('currentDraft', code);
-            try{ await navigator.clipboard.writeText(invite); alert('Public draft started. Invite link copied: '+invite); }
-            catch(_){ alert('Public draft started. Invite link: '+invite); }
-            window.location.href = (resp.draft && resp.draft.public) ? 'lobby-public.html' : 'lobby-private.html';
-          });
-          return;
-        }
-      }catch(e){ console.warn('socket create/join failed', e); }
-      // fallback local
-      if(!drafts[code].members.includes(user)) drafts[code].members.push(user);
-      localStorage.setItem('drafts', JSON.stringify(drafts));
-  sessionStorage.setItem('currentDraft', code);
-  const invite = `${location.origin}/${code}`;
-  try{ await navigator.clipboard.writeText(invite); alert('Public draft started. Invite link copied: '+invite); }
-  catch(_){ alert('Public draft started. Invite link: '+invite); }
-  window.location.href = drafts[code].public ? 'lobby-public.html' : 'lobby-private.html';
-    });
-  }
-
   logoutBtn.addEventListener('click', ()=>{
     Promise.resolve(auth ? signOut(auth) : null)
       .catch((error) => console.warn('[dashboard] sign out failed', error))

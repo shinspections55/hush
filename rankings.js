@@ -13,7 +13,8 @@ const DRAFT_STATE_KEY  = 'rankingsDraftState';
 const ALL_POSITIONS_KEY = 'ALL';
 const POSITIONS        = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 const RANKING_BOARD_KEYS = [ALL_POSITIONS_KEY, ...POSITIONS];
-const DEFAULT_RANKINGS_URLS = ['top250.generated.json', 'top250.json'];
+const DEFAULT_RANKINGS_API_URL = '/api/public/rankings/default';
+const DEFAULT_RANKINGS_API_CACHE_KEY = 'defaultRankingsApiCacheV1';
 const BOARD_MODE_KEY = 'rankingsBoardMode';
 const DATABASE_RANKINGS_SET_KEY = 'databaseRankingsSet';
 const TIER_INSERT_MODE_KEY = 'rankingsTierInsertMode';
@@ -927,32 +928,59 @@ function toggleRankingsTheme() {
 async function loadDefaultRankings() {
   const starredNames = getEffectiveStarredNames();
 
-  for (const url of DEFAULT_RANKINGS_URLS) {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) continue;
-      const data = await response.json();
-      if (!Array.isArray(data)) continue;
+  const applyDefaultRankingsPayload = (data) => {
+    if (!Array.isArray(data)) return false;
+    defaultRankings = data
+      .map((p, idx) => ({
+        name: p.name || '—',
+        position: p.position || 'UNK',
+        team: p.team || '—',
+        avgValue: p.avgValue || 0,
+        starred: starredNames.has(p.name || ''),
+        prerank: Number.isFinite(p.prerank) ? p.prerank : (idx + 1),
+        tierKey: p.tierId ?? p.tierName ?? p.tier ?? null,
+      }))
+      .sort((a, b) => a.prerank - b.prerank);
 
-      defaultRankings = data
-        .map((p, idx) => ({
-          name: p.name || '—',
-          position: p.position || 'UNK',
-          team: p.team || '—',
-          avgValue: p.avgValue || 0,
-          starred: starredNames.has(p.name || ''),
-          prerank: Number.isFinite(p.prerank) ? p.prerank : (idx + 1),
-          tierKey: p.tierId ?? p.tierName ?? p.tier ?? null,
-        }))
-        .sort((a, b) => a.prerank - b.prerank);
+    updateAllFilterButtonLabel();
+    renderRankings();
+    return true;
+  };
 
-      updateAllFilterButtonLabel();
-      renderRankings();
+  try {
+    const response = await fetch(DEFAULT_RANKINGS_API_URL, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const payload = await response.json();
+    const data = Array.isArray(payload)
+      ? payload
+      : (Array.isArray(payload && payload.players) ? payload.players : []);
+
+    if (applyDefaultRankingsPayload(data)) {
+      try {
+        localStorage.setItem(DEFAULT_RANKINGS_API_CACHE_KEY, JSON.stringify(data));
+      } catch (_error) {
+        // ignore cache write failures
+      }
       return;
-    } catch (e) {
-      // try fallback source
     }
+  } catch (_error) {
+    // Try cached API snapshot before showing empty state.
   }
+
+  try {
+    const cached = localStorage.getItem(DEFAULT_RANKINGS_API_CACHE_KEY);
+    const parsed = cached ? JSON.parse(cached) : null;
+    if (applyDefaultRankingsPayload(parsed)) {
+      return;
+    }
+  } catch (_error) {
+    // ignore cache parse failures
+  }
+
+  defaultRankings = [];
+  updateAllFilterButtonLabel();
+  renderRankings();
 }
 
 // ═══════════════════════════════════════════════════

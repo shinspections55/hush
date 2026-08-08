@@ -409,6 +409,29 @@ function initSilentDraft() {
     let timerInterval = null;
     let isDraftEnding = false;
     let processRoundRetryTimer = null;
+    let roundResultsRecoveryTimer = null;
+    let draftTabTitleTimer = null;
+    let HUSH_NETWORK_PROFILE = 'high-latency';
+    try {
+        const storedProfile = String(localStorage.getItem('hushNetworkProfile') || '').trim().toLowerCase();
+        if (storedProfile) HUSH_NETWORK_PROFILE = storedProfile;
+    } catch (_error) {
+        HUSH_NETWORK_PROFILE = 'high-latency';
+    }
+    const USE_HIGH_LATENCY_PROFILE = HUSH_NETWORK_PROFILE === 'high-latency' || HUSH_NETWORK_PROFILE === 'mobile';
+    const DRAFT_HEARTBEAT_INTERVAL_MS = USE_HIGH_LATENCY_PROFILE ? 12000 : 10000;
+    const DRAFT_HEARTBEAT_ACK_TIMEOUT_MS = USE_HIGH_LATENCY_PROFILE ? 6000 : 5000;
+    const DRAFT_HEARTBEAT_MISS_THRESHOLD = USE_HIGH_LATENCY_PROFILE ? 4 : 3;
+    const DRAFT_HEARTBEAT_HARD_RECOVER_THRESHOLD = USE_HIGH_LATENCY_PROFILE ? 7 : 6;
+    const DEFAULT_ACK_TIMEOUT_MS = USE_HIGH_LATENCY_PROFILE ? 7500 : 7000;
+    const DEFAULT_ACK_OVERALL_TIMEOUT_MS = USE_HIGH_LATENCY_PROFILE ? 20000 : 15000;
+    const DEFAULT_ACK_MAX_RETRIES = USE_HIGH_LATENCY_PROFILE ? 2 : 1;
+    const DRAFT_SOCKET_WATCHDOG_INTERVAL_MS = USE_HIGH_LATENCY_PROFILE ? 12000 : 10000;
+    const DRAFT_TAB_TITLE_BASE = (String(document.title || 'Hush').trim() || 'Hush').replace(/\s*[\(\[\-\|].*$/, '').trim() || 'Hush';
+    const DRAFT_TAB_CONNECTED_DOT = '🟢';
+    const DRAFT_TAB_DISCONNECTED_DOT = '🔴';
+    const submitRequestIdsByRound = new Map();
+    const processRequestIdsByRound = new Map();
     let draftAudioContext = null;
     let draftAudioReady = false;
     let lastCountdownCueKey = '';
@@ -418,6 +441,45 @@ function initSilentDraft() {
     let keepDraftScreenAwake = true;
     let wakeLockHeartbeatTimer = null;
     let activeRoundResultsModalRound = null;
+    let draftTabConnectionDot = DRAFT_TAB_DISCONNECTED_DOT;
+
+    function formatRoundClock(totalSeconds) {
+        const safeSeconds = Number.isFinite(Number(totalSeconds)) ? Math.max(0, Number(totalSeconds)) : 0;
+        const minutes = Math.floor(safeSeconds / 60);
+        const seconds = safeSeconds % 60;
+        return `${minutes}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function getDraftTabTitle() {
+        if (isDraftEnding) {
+            return DRAFT_TAB_TITLE_BASE;
+        }
+        const roundLabel = Number.isFinite(Number(currentRound)) ? `R${Number(currentRound)}` : 'R?';
+        const clockLabel = formatRoundClock(timer);
+        return `${DRAFT_TAB_TITLE_BASE} ${clockLabel} ${roundLabel} ${draftTabConnectionDot}`;
+    }
+
+    function updateDraftTabTitle(useBaseTitle = false) {
+        document.title = useBaseTitle ? DRAFT_TAB_TITLE_BASE : getDraftTabTitle();
+    }
+
+    function startDraftTabTitleTicker() {
+        if (draftTabTitleTimer) return;
+        updateDraftTabTitle(false);
+        draftTabTitleTimer = setInterval(() => {
+            updateDraftTabTitle(false);
+        }, 1000);
+    }
+
+    function stopDraftTabTitleTicker(resetToBase = true) {
+        if (draftTabTitleTimer) {
+            clearInterval(draftTabTitleTimer);
+            draftTabTitleTimer = null;
+        }
+        if (resetToBase) {
+            updateDraftTabTitle(true);
+        }
+    }
 
     function getDraftAudioContext() {
         try {
@@ -929,6 +991,8 @@ function initSilentDraft() {
     let players = [];
     let draftRoomDefaultRankings = [];
     let draftRoomDefaultRankingsLastLoadedAt = 0;
+    const DRAFTROOM_DEFAULT_RANKINGS_API_URL = '/api/public/rankings/default';
+    const DRAFTROOM_DEFAULT_RANKINGS_API_CACHE_KEY = 'draftRoomDefaultRankingsApiCacheV1';
     const DRAFTROOM_POSITION_FILES = {
         QB: 'qb',
         RB: 'rb',
@@ -1014,35 +1078,57 @@ function initSilentDraft() {
             return draftRoomDefaultRankings;
         }
 
-        const candidates = [
-            `top250.generated.json?t=${now}`,
-            `top250.json?t=${now}`
-        ];
+        const applyDefaultRankingsPayload = (data) => {
+            if (!Array.isArray(data)) return false;
 
-        for (const url of candidates) {
-            try {
-                const response = await fetch(url, { cache: 'no-store' });
-                if (!response.ok) continue;
+            draftRoomDefaultRankings = data
+                .map((player, index) => ({
+                    name: String(player && player.name || '').trim(),
+                    position: String(player && player.position || 'UNK').trim().toUpperCase(),
+                    team: String(player && player.team || '—').trim().toUpperCase() || '—',
+                    avgValue: Number(player && (player.avgValue || player.value) || 0),
+                    prerank: Number.isFinite(player && player.prerank)
+                        ? player.prerank
+                        : (Number.parseInt(player && player.prerank, 10) || (index + 1))
+                }))
+                .filter((player) => player.name)
+                .sort((a, b) => a.prerank - b.prerank);
 
-                const raw = await response.json();
-                if (!Array.isArray(raw)) continue;
+            draftRoomDefaultRankingsLastLoadedAt = Date.now();
+            return true;
+        };
 
-                draftRoomDefaultRankings = raw
-                    .map((player, index) => ({
-                        name: String(player && player.name || '').trim(),
-                        position: String(player && player.position || 'UNK').trim().toUpperCase(),
-                        team: String(player && player.team || '—').trim().toUpperCase() || '—',
-                        avgValue: Number(player && (player.avgValue || player.value) || 0),
-                        prerank: Number.parseInt(player && player.prerank, 10) || (index + 1)
-                    }))
-                    .filter((player) => player.name);
+        try {
+            const response = await fetch(DRAFTROOM_DEFAULT_RANKINGS_API_URL, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-                draftRoomDefaultRankingsLastLoadedAt = Date.now();
-                console.log(`[silentdraft] Loaded ${draftRoomDefaultRankings.length} default rankings from ${url}`);
+            const payload = await response.json();
+            const data = Array.isArray(payload)
+                ? payload
+                : (Array.isArray(payload && payload.players) ? payload.players : []);
+
+            if (applyDefaultRankingsPayload(data)) {
+                try {
+                    localStorage.setItem(DRAFTROOM_DEFAULT_RANKINGS_API_CACHE_KEY, JSON.stringify(data));
+                } catch (_cacheError) {
+                    // ignore cache write failures
+                }
+                console.log(`[silentdraft] Loaded ${draftRoomDefaultRankings.length} default rankings from API`);
                 return draftRoomDefaultRankings;
-            } catch (error) {
-                console.warn(`[silentdraft] Failed to load default rankings from ${url}:`, error);
             }
+        } catch (error) {
+            console.warn('[silentdraft] Failed to load default rankings from API:', error);
+        }
+
+        try {
+            const cached = localStorage.getItem(DRAFTROOM_DEFAULT_RANKINGS_API_CACHE_KEY);
+            const parsed = cached ? JSON.parse(cached) : null;
+            if (applyDefaultRankingsPayload(parsed)) {
+                console.log(`[silentdraft] Loaded ${draftRoomDefaultRankings.length} default rankings from cached API snapshot`);
+                return draftRoomDefaultRankings;
+            }
+        } catch (_cacheReadError) {
+            // ignore cache parse failures
         }
 
         return draftRoomDefaultRankings;
@@ -1063,8 +1149,7 @@ function initSilentDraft() {
 
     async function loadDraftRoomPositionRankings(position, forceRefresh = false) {
         const pos = String(position || '').trim().toUpperCase();
-        const fileKey = DRAFTROOM_POSITION_FILES[pos];
-        if (!fileKey) return [];
+        if (!Object.prototype.hasOwnProperty.call(DRAFTROOM_POSITION_FILES, pos)) return [];
 
         const now = Date.now();
         const staleMs = 15000;
@@ -1074,33 +1159,24 @@ function initSilentDraft() {
             return current;
         }
 
-        try {
-            const url = `players%20file/${fileKey}.json?t=${now}`;
-            const response = await fetch(url, { cache: 'no-store' });
-            if (!response.ok) return current;
+        const defaults = await loadDraftRoomDefaultRankings(forceRefresh);
+        const normalized = (Array.isArray(defaults) ? defaults : [])
+            .filter(player => String(player && player.position || '').trim().toUpperCase() === pos)
+            .map((player, index) => ({
+                name: String(player && player.name || '').trim(),
+                position: pos,
+                team: String(player && player.team || '—').trim().toUpperCase() || '—',
+                avgValue: Number(player && (player.avgValue || player.value) || 0),
+                prerank: Number.isFinite(player && player.prerank)
+                    ? player.prerank
+                    : (Number.parseInt(player && player.prerank, 10) || (index + 1))
+            }))
+            .filter(player => player.name)
+            .sort((a, b) => a.prerank - b.prerank);
 
-            const raw = await response.json();
-            if (!Array.isArray(raw)) return current;
-
-            const normalized = raw
-                .map((player, index) => ({
-                    name: String(player && player.name || '').trim(),
-                    position: pos,
-                    team: String(player && player.team || '—').trim().toUpperCase() || '—',
-                    avgValue: Number(player && (player.avgValue || player.value) || 0),
-                    prerank: parseDraftRoomPositionRank(pos, player, index + 1)
-                }))
-                .filter((player) => player.name)
-                .sort((a, b) => a.prerank - b.prerank);
-
-            draftRoomDefaultPositionRankings[pos] = normalized;
-            draftRoomDefaultPositionRankingsLastLoadedAt[pos] = Date.now();
-            console.log(`[silentdraft] Loaded ${normalized.length} ${pos} rankings from position file`);
-            return normalized;
-        } catch (error) {
-            console.warn(`[silentdraft] Failed to load ${pos} rankings from position file:`, error);
-            return current;
-        }
+        draftRoomDefaultPositionRankings[pos] = normalized;
+        draftRoomDefaultPositionRankingsLastLoadedAt[pos] = Date.now();
+        return normalized;
     }
 
     async function loadAllDraftRoomPositionRankings(forceRefresh = false) {
@@ -1229,6 +1305,7 @@ function initSilentDraft() {
     
     // Connect to server to get authoritative draft state
     function initializeDraft() {
+        startDraftTabTitleTicker();
         // Clean up old/excess drafts before accessing localStorage
         cleanupOldDrafts();
         limitStoredDrafts(25);
@@ -1492,7 +1569,7 @@ function initSilentDraft() {
     setupDraftChat();
     renderDraftChatMessages();
 
-    function updateSocketConnectionIndicator(isConnected, detailText) {
+    function updateSocketConnectionIndicator(isConnected, detailText, quality = 'good') {
         const indicatorId = 'socket-connection-indicator';
         let indicator = document.getElementById(indicatorId);
         if (!indicator) {
@@ -1520,29 +1597,55 @@ function initSilentDraft() {
         }
 
         if (isConnected) {
+            draftTabConnectionDot = DRAFT_TAB_CONNECTED_DOT;
+            const qualityKey = String(quality || 'good').trim().toLowerCase();
+            let fillColor = '#22c55e';
+            let glowColor = 'rgba(34,197,94,0.55)';
+            let qualityLabel = 'Good';
+
+            if (qualityKey === 'excellent') {
+                fillColor = '#16a34a';
+                glowColor = 'rgba(22,163,74,0.62)';
+                qualityLabel = 'Excellent';
+            } else if (qualityKey === 'weak') {
+                fillColor = '#f59e0b';
+                glowColor = 'rgba(245,158,11,0.58)';
+                qualityLabel = 'Weak';
+            }
+
             indicator.textContent = '';
-            indicator.style.background = '#22c55e';
-            indicator.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.12), 0 0 8px rgba(34,197,94,0.55)';
-            indicator.setAttribute('aria-label', 'Socket connected');
-            indicator.title = 'Socket connected';
+            indicator.style.background = fillColor;
+            indicator.style.boxShadow = `0 0 0 1px rgba(0,0,0,0.12), 0 0 8px ${glowColor}`;
+            const statusText = detailText || `Socket connected (${qualityLabel})`;
+            indicator.setAttribute('aria-label', statusText);
+            indicator.title = statusText;
         } else {
+            draftTabConnectionDot = DRAFT_TAB_DISCONNECTED_DOT;
             const statusText = detailText || 'Socket disconnected - reconnecting';
             indicator.textContent = '';
-            indicator.style.background = '#ef4444';
-            indicator.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.12), 0 0 8px rgba(239,68,68,0.55)';
+            const reconnecting = /reconnect/i.test(statusText);
+            indicator.style.background = reconnecting ? '#f59e0b' : '#ef4444';
+            indicator.style.boxShadow = reconnecting
+                ? '0 0 0 1px rgba(0,0,0,0.12), 0 0 8px rgba(245,158,11,0.55)'
+                : '0 0 0 1px rgba(0,0,0,0.12), 0 0 8px rgba(239,68,68,0.55)';
             indicator.setAttribute('aria-label', statusText);
             indicator.title = statusText;
         }
+
+        updateDraftTabTitle(false);
     }
     
     if (window.io && currentDraftCode) {
         window.draftSocket = io({
             reconnection: true,
             reconnectionAttempts: Infinity,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
+            randomizationFactor: 0.5,
+            reconnectionDelay: 500,
+            reconnectionDelayMax: 8000,
             timeout: 30000,
-            transports: ['polling', 'websocket']
+            upgrade: true,
+            rememberUpgrade: true,
+            transports: ['websocket', 'polling']
         });
 
         const syncDraftSocketRooms = () => {
@@ -1607,6 +1710,72 @@ function initSilentDraft() {
         let lastConnectionResyncAt = 0;
         let pendingConnectionResyncTimer = null;
         let connectionWatchdogTimer = null;
+        let heartbeatTimer = null;
+        let heartbeatInFlight = false;
+        let missedHeartbeats = 0;
+        let lastHeartbeatRttMs = null;
+
+        const clearHeartbeatTimer = () => {
+            if (heartbeatTimer) {
+                clearInterval(heartbeatTimer);
+                heartbeatTimer = null;
+            }
+        };
+
+        const getHeartbeatQuality = (rttMs) => {
+            if (!Number.isFinite(rttMs)) return { key: 'good', label: 'Good' };
+            if (rttMs <= 220) return { key: 'excellent', label: 'Excellent' };
+            if (rttMs <= 700) return { key: 'good', label: 'Good' };
+            return { key: 'weak', label: 'Weak' };
+        };
+
+        const sendHeartbeat = () => {
+            if (!(window.draftSocket && window.draftSocket.connected)) return;
+            if (heartbeatInFlight) return;
+
+            heartbeatInFlight = true;
+            const sentAt = Date.now();
+            let settled = false;
+
+            const timeoutId = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                heartbeatInFlight = false;
+                missedHeartbeats += 1;
+
+                if (missedHeartbeats >= DRAFT_HEARTBEAT_MISS_THRESHOLD) {
+                    updateSocketConnectionIndicator(false, 'Connection weak - reconnecting...');
+                    scheduleConnectionResync('heartbeat-timeout', 0);
+                }
+
+                if (missedHeartbeats >= DRAFT_HEARTBEAT_HARD_RECOVER_THRESHOLD && window.draftSocket && !window.draftSocket.connected) {
+                    scheduleConnectionResync('heartbeat-hard-recover', 0);
+                }
+            }, DRAFT_HEARTBEAT_ACK_TIMEOUT_MS);
+
+            window.draftSocket.emit('hushHeartbeat', { clientTs: sentAt }, (response) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timeoutId);
+                heartbeatInFlight = false;
+
+                if (!response || response.ok === false) {
+                    missedHeartbeats += 1;
+                    return;
+                }
+
+                missedHeartbeats = 0;
+                lastHeartbeatRttMs = Math.max(0, Date.now() - sentAt);
+                const quality = getHeartbeatQuality(lastHeartbeatRttMs);
+                updateSocketConnectionIndicator(true, `Socket connected (${quality.label}, ${lastHeartbeatRttMs}ms)`, quality.key);
+            });
+        };
+
+        const startHeartbeatMonitor = () => {
+            clearHeartbeatTimer();
+            sendHeartbeat();
+            heartbeatTimer = setInterval(sendHeartbeat, DRAFT_HEARTBEAT_INTERVAL_MS);
+        };
 
         const clearPendingConnectionResync = () => {
             if (pendingConnectionResyncTimer) {
@@ -1655,7 +1824,15 @@ function initSilentDraft() {
         const onVisibilityChangeResync = () => {
             if (document.visibilityState === 'visible') {
                 scheduleConnectionResync('visibility-visible', 120);
+                updateDraftTabTitle(false);
+                return;
             }
+
+            // Keep transport warm while backgrounded so mobile and throttled tabs recover faster.
+            if (window.draftSocket && !window.draftSocket.connected) {
+                scheduleConnectionResync('visibility-hidden', 0);
+            }
+            updateDraftTabTitle(false);
         };
 
         const onPageshowResync = (event) => {
@@ -1680,12 +1857,14 @@ function initSilentDraft() {
         // Periodic guard while visible: if the socket dropped silently, reconnect.
         connectionWatchdogTimer = setInterval(() => {
             if (!(window.draftSocket && currentDraftCode)) return;
-            if (document.visibilityState !== 'visible') return;
             if (!navigator.onLine) return;
             if (!window.draftSocket.connected) {
-                scheduleConnectionResync('watchdog-disconnected', 0);
+                const reason = document.visibilityState === 'visible'
+                    ? 'watchdog-disconnected'
+                    : 'watchdog-hidden-disconnected';
+                scheduleConnectionResync(reason, 0);
             }
-        }, 15000);
+        }, DRAFT_SOCKET_WATCHDOG_INTERVAL_MS);
 
         console.log('[silentdraft] Connected to active draft room, isHost:', window.isHost);
 
@@ -1695,7 +1874,9 @@ function initSilentDraft() {
 
         window.draftSocket.on('connect', () => {
             resyncDraftConnection();
-            updateSocketConnectionIndicator(true);
+            missedHeartbeats = 0;
+            updateSocketConnectionIndicator(true, 'Socket connected (Good)', 'good');
+            startHeartbeatMonitor();
             if (reconnectNoticeShown) {
                 showNotification('Connection restored. Draft is live again.');
                 reconnectNoticeShown = false;
@@ -1717,6 +1898,8 @@ function initSilentDraft() {
         });
 
         window.draftSocket.on('disconnect', (reason) => {
+            clearHeartbeatTimer();
+            heartbeatInFlight = false;
             updateSocketConnectionIndicator(false, 'Socket disconnected - reconnecting');
             if (!reconnectNoticeShown) {
                 showNotification('Connection lost. Attempting to reconnect...');
@@ -1772,6 +1955,11 @@ function initSilentDraft() {
             } else {
                 console.log('[silentdraft] Non-host waiting for host round processing');
             }
+
+            clearRoundResultsRecoveryTimer();
+            roundResultsRecoveryTimer = setTimeout(() => {
+                requestRoundResultsRecovery('allBidsSubmitted-timeout');
+            }, 12000);
         });
 
         window.draftSocket.on('roundDiagnostics', (payload) => {
@@ -1783,6 +1971,7 @@ function initSilentDraft() {
             const detail = payload && payload.error ? ` (${payload.error})` : '';
             console.error('[silentdraft] roundProcessingError:', payload);
             hideProcessingBidsModal();
+            clearRoundResultsRecoveryTimer();
             if (processRoundRetryTimer) {
                 clearTimeout(processRoundRetryTimer);
                 processRoundRetryTimer = null;
@@ -1842,6 +2031,7 @@ function initSilentDraft() {
                 clearTimeout(processRoundRetryTimer);
                 processRoundRetryTimer = null;
             }
+            clearRoundResultsRecoveryTimer();
             clearAutoDraftSoloGraceWindow();
 
             const payloadResults = payload && Array.isArray(payload.results)
@@ -1934,8 +2124,21 @@ function initSilentDraft() {
             }
 
             console.log('[silentdraft] New round started from server:', nextRound);
+            clearRoundResultsRecoveryTimer();
             lastServerRoundStarted = nextRound;
             currentRound = nextRound;
+
+            for (const roundKey of [...submitRequestIdsByRound.keys()]) {
+                if (Number(roundKey) < nextRound - 1) {
+                    submitRequestIdsByRound.delete(roundKey);
+                }
+            }
+            for (const roundKey of [...processRequestIdsByRound.keys()]) {
+                if (Number(roundKey) < nextRound - 1) {
+                    processRequestIdsByRound.delete(roundKey);
+                }
+            }
+
             window.syncedRoundPlayers = null; // Clear for new round
 
             const existingResultsModal = document.getElementById('round-results-modal');
@@ -2083,6 +2286,41 @@ function initSilentDraft() {
             }
             renderDraftChatMessages();
         });
+
+        window.draftSocket.on('memberConnectionState', (payload) => {
+            if (!payload || !payload.username) return;
+            const state = String(payload.state || '').trim().toLowerCase();
+            if (!state) return;
+
+            if (state === 'reconnecting') {
+                const graceSeconds = Math.max(0, Math.floor(Number(payload.graceMsRemaining || 0) / 1000));
+                showNotification(`${payload.username} is reconnecting (${graceSeconds}s grace).`);
+                return;
+            }
+
+            if (state === 'connected') {
+                showNotification(`${payload.username} reconnected.`);
+                return;
+            }
+
+            if (state === 'disconnected') {
+                showNotification(`${payload.username} disconnected after reconnect timeout.`);
+            }
+        });
+
+        window.draftSocket.on('hostConnectionState', (payload) => {
+            if (!payload) return;
+            const state = String(payload.state || '').trim().toLowerCase();
+            if (state === 'reconnecting') {
+                const graceSeconds = Math.max(0, Math.floor(Number(payload.graceMsRemaining || 0) / 1000));
+                showNotification(`Host reconnecting (${graceSeconds}s grace). Holding critical actions.`);
+                return;
+            }
+
+            if (state === 'connected') {
+                showNotification('Host reconnected. Draft actions resumed.');
+            }
+        });
     }
     
     // Helper to show bid submission notifications (silent auction - no details)
@@ -2121,9 +2359,9 @@ function initSilentDraft() {
 
     function emitSocketAckWithRetry(eventName, args, options = {}) {
         const socket = window.draftSocket;
-        const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : 7000;
-        const overallTimeoutMs = Number.isFinite(Number(options.overallTimeoutMs)) ? Number(options.overallTimeoutMs) : 15000;
-        const maxRetries = Number.isFinite(Number(options.maxRetries)) ? Number(options.maxRetries) : 1;
+        const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : DEFAULT_ACK_TIMEOUT_MS;
+        const overallTimeoutMs = Number.isFinite(Number(options.overallTimeoutMs)) ? Number(options.overallTimeoutMs) : DEFAULT_ACK_OVERALL_TIMEOUT_MS;
+        const maxRetries = Number.isFinite(Number(options.maxRetries)) ? Number(options.maxRetries) : DEFAULT_ACK_MAX_RETRIES;
         const suppressRetryWarning = !!options.suppressRetryWarning;
 
         if (!(socket && currentDraftCode)) {
@@ -2289,7 +2527,7 @@ function initSilentDraft() {
         }
 
         return syncCurrentRoundBidsToServer().then(() => (
-            emitSocketAckWithRetry('submitBids', [currentDraftCode, username, autoDraftEnabled], { timeoutMs: 7000, overallTimeoutMs: 15000, maxRetries: 1 }).then((response) => {
+            emitSocketAckWithRetry('submitBids', [currentDraftCode, username, autoDraftEnabled, { requestId: getSubmitRequestIdForRound(currentRound) }], { timeoutMs: 8000, overallTimeoutMs: 24000, maxRetries: 2 }).then((response) => {
                 if (response && response.ok) {
                     console.log('[silentdraft] All bids submitted and recorded');
                     if (lockUI) {
@@ -2303,7 +2541,7 @@ function initSilentDraft() {
                     console.warn('[silentdraft] submitBids transiently rejected; retrying once after state sync:', response);
                     return new Promise((resolve) => {
                         window.setTimeout(() => {
-                            emitSocketAckWithRetry('submitBids', [currentDraftCode, username, autoDraftEnabled], { timeoutMs: 7000, overallTimeoutMs: 15000, maxRetries: 0 }).then((retryResponse) => {
+                            emitSocketAckWithRetry('submitBids', [currentDraftCode, username, autoDraftEnabled, { requestId: getSubmitRequestIdForRound(currentRound) }], { timeoutMs: 8000, overallTimeoutMs: 20000, maxRetries: 1 }).then((retryResponse) => {
                                 if (retryResponse && retryResponse.ok) {
                                     console.log('[silentdraft] Retry succeeded for bid submission');
                                     if (lockUI) {
@@ -2328,6 +2566,53 @@ function initSilentDraft() {
     // Expose helper explicitly for nested UI callbacks that may execute
     // outside this function's lexical scope in some browser/runtime paths.
     window.submitCurrentRoundBidsToServer = submitCurrentRoundBidsToServer;
+
+    function clearRoundResultsRecoveryTimer() {
+        if (roundResultsRecoveryTimer) {
+            clearTimeout(roundResultsRecoveryTimer);
+            roundResultsRecoveryTimer = null;
+        }
+    }
+
+    function requestRoundResultsRecovery(reason = 'manual') {
+        if (!(window.draftSocket && currentDraftCode)) {
+            return;
+        }
+
+        const targetRound = Number(currentRound || 1);
+        console.warn('[silentdraft] Requesting round results recovery from server', { reason, targetRound });
+        window.draftSocket.emit('recoverRoundResults', currentDraftCode, targetRound, (response) => {
+            if (response && response.ok) {
+                console.log('[silentdraft] round results recovery request accepted:', response.source || 'unknown');
+                return;
+            }
+
+            console.warn('[silentdraft] round results recovery request not available:', response);
+        });
+    }
+
+    function buildActionRequestId(action, roundNumber) {
+        const safeAction = String(action || 'action').trim().toLowerCase();
+        const safeRound = Number.isFinite(Number(roundNumber)) ? Number(roundNumber) : Number(currentRound || 1);
+        const draftKey = String(currentDraftCode || 'draft').trim();
+        return `${safeAction}:${draftKey}:${safeRound}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    function getSubmitRequestIdForRound(roundNumber) {
+        const key = Number.isFinite(Number(roundNumber)) ? Number(roundNumber) : Number(currentRound || 1);
+        if (!submitRequestIdsByRound.has(key)) {
+            submitRequestIdsByRound.set(key, buildActionRequestId('submitbids', key));
+        }
+        return submitRequestIdsByRound.get(key);
+    }
+
+    function getProcessRequestIdForRound(roundNumber) {
+        const key = Number.isFinite(Number(roundNumber)) ? Number(roundNumber) : Number(currentRound || 1);
+        if (!processRequestIdsByRound.has(key)) {
+            processRequestIdsByRound.set(key, buildActionRequestId('processround', key));
+        }
+        return processRequestIdsByRound.get(key);
+    }
     
     // Process round on server (called when all submitted or timer expires)
     function processRoundOnServer(attempt = 0) {
@@ -2365,7 +2650,8 @@ function initSilentDraft() {
             rosterLimits: rosterLimits,
             flexPositions: flexPositions,
             rosterSettings: rosterSettings,
-            allPlayers: players
+            allPlayers: players,
+            requestId: getProcessRequestIdForRound(currentRound)
         };
         console.log('[silentdraft][debug] processRound payload summary:', {
             attempt,
@@ -3284,9 +3570,9 @@ function initSilentDraft() {
         if (!player) return '';
         hydrateRosterPlayerMetadata(player);
         const byeWeek = resolveDraftRoomByeWeek(player);
-        const byeBadge = `<span class="roster-player-bye">BYE ${byeWeek !== null ? byeWeek : '--'}</span>`;
+        const byeBadge = `<span class="roster-player-bye">W${byeWeek !== null ? byeWeek : '-'}</span>`;
         const finalPrice = resolveDraftRoomFinalPrice(player);
-        const finalPriceBadge = `<span class="roster-player-price">Final $${finalPrice !== null ? finalPrice : 0}</span>`;
+        const finalPriceBadge = `<span class="roster-player-price">$${finalPrice !== null ? finalPrice : 0}</span>`;
 
         return `
             <span class="roster-player-name">${player.name}</span>
@@ -3298,6 +3584,25 @@ function initSilentDraft() {
     function getDraftRoomDefaultRankings() {
         if (draftRoomRankingsPosition !== 'ALL') {
             const pos = String(draftRoomRankingsPosition || '').trim().toUpperCase();
+            const fromDefaults = Array.isArray(draftRoomDefaultRankings) ? draftRoomDefaultRankings : [];
+            const filteredDefaults = fromDefaults
+                .filter((p) => String(p && p.position || '').trim().toUpperCase() === pos)
+                .sort((a, b) => {
+                    const rankA = Number.isFinite(a && a.prerank) ? a.prerank : 9999;
+                    const rankB = Number.isFinite(b && b.prerank) ? b.prerank : 9999;
+                    return rankA - rankB;
+                });
+
+            if (filteredDefaults.length > 0) {
+                return filteredDefaults.map((p) => ({
+                    name: p.name,
+                    position: p.position || pos,
+                    team: p.team || '—',
+                    avgValue: p.avgValue || 0,
+                    byeWeek: extractPlayerByeWeek(p),
+                }));
+            }
+
             if (Object.prototype.hasOwnProperty.call(draftRoomDefaultPositionRankings, pos)) {
                 const posRankings = Array.isArray(draftRoomDefaultPositionRankings[pos]) ? draftRoomDefaultPositionRankings[pos] : [];
                 if (posRankings.length > 0) {
@@ -3593,19 +3898,17 @@ function initSilentDraft() {
         if (!playerName) return;
 
         const draftStarred = loadDraftTempStarredNames();
-        if (draftStarred.has(playerName)) {
-            draftStarred.delete(playerName);
-        } else {
-            draftStarred.add(playerName);
-        }
-        saveDraftTempStarredNames(draftStarred);
-
         const sharedStarred = loadSharedStarredNames();
-        if (sharedStarred.has(playerName)) {
+        const currentlyStarred = draftStarred.has(playerName) || sharedStarred.has(playerName);
+
+        if (currentlyStarred) {
+            draftStarred.delete(playerName);
             sharedStarred.delete(playerName);
         } else {
+            draftStarred.add(playerName);
             sharedStarred.add(playerName);
         }
+        saveDraftTempStarredNames(draftStarred);
         saveSharedStarredNames(sharedStarred);
 
         renderDraftRoomRankings();
@@ -4090,7 +4393,7 @@ function initSilentDraft() {
         if (gifAddButton) {
             gifAddButton.setAttribute('aria-label', 'Add GIF powered by GIPHY');
             gifAddButton.setAttribute('title', 'Add GIF powered by GIPHY');
-            gifAddButton.innerHTML = '<span class="gif-btn-label">GIF</span><span class="gif-btn-brand">GIPHY</span>';
+            gifAddButton.innerHTML = '<img class="gif-btn-logo" src="Poweredby_100px-White_VertLogo.png" alt="Powered by GIPHY" loading="lazy" decoding="async">';
         }
         const standaloneDisplay = Boolean(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
         const iosStandalone = Boolean(window.navigator && window.navigator.standalone === true);
@@ -4392,7 +4695,7 @@ function initSilentDraft() {
                 ${moreHint}
                 ${fallbackHint}
                 ${rateLimitHint}
-                <div class="draft-chat-gif-attribution" aria-label="Powered by GIPHY">Powered by GIPHY</div>
+                <div class="draft-chat-gif-attribution" aria-label="Powered by GIPHY"><img class="draft-chat-gif-attribution-logo" src="Poweredby_100px-White_VertLogo.png" alt="Powered by GIPHY" loading="lazy" decoding="async"></div>
             `;
 
             const grid = gifPicker.querySelector('.draft-chat-gif-grid');
@@ -6185,6 +6488,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         if (isDraftEnding) return;
         isDraftEnding = true;
         setDraftScreenAwakeEnabled(false);
+        stopDraftTabTitleTicker(true);
 
         logDraftEndDebug('endDraft:start', {
             totalRounds,
@@ -6737,6 +7041,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
 
     function startRound() {
         setDraftScreenAwakeEnabled(true);
+        updateDraftTabTitle(false);
         // Guard against duplicate round starts
         if (window.__roundStarting) {
             console.log('[silentdraft] startRound() called while already starting - ignoring duplicate');
@@ -6855,6 +7160,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 if (timerElement) {
                     timerElement.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
                 }
+                updateDraftTabTitle(false);
                 playCountdownCue(timer);
                 timer--;
                 if (timer < 0) {
@@ -6889,6 +7195,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         if (timerElement) {
             timerElement.textContent = `${Math.floor(timer / 60)}:${String(timer % 60).padStart(2, '0')}`;
         }
+        updateDraftTabTitle(false);
         timerInterval = setInterval(() => {
             if (!isPaused) {
                 let minutes = Math.floor(timer / 60);
@@ -6896,6 +7203,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 if (timerElement) {
                     timerElement.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
                 }
+                updateDraftTabTitle(false);
                 playCountdownCue(timer);
                 timer--;
                 if (timer < 0) {

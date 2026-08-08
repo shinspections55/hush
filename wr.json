@@ -5,8 +5,9 @@
         "position": "WR",
         "team": "CIN",
         "avgValue": 57,
-        "draftChance": 99,
-        "tier": "WR Tier 1"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 6
     },
     {
         "WRrank": "#2",
@@ -14,8 +15,9 @@
         "position": "WR",
         "team": "LAR",
         "avgValue": 57,
-        "draftChance": 99,
-        "tier": "WR Tier 1"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 8
     },
     {
         "WRrank": "#3",
@@ -23,8 +25,9 @@
         "position": "WR",
         "team": "SEA",
         "avgValue": 57,
-        "draftChance": 99,
-        "tier": "WR Tier 1"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 8
     },
     {
         "WRrank": "#4",
@@ -32,8 +35,9 @@
         "position": "WR",
         "team": "DET",
         "avgValue": 49,
-        "draftChance": 93,
-        "tier": "WR Tier 2"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 6
     },
     {
         "WRrank": "#5",
@@ -41,8 +45,9 @@
         "position": "WR",
         "team": "DAL",
         "avgValue": 49,
-        "draftChance": 93,
-        "tier": "WR Tier 2"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 10
     },
     {
         "WRrank": "#6",
@@ -50,8 +55,9 @@
         "position": "WR",
         "team": "MIN",
         "avgValue": 47,
-        "draftChance": 91,
-        "tier": "WR Tier 2"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 6
     },
     {
         "WRrank": "#7",
@@ -59,8 +65,9 @@
         "position": "WR",
         "team": "ATL",
         "avgValue": 43,
-        "draftChance": 78,
-        "tier": "WR Tier 2"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 5
     },
     {
         "WRrank": "#8",
@@ -68,8 +75,9 @@
         "position": "WR",
         "team": "KC",
         "avgValue": 43,
-        "draftChance": 78,
-        "tier": "WR Tier 3"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 5
     },
     {
         "WRrank": "#9",
@@ -77,8 +85,9 @@
         "position": "WR",
         "team": "HOU",
         "avgValue": 43,
-        "draftChance": 89,
-        "tier": "WR Tier 3"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 6
     },
     {
         "WRrank": "#10",
@@ -86,8 +95,9 @@
         "position": "WR",
         "team": "NE",
         "avgValue": 41,
-        "draftChance": 87,
-        "tier": "WR Tier 3"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 11
     },
     {
         "WRrank": "#11",
@@ -95,8 +105,9 @@
         "position": "WR",
         "team": "NYJ",
         "avgValue": 38,
-        "draftChance": 85,
-        "tier": "WR Tier 3"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 9
     },
     {
         "WRrank": "#12",
@@ -104,8 +115,9 @@
         "position": "WR",
         "team": "NO",
         "avgValue": 38,
-        "draftChance": 85,
-        "tier": "WR Tier 3"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 8
     },
     {
         "WRrank": "#13",
@@ -113,8 +125,9 @@
         "position": "WR",
         "team": "DAL",
         "avgValue": 37,
-        "draftChance": 84,
-        "tier": "WR Tier 4"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 10
     },
     {
         "WRrank": "#14",
@@ -122,8 +135,9 @@
         "position": "WR",
         "team": "CAR",
         "avgValue": 34,
-        "draftChance": 78,
-        "tier": "WR Tier 4"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 5
     },
     {
         "WRrank": "#15",
@@ -131,8 +145,9 @@
         "position": "WR",
         "team": "PHI",
         "avgValue": 34,
-        "draftChance": 78,
-        "tier": "WR Tier 4"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 9
     },
     {
         "WRrank": "#16",
@@ -140,8 +155,9 @@
         "position": "WR",
         "team": "BAL",
         "avgValue": 26,
-        "draftChance": 76,
-        "tier": "WR Tier 4"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 7
     },
     {
         "WRrank": "#17",
@@ -149,8 +165,9 @@
         "position": "WR",
         "team": "LAR",
         "avgValue": 26,
-        "draftChance": 76,
-        "tier": "WR Tier 4"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 8
     },
     {
         "WRrank": "#18",
@@ -158,8 +175,9 @@
         "position": "WR",
         "team": "TB",
         "avgValue": 26,
-        "draftChance": 76,
-        "tier": "WR Tier 4"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 9
     },
     {
         "WRrank": "#19",
@@ -167,8 +185,9 @@
         "position": "WR",
         "team": "NYG",
         "avgValue": 25,
-        "draftChance": 75,
-        "tier": "WR Tier 4"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 8
     },
     {
         "WRrank": "#20",
@@ -176,8 +195,9 @@
         "position": "WR",
         "team": "CIN",
         "avgValue": 24,
-        "draftChance": 74,
-        "tier": "WR Tier 4"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 6
     },
     {
         "WRrank": "#21",
@@ -185,8 +205,9 @@
         "position": "WR",
         "team": "DEN",
         "avgValue": 22,
-        "draftChance": 74,
-        "tier": "WR Tier 5"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 10
     },
     {
         "WRrank": "#22",
@@ -194,8 +215,9 @@
         "position": "WR",
         "team": "TEN",
         "avgValue": 20,
-        "draftChance": 74,
-        "tier": "WR Tier 5"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 9
     },
     {
         "WRrank": "#23",
@@ -203,8 +225,9 @@
         "position": "WR",
         "team": "WAS",
         "avgValue": 20,
-        "draftChance": 74,
-        "tier": "WR Tier 5"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 7
     },
     {
         "WRrank": "#24",
@@ -212,8 +235,9 @@
         "position": "WR",
         "team": "LAC",
         "avgValue": 20,
-        "draftChance": 73,
-        "tier": "WR Tier 5"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 7
     },
     {
         "WRrank": "#25",
@@ -221,8 +245,9 @@
         "position": "WR",
         "team": "DET",
         "avgValue": 18,
-        "draftChance": 73,
-        "tier": "WR Tier 5"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 6
     },
     {
         "WRrank": "#26",
@@ -230,8 +255,9 @@
         "position": "WR",
         "team": "BUF",
         "avgValue": 18,
-        "draftChance": 73,
-        "tier": "WR Tier 5"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 7
     },
     {
         "WRrank": "#27",
@@ -239,8 +265,9 @@
         "position": "WR",
         "team": "CHI",
         "avgValue": 18,
-        "draftChance": 73,
-        "tier": "WR Tier 5"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 5
     },
     {
         "WRrank": "#28",
@@ -248,8 +275,9 @@
         "position": "WR",
         "team": "IND",
         "avgValue": 16,
-        "draftChance": 70,
-        "tier": "WR Tier 6"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 11
     },
     {
         "WRrank": "#29",
@@ -257,8 +285,9 @@
         "position": "WR",
         "team": "ARI",
         "avgValue": 16,
-        "draftChance": 70,
-        "tier": "WR Tier 6"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 8
     },
     {
         "WRrank": "#30",
@@ -266,8 +295,9 @@
         "position": "WR",
         "team": "CHI",
         "avgValue": 15,
-        "draftChance": 70,
-        "tier": "WR Tier 6"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 5
     },
     {
         "WRrank": "#31",
@@ -275,8 +305,9 @@
         "position": "WR",
         "team": "DEN",
         "avgValue": 14,
-        "draftChance": 70,
-        "tier": "WR Tier 6"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 10
     },
     {
         "WRrank": "#32",
@@ -284,8 +315,9 @@
         "position": "WR",
         "team": "SF",
         "avgValue": 14,
-        "draftChance": 68,
-        "tier": "WR Tier 6"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 8
     },
     {
         "WRrank": "#33",
@@ -293,8 +325,9 @@
         "position": "WR",
         "team": "NO",
         "avgValue": 13,
-        "draftChance": 70,
-        "tier": "WR Tier 6"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 8
     },
     {
         "WRrank": "#34",
@@ -302,8 +335,9 @@
         "position": "WR",
         "team": "PIT",
         "avgValue": 13,
-        "draftChance": 68,
-        "tier": "WR Tier 6"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 5
     },
     {
         "WRrank": "#35",
@@ -311,8 +345,9 @@
         "position": "WR",
         "team": "JAC",
         "avgValue": 12,
-        "draftChance": 65,
-        "tier": "WR Tier 6"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 7
     },
     {
         "WRrank": "#36",
@@ -320,8 +355,9 @@
         "position": "WR",
         "team": "TB",
         "avgValue": 11,
-        "draftChance": 60,
-        "tier": "WR Tier 6"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 9
     },
     {
         "WRrank": "#37",
@@ -329,8 +365,9 @@
         "position": "WR",
         "team": "LAC",
         "avgValue": 11,
-        "draftChance": 63,
-        "tier": "WR Tier 6"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 7
     },
     {
         "WRrank": "#38",
@@ -338,8 +375,9 @@
         "position": "WR",
         "team": "PIT",
         "avgValue": 10,
-        "draftChance": 60,
-        "tier": "WR Tier 7"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 5
     },
     {
         "WRrank": "#39",
@@ -347,8 +385,9 @@
         "position": "WR",
         "team": "JAC",
         "avgValue": 9,
-        "draftChance": 55,
-        "tier": "WR Tier 7"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 7
     },
     {
         "WRrank": "#40",
@@ -356,8 +395,9 @@
         "position": "WR",
         "team": "JAC",
         "avgValue": 9,
-        "draftChance": 55,
-        "tier": "WR Tier 7"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 7
     },
     {
         "WRrank": "#41",
@@ -365,8 +405,9 @@
         "position": "WR",
         "team": "GB",
         "avgValue": 7,
-        "draftChance": 52,
-        "tier": "WR Tier 8"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 5
     },
     {
         "WRrank": "#42",
@@ -374,8 +415,9 @@
         "position": "WR",
         "team": "TEN",
         "avgValue": 6,
-        "draftChance": 48,
-        "tier": "WR Tier 8"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 9
     },
     {
         "WRrank": "#43",
@@ -383,8 +425,9 @@
         "position": "WR",
         "team": "MIN",
         "avgValue": 4,
-        "draftChance": 52,
-        "tier": "WR Tier 8"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 6
     },
     {
         "WRrank": "#44",
@@ -392,8 +435,9 @@
         "position": "WR",
         "team": "ARI",
         "avgValue": 4,
-        "draftChance": 55,
-        "tier": "WR Tier 8"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 8
     },
     {
         "WRrank": "#45",
@@ -401,8 +445,9 @@
         "position": "WR",
         "team": "LV",
         "avgValue": 4,
-        "draftChance": 55,
-        "tier": "WR Tier 8"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 13
     },
     {
         "WRrank": "#46",
@@ -410,8 +455,9 @@
         "position": "WR",
         "team": "PHI",
         "avgValue": 4,
-        "draftChance": 55,
-        "tier": "WR Tier 8"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 9
     },
     {
         "WRrank": "#47",
@@ -419,8 +465,9 @@
         "position": "WR",
         "team": "CLE",
         "avgValue": 4,
-        "draftChance": 50,
-        "tier": "WR Tier 8"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 9
     },
     {
         "WRrank": "#48",
@@ -428,8 +475,9 @@
         "position": "WR",
         "team": "BUF",
         "avgValue": 4,
-        "draftChance": 45,
-        "tier": "WR Tier 8"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 7
     },
     {
         "WRrank": "#49",
@@ -437,8 +485,9 @@
         "position": "WR",
         "team": "GB",
         "avgValue": 4,
-        "draftChance": 45,
-        "tier": "WR Tier 8"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 5
     },
     {
         "WRrank": "#50",
@@ -446,8 +495,9 @@
         "position": "WR",
         "team": "SF",
         "avgValue": 4,
-        "draftChance": 45,
-        "tier": "WR Tier 8"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 8
     },
     {
         "WRrank": "#51",
@@ -455,8 +505,9 @@
         "position": "WR",
         "team": "IND",
         "avgValue": 3,
-        "draftChance": 45,
-        "tier": "WR Tier 9"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 11
     },
     {
         "WRrank": "#52",
@@ -464,8 +515,9 @@
         "position": "WR",
         "team": "NE",
         "avgValue": 3,
-        "draftChance": 45,
-        "tier": "WR Tier 9"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 11
     },
     {
         "WRrank": "#53",
@@ -473,8 +525,9 @@
         "position": "WR",
         "team": "TEN",
         "avgValue": 3,
-        "draftChance": 35,
-        "tier": "WR Tier 9"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 9
     },
     {
         "WRrank": "#54",
@@ -482,8 +535,9 @@
         "position": "WR",
         "team": "KC",
         "avgValue": 3,
-        "draftChance": 40,
-        "tier": "WR Tier 9"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 5
     },
     {
         "WRrank": "#55",
@@ -491,8 +545,9 @@
         "position": "WR",
         "team": "GB",
         "avgValue": 3,
-        "draftChance": 45,
-        "tier": "WR Tier 9"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 5
     },
     {
         "WRrank": "#56",
@@ -500,8 +555,9 @@
         "position": "WR",
         "team": "CLE",
         "avgValue": 3,
-        "draftChance": 40,
-        "tier": "WR Tier 9"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 9
     },
     {
         "WRrank": "#57",
@@ -509,8 +565,9 @@
         "position": "WR",
         "team": "NYJ",
         "avgValue": 3,
-        "draftChance": 55,
-        "tier": "WR Tier 9"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 9
     },
     {
         "WRrank": "#58",
@@ -518,8 +575,9 @@
         "position": "WR",
         "team": "HOU",
         "avgValue": 2,
-        "draftChance": 45,
-        "tier": "WR Tier 9"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 6
     },
     {
         "WRrank": "#59",
@@ -527,8 +585,9 @@
         "position": "WR",
         "team": "CAR",
         "avgValue": 2,
-        "draftChance": 40,
-        "tier": "WR Tier 9"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 5
     },
     {
         "WRrank": "#60",
@@ -536,8 +595,9 @@
         "position": "WR",
         "team": "TB",
         "avgValue": 1,
-        "draftChance": 35,
-        "tier": "WR Tier 10"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 9
     },
     {
         "WRrank": "#61",
@@ -545,8 +605,9 @@
         "position": "WR",
         "team": "PIT",
         "avgValue": 1,
-        "draftChance": 30,
-        "tier": "WR Tier 10"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 5
     },
     {
         "WRrank": "#62",
@@ -554,8 +615,9 @@
         "position": "WR",
         "team": "SEA",
         "avgValue": 1,
-        "draftChance": 30,
-        "tier": "WR Tier 10"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 8
     },
     {
         "WRrank": "#63",
@@ -563,8 +625,9 @@
         "position": "WR",
         "team": "CLE",
         "avgValue": 1,
-        "draftChance": 30,
-        "tier": "WR Tier 10"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 9
     },
     {
         "WRrank": "#64",
@@ -572,8 +635,9 @@
         "position": "WR",
         "team": "LV",
         "avgValue": 1,
-        "draftChance": 30,
-        "tier": "WR Tier 10"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 13
     },
     {
         "WRrank": "#65",
@@ -581,8 +645,9 @@
         "position": "WR",
         "team": "MIA",
         "avgValue": 1,
-        "draftChance": 20,
-        "tier": "WR Tier 10"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 6
     },
     {
         "WRrank": "#66",
@@ -590,8 +655,9 @@
         "position": "WR",
         "team": "MIA",
         "avgValue": 1,
-        "draftChance": 20,
-        "tier": "WR Tier 10"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 6
     },
     {
         "WRrank": "#67",
@@ -599,8 +665,9 @@
         "position": "WR",
         "team": "JAC",
         "avgValue": 1,
-        "draftChance": 20,
-        "tier": "WR Tier 10"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 7
     },
     {
         "WRrank": "#68",
@@ -608,8 +675,9 @@
         "position": "WR",
         "team": "BAL",
         "avgValue": 1,
-        "draftChance": 20,
-        "tier": "WR Tier 10"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 7
     },
     {
         "WRrank": "#69",
@@ -617,25 +685,47 @@
         "position": "WR",
         "team": "FA",
         "avgValue": 1,
-        "draftChance": 20,
-        "tier": "WR Tier 10"
+        "draftChance": 0,
+        "tier": "WR Tier 1"
     },
     {
         "WRrank": "#70",
         "name": "Jauan Jennings",
         "position": "WR",
-        "team": "FA",
+        "team": "MIN",
         "avgValue": 1,
-        "draftChance": 20,
-        "tier": "WR Tier 10"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 6
     },
     {
         "WRrank": "#71",
         "name": "Deebo Samuel Sr.",
         "position": "WR",
-        "team": "FA",
+        "team": "SF",
         "avgValue": 1,
-        "draftChance": 20,
-        "tier": "WR Tier 10"
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 8
+    },
+    {
+        "WRrank": "#72",
+        "name": "Tank Dell",
+        "position": "WR",
+        "team": "HOU",
+        "avgValue": 1,
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 6
+    },
+    {
+        "WRrank": "#73",
+        "name": "Malik Washington",
+        "position": "WR",
+        "team": "MIA",
+        "avgValue": 1,
+        "draftChance": 0,
+        "tier": "WR Tier 1",
+        "byeWeek": 6
     }
 ]

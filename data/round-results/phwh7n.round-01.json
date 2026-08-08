@@ -1,0 +1,1561 @@
+{
+  "draftCode": "PHWH7N",
+  "roundNumber": 1,
+  "savedAt": 1786221047225,
+  "emittedAt": 1786221047225,
+  "results": [
+    {
+      "type": "won",
+      "playerId": 34,
+      "playerName": "Jahmyr Gibbs",
+      "playerPosition": "RB",
+      "playerTeam": "DET",
+      "playerByeWeek": 6,
+      "playerPrerank": 51,
+      "playerPositionRank": 1,
+      "winnerTeam": "Team 2",
+      "bidAmount": 47,
+      "pricePaid": 44,
+      "secondHighestBid": 43,
+      "secondHighestBidder": "Team 8",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 42
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 47
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 36
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 38
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 43
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 38
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 1,
+      "playerName": "Josh Allen",
+      "playerPosition": "QB",
+      "playerTeam": "BUF",
+      "playerByeWeek": 7,
+      "playerPrerank": 26,
+      "playerPositionRank": 1,
+      "winnerTeam": "Team 8",
+      "bidAmount": 32,
+      "pricePaid": 30,
+      "secondHighestBid": 29,
+      "secondHighestBidder": "Team 6",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 19
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 27
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 18
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 29
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 32
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 18
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 215,
+      "playerName": "Seattle Seahawks",
+      "playerPosition": "DEF",
+      "playerTeam": "SEA",
+      "playerByeWeek": 8,
+      "playerPrerank": 3,
+      "playerPositionRank": 1,
+      "winnerTeam": "Team 8",
+      "bidAmount": 5,
+      "pricePaid": 4,
+      "secondHighestBid": 3,
+      "secondHighestBidder": "Timbee12",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 3
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 2
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 3
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 2
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 5
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 94,
+      "playerName": "Garrett Wilson",
+      "playerPosition": "WR",
+      "playerTeam": "NYJ",
+      "playerByeWeek": 9,
+      "playerPrerank": 38,
+      "playerPositionRank": 11,
+      "winnerTeam": "Team 9",
+      "bidAmount": 48,
+      "pricePaid": 43,
+      "secondHighestBid": 42,
+      "secondHighestBidder": "Team 6",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 9
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 31
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 27
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 42
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 27
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 48
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 22
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 165,
+      "playerName": "George Kittle",
+      "playerPosition": "TE",
+      "playerTeam": "SF",
+      "playerByeWeek": 8,
+      "playerPrerank": 3,
+      "playerPositionRank": 11,
+      "winnerTeam": "Team 3",
+      "bidAmount": 4,
+      "pricePaid": 4,
+      "secondHighestBid": 3,
+      "secondHighestBidder": "Team 6",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 4
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 3
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 195,
+      "playerName": "Wil Lutz",
+      "playerPosition": "K",
+      "playerTeam": "DEN",
+      "playerByeWeek": 10,
+      "playerPrerank": 2,
+      "playerPositionRank": 11,
+      "winnerTeam": "Team 3",
+      "bidAmount": 5,
+      "pricePaid": 3,
+      "secondHighestBid": 2,
+      "secondHighestBidder": "Team 8",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 5
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 2
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 54,
+      "playerName": "Bucky Irving",
+      "playerPosition": "RB",
+      "playerTeam": "TB",
+      "playerByeWeek": 9,
+      "playerPrerank": 21,
+      "playerPositionRank": 21,
+      "winnerTeam": "Team 9",
+      "bidAmount": 26,
+      "pricePaid": 25,
+      "secondHighestBid": 24,
+      "secondHighestBidder": "Team 4",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 9
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 24
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 20
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 15
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 23
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 26
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 15
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 235,
+      "playerName": "Cleveland Browns",
+      "playerPosition": "DEF",
+      "playerTeam": "CLE",
+      "playerByeWeek": 9,
+      "playerPrerank": 1,
+      "playerPositionRank": 21,
+      "winnerTeam": "Team 3",
+      "bidAmount": 2,
+      "pricePaid": 1,
+      "secondHighestBid": 0,
+      "secondHighestBidder": null,
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 2
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "type": "tied",
+      "playerId": 21,
+      "playerName": "Jordan Love",
+      "tiedTeams": [
+        "Team 6",
+        "Team 8"
+      ],
+      "bidAmount": 2,
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 2
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 2
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "type": "tied",
+      "playerId": 114,
+      "playerName": "Courtland Sutton",
+      "tiedTeams": [
+        "Team 2",
+        "Team 6"
+      ],
+      "bidAmount": 13,
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 1
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 13
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 13
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 9
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 9
+        }
+      ]
+    },
+    {
+      "type": "tied",
+      "playerId": 74,
+      "playerName": "Tyjae Spears",
+      "tiedTeams": [
+        "Team 2",
+        "Team 6"
+      ],
+      "bidAmount": 3,
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 3
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 3
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 1
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 134,
+      "playerName": "Josh Downs",
+      "playerPosition": "WR",
+      "playerTeam": "IND",
+      "playerByeWeek": 11,
+      "playerPrerank": 3,
+      "playerPositionRank": 51,
+      "winnerTeam": "Team 5",
+      "bidAmount": 7,
+      "pricePaid": 5,
+      "secondHighestBid": 4,
+      "secondHighestBidder": "Team 4",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 4
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 7
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 2
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 93,
+      "playerName": "A.J. Brown",
+      "playerPosition": "WR",
+      "playerTeam": "NE",
+      "playerByeWeek": 11,
+      "playerPrerank": 41,
+      "playerPositionRank": 10,
+      "winnerTeam": "Team 5",
+      "bidAmount": 39,
+      "pricePaid": 38,
+      "secondHighestBid": 37,
+      "secondHighestBidder": "Team 2",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 2
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 37
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 37
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 39
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 36
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 30
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 37
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 32
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 194,
+      "playerName": "Evan McPherson",
+      "playerPosition": "K",
+      "playerTeam": "CIN",
+      "playerByeWeek": 6,
+      "playerPrerank": 2,
+      "playerPositionRank": 10,
+      "winnerTeam": "Team 9",
+      "bidAmount": 3,
+      "pricePaid": 3,
+      "secondHighestBid": 2,
+      "secondHighestBidder": "Timbee12",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 2
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 2
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 3
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 164,
+      "playerName": "Travis Kelce",
+      "playerPosition": "TE",
+      "playerTeam": "KC",
+      "playerByeWeek": 5,
+      "playerPrerank": 4,
+      "playerPositionRank": 10,
+      "winnerTeam": "Team 9",
+      "bidAmount": 5,
+      "pricePaid": 5,
+      "secondHighestBid": 4,
+      "secondHighestBidder": "Team 10",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 2
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 5
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 53,
+      "playerName": "Cam Skattebo",
+      "playerPosition": "RB",
+      "playerTeam": "NYG",
+      "playerByeWeek": 8,
+      "playerPrerank": 22,
+      "playerPositionRank": 20,
+      "winnerTeam": "Team 2",
+      "bidAmount": 28,
+      "pricePaid": 26,
+      "secondHighestBid": 25,
+      "secondHighestBidder": "Team 3",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 2
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 28
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 25
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 14
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 25
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 234,
+      "playerName": "New Orleans Saints",
+      "playerPosition": "DEF",
+      "playerTeam": "NO",
+      "playerByeWeek": 8,
+      "playerPrerank": 1,
+      "playerPositionRank": 20,
+      "winnerTeam": "Team 7",
+      "bidAmount": 1,
+      "pricePaid": 1,
+      "secondHighestBid": 0,
+      "secondHighestBidder": null,
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 1
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 20,
+      "playerName": "Patrick Mahomes",
+      "playerPosition": "QB",
+      "playerTeam": "KC",
+      "playerByeWeek": 5,
+      "playerPrerank": 1,
+      "playerPositionRank": 20,
+      "winnerTeam": "Team 3",
+      "bidAmount": 5,
+      "pricePaid": 1,
+      "secondHighestBid": 0,
+      "secondHighestBidder": null,
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 5
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "type": "tied",
+      "playerId": 184,
+      "playerName": "David Njoku",
+      "tiedTeams": [
+        "Team 4",
+        "Team 8"
+      ],
+      "bidAmount": 3,
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 1
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 3
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 2
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 3
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 113,
+      "playerName": "Luther Burden III",
+      "playerPosition": "WR",
+      "playerTeam": "CHI",
+      "playerByeWeek": 5,
+      "playerPrerank": 15,
+      "playerPositionRank": 30,
+      "winnerTeam": "Team 4",
+      "bidAmount": 21,
+      "pricePaid": 19,
+      "secondHighestBid": 18,
+      "secondHighestBidder": "Team 9",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 1
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 16
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 12
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 21
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 13
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 18
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "type": "undrafted",
+      "playerId": 214,
+      "playerName": "Zane Gonzalez",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 73,
+      "playerName": "Woody Marks",
+      "playerPosition": "RB",
+      "playerTeam": "HOU",
+      "playerByeWeek": 6,
+      "playerPrerank": 3,
+      "playerPositionRank": 40,
+      "winnerTeam": "Team 3",
+      "bidAmount": 6,
+      "pricePaid": 3,
+      "secondHighestBid": 2,
+      "secondHighestBidder": "Team 8",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 6
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 2
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 133,
+      "playerName": "Ricky Pearsall",
+      "playerPosition": "WR",
+      "playerTeam": "SF",
+      "playerByeWeek": 8,
+      "playerPrerank": 4,
+      "playerPositionRank": 50,
+      "winnerTeam": "Team 4",
+      "bidAmount": 7,
+      "pricePaid": 7,
+      "secondHighestBid": 6,
+      "secondHighestBidder": "Team 7",
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 7
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 6
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "type": "won",
+      "playerId": 153,
+      "playerName": "Jauan Jennings",
+      "playerPosition": "WR",
+      "playerTeam": "FA",
+      "playerByeWeek": null,
+      "playerPrerank": 1,
+      "playerPositionRank": 70,
+      "winnerTeam": "Team 8",
+      "bidAmount": 1,
+      "pricePaid": 1,
+      "secondHighestBid": 0,
+      "secondHighestBidder": null,
+      "allBids": [
+        {
+          "teamName": "Timbee12",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 2",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 3",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 4",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 5",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 6",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 7",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 8",
+          "amount": 1
+        },
+        {
+          "teamName": "Team 9",
+          "amount": 0
+        },
+        {
+          "teamName": "Team 10",
+          "amount": 0
+        }
+      ]
+    }
+  ],
+  "tiedBids": [
+    {
+      "playerId": 21,
+      "playerName": "Jordan Love",
+      "position": "QB",
+      "team": "GB",
+      "byeWeek": 5,
+      "avgValue": 1,
+      "positionRank": 21,
+      "tiedTeams": [
+        "Team 6",
+        "Team 8"
+      ],
+      "bidAmount": 2
+    },
+    {
+      "playerId": 114,
+      "playerName": "Courtland Sutton",
+      "position": "WR",
+      "team": "DEN",
+      "byeWeek": 10,
+      "avgValue": 14,
+      "positionRank": 31,
+      "tiedTeams": [
+        "Team 2",
+        "Team 6"
+      ],
+      "bidAmount": 13
+    },
+    {
+      "playerId": 74,
+      "playerName": "Tyjae Spears",
+      "position": "RB",
+      "team": "TEN",
+      "byeWeek": 9,
+      "avgValue": 2,
+      "positionRank": 41,
+      "tiedTeams": [
+        "Team 2",
+        "Team 6"
+      ],
+      "bidAmount": 3
+    },
+    {
+      "playerId": 184,
+      "playerName": "David Njoku",
+      "position": "TE",
+      "team": "LAC",
+      "byeWeek": 7,
+      "avgValue": 0,
+      "positionRank": 30,
+      "tiedTeams": [
+        "Team 4",
+        "Team 8"
+      ],
+      "bidAmount": 3
+    }
+  ],
+  "participationStats": {
+    "roundNumber": 1,
+    "teamsInDraft": 10,
+    "teamsWithBid": 10,
+    "playersInRound": 24,
+    "bidEntries": 90,
+    "totalBidAmount": 1322,
+    "totalBidAmountPerTeam": 132.2,
+    "playerBidTotals": [
+      {
+        "playerId": 93,
+        "playerName": "A.J. Brown",
+        "totalBidAmount": 250,
+        "bidCount": 8
+      },
+      {
+        "playerId": 34,
+        "playerName": "Jahmyr Gibbs",
+        "totalBidAmount": 244,
+        "bidCount": 6
+      },
+      {
+        "playerId": 94,
+        "playerName": "Garrett Wilson",
+        "totalBidAmount": 206,
+        "bidCount": 7
+      },
+      {
+        "playerId": 1,
+        "playerName": "Josh Allen",
+        "totalBidAmount": 143,
+        "bidCount": 6
+      },
+      {
+        "playerId": 54,
+        "playerName": "Bucky Irving",
+        "totalBidAmount": 132,
+        "bidCount": 7
+      },
+      {
+        "playerId": 53,
+        "playerName": "Cam Skattebo",
+        "totalBidAmount": 94,
+        "bidCount": 5
+      },
+      {
+        "playerId": 113,
+        "playerName": "Luther Burden III",
+        "totalBidAmount": 81,
+        "bidCount": 6
+      },
+      {
+        "playerId": 114,
+        "playerName": "Courtland Sutton",
+        "totalBidAmount": 45,
+        "bidCount": 5
+      },
+      {
+        "playerId": 133,
+        "playerName": "Ricky Pearsall",
+        "totalBidAmount": 17,
+        "bidCount": 3
+      },
+      {
+        "playerId": 235,
+        "playerName": "Cleveland Browns",
+        "totalBidAmount": 15,
+        "bidCount": 5
+      },
+      {
+        "playerId": 215,
+        "playerName": "Seattle Seahawks",
+        "totalBidAmount": 15,
+        "bidCount": 5
+      },
+      {
+        "playerId": 134,
+        "playerName": "Josh Downs",
+        "totalBidAmount": 13,
+        "bidCount": 3
+      },
+      {
+        "playerId": 164,
+        "playerName": "Travis Kelce",
+        "totalBidAmount": 11,
+        "bidCount": 3
+      },
+      {
+        "playerId": 184,
+        "playerName": "David Njoku",
+        "totalBidAmount": 9,
+        "bidCount": 4
+      },
+      {
+        "playerId": 73,
+        "playerName": "Woody Marks",
+        "totalBidAmount": 8,
+        "bidCount": 2
+      },
+      {
+        "playerId": 194,
+        "playerName": "Evan McPherson",
+        "totalBidAmount": 7,
+        "bidCount": 3
+      },
+      {
+        "playerId": 165,
+        "playerName": "George Kittle",
+        "totalBidAmount": 7,
+        "bidCount": 2
+      },
+      {
+        "playerId": 74,
+        "playerName": "Tyjae Spears",
+        "totalBidAmount": 7,
+        "bidCount": 3
+      },
+      {
+        "playerId": 195,
+        "playerName": "Wil Lutz",
+        "totalBidAmount": 7,
+        "bidCount": 2
+      },
+      {
+        "playerId": 20,
+        "playerName": "Patrick Mahomes",
+        "totalBidAmount": 5,
+        "bidCount": 1
+      },
+      {
+        "playerId": 21,
+        "playerName": "Jordan Love",
+        "totalBidAmount": 4,
+        "bidCount": 2
+      },
+      {
+        "playerId": 153,
+        "playerName": "Jauan Jennings",
+        "totalBidAmount": 1,
+        "bidCount": 1
+      },
+      {
+        "playerId": 234,
+        "playerName": "New Orleans Saints",
+        "totalBidAmount": 1,
+        "bidCount": 1
+      }
+    ],
+    "avgBidPerPlayer": 55.08,
+    "avgBidPerEntry": 14.69,
+    "participationRate": 100
+  },
+  "commitSummary": {
+    "applied": 19,
+    "skipped": 0,
+    "removedConflicts": 0
+  }
+}

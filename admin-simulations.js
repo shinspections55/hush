@@ -669,6 +669,12 @@ document.addEventListener('DOMContentLoaded', () => {
         'success'
       );
 
+      try {
+        localStorage.setItem(ADMIN_KEY_STORAGE_KEY, adminKey);
+      } catch (_error) {
+        // ignore
+      }
+
       lastSimulationResult = result;
       renderSimulationOutput();
       renderTeamSummaryOutput();
@@ -712,6 +718,18 @@ document.addEventListener('DOMContentLoaded', () => {
         setConnectStatus(error.message || 'Connection failed.');
         setStatus('Not connected.', 'error');
       }
+    });
+  }
+
+  const initialAdminKey = getAdminKey();
+  if (initialAdminKey) {
+    setConnectStatus('Checking saved admin access...');
+    void verifyConnection().then(() => {
+      setConnectStatus('Connected.');
+      setStatus('Ready to simulate.', 'success');
+    }).catch((error) => {
+      setConnectStatus(error && error.message ? error.message : 'Connection failed.');
+      setStatus('Not connected.', 'error');
     });
   }
 

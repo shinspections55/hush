@@ -11,6 +11,22 @@ window.initializeLobby = function initializeLobby(opts){
   const DEFAULT_DRAFT_BENCH = 5;
   const DEFAULT_BENCH_CUT_TARGET = 5;
   const DEFAULT_ROUND_TIMER_MINUTES = 10;
+  const DEFAULT_AJ_DRAFT_MODE = true;
+  let HUSH_NETWORK_PROFILE = 'high-latency';
+  try {
+    const storedProfile = String(localStorage.getItem('hushNetworkProfile') || '').trim().toLowerCase();
+    if (storedProfile) HUSH_NETWORK_PROFILE = storedProfile;
+  } catch (_error) {
+    HUSH_NETWORK_PROFILE = 'high-latency';
+  }
+  const USE_HIGH_LATENCY_PROFILE = HUSH_NETWORK_PROFILE === 'high-latency' || HUSH_NETWORK_PROFILE === 'mobile';
+  const LOBBY_HEARTBEAT_INTERVAL_MS = USE_HIGH_LATENCY_PROFILE ? 12000 : 10000;
+  const LOBBY_HEARTBEAT_ACK_TIMEOUT_MS = USE_HIGH_LATENCY_PROFILE ? 6000 : 5000;
+  const LOBBY_HEARTBEAT_MISS_THRESHOLD = USE_HIGH_LATENCY_PROFILE ? 4 : 3;
+  const START_DRAFT_RETRY_BASE_MS = USE_HIGH_LATENCY_PROFILE ? 650 : 500;
+  const START_DRAFT_RETRY_MAX_MS = USE_HIGH_LATENCY_PROFILE ? 10000 : 8000;
+  const START_DRAFT_ACK_TIMEOUT_MS = USE_HIGH_LATENCY_PROFILE ? 9000 : 7000;
+  const START_DRAFT_MAX_RETRIES = USE_HIGH_LATENCY_PROFILE ? 8 : 6;
   const DEFAULT_ROSTER_SETTINGS = { QB: 1, WR: 2, RB: 2, TE: 1, FLEX: 1, SPFLEX: 0, K: 1, DEF: 1, BN: DEFAULT_DRAFT_BENCH };
   const DEFAULT_START_BUDGET = 200;
 
@@ -138,6 +154,58 @@ window.initializeLobby = function initializeLobby(opts){
     DEF: document.getElementById('rosterDEF'),
     BN: document.getElementById('rosterBN')
   };
+
+  function updateLobbyConnectionIndicator(state = 'connected', detailText = '') {
+    const indicatorId = 'lobby-connection-indicator';
+    let indicator = document.getElementById(indicatorId);
+    if (!indicator) {
+      indicator = document.createElement('span');
+      indicator.id = indicatorId;
+      indicator.style.display = 'inline-flex';
+      indicator.style.alignItems = 'center';
+      indicator.style.justifyContent = 'center';
+      indicator.style.width = '10px';
+      indicator.style.height = '10px';
+      indicator.style.borderRadius = '999px';
+      indicator.style.border = '1px solid rgba(255,255,255,0.45)';
+      indicator.style.marginLeft = '8px';
+      indicator.style.verticalAlign = 'middle';
+      indicator.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.12)';
+      indicator.setAttribute('role', 'status');
+      indicator.setAttribute('aria-live', 'polite');
+      if (hostDisplay && hostDisplay.parentNode) {
+        hostDisplay.appendChild(indicator);
+      }
+    }
+
+    const normalized = String(state || '').trim().toLowerCase();
+    let fill = '#16a34a';
+    let glow = 'rgba(22,163,74,0.62)';
+    let label = detailText || 'Lobby connection excellent';
+
+    if (normalized === 'good') {
+      fill = '#22c55e';
+      glow = 'rgba(34,197,94,0.55)';
+      label = detailText || 'Lobby connection good';
+    } else if (normalized === 'weak') {
+      fill = '#f59e0b';
+      glow = 'rgba(245,158,11,0.58)';
+      label = detailText || 'Lobby connection weak';
+    } else if (normalized === 'reconnecting') {
+      fill = '#f59e0b';
+      glow = 'rgba(245,158,11,0.58)';
+      label = detailText || 'Lobby reconnecting';
+    } else if (normalized === 'disconnected') {
+      fill = '#ef4444';
+      glow = 'rgba(239,68,68,0.58)';
+      label = detailText || 'Lobby disconnected';
+    }
+
+    indicator.style.background = fill;
+    indicator.style.boxShadow = `0 0 0 1px rgba(0,0,0,0.12), 0 0 8px ${glow}`;
+    indicator.setAttribute('aria-label', label);
+    indicator.title = label;
+  }
   const rosterStepperButtons = Array.from(document.querySelectorAll('.roster-stepper-btn'));
   const startDraftBtn = document.getElementById('startDraftBtn');
   const hostBanner = document.getElementById('hostBanner');
@@ -507,6 +575,14 @@ window.initializeLobby = function initializeLobby(opts){
       localStorage.setItem('drafts', JSON.stringify(drafts));
       try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
     }
+    if (typeof drafts[code].ajDraftMode !== 'boolean') {
+      drafts[code].ajDraftMode = DEFAULT_AJ_DRAFT_MODE;
+      if (drafts[code].ajDraftMode && (!Array.isArray(drafts[code].ajRoundOrder) || drafts[code].ajRoundOrder.length !== 10)) {
+        drafts[code].ajRoundOrder = buildAjRoundOrder();
+      }
+      localStorage.setItem('drafts', JSON.stringify(drafts));
+      try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
+    }
     let dtype = drafts[code].type || 'silent';
     if (dtype === 'rounds3' && isRounds3UnderConstruction()) {
       dtype = 'silent';
@@ -539,7 +615,9 @@ window.initializeLobby = function initializeLobby(opts){
     const rosterSettings = normalizeRosterSettings(drafts[code].rosterSettings);
     const benchCutTarget = normalizeBenchCutTarget(drafts[code].benchCutTarget, DEFAULT_BENCH_CUT_TARGET);
     const roundTimerMinutes = normalizeRoundTimerMinutes(drafts[code].roundTimerMinutes, DEFAULT_ROUND_TIMER_MINUTES);
-    const ajDraftMode = Boolean(drafts[code].ajDraftMode);
+    const ajDraftMode = typeof drafts[code].ajDraftMode === 'boolean'
+      ? drafts[code].ajDraftMode
+      : DEFAULT_AJ_DRAFT_MODE;
     const waiverMode = normalizeWaiverMode(drafts[code].waiverMode, 'off');
     const hadSameRoster = JSON.stringify(drafts[code].rosterSettings || {}) === JSON.stringify(rosterSettings);
     if (!hadSameRoster) {
@@ -855,12 +933,73 @@ window.initializeLobby = function initializeLobby(opts){
       socket = io({
         reconnection: true,
         reconnectionAttempts: Infinity,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
+        randomizationFactor: 0.5,
+        reconnectionDelay: 500,
+        reconnectionDelayMax: 8000,
         timeout: 20000,
-        transports: ['polling', 'websocket']
+        upgrade: true,
+        rememberUpgrade: true,
+        transports: ['websocket', 'polling']
       }); 
       console.log('[lobby] Socket.IO connecting...', user);
+
+      let lobbyHeartbeatTimer = null;
+      let lobbyHeartbeatInFlight = false;
+      let lobbyMissedHeartbeats = 0;
+
+      const clearLobbyHeartbeat = () => {
+        if (lobbyHeartbeatTimer) {
+          clearInterval(lobbyHeartbeatTimer);
+          lobbyHeartbeatTimer = null;
+        }
+      };
+
+      const classifyLobbyQuality = (rttMs) => {
+        if (!Number.isFinite(rttMs)) return { key: 'good', label: 'Good' };
+        if (rttMs <= 220) return { key: 'connected', label: 'Excellent' };
+        if (rttMs <= 700) return { key: 'good', label: 'Good' };
+        return { key: 'weak', label: 'Weak' };
+      };
+
+      const sendLobbyHeartbeat = () => {
+        if (!socket || !socket.connected || lobbyHeartbeatInFlight) return;
+        lobbyHeartbeatInFlight = true;
+        const startedAt = Date.now();
+        let settled = false;
+
+        const timeoutId = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          lobbyHeartbeatInFlight = false;
+          lobbyMissedHeartbeats += 1;
+          if (lobbyMissedHeartbeats >= LOBBY_HEARTBEAT_MISS_THRESHOLD) {
+            updateLobbyConnectionIndicator('reconnecting', 'Lobby connection weak - reconnecting...');
+            try { socket.connect(); } catch (_e) {}
+          }
+        }, LOBBY_HEARTBEAT_ACK_TIMEOUT_MS);
+
+        socket.emit('hushHeartbeat', { clientTs: startedAt }, (response) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          lobbyHeartbeatInFlight = false;
+          if (!response || response.ok === false) {
+            lobbyMissedHeartbeats += 1;
+            return;
+          }
+
+          lobbyMissedHeartbeats = 0;
+          const rtt = Math.max(0, Date.now() - startedAt);
+          const quality = classifyLobbyQuality(rtt);
+          updateLobbyConnectionIndicator(quality.key, `Lobby connection ${quality.label} (${rtt}ms)`);
+        });
+      };
+
+      const startLobbyHeartbeat = () => {
+        clearLobbyHeartbeat();
+        sendLobbyHeartbeat();
+        lobbyHeartbeatTimer = setInterval(sendLobbyHeartbeat, LOBBY_HEARTBEAT_INTERVAL_MS);
+      };
 
       const syncHostWaiverModeToServerIfMissing = (serverDraft) => {
         try {
@@ -888,6 +1027,9 @@ window.initializeLobby = function initializeLobby(opts){
       
       // Wait for connection before joining room
       socket.on('connect', () => {
+        lobbyMissedHeartbeats = 0;
+        updateLobbyConnectionIndicator('good', 'Lobby connected');
+        startLobbyHeartbeat();
         console.log('[lobby] Socket connected for user:', user, 'joining room:', code);
         socket.emit('joinDraftRoom', code, user);
         socket.emit('getDraftState', code, (response) => {
@@ -906,6 +1048,7 @@ window.initializeLobby = function initializeLobby(opts){
 
       socket.io.on('reconnect_attempt', () => {
         console.log('[lobby] Reconnect attempt...');
+        updateLobbyConnectionIndicator('reconnecting', 'Lobby reconnecting...');
       });
 
       socket.io.on('reconnect', () => {
@@ -925,6 +1068,47 @@ window.initializeLobby = function initializeLobby(opts){
 
       socket.io.on('reconnect_error', () => {
         console.warn('[lobby] Reconnect failed, retrying...');
+        updateLobbyConnectionIndicator('reconnecting', 'Reconnect failed - retrying...');
+      });
+
+      socket.on('disconnect', (reason) => {
+        clearLobbyHeartbeat();
+        lobbyHeartbeatInFlight = false;
+        updateLobbyConnectionIndicator('reconnecting', `Lobby disconnected (${reason || 'network'}) - reconnecting...`);
+      });
+
+      socket.on('memberConnectionState', (payload) => {
+        if (!payload || !payload.username) return;
+        const state = String(payload.state || '').trim().toLowerCase();
+        if (state === 'reconnecting') {
+          console.log(`[lobby] ${payload.username} reconnecting (${Math.floor(Number(payload.graceMsRemaining || 0) / 1000)}s grace)`);
+        }
+      });
+
+      socket.on('hostConnectionState', (payload) => {
+        if (!payload) return;
+        const state = String(payload.state || '').trim().toLowerCase();
+        if (state === 'reconnecting') {
+          const graceSeconds = Math.max(0, Math.floor(Number(payload.graceMsRemaining || 0) / 1000));
+          console.warn(`[lobby] Host reconnecting (${graceSeconds}s grace)`);
+          let localDraft = null;
+          try {
+            const draftsRaw = localStorage.getItem('drafts');
+            const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
+            localDraft = drafts && drafts[code] ? drafts[code] : null;
+          } catch (_error) {
+            localDraft = null;
+          }
+          if (!isCurrentUserHost(localDraft)) {
+            updateLobbyConnectionIndicator('reconnecting', `Host reconnecting (${graceSeconds}s grace)`);
+          }
+          return;
+        }
+
+        if (state === 'connected') {
+          console.log('[lobby] Host reconnected');
+          updateLobbyConnectionIndicator('good', 'Lobby connected');
+        }
       });
       
       socket.on('draftUpdate', (serverDraft) => { 
@@ -1356,19 +1540,54 @@ window.initializeLobby = function initializeLobby(opts){
       
       // Get selected draft type from radio buttons
       const selectedType = Array.from(draftTypeRadios).find(r => r.checked)?.value || 'silent';
+
+      const startDraftRequestId = `startdraft:${code}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+
+      const emitStartDraftWithRetry = (attempt = 0) => {
+        if (!socket) {
+          return;
+        }
+        if (attempt > START_DRAFT_MAX_RETRIES) {
+          console.warn('[lobby] startDraft retries exhausted');
+          return;
+        }
+        if (!socket.connected) {
+          const waitMs = Math.min(START_DRAFT_RETRY_MAX_MS, START_DRAFT_RETRY_BASE_MS * Math.pow(2, Math.max(0, attempt)));
+          setTimeout(() => emitStartDraftWithRetry(attempt + 1), waitMs);
+          return;
+        }
+
+        console.log('[lobby] emitting startDraft with timer:', selectedRoundTimerMinutes, 'attempt=', attempt);
+        let settled = false;
+        const timeoutId = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          const waitMs = Math.min(START_DRAFT_RETRY_MAX_MS, START_DRAFT_RETRY_BASE_MS * Math.pow(2, Math.max(0, attempt)));
+          setTimeout(() => emitStartDraftWithRetry(attempt + 1), waitMs);
+        }, START_DRAFT_ACK_TIMEOUT_MS);
+
+        socket.emit('startDraft', code, selectedType, selectedRoundTimerMinutes, { requestId: startDraftRequestId }, (resp) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          if (resp && resp.ok) {
+            console.log('Draft start broadcasted to all members');
+            return;
+          }
+
+          const retryable = resp && (resp.reason === 'host_reconnecting' || resp.reason === 'server_busy');
+          if (retryable && attempt < START_DRAFT_MAX_RETRIES) {
+            const waitMs = Math.min(START_DRAFT_RETRY_MAX_MS, START_DRAFT_RETRY_BASE_MS * Math.pow(2, Math.max(0, attempt)));
+            setTimeout(() => emitStartDraftWithRetry(attempt + 1), waitMs);
+          }
+        });
+      };
       
       // Show countdown banner immediately for host
       showCountdownBanner(selectedType);
       
       // Notify server to start draft for all other members
-      if (socket) {
-        console.log('[lobby] emitting startDraft with timer:', selectedRoundTimerMinutes);
-        socket.emit('startDraft', code, selectedType, selectedRoundTimerMinutes, (resp) => {
-          if (resp && resp.ok) {
-            console.log('Draft start broadcasted to all members');
-          }
-        });
-      }
+      emitStartDraftWithRetry(0);
     });
   }
 

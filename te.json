@@ -5,9 +5,9 @@
         "position": "TE",
         "team": "LV",
         "avgValue": 26,
-        "draftChance": 99,
+        "draftChance": 0,
         "tier": "TE Tier 1",
-        "img": "image/te1.JPG"
+        "byeWeek": 13
     },
     {
         "TErank": "#2",
@@ -15,9 +15,9 @@
         "position": "TE",
         "team": "ARI",
         "avgValue": 26,
-        "draftChance": 99,
+        "draftChance": 0,
         "tier": "TE Tier 1",
-        "img": "image/te3.JPG"
+        "byeWeek": 8
     },
     {
         "TErank": "#3",
@@ -25,9 +25,9 @@
         "position": "TE",
         "team": "CHI",
         "avgValue": 17,
-        "draftChance": 97,
-        "tier": "TE Tier 2",
-        "img": "image/te1.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 5
     },
     {
         "TErank": "#4",
@@ -35,79 +35,79 @@
         "position": "TE",
         "team": "IND",
         "avgValue": 13,
-        "draftChance": 96,
-        "tier": "TE Tier 2",
-        "img": "image/te2.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 11
     },
     {
         "TErank": "#5",
         "name": "Harold Fannin Jr.",
         "position": "TE",
         "team": "CLE",
-        "avgValue": 10,
-        "draftChance": 88,
-        "tier": "TE Tier 3",
-        "img": "image/te3.JPG"
+        "avgValue": 6,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 9
     },
     {
         "TErank": "#6",
-        "name": "Kyle Pitts Sr.",
-        "position": "TE",
-        "team": "ATL",
-        "avgValue": 7,
-        "draftChance": 79,
-        "tier": "TE Tier 3",
-        "img": "image/te3.JPG"
-    },
-    {
-        "TErank": "#7",
-        "name": "Sam LaPorta",
-        "position": "TE",
-        "team": "DET",
-        "avgValue": 6,
-        "draftChance": 79,
-        "tier": "TE Tier 3",
-        "img": "image/te3.JPG"
-    },
-    {
-        "TErank": "#8",
         "name": "Tucker Kraft",
         "position": "TE",
         "team": "GB",
-        "avgValue": 5,
-        "draftChance": 77,
-        "tier": "TE Tier 3",
-        "img": "image/te1.JPG"
+        "avgValue": 6,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 5
+    },
+    {
+        "TErank": "#7",
+        "name": "Kyle Pitts Sr.",
+        "position": "TE",
+        "team": "ATL",
+        "avgValue": 4,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 5
+    },
+    {
+        "TErank": "#8",
+        "name": "Sam LaPorta",
+        "position": "TE",
+        "team": "DET",
+        "avgValue": 4,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 6
     },
     {
         "TErank": "#9",
         "name": "Dallas Goedert",
         "position": "TE",
         "team": "PHI",
-        "avgValue": 4,
-        "draftChance": 75,
-        "tier": "TE Tier 4",
-        "img": "image/te3.JPG"
+        "avgValue": 3,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 9
     },
     {
         "TErank": "#10",
         "name": "Travis Kelce",
         "position": "TE",
         "team": "KC",
-        "avgValue": 4,
-        "draftChance": 86,
-        "tier": "TE Tier 4",
-        "img": "image/te3.JPG"
+        "avgValue": 2,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 5
     },
     {
         "TErank": "#11",
         "name": "George Kittle",
         "position": "TE",
         "team": "SF",
-        "avgValue": 3,
-        "draftChance": 81,
-        "tier": "TE Tier 4",
-        "img": "image/te1.JPG"
+        "avgValue": 2,
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 8
     },
     {
         "TErank": "#12",
@@ -115,9 +115,9 @@
         "position": "TE",
         "team": "DAL",
         "avgValue": 2,
-        "draftChance": 75,
-        "tier": "TE Tier 5",
-        "img": "image/te2.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 10
     },
     {
         "TErank": "#13",
@@ -125,9 +125,9 @@
         "position": "TE",
         "team": "MIN",
         "avgValue": 1,
-        "draftChance": 62,
-        "tier": "TE Tier 5",
-        "img": "image/te2.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 6
     },
     {
         "TErank": "#14",
@@ -135,9 +135,9 @@
         "position": "TE",
         "team": "BAL",
         "avgValue": 1,
-        "draftChance": 62,
-        "tier": "TE Tier 5",
-        "img": "image/te1.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 7
     },
     {
         "TErank": "#15",
@@ -145,9 +145,9 @@
         "position": "TE",
         "team": "NYG",
         "avgValue": 1,
-        "draftChance": 75,
-        "tier": "TE Tier 5",
-        "img": "image/te2.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 8
     },
     {
         "TErank": "#16",
@@ -155,9 +155,9 @@
         "position": "TE",
         "team": "LAC",
         "avgValue": 1,
-        "draftChance": 75,
-        "tier": "TE Tier 5",
-        "img": "image/te1.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 7
     },
     {
         "TErank": "#17",
@@ -165,9 +165,9 @@
         "position": "TE",
         "team": "NO",
         "avgValue": 1,
-        "draftChance": 62,
-        "tier": "TE Tier 5",
-        "img": "image/te2.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 8
     },
     {
         "TErank": "#18",
@@ -175,9 +175,9 @@
         "position": "TE",
         "team": "BUF",
         "avgValue": 1,
-        "draftChance": 72,
-        "tier": "TE Tier 5",
-        "img": "image/te2.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 7
     },
     {
         "TErank": "#19",
@@ -185,9 +185,9 @@
         "position": "TE",
         "team": "JAC",
         "avgValue": 0,
-        "draftChance": 55,
-        "tier": "TE Tier 6",
-        "img": "image/te3.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 7
     },
     {
         "TErank": "#20",
@@ -195,9 +195,9 @@
         "position": "TE",
         "team": "NYJ",
         "avgValue": 0,
-        "draftChance": 55,
-        "tier": "TE Tier 6",
-        "img": "image/te1.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 9
     },
     {
         "TErank": "#21",
@@ -205,9 +205,9 @@
         "position": "TE",
         "team": "NE",
         "avgValue": 0,
-        "draftChance": 55,
-        "tier": "TE Tier 6",
-        "img": "image/te1.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 11
     },
     {
         "TErank": "#22",
@@ -215,9 +215,9 @@
         "position": "TE",
         "team": "PIT",
         "avgValue": 0,
-        "draftChance": 45,
-        "tier": "TE Tier 6",
-        "img": "image/te1.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 5
     },
     {
         "TErank": "#23",
@@ -225,9 +225,9 @@
         "position": "TE",
         "team": "HOU",
         "avgValue": 0,
-        "draftChance": 45,
-        "tier": "TE Tier 6",
-        "img": "image/te1.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 6
     },
     {
         "TErank": "#24",
@@ -235,9 +235,9 @@
         "position": "TE",
         "team": "TEN",
         "avgValue": 0,
-        "draftChance": 45,
-        "tier": "TE Tier 7",
-        "img": "image/te1.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 9
     },
     {
         "TErank": "#25",
@@ -245,9 +245,9 @@
         "position": "TE",
         "team": "SF",
         "avgValue": 0,
-        "draftChance": 45,
-        "tier": "TE Tier 7",
-        "img": "image/te1.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 8
     },
     {
         "TErank": "#26",
@@ -255,9 +255,9 @@
         "position": "TE",
         "team": "WAS",
         "avgValue": 0,
-        "draftChance": 45,
-        "tier": "TE Tier 7",
-        "img": "image/te1.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 7
     },
     {
         "TErank": "#27",
@@ -265,9 +265,9 @@
         "position": "TE",
         "team": "SEA",
         "avgValue": 0,
-        "draftChance": 45,
-        "tier": "TE Tier 7",
-        "img": "image/te1.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 8
     },
     {
         "TErank": "#28",
@@ -275,9 +275,9 @@
         "position": "TE",
         "team": "CIN",
         "avgValue": 0,
-        "draftChance": 40,
-        "tier": "TE Tier 7",
-        "img": "image/te1.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 6
     },
     {
         "TErank": "#29",
@@ -285,9 +285,9 @@
         "position": "TE",
         "team": "MIA",
         "avgValue": 0,
-        "draftChance": 40,
-        "tier": "TE Tier 7",
-        "img": "image/te1.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 6
     },
     {
         "TErank": "#30",
@@ -295,8 +295,8 @@
         "position": "TE",
         "team": "LAC",
         "avgValue": 0,
-        "draftChance": 30,
-        "tier": "TE Tier 7",
-        "img": "image/te2.JPG"
+        "draftChance": 0,
+        "tier": "TE Tier 1",
+        "byeWeek": 7
     }
 ]

@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const ADMIN_KEY_STORAGE_KEY = 'adminApiKey';
   const adminKeyInput = document.getElementById('adminKey');
   const statusForm = document.getElementById('statusForm');
   const testEmailForm = document.getElementById('testEmailForm');
@@ -9,8 +10,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (!adminKeyInput || !statusForm || !testEmailForm || !testSmsForm) return;
 
+  function getStoredAdminKey() {
+    try {
+      return String(localStorage.getItem(ADMIN_KEY_STORAGE_KEY) || '').trim();
+    } catch (_error) {
+      return '';
+    }
+  }
+
+  function persistAdminKey(value) {
+    const key = String(value || '').trim();
+    if (!key) return;
+    try {
+      localStorage.setItem(ADMIN_KEY_STORAGE_KEY, key);
+    } catch (_error) {
+      // ignore
+    }
+  }
+
+  function getAdminKey() {
+    const typed = String(adminKeyInput.value || '').trim();
+    return typed || getStoredAdminKey();
+  }
+
   function getHeaders() {
-    const key = String(adminKeyInput.value || '').trim();
+    const key = getAdminKey();
     return {
       'Content-Type': 'application/json',
       'x-admin-key': key
@@ -25,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch('/api/admin/delivery/status', {
         method: 'GET',
         headers: {
-          'x-admin-key': String(adminKeyInput.value || '').trim()
+          'x-admin-key': getAdminKey()
         }
       });
       const payload = await response.json().catch(() => ({}));
@@ -35,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      persistAdminKey(getAdminKey());
       statusText.textContent = 'Status loaded.';
       statusJson.textContent = JSON.stringify(payload, null, 2);
     } catch (error) {
@@ -68,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      persistAdminKey(getAdminKey());
       sendResult.textContent = payload.simulated
         ? 'Test email simulated (provider not configured).'
         : 'Test email sent.';
@@ -98,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      persistAdminKey(getAdminKey());
       sendResult.textContent = payload.simulated
         ? 'Test SMS simulated (provider not configured).'
         : 'Test SMS sent.';
@@ -108,4 +135,10 @@ document.addEventListener('DOMContentLoaded', () => {
       sendResult.textContent = 'Network error while sending test SMS.';
     }
   });
+
+  const stored = getStoredAdminKey();
+  if (stored && !String(adminKeyInput.value || '').trim()) {
+    adminKeyInput.value = stored;
+    void checkStatus();
+  }
 });

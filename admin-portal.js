@@ -66,21 +66,57 @@ document.addEventListener('DOMContentLoaded', () => {
   const cpuLogicSourceMeta = document.getElementById('cpuLogicSourceMeta');
 
   function getStoredAdminKey() {
-    return '';
+    try {
+      return String(localStorage.getItem(ADMIN_KEY_STORAGE_KEY) || '').trim();
+    } catch (_error) {
+      return '';
+    }
   }
 
   function getAdminKey() {
     const typedKey = String(keyInput?.value || '').trim();
-    return typedKey;
+    return typedKey || getStoredAdminKey();
   }
 
   function restoreAdminKey() {
+    const storedKey = getStoredAdminKey();
+    if (keyInput && storedKey && !String(keyInput.value || '').trim()) {
+      keyInput.value = storedKey;
+    }
+  }
+
+  function clearStoredAdminKey() {
     try {
       localStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
     } catch (_error) {
       // ignore
     }
     if (keyInput) keyInput.value = '';
+  }
+
+  function parseRankingsPositionFromHash() {
+    const rawHash = String(window.location.hash || '').replace(/^#/, '').trim();
+    if (!rawHash) return null;
+    const upperHash = rawHash.toUpperCase();
+    if (upperHash.startsWith('RANKINGS-')) {
+      const requested = upperHash.slice('RANKINGS-'.length);
+      if (BOARD_POSITIONS.includes(requested)) return requested;
+      return null;
+    }
+    if (BOARD_POSITIONS.includes(upperHash)) return upperHash;
+    return null;
+  }
+
+  function updateRankingsHash(position) {
+    const safePosition = String(position || '').trim().toUpperCase();
+    if (!BOARD_POSITIONS.includes(safePosition)) return;
+    const nextHash = `#rankings-${safePosition}`;
+    if (window.location.hash === nextHash) return;
+    try {
+      window.history.replaceState(null, '', nextHash);
+    } catch (_error) {
+      window.location.hash = nextHash;
+    }
   }
 
   // Only load rankings elements if on the rankings manager page
@@ -104,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const jsonSaveBannerText = isRankingsManagerPage ? document.getElementById('jsonSaveBannerText') : null;
   const dismissJsonSaveBannerBtn = isRankingsManagerPage ? document.getElementById('dismissJsonSaveBannerBtn') : null;
 
-  let activePosition = 'QB';
+  let activePosition = parseRankingsPositionFromHash() || 'QB';
   let showingRawOverview = false;
   let positionPlayers = createEmptyBoards();
   let positionMeta = createEmptyBoards();
@@ -600,11 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       const message = String(error && error.message || 'Unauthorized');
       if (/unauthorized|401/i.test(message)) {
-        try {
-          localStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
-        } catch (_storageError) {
-          // ignore
-        }
+        clearStoredAdminKey();
         throw new Error('Invalid admin key.');
       }
       throw error;
@@ -2743,6 +2775,7 @@ document.addEventListener('DOMContentLoaded', () => {
           : [];
         topMeta = defaultPayload;
         activePosition = 'TOP';
+        updateRankingsHash(activePosition);
         updateRankingsMeta(topMeta, topPlayers.length);
         clearUndoHistory();
         setLayoutDirty(false);
@@ -2759,6 +2792,7 @@ document.addEventListener('DOMContentLoaded', () => {
         : [];
       positionMeta[position] = payload;
       activePosition = position;
+      updateRankingsHash(activePosition);
       updateRankingsMeta(payload, positionPlayers[position].length);
       clearUndoHistory();
       setLayoutDirty(false);
@@ -2776,6 +2810,14 @@ document.addEventListener('DOMContentLoaded', () => {
       setConnectStatus('');
       try {
         await validateAdminKey();
+        const approvedKey = getAdminKey();
+        if (approvedKey) {
+          try {
+            localStorage.setItem(ADMIN_KEY_STORAGE_KEY, approvedKey);
+          } catch (_error) {
+            // ignore
+          }
+        }
       } catch (_e) {
         setConnectStatus(_e && _e.message ? _e.message : 'Invalid admin key.');
         return;
@@ -3114,6 +3156,20 @@ document.addEventListener('DOMContentLoaded', () => {
     setLayoutDirty(false);
     applyTierInsertMode();
     updatePositionTabs();
+
+    restoreAdminKey();
+    const managerAdminKey = getAdminKey();
+    if (!managerAdminKey) {
+      setActionStatus('Admin key not found. Enter it once on Admin Portal, then return here.');
+    } else {
+      setActionStatus('Checking saved admin access...');
+      void validateAdminKey().then(() => {
+        setActionStatus('');
+        void loadPositionRankings(activePosition);
+      }).catch((error) => {
+        setActionStatus(error && error.message ? error.message : 'Invalid admin key.');
+      });
+    }
   } // End of isRankingsManagerPage
 
   // Portal page initialization
@@ -3128,9 +3184,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    setConnectStatus('Checking saved admin access...');
+
     void validateAdminKey().then(() => {
       setConnectApproved(true);
-      setConnectStatus('');
+      setConnectStatus('Connected.');
       refreshCpuModelSelect('');
       renderCpuTuningLab();
       updateCpuLogicSourceMeta();

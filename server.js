@@ -61,6 +61,7 @@ const HUSH_GIF_BACKUP_DIR = path.join(HUSH_GIF_DATA_DIR, 'backups');
 const HUSH_GIF_BACKUP_PREFIX = 'hush-gifs.backup';
 const HUSH_GIF_BACKUP_MAX_FILES = Math.max(10, Number.parseInt(String(process.env.HUSH_GIF_BACKUP_MAX_FILES || '200'), 10) || 200);
 const HUSH_GIF_SETTINGS_FILE = path.join(HUSH_GIF_DATA_DIR, 'hush-gif-settings.json');
+const HUSH_ROUND_RESULTS_DIR = path.join(HUSH_GIF_DATA_DIR, 'round-results');
 const HUSH_GIF_MAX_UNIQUE_IDS_DEFAULT = Math.max(1, Number.parseInt(String(process.env.HUSH_GIF_MAX_UNIQUE_IDS || '150'), 10) || 150);
 let HUSH_GIF_MAX_UNIQUE_IDS = HUSH_GIF_MAX_UNIQUE_IDS_DEFAULT;
 const HUSH_GIF_DEFAULT_LIBRARY = Object.freeze({
@@ -637,62 +638,18 @@ function reindexPositionPlayers(position, players) {
   }));
 }
 
-async function readPositionRankingsData(position) {
-  const normalizedPos = normalizePosition(position);
-  const meta = getPositionFileMeta(normalizedPos);
-  if (!meta) {
-    throw new Error('Invalid position');
-  }
-
-  const filePath = path.join(__dirname, 'players file', meta.fileName);
-
-  try {
-    const stat = await fs.stat(filePath);
-    const raw = await fs.readFile(filePath, 'utf8');
-    const parsed = JSON.parse(raw);
-    const normalizedPlayers = Array.isArray(parsed)
-      ? parsed.map((player, index) => normalizePositionFilePlayer(player, normalizedPos, index)).filter(Boolean)
-      : [];
-
-    const players = reindexPositionPlayers(normalizedPos, normalizedPlayers);
-
-    return {
-      position: normalizedPos,
-      sourceFile: meta.fileName,
-      filePath,
-      lastUpdatedAt: stat.mtimeMs,
-      players
-    };
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return {
-        position: normalizedPos,
-        sourceFile: meta.fileName,
-        filePath,
-        lastUpdatedAt: null,
-        players: []
-      };
-    }
-    throw error;
-  }
+function getPositionFilePaths(meta) {
+  const legacyPath = path.join(__dirname, 'players file', meta.fileName);
+  const rootPath = path.join(__dirname, meta.fileName);
+  return {
+    legacyPath,
+    rootPath,
+    candidates: [legacyPath, rootPath]
+  };
 }
 
-async function writePositionRankingsData(position, players) {
-  const normalizedPos = normalizePosition(position);
-  const meta = getPositionFileMeta(normalizedPos);
-  if (!meta) {
-    throw new Error('Invalid position');
-  }
-
-  const filePath = path.join(__dirname, 'players file', meta.fileName);
-  const normalizedPlayers = reindexPositionPlayers(
-    normalizedPos,
-    (Array.isArray(players) ? players : [])
-      .map((player, index) => normalizePositionFilePlayer({ ...player, position: normalizedPos }, normalizedPos, index))
-      .filter(Boolean)
-  );
-
-  const serialized = normalizedPlayers.map((player, idx) => {
+function serializePositionPlayersForFile(normalizedPos, meta, normalizedPlayers) {
+  return normalizedPlayers.map((player, idx) => {
     const output = {
       [meta.rankField]: formatPositionRankValue(normalizedPos, idx + 1),
       name: player.name,
@@ -717,7 +674,111 @@ async function writePositionRankingsData(position, players) {
 
     return output;
   });
+}
 
+async function bootstrapPositionFileFromDefaultRankings(normalizedPos, meta, preferredFilePath) {
+  const defaultRankings = await readDefaultRankingsData();
+  const fallbackPlayers = reindexPositionPlayers(
+    normalizedPos,
+    (defaultRankings.players || [])
+      .filter((player) => normalizePosition(player && player.position) === normalizedPos)
+      .map((player, index) => normalizePositionFilePlayer({
+        ...player,
+        position: normalizedPos,
+        [meta.rankField]: formatPositionRankValue(normalizedPos, index + 1),
+        draftChance: toNumber(player && player.draftChance, 0)
+      }, normalizedPos, index))
+      .filter(Boolean)
+  );
+
+  if (!fallbackPlayers.length) {
+    return {
+      position: normalizedPos,
+      sourceFile: meta.fileName,
+      filePath: preferredFilePath,
+      lastUpdatedAt: null,
+      players: []
+    };
+  }
+
+  const serialized = serializePositionPlayersForFile(normalizedPos, meta, fallbackPlayers);
+  await fs.mkdir(path.dirname(preferredFilePath), { recursive: true });
+  await fs.writeFile(preferredFilePath, JSON.stringify(serialized, null, 4), 'utf8');
+  const stat = await fs.stat(preferredFilePath);
+
+  console.log(`[rankings] Bootstrapped ${normalizedPos} from ${defaultRankings.sourceFile} into ${path.relative(__dirname, preferredFilePath)}`);
+
+  return {
+    position: normalizedPos,
+    sourceFile: path.basename(preferredFilePath),
+    filePath: preferredFilePath,
+    lastUpdatedAt: stat.mtimeMs,
+    players: fallbackPlayers
+  };
+}
+
+async function readPositionRankingsData(position) {
+  const normalizedPos = normalizePosition(position);
+  const meta = getPositionFileMeta(normalizedPos);
+  if (!meta) {
+    throw new Error('Invalid position');
+  }
+
+  const { candidates, rootPath } = getPositionFilePaths(meta);
+
+  for (const filePath of candidates) {
+    try {
+      const stat = await fs.stat(filePath);
+      const raw = await fs.readFile(filePath, 'utf8');
+      const parsed = JSON.parse(raw);
+      const normalizedPlayers = Array.isArray(parsed)
+        ? parsed.map((player, index) => normalizePositionFilePlayer(player, normalizedPos, index)).filter(Boolean)
+        : [];
+
+      const players = reindexPositionPlayers(normalizedPos, normalizedPlayers);
+      if (players.length > 0) {
+        return {
+          position: normalizedPos,
+          sourceFile: path.basename(filePath),
+          filePath,
+          lastUpdatedAt: stat.mtimeMs,
+          players
+        };
+      }
+    } catch (error) {
+      if (error.code === 'ENOENT') continue;
+      throw error;
+    }
+  }
+
+  return bootstrapPositionFileFromDefaultRankings(normalizedPos, meta, rootPath);
+}
+
+async function writePositionRankingsData(position, players) {
+  const normalizedPos = normalizePosition(position);
+  const meta = getPositionFileMeta(normalizedPos);
+  if (!meta) {
+    throw new Error('Invalid position');
+  }
+
+  const { legacyPath, rootPath } = getPositionFilePaths(meta);
+  let filePath = rootPath;
+  try {
+    await fs.stat(path.dirname(legacyPath));
+    filePath = legacyPath;
+  } catch (_error) {
+    filePath = rootPath;
+  }
+
+  const normalizedPlayers = reindexPositionPlayers(
+    normalizedPos,
+    (Array.isArray(players) ? players : [])
+      .map((player, index) => normalizePositionFilePlayer({ ...player, position: normalizedPos }, normalizedPos, index))
+      .filter(Boolean)
+  );
+
+  const serialized = serializePositionPlayersForFile(normalizedPos, meta, normalizedPlayers);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, JSON.stringify(serialized, null, 4), 'utf8');
   return normalizedPlayers;
 }
@@ -3299,6 +3360,24 @@ app.get('/api/public/cpu-logic-preset', (_req, res) => {
   }
 });
 
+// Public endpoint for My Rankings default board.
+// Uses the same source as the Admin Default Rankings Manager.
+app.get('/api/public/rankings/default', async (_req, res) => {
+  try {
+    const rankingsData = await readDefaultRankingsData();
+    return res.json({
+      ok: true,
+      sourceFile: rankingsData.sourceFile,
+      lastUpdatedAt: rankingsData.lastUpdatedAt,
+      count: Array.isArray(rankingsData.players) ? rankingsData.players.length : 0,
+      players: rankingsData.players
+    });
+  } catch (error) {
+    console.error('[PUBLIC] Default rankings error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to load default rankings' });
+  }
+});
+
 app.get('/api/public/av-trends', async (req, res) => {
   try {
     const limit = Math.min(300, Math.max(1, Number.parseInt(req.query.limit, 10) || 100));
@@ -5168,8 +5247,10 @@ const io = new Server(server, {
     origin: "*",
     methods: ["GET", "POST"]
   },
-  pingInterval: 25000,
-  pingTimeout: 60000,
+  transports: ['websocket', 'polling'],
+  allowUpgrades: true,
+  pingInterval: 15000,
+  pingTimeout: 90000,
   connectionStateRecovery: {
     maxDisconnectionDuration: 1800000,
     skipMiddlewares: true
@@ -5180,6 +5261,35 @@ const io = new Server(server, {
 const drafts = {};
 const pendingLobbyDisconnectTimers = new Map();
 const LOBBY_DISCONNECT_GRACE_MS = Number.parseInt(process.env.LOBBY_DISCONNECT_GRACE_MS || '1800000', 10);
+const RELIABILITY_PROFILE = String(process.env.HUSH_RELIABILITY_PROFILE || 'high-latency').trim().toLowerCase();
+const RELIABILITY_PRESETS = {
+  standard: {
+    heartbeatDriftMs: 45000,
+    hostReconnectFreezeMs: 60000,
+    actionReceiptTtlMs: 600000
+  },
+  'high-latency': {
+    heartbeatDriftMs: 60000,
+    hostReconnectFreezeMs: 75000,
+    actionReceiptTtlMs: 900000
+  }
+};
+const selectedReliabilityPreset = RELIABILITY_PRESETS[RELIABILITY_PROFILE] || RELIABILITY_PRESETS['high-latency'];
+const SOCKET_HEARTBEAT_MAX_DRIFT_MS = Math.max(
+  5000,
+  Number.parseInt(process.env.SOCKET_HEARTBEAT_MAX_DRIFT_MS || String(selectedReliabilityPreset.heartbeatDriftMs), 10)
+    || selectedReliabilityPreset.heartbeatDriftMs
+);
+const HOST_RECONNECT_FREEZE_MS = Math.max(
+  15000,
+  Number.parseInt(process.env.HOST_RECONNECT_FREEZE_MS || String(selectedReliabilityPreset.hostReconnectFreezeMs), 10)
+    || selectedReliabilityPreset.hostReconnectFreezeMs
+);
+const ACTION_RECEIPT_TTL_MS = Math.max(
+  60000,
+  Number.parseInt(process.env.ACTION_RECEIPT_TTL_MS || String(selectedReliabilityPreset.actionReceiptTtlMs), 10)
+    || selectedReliabilityPreset.actionReceiptTtlMs
+);
 const WAIVER_PICK_TIMER_MS = 2 * 60 * 1000;
 const WAIVER_TIMER_TICK_MS = 1000;
 const WAIVER_CPU_ACTION_DELAY_MS = 10 * 1000;
@@ -6812,6 +6922,59 @@ function applyWonRoundResultsToDraftState(draftState, draftCode, roundNumber, re
   return { applied, skipped, removedConflicts };
 }
 
+function normalizeDraftCodeForFile(rawCode) {
+  const cleaned = String(rawCode || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+  return cleaned || 'unknown_draft';
+}
+
+function normalizeRoundNumberForFile(rawRound) {
+  const parsed = Number.parseInt(String(rawRound || ''), 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return parsed;
+}
+
+function getRoundResultSnapshotFilePath(draftCode, roundNumber) {
+  const safeCode = normalizeDraftCodeForFile(draftCode);
+  const safeRound = normalizeRoundNumberForFile(roundNumber);
+  return path.join(HUSH_ROUND_RESULTS_DIR, `${safeCode}.round-${String(safeRound).padStart(2, '0')}.json`);
+}
+
+async function saveRoundResultSnapshot(draftCode, roundNumber, payload = {}) {
+  const safeRound = normalizeRoundNumberForFile(roundNumber);
+  const snapshot = {
+    draftCode: String(draftCode || '').trim(),
+    roundNumber: safeRound,
+    savedAt: Date.now(),
+    emittedAt: Number(payload && payload.emittedAt || Date.now()),
+    results: Array.isArray(payload && payload.results) ? payload.results : [],
+    tiedBids: Array.isArray(payload && payload.tiedBids) ? payload.tiedBids : [],
+    participationStats: payload && payload.participationStats ? payload.participationStats : null,
+    commitSummary: payload && payload.commitSummary ? payload.commitSummary : null
+  };
+
+  const filePath = getRoundResultSnapshotFilePath(draftCode, safeRound);
+  await fs.mkdir(HUSH_ROUND_RESULTS_DIR, { recursive: true });
+  await fs.writeFile(filePath, JSON.stringify(snapshot, null, 2), 'utf8');
+  return snapshot;
+}
+
+async function readRoundResultSnapshot(draftCode, roundNumber) {
+  const safeRound = normalizeRoundNumberForFile(roundNumber);
+  const filePath = getRoundResultSnapshotFilePath(draftCode, safeRound);
+  try {
+    const raw = await fs.readFile(filePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.results)) {
+      return null;
+    }
+    return parsed;
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return null;
+    console.error('[round-results] Failed to read snapshot:', { draftCode, roundNumber: safeRound, error: error && error.message ? error.message : error });
+    return null;
+  }
+}
+
 // ==================== SOCKET.IO HANDLERS ====================
 
 function normalizeServerRoundTimerMinutes(value) {
@@ -7132,6 +7295,129 @@ function normalizeLobbyUserKey(code, username) {
   return `${String(code || '').trim().toLowerCase()}::${String(username || '').trim().toLowerCase()}`;
 }
 
+function ensureDraftActionReceipts(draft) {
+  if (!draft || !draft.draftState) return {};
+  if (!draft.draftState.actionReceipts || typeof draft.draftState.actionReceipts !== 'object') {
+    draft.draftState.actionReceipts = {};
+  }
+  return draft.draftState.actionReceipts;
+}
+
+function cleanupDraftActionReceipts(draft) {
+  const receipts = ensureDraftActionReceipts(draft);
+  const now = Date.now();
+  Object.keys(receipts).forEach((key) => {
+    const entry = receipts[key];
+    const at = Number(entry && entry.at || 0);
+    if (!Number.isFinite(at) || (now - at) > ACTION_RECEIPT_TTL_MS) {
+      delete receipts[key];
+    }
+  });
+}
+
+function getDraftActionReceipt(draft, actionName, requestId) {
+  const safeAction = String(actionName || '').trim();
+  const safeRequestId = String(requestId || '').trim();
+  if (!safeAction || !safeRequestId) return null;
+  cleanupDraftActionReceipts(draft);
+  const receipts = ensureDraftActionReceipts(draft);
+  const key = `${safeAction}::${safeRequestId}`;
+  const entry = receipts[key];
+  if (!entry || typeof entry !== 'object') return null;
+  return entry.response && typeof entry.response === 'object'
+    ? { ...entry.response }
+    : entry.response;
+}
+
+function setDraftActionReceipt(draft, actionName, requestId, responsePayload) {
+  const safeAction = String(actionName || '').trim();
+  const safeRequestId = String(requestId || '').trim();
+  if (!safeAction || !safeRequestId) return;
+  cleanupDraftActionReceipts(draft);
+  const receipts = ensureDraftActionReceipts(draft);
+  const key = `${safeAction}::${safeRequestId}`;
+  receipts[key] = {
+    at: Date.now(),
+    response: responsePayload && typeof responsePayload === 'object'
+      ? { ...responsePayload }
+      : responsePayload
+  };
+}
+
+function ensureHostReconnectState(draft) {
+  if (!draft || typeof draft !== 'object') return null;
+  if (!draft.hostReconnectState || typeof draft.hostReconnectState !== 'object') {
+    draft.hostReconnectState = {
+      reconnecting: false,
+      username: null,
+      until: 0,
+      startedAt: 0
+    };
+  }
+  return draft.hostReconnectState;
+}
+
+function isHostReconnectFreezeActive(draft) {
+  const state = ensureHostReconnectState(draft);
+  if (!state) return false;
+  const until = Number(state.until || 0);
+  if (!state.reconnecting) return false;
+  if (!Number.isFinite(until) || until <= Date.now()) {
+    state.reconnecting = false;
+    state.username = null;
+    state.until = 0;
+    state.startedAt = 0;
+    return false;
+  }
+  return true;
+}
+
+function getHostReconnectFreezeRemainingMs(draft) {
+  const state = ensureHostReconnectState(draft);
+  if (!state) return 0;
+  const until = Number(state.until || 0);
+  if (!Number.isFinite(until)) return 0;
+  return Math.max(0, until - Date.now());
+}
+
+function setHostReconnectState(draftCode, username, reconnecting, freezeMs = HOST_RECONNECT_FREEZE_MS) {
+  const draft = drafts[draftCode];
+  if (!draft) return;
+  const state = ensureHostReconnectState(draft);
+  if (!state) return;
+
+  if (reconnecting) {
+    const safeFreezeMs = Math.max(15000, Number(freezeMs || HOST_RECONNECT_FREEZE_MS));
+    state.reconnecting = true;
+    state.username = String(username || '').trim() || state.username || null;
+    state.startedAt = Date.now();
+    state.until = state.startedAt + safeFreezeMs;
+    const payload = {
+      username: state.username,
+      state: 'reconnecting',
+      graceMsRemaining: safeFreezeMs,
+      at: state.startedAt
+    };
+    io.to(draftCode).emit('hostConnectionState', payload);
+    io.to(`draft_${draftCode}`).emit('hostConnectionState', payload);
+    return;
+  }
+
+  const reconnectingUsername = state.username;
+  state.reconnecting = false;
+  state.username = null;
+  state.until = 0;
+  state.startedAt = 0;
+  const payload = {
+    username: String(username || reconnectingUsername || '').trim() || null,
+    state: 'connected',
+    graceMsRemaining: 0,
+    at: Date.now()
+  };
+  io.to(draftCode).emit('hostConnectionState', payload);
+  io.to(`draft_${draftCode}`).emit('hostConnectionState', payload);
+}
+
 function hasActiveUserSocketInLobby(code, username) {
   const draftCode = String(code || '').trim();
   const normalizedUsername = String(username || '').trim().toLowerCase();
@@ -7160,6 +7446,23 @@ function clearPendingLobbyDisconnect(code, username) {
   if (!pending) return;
   try { clearTimeout(pending); } catch (_) {}
   pendingLobbyDisconnectTimers.delete(key);
+
+  io.to(String(code || '').trim()).emit('memberConnectionState', {
+    username: String(username || '').trim(),
+    state: 'connected',
+    graceMsRemaining: 0,
+    at: Date.now()
+  });
+
+  const draftCode = String(code || '').trim();
+  const draft = drafts[draftCode];
+  if (draft) {
+    const host = String(draft.host || (Array.isArray(draft.members) ? draft.members[0] : '') || '').trim().toLowerCase();
+    const resolvedUsername = String(username || '').trim().toLowerCase();
+    if (host && resolvedUsername && host === resolvedUsername) {
+      setHostReconnectState(draftCode, username, false, 0);
+    }
+  }
 }
 
 function scheduleLobbyDisconnectRemoval(code, username) {
@@ -7171,6 +7474,19 @@ function scheduleLobbyDisconnectRemoval(code, username) {
   clearPendingLobbyDisconnect(draftCode, lobbyUsername);
 
   const delayMs = Number.isFinite(LOBBY_DISCONNECT_GRACE_MS) ? Math.max(15000, LOBBY_DISCONNECT_GRACE_MS) : 1800000;
+  const draft = drafts[draftCode];
+  const currentHost = String(draft && (draft.host || (Array.isArray(draft.members) && draft.members[0])) || '').trim().toLowerCase();
+  if (currentHost && currentHost === lobbyUsername.toLowerCase()) {
+    setHostReconnectState(draftCode, lobbyUsername, true, HOST_RECONNECT_FREEZE_MS);
+  }
+
+  io.to(draftCode).emit('memberConnectionState', {
+    username: lobbyUsername,
+    state: 'reconnecting',
+    graceMsRemaining: delayMs,
+    at: Date.now()
+  });
+
   const timerId = setTimeout(() => {
     pendingLobbyDisconnectTimers.delete(key);
 
@@ -7187,7 +7503,15 @@ function scheduleLobbyDisconnectRemoval(code, username) {
     draft.members = draft.members.filter((member) => String(member || '').trim().toLowerCase() !== normalizedUsername);
     if (wasHost) {
       draft.host = draft.members.length ? draft.members[0] : null;
+      setHostReconnectState(draftCode, lobbyUsername, false, 0);
     }
+
+    io.to(draftCode).emit('memberConnectionState', {
+      username: lobbyUsername,
+      state: 'disconnected',
+      graceMsRemaining: 0,
+      at: Date.now()
+    });
 
     draft.closed = false;
     io.to(draftCode).emit('draftUpdate', draft);
@@ -7198,6 +7522,21 @@ function scheduleLobbyDisconnectRemoval(code, username) {
 
 io.on('connection', (socket) => {
   console.log(`[connection] New socket connected: ${socket.id}`);
+
+  socket.on('hushHeartbeat', (payload, cb) => {
+    const clientTs = Number(payload && payload.clientTs || 0);
+    const now = Date.now();
+    const driftMs = Math.abs(now - clientTs);
+    const ok = Number.isFinite(clientTs) ? driftMs <= SOCKET_HEARTBEAT_MAX_DRIFT_MS : true;
+    if (typeof cb === 'function') {
+      cb({
+        ok,
+        serverTs: now,
+        socketId: socket.id,
+        driftMs
+      });
+    }
+  });
   
   // join room and receive current state
   socket.on('joinDraftRoom', (code, username) => {
@@ -7322,54 +7661,95 @@ io.on('connection', (socket) => {
 
   // Generic state update - still supported but server won't accept member lists blindly
   socket.on('updateDraft', (code, state) => {
+    const draftCode = String(code || '').trim();
+    const draft = drafts[draftCode];
+    if (draft && isHostReconnectFreezeActive(draft)) {
+      const hostName = String(draft.host || (Array.isArray(draft.members) ? draft.members[0] : '') || '').trim().toLowerCase();
+      const requester = String(socket.data.username || '').trim().toLowerCase();
+      if (hostName && requester && requester !== hostName) {
+        const retryAfterMs = getHostReconnectFreezeRemainingMs(draft);
+        console.warn(`[updateDraft] blocked during host reconnect freeze for ${draftCode}, requester=${requester}, retryAfterMs=${retryAfterMs}`);
+        return;
+      }
+    }
+
     // merge only non-members fields (type, capacity, public, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder, waiverMode)
-    drafts[code] = drafts[code] || { members: [], type: null, capacity: null, public: false };
+    drafts[draftCode] = drafts[draftCode] || { members: [], type: null, capacity: null, public: false };
     const allowed = (({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder, waiverMode }) => ({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder, waiverMode }))(state || {});
     // apply allowed fields
-    if(typeof allowed.type !== 'undefined') drafts[code].type = allowed.type;
-    if(typeof allowed.capacity !== 'undefined') drafts[code].capacity = allowed.capacity;
-    if(typeof allowed.public !== 'undefined') drafts[code].public = allowed.public;
-    if(typeof allowed.draftOrder !== 'undefined') drafts[code].draftOrder = allowed.draftOrder;
-    if(typeof allowed.draftOrderAssignments !== 'undefined') drafts[code].draftOrderAssignments = allowed.draftOrderAssignments;
-    if(typeof allowed.customBudgets !== 'undefined') drafts[code].customBudgets = allowed.customBudgets;
-    if(typeof allowed.rosterSettings !== 'undefined') drafts[code].rosterSettings = allowed.rosterSettings;
-    if(typeof allowed.benchCutTarget !== 'undefined') drafts[code].benchCutTarget = allowed.benchCutTarget;
-    if(typeof allowed.roundTimerMinutes !== 'undefined') drafts[code].roundTimerMinutes = allowed.roundTimerMinutes;
-    if(typeof allowed.ajDraftMode !== 'undefined') drafts[code].ajDraftMode = !!allowed.ajDraftMode;
-    if(typeof allowed.ajRoundOrder !== 'undefined') drafts[code].ajRoundOrder = Array.isArray(allowed.ajRoundOrder) ? allowed.ajRoundOrder.slice(0, 10) : undefined;
-    if(typeof allowed.waiverMode !== 'undefined') drafts[code].waiverMode = normalizeWaiverLobbyMode(allowed.waiverMode);
-    console.log(`[updateDraft] ${code} capacity=${drafts[code].capacity} members=${drafts[code].members.length}`);
-    io.to(code).emit('draftUpdate', drafts[code]);
+    if(typeof allowed.type !== 'undefined') drafts[draftCode].type = allowed.type;
+    if(typeof allowed.capacity !== 'undefined') drafts[draftCode].capacity = allowed.capacity;
+    if(typeof allowed.public !== 'undefined') drafts[draftCode].public = allowed.public;
+    if(typeof allowed.draftOrder !== 'undefined') drafts[draftCode].draftOrder = allowed.draftOrder;
+    if(typeof allowed.draftOrderAssignments !== 'undefined') drafts[draftCode].draftOrderAssignments = allowed.draftOrderAssignments;
+    if(typeof allowed.customBudgets !== 'undefined') drafts[draftCode].customBudgets = allowed.customBudgets;
+    if(typeof allowed.rosterSettings !== 'undefined') drafts[draftCode].rosterSettings = allowed.rosterSettings;
+    if(typeof allowed.benchCutTarget !== 'undefined') drafts[draftCode].benchCutTarget = allowed.benchCutTarget;
+    if(typeof allowed.roundTimerMinutes !== 'undefined') drafts[draftCode].roundTimerMinutes = allowed.roundTimerMinutes;
+    if(typeof allowed.ajDraftMode !== 'undefined') drafts[draftCode].ajDraftMode = !!allowed.ajDraftMode;
+    if(typeof allowed.ajRoundOrder !== 'undefined') drafts[draftCode].ajRoundOrder = Array.isArray(allowed.ajRoundOrder) ? allowed.ajRoundOrder.slice(0, 10) : undefined;
+    if(typeof allowed.waiverMode !== 'undefined') drafts[draftCode].waiverMode = normalizeWaiverLobbyMode(allowed.waiverMode);
+    console.log(`[updateDraft] ${draftCode} capacity=${drafts[draftCode].capacity} members=${drafts[draftCode].members.length}`);
+    io.to(draftCode).emit('draftUpdate', drafts[draftCode]);
     // Also push roster/bench changes to any active draft room (draft_<code>)
     if(typeof allowed.rosterSettings !== 'undefined' || typeof allowed.benchCutTarget !== 'undefined' || typeof allowed.roundTimerMinutes !== 'undefined' || typeof allowed.ajDraftMode !== 'undefined' || typeof allowed.ajRoundOrder !== 'undefined') {
-      const roundTimerMinutes = Number.parseInt(drafts[code].roundTimerMinutes, 10);
+      const roundTimerMinutes = Number.parseInt(drafts[draftCode].roundTimerMinutes, 10);
       const normalizedRoundTimerMinutes = Number.isFinite(roundTimerMinutes) ? Math.max(3, Math.min(roundTimerMinutes, 10)) : 10;
-      if (drafts[code].draftState) {
-        drafts[code].draftState.roundTimer = normalizedRoundTimerMinutes * 60;
-        drafts[code].draftState.roundTimerMinutes = normalizedRoundTimerMinutes;
+      if (drafts[draftCode].draftState) {
+        drafts[draftCode].draftState.roundTimer = normalizedRoundTimerMinutes * 60;
+        drafts[draftCode].draftState.roundTimerMinutes = normalizedRoundTimerMinutes;
       }
       const rosterSettingsPayload = {
-        rosterSettings: drafts[code].rosterSettings,
-        benchCutTarget: drafts[code].benchCutTarget,
+        rosterSettings: drafts[draftCode].rosterSettings,
+        benchCutTarget: drafts[draftCode].benchCutTarget,
         roundTimerMinutes: normalizedRoundTimerMinutes,
-        ajDraftMode: !!drafts[code].ajDraftMode,
-        ajRoundOrder: Array.isArray(drafts[code].ajRoundOrder) ? drafts[code].ajRoundOrder.slice(0, 10) : undefined
+        ajDraftMode: !!drafts[draftCode].ajDraftMode,
+        ajRoundOrder: Array.isArray(drafts[draftCode].ajRoundOrder) ? drafts[draftCode].ajRoundOrder.slice(0, 10) : undefined
       };
-      rosterSettingsPayload.stateVersion = recordDraftStateEvent(drafts[code], 'rosterSettingsUpdated', rosterSettingsPayload);
-      io.to(`draft_${code}`).emit('rosterSettingsUpdated', rosterSettingsPayload);
+      rosterSettingsPayload.stateVersion = recordDraftStateEvent(drafts[draftCode], 'rosterSettingsUpdated', rosterSettingsPayload);
+      io.to(`draft_${draftCode}`).emit('rosterSettingsUpdated', rosterSettingsPayload);
     }
   });
 
   // Host starts the draft - notify all members to navigate to draft page
-  socket.on('startDraft', (code, draftType, roundTimerMinutesOrCb, cbMaybe) => {
-    const parsedRoundTimerMinutes = Number.parseInt(roundTimerMinutesOrCb, 10);
+  socket.on('startDraft', (code, draftType, roundTimerMinutesOrMetaOrCb, metaOrCb, cbMaybe) => {
+    const parsedRoundTimerMinutes = Number.parseInt(roundTimerMinutesOrMetaOrCb, 10);
     const roundTimerMinutes = Number.isFinite(parsedRoundTimerMinutes)
       ? Math.max(3, Math.min(parsedRoundTimerMinutes, 10))
       : undefined;
-    const cb = typeof roundTimerMinutesOrCb === 'function' ? roundTimerMinutesOrCb : cbMaybe;
-    console.log(`[startDraft] ${code} type=${draftType} by ${socket.data.username} rawTimerArg=${roundTimerMinutesOrCb}`);
+    const meta = (typeof metaOrCb === 'object' && metaOrCb !== null)
+      ? metaOrCb
+      : (typeof roundTimerMinutesOrMetaOrCb === 'object' && roundTimerMinutesOrMetaOrCb !== null ? roundTimerMinutesOrMetaOrCb : {});
+    const cb = typeof roundTimerMinutesOrMetaOrCb === 'function'
+      ? roundTimerMinutesOrMetaOrCb
+      : (typeof metaOrCb === 'function' ? metaOrCb : cbMaybe);
+    const requestId = String(meta && meta.requestId || '').trim();
+    console.log(`[startDraft] ${code} type=${draftType} by ${socket.data.username} rawTimerArg=${roundTimerMinutesOrMetaOrCb}`);
     // Verify the requester is the host (use explicit host field with fallback)
     const draft = drafts[code];
+    if (requestId) {
+      const cached = getDraftActionReceipt(draft, 'startDraft', requestId);
+      if (cached) {
+        if (cb) cb(cached);
+        return;
+      }
+    }
+
+    if (draft && isHostReconnectFreezeActive(draft)) {
+      const hostName = String(draft.host || (Array.isArray(draft.members) ? draft.members[0] : '') || '').trim().toLowerCase();
+      const requester = String(socket.data.username || '').trim().toLowerCase();
+      if (hostName && requester && requester !== hostName) {
+        const response = {
+          ok: false,
+          reason: 'host_reconnecting',
+          retryAfterMs: getHostReconnectFreezeRemainingMs(draft)
+        };
+        if (requestId) setDraftActionReceipt(draft, 'startDraft', requestId, response);
+        if (cb) cb(response);
+        return;
+      }
+    }
+
     const host = draft && (draft.host || (Array.isArray(draft.members) && draft.members[0]));
     if(draft && host && host === socket.data.username){
       if (typeof roundTimerMinutes !== 'undefined') {
@@ -7402,10 +7782,14 @@ io.on('connection', (socket) => {
       // Broadcast to all members in the room (including host)
       io.to(code).emit('draftStarted', draftType);
       console.log(`[startDraft] Broadcast sent`);
-      if(cb) cb({ ok: true });
+      const response = { ok: true };
+      if (requestId) setDraftActionReceipt(draft, 'startDraft', requestId, response);
+      if(cb) cb(response);
     } else {
       console.log(`[startDraft] denied - ${socket.data.username} is not the host (${host || 'unknown'})`);
-      if(cb) cb({ ok: false, reason: 'not_host' });
+      const response = { ok: false, reason: 'not_host' };
+      if (requestId) setDraftActionReceipt(draft, 'startDraft', requestId, response);
+      if(cb) cb(response);
     }
   });
 
@@ -7761,16 +8145,46 @@ io.on('connection', (socket) => {
   });
 
   // User has submitted their bids for the round
-  socket.on('submitBids', (code, username, autoDraftEnabledOrCb, cbMaybe) => {
-    const autoDraftEnabled = typeof autoDraftEnabledOrCb === 'boolean' ? autoDraftEnabledOrCb : undefined;
-    const cb = typeof autoDraftEnabledOrCb === 'function' ? autoDraftEnabledOrCb : cbMaybe;
+  socket.on('submitBids', (...args) => {
+    const code = args[0];
+    const username = args[1];
+    let autoDraftEnabled;
+    let meta = {};
+    let cb;
+
+    if (typeof args[2] === 'boolean') {
+      autoDraftEnabled = args[2];
+      if (typeof args[3] === 'function') {
+        cb = args[3];
+      } else {
+        meta = (typeof args[3] === 'object' && args[3] !== null) ? args[3] : {};
+        cb = typeof args[4] === 'function' ? args[4] : undefined;
+      }
+    } else if (typeof args[2] === 'function') {
+      cb = args[2];
+    } else {
+      meta = (typeof args[2] === 'object' && args[2] !== null) ? args[2] : {};
+      cb = typeof args[3] === 'function' ? args[3] : undefined;
+    }
+
+    const requestId = String(meta && meta.requestId || '').trim();
     const draftCode = String(code || '').trim();
     const submissionUsername = String(username || socket.data.username || '').trim();
     console.log(`[submitBids] ${submissionUsername} submitted bids in ${draftCode}`);
 
     const draft = ensureDraftStateForSocket(draftCode, socket, { username: submissionUsername });
+    if (requestId) {
+      const cached = getDraftActionReceipt(draft, 'submitBids', requestId);
+      if (cached) {
+        if (cb) cb(cached);
+        return;
+      }
+    }
+
     if (!draft || !draft.draftState) {
-      if (cb) cb({ ok: false, reason: 'draft_not_ready' });
+      const response = { ok: false, reason: 'draft_not_ready' };
+      if (requestId) setDraftActionReceipt(draft, 'submitBids', requestId, response);
+      if (cb) cb(response);
       return;
     }
 
@@ -7812,7 +8226,9 @@ io.on('connection', (socket) => {
       io.to(`draft_${draftCode}`).emit('allBidsSubmitted');
     }
     
-    if(cb) cb({ ok: true });
+    const response = { ok: true };
+    if (requestId) setDraftActionReceipt(draft, 'submitBids', requestId, response);
+    if(cb) cb(response);
   });
 
   // Host can force round submission on timer expiry.
@@ -7918,6 +8334,43 @@ io.on('connection', (socket) => {
     drafts[code].draftState.isProcessingRound = true;
 
     const draftState = drafts[code].draftState;
+    const safeRoundNumber = normalizeRoundNumberForFile(draftState.currentRound || 1);
+
+    const requestId = String(roundData && roundData.requestId || '').trim();
+    if (requestId) {
+      const cached = getDraftActionReceipt(drafts[code], 'processRound', requestId);
+      if (cached) {
+        if (cb) cb(cached);
+        return;
+      }
+    }
+
+    // Idempotency guard: if this round was already committed, replay the saved authoritative result.
+    const existingSnapshot = await readRoundResultSnapshot(code, safeRoundNumber);
+    if (existingSnapshot && Array.isArray(existingSnapshot.results)) {
+      const replayPayload = {
+        roundNumber: safeRoundNumber,
+        results: existingSnapshot.results,
+        emittedAt: Number(existingSnapshot.emittedAt || existingSnapshot.savedAt || Date.now()),
+        recovered: true
+      };
+      replayPayload.stateVersion = recordDraftStateEvent(drafts[code], 'roundResultsReplay', replayPayload);
+
+      draftState.lastRoundResults = {
+        results: existingSnapshot.results,
+        tiedBids: Array.isArray(existingSnapshot.tiedBids) ? existingSnapshot.tiedBids : [],
+        participationStats: existingSnapshot.participationStats || null
+      };
+      draftState.pendingRoundResults = replayPayload;
+
+      io.to(`draft_${code}`).emit('roundResults', replayPayload);
+      console.warn(`[processRound] Replayed saved round results for ${code} round ${safeRoundNumber}`);
+      const response = { ok: true, replayed: true };
+      if (requestId) setDraftActionReceipt(drafts[code], 'processRound', requestId, response);
+      if (cb) cb(response);
+      return;
+    }
+
     const payload = roundData && typeof roundData === 'object' ? roundData : {};
     const clientRoundPlayers = Array.isArray(payload.roundPlayers) ? payload.roundPlayers : [];
     const stateRoundPlayers = Array.isArray(draftState.currentPlayers) ? draftState.currentPlayers : [];
@@ -8258,6 +8711,19 @@ io.on('connection', (socket) => {
       roundResultsPayload.stateVersion = recordDraftStateEvent(drafts[code], 'roundResults', roundResultsPayload);
       draftState.pendingRoundResults = roundResultsPayload;
 
+      // Persist authoritative results before broadcasting so reconnect recovery can load exact winners.
+      try {
+        await saveRoundResultSnapshot(code, roundResultsPayload.roundNumber, {
+          emittedAt: roundResultsPayload.emittedAt,
+          results: roundResultsPayload.results,
+          tiedBids: Array.isArray(auctionResults && auctionResults.tiedBids) ? auctionResults.tiedBids : [],
+          participationStats: auctionResults && auctionResults.participationStats ? auctionResults.participationStats : null,
+          commitSummary: roundCommitSummary
+        });
+      } catch (snapshotError) {
+        console.error('[processRound] Failed to persist round result snapshot:', snapshotError);
+      }
+
       const emittedResults = Array.isArray(auctionResults && auctionResults.results) ? auctionResults.results : [];
       const resultTypeSummary = emittedResults.reduce((acc, result) => {
         const type = String(result && result.type || 'unknown').trim().toLowerCase();
@@ -8302,7 +8768,9 @@ io.on('connection', (socket) => {
       drafts[code].draftState.acceptedMembers = [];
       
       console.log(`[processRound] Results: ${auctionResults.results.length} outcomes, ${auctionResults.tiedBids.length} tied bids`);
-      if(cb) cb({ ok: true });
+      const response = { ok: true };
+      if (requestId) setDraftActionReceipt(drafts[code], 'processRound', requestId, response);
+      if(cb) cb(response);
     } catch (error) {
       console.error(`[processRound] ERROR processing auctions:`, error);
       console.error(error.stack);
@@ -8316,7 +8784,9 @@ io.on('connection', (socket) => {
         error: error.message 
       });
       
-      if(cb) cb({ ok: false, reason: 'processing_error', error: error.message });
+      const response = { ok: false, reason: 'processing_error', error: error.message };
+      if (requestId) setDraftActionReceipt(drafts[code], 'processRound', requestId, response);
+      if(cb) cb(response);
     } finally {
       // Always reset the processing flag
       drafts[code].draftState.isProcessingRound = false;
@@ -8410,6 +8880,72 @@ io.on('connection', (socket) => {
       if (cb) cb({ ok: true, acceptedCount, totalMembers, allAccepted, roundNumber: pendingRoundNumber });
     } catch (error) {
       console.error('[acceptRoundResults] Unexpected error:', error);
+      if (cb) cb({ ok: false, reason: 'server_error' });
+    }
+  });
+
+  socket.on('recoverRoundResults', async (code, roundNumberOrCb, cbMaybe) => {
+    try {
+      const cb = typeof roundNumberOrCb === 'function' ? roundNumberOrCb : cbMaybe;
+      const requestedRound = typeof roundNumberOrCb === 'function'
+        ? null
+        : normalizeRoundNumberForFile(roundNumberOrCb);
+      const draft = drafts[code];
+
+      if (!draft || !draft.draftState) {
+        if (cb) cb({ ok: false, reason: 'draft_not_ready' });
+        return;
+      }
+
+      const pendingRoundResults = draft.draftState.pendingRoundResults;
+      const pendingRoundNumber = Number.parseInt(String(pendingRoundResults && pendingRoundResults.roundNumber || ''), 10);
+      const acceptedMembers = Array.isArray(draft.draftState.acceptedMembers)
+        ? draft.draftState.acceptedMembers
+        : [];
+
+      if (
+        pendingRoundResults
+        && Array.isArray(pendingRoundResults.results)
+        && (!Number.isFinite(Number(requestedRound)) || requestedRound === pendingRoundNumber)
+      ) {
+        const payload = {
+          roundNumber: pendingRoundNumber,
+          results: pendingRoundResults.results,
+          acceptedMembers: acceptedMembers.slice(),
+          emittedAt: pendingRoundResults.emittedAt || Date.now(),
+          stateVersion: getDraftStateVersion(draft),
+          recovered: true,
+          source: 'pending'
+        };
+        socket.emit('roundResultsSync', payload);
+        if (cb) cb({ ok: true, source: 'pending', payload });
+        return;
+      }
+
+      const fallbackRound = Number.isFinite(Number(requestedRound))
+        ? requestedRound
+        : normalizeRoundNumberForFile(draft.draftState.currentRound || 1);
+      const snapshot = await readRoundResultSnapshot(code, fallbackRound);
+      if (!snapshot || !Array.isArray(snapshot.results)) {
+        if (cb) cb({ ok: false, reason: 'not_found', roundNumber: fallbackRound });
+        return;
+      }
+
+      const payload = {
+        roundNumber: normalizeRoundNumberForFile(snapshot.roundNumber || fallbackRound),
+        results: snapshot.results,
+        acceptedMembers: acceptedMembers.slice(),
+        emittedAt: Number(snapshot.emittedAt || snapshot.savedAt || Date.now()),
+        stateVersion: getDraftStateVersion(draft),
+        recovered: true,
+        source: 'durable'
+      };
+
+      socket.emit('roundResultsSync', payload);
+      if (cb) cb({ ok: true, source: 'durable', payload });
+    } catch (error) {
+      console.error('[recoverRoundResults] Unexpected error:', error);
+      const cb = typeof roundNumberOrCb === 'function' ? roundNumberOrCb : cbMaybe;
       if (cb) cb({ ok: false, reason: 'server_error' });
     }
   });

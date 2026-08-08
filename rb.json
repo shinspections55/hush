@@ -5,8 +5,8 @@
         "position": "RB",
         "team": "DET",
         "avgValue": 51,
-        "draftChance": 98,
-        "tier": "RB Tier 1"
+        "draftChance": 0,
+        "byeWeek": 6
     },
     {
         "RBrank": "#2",
@@ -14,8 +14,8 @@
         "position": "RB",
         "team": "ATL",
         "avgValue": 52,
-        "draftChance": 99,
-        "tier": "RB Tier 1"
+        "draftChance": 0,
+        "byeWeek": 5
     },
     {
         "RBrank": "#3",
@@ -23,8 +23,8 @@
         "position": "RB",
         "team": "IND",
         "avgValue": 48,
-        "draftChance": 96,
-        "tier": "RB Tier 2"
+        "draftChance": 0,
+        "byeWeek": 11
     },
     {
         "RBrank": "#4",
@@ -32,8 +32,8 @@
         "position": "RB",
         "team": "BUF",
         "avgValue": 47,
-        "draftChance": 95,
-        "tier": "RB Tier 2"
+        "draftChance": 0,
+        "byeWeek": 7
     },
     {
         "RBrank": "#5",
@@ -41,8 +41,8 @@
         "position": "RB",
         "team": "SF",
         "avgValue": 47,
-        "draftChance": 95,
-        "tier": "RB Tier 2"
+        "draftChance": 0,
+        "byeWeek": 8
     },
     {
         "RBrank": "#6",
@@ -50,8 +50,8 @@
         "position": "RB",
         "team": "ARI",
         "avgValue": 47,
-        "draftChance": 95,
-        "tier": "RB Tier 3"
+        "draftChance": 0,
+        "byeWeek": 8
     },
     {
         "RBrank": "#7",
@@ -59,8 +59,8 @@
         "position": "RB",
         "team": "MIA",
         "avgValue": 46,
-        "draftChance": 94,
-        "tier": "RB Tier 3"
+        "draftChance": 0,
+        "byeWeek": 6
     },
     {
         "RBrank": "#8",
@@ -68,8 +68,8 @@
         "position": "RB",
         "team": "LV",
         "avgValue": 37,
-        "draftChance": 92,
-        "tier": "RB Tier 3"
+        "draftChance": 0,
+        "byeWeek": 13
     },
     {
         "RBrank": "#9",
@@ -77,8 +77,8 @@
         "position": "RB",
         "team": "PHI",
         "avgValue": 36,
-        "draftChance": 92,
-        "tier": "RB Tier 3"
+        "draftChance": 0,
+        "byeWeek": 9
     },
     {
         "RBrank": "#10",
@@ -86,8 +86,8 @@
         "position": "RB",
         "team": "BAL",
         "avgValue": 35,
-        "draftChance": 90,
-        "tier": "RB Tier 3"
+        "draftChance": 0,
+        "byeWeek": 7
     },
     {
         "RBrank": "#11",
@@ -95,8 +95,8 @@
         "position": "RB",
         "team": "LAC",
         "avgValue": 30,
-        "draftChance": 86,
-        "tier": "RB Tier 3"
+        "draftChance": 0,
+        "byeWeek": 7
     },
     {
         "RBrank": "#12",
@@ -104,8 +104,8 @@
         "position": "RB",
         "team": "CIN",
         "avgValue": 29,
-        "draftChance": 86,
-        "tier": "RB Tier 3"
+        "draftChance": 0,
+        "byeWeek": 6
     },
     {
         "RBrank": "#13",
@@ -113,8 +113,8 @@
         "position": "RB",
         "team": "NYJ",
         "avgValue": 28,
-        "draftChance": 86,
-        "tier": "RB Tier 4"
+        "draftChance": 0,
+        "byeWeek": 9
     },
     {
         "RBrank": "#14",
@@ -122,8 +122,8 @@
         "position": "RB",
         "team": "KC",
         "avgValue": 27,
-        "draftChance": 85,
-        "tier": "RB Tier 4"
+        "draftChance": 0,
+        "byeWeek": 5
     },
     {
         "RBrank": "#15",
@@ -131,8 +131,8 @@
         "position": "RB",
         "team": "LAR",
         "avgValue": 26,
-        "draftChance": 83,
-        "tier": "RB Tier 4"
+        "draftChance": 0,
+        "byeWeek": 8
     },
     {
         "RBrank": "#16",
@@ -140,8 +140,8 @@
         "position": "RB",
         "team": "CHI",
         "avgValue": 26,
-        "draftChance": 86,
-        "tier": "RB Tier 4"
+        "draftChance": 0,
+        "byeWeek": 5
     },
     {
         "RBrank": "#17",
@@ -149,8 +149,8 @@
         "position": "RB",
         "team": "GB",
         "avgValue": 25,
-        "draftChance": 88,
-        "tier": "RB Tier 4"
+        "draftChance": 0,
+        "byeWeek": 5
     },
     {
         "RBrank": "#18",
@@ -158,8 +158,8 @@
         "position": "RB",
         "team": "NO",
         "avgValue": 24,
-        "draftChance": 79,
-        "tier": "RB Tier 4"
+        "draftChance": 0,
+        "byeWeek": 8
     },
     {
         "RBrank": "#19",
@@ -167,8 +167,8 @@
         "position": "RB",
         "team": "DAL",
         "avgValue": 26,
-        "draftChance": 83,
-        "tier": "RB Tier 5"
+        "draftChance": 0,
+        "byeWeek": 10
     },
     {
         "RBrank": "#20",
@@ -176,8 +176,8 @@
         "position": "RB",
         "team": "NYG",
         "avgValue": 22,
-        "draftChance": 79,
-        "tier": "RB Tier 5"
+        "draftChance": 0,
+        "byeWeek": 8
     },
     {
         "RBrank": "#21",
@@ -185,8 +185,8 @@
         "position": "RB",
         "team": "TB",
         "avgValue": 21,
-        "draftChance": 79,
-        "tier": "RB Tier 5"
+        "draftChance": 0,
+        "byeWeek": 9
     },
     {
         "RBrank": "#22",
@@ -194,8 +194,8 @@
         "position": "RB",
         "team": "CLE",
         "avgValue": 20,
-        "draftChance": 75,
-        "tier": "RB Tier 5"
+        "draftChance": 0,
+        "byeWeek": 9
     },
     {
         "RBrank": "#23",
@@ -203,8 +203,8 @@
         "position": "RB",
         "team": "JAC",
         "avgValue": 18,
-        "draftChance": 75,
-        "tier": "RB Tier 5"
+        "draftChance": 0,
+        "byeWeek": 7
     },
     {
         "RBrank": "#24",
@@ -212,8 +212,8 @@
         "position": "RB",
         "team": "NE",
         "avgValue": 16,
-        "draftChance": 75,
-        "tier": "RB Tier 6"
+        "draftChance": 0,
+        "byeWeek": 11
     },
     {
         "RBrank": "#25",
@@ -221,8 +221,8 @@
         "position": "RB",
         "team": "SEA",
         "avgValue": 18,
-        "draftChance": 74,
-        "tier": "RB Tier 6"
+        "draftChance": 0,
+        "byeWeek": 8
     },
     {
         "RBrank": "#26",
@@ -230,8 +230,8 @@
         "position": "RB",
         "team": "HOU",
         "avgValue": 17,
-        "draftChance": 73,
-        "tier": "RB Tier 6"
+        "draftChance": 0,
+        "byeWeek": 6
     },
     {
         "RBrank": "#27",
@@ -239,8 +239,8 @@
         "position": "RB",
         "team": "CAR",
         "avgValue": 16,
-        "draftChance": 72,
-        "tier": "RB Tier 6"
+        "draftChance": 0,
+        "byeWeek": 5
     },
     {
         "RBrank": "#28",
@@ -248,8 +248,8 @@
         "position": "RB",
         "team": "DEN",
         "avgValue": 15,
-        "draftChance": 71,
-        "tier": "RB Tier 6"
+        "draftChance": 0,
+        "byeWeek": 10
     },
     {
         "RBrank": "#29",
@@ -257,8 +257,8 @@
         "position": "RB",
         "team": "TEN",
         "avgValue": 13,
-        "draftChance": 70,
-        "tier": "RB Tier 7"
+        "draftChance": 0,
+        "byeWeek": 9
     },
     {
         "RBrank": "#30",
@@ -266,8 +266,8 @@
         "position": "RB",
         "team": "WAS",
         "avgValue": 10,
-        "draftChance": 70,
-        "tier": "RB Tier 7"
+        "draftChance": 0,
+        "byeWeek": 7
     },
     {
         "RBrank": "#31",
@@ -275,8 +275,8 @@
         "position": "RB",
         "team": "PIT",
         "avgValue": 9,
-        "draftChance": 65,
-        "tier": "RB Tier 7"
+        "draftChance": 0,
+        "byeWeek": 5
     },
     {
         "RBrank": "#32",
@@ -284,8 +284,8 @@
         "position": "RB",
         "team": "NE",
         "avgValue": 7,
-        "draftChance": 55,
-        "tier": "RB Tier 7"
+        "draftChance": 0,
+        "byeWeek": 11
     },
     {
         "RBrank": "#33",
@@ -293,8 +293,8 @@
         "position": "RB",
         "team": "PIT",
         "avgValue": 7,
-        "draftChance": 55,
-        "tier": "RB Tier 7"
+        "draftChance": 0,
+        "byeWeek": 5
     },
     {
         "RBrank": "#34",
@@ -302,8 +302,8 @@
         "position": "RB",
         "team": "TB",
         "avgValue": 6,
-        "draftChance": 55,
-        "tier": "RB Tier 7"
+        "draftChance": 0,
+        "byeWeek": 9
     },
     {
         "RBrank": "#35",
@@ -311,8 +311,8 @@
         "position": "RB",
         "team": "SEA",
         "avgValue": 4,
-        "draftChance": 55,
-        "tier": "RB Tier 8"
+        "draftChance": 0,
+        "byeWeek": 8
     },
     {
         "RBrank": "#36",
@@ -320,8 +320,8 @@
         "position": "RB",
         "team": "MIN",
         "avgValue": 4,
-        "draftChance": 55,
-        "tier": "RB Tier 8"
+        "draftChance": 0,
+        "byeWeek": 6
     },
     {
         "RBrank": "#37",
@@ -329,8 +329,8 @@
         "position": "RB",
         "team": "CHI",
         "avgValue": 3,
-        "draftChance": 55,
-        "tier": "RB Tier 8"
+        "draftChance": 0,
+        "byeWeek": 5
     },
     {
         "RBrank": "#38",
@@ -338,8 +338,8 @@
         "position": "RB",
         "team": "LAR",
         "avgValue": 3,
-        "draftChance": 55,
-        "tier": "RB Tier 8"
+        "draftChance": 0,
+        "byeWeek": 8
     },
     {
         "RBrank": "#39",
@@ -347,8 +347,8 @@
         "position": "RB",
         "team": "NO",
         "avgValue": 3,
-        "draftChance": 60,
-        "tier": "RB Tier 8"
+        "draftChance": 0,
+        "byeWeek": 8
     },
     {
         "RBrank": "#40",
@@ -356,8 +356,8 @@
         "position": "RB",
         "team": "HOU",
         "avgValue": 3,
-        "draftChance": 55,
-        "tier": "RB Tier 8"
+        "draftChance": 0,
+        "byeWeek": 6
     },
     {
         "RBrank": "#41",
@@ -365,8 +365,8 @@
         "position": "RB",
         "team": "TEN",
         "avgValue": 2,
-        "draftChance": 45,
-        "tier": "RB Tier 9"
+        "draftChance": 0,
+        "byeWeek": 9
     },
     {
         "RBrank": "#42",
@@ -374,8 +374,8 @@
         "position": "RB",
         "team": "DEN",
         "avgValue": 2,
-        "draftChance": 45,
-        "tier": "RB Tier 9"
+        "draftChance": 0,
+        "byeWeek": 10
     },
     {
         "RBrank": "#43",
@@ -383,8 +383,8 @@
         "position": "RB",
         "team": "MIN",
         "avgValue": 2,
-        "draftChance": 45,
-        "tier": "RB Tier 9"
+        "draftChance": 0,
+        "byeWeek": 6
     },
     {
         "RBrank": "#44",
@@ -392,8 +392,8 @@
         "position": "RB",
         "team": "WAS",
         "avgValue": 2,
-        "draftChance": 35,
-        "tier": "RB Tier 9"
+        "draftChance": 0,
+        "byeWeek": 7
     },
     {
         "RBrank": "#45",
@@ -401,8 +401,8 @@
         "position": "RB",
         "team": "CAR",
         "avgValue": 1,
-        "draftChance": 30,
-        "tier": "RB Tier 9"
+        "draftChance": 0,
+        "byeWeek": 5
     },
     {
         "RBrank": "#46",
@@ -410,8 +410,8 @@
         "position": "RB",
         "team": "DET",
         "avgValue": 1,
-        "draftChance": 35,
-        "tier": "RB Tier 10"
+        "draftChance": 0,
+        "byeWeek": 6
     },
     {
         "RBrank": "#47",
@@ -419,8 +419,8 @@
         "position": "RB",
         "team": "ARI",
         "avgValue": 1,
-        "draftChance": 30,
-        "tier": "RB Tier 10"
+        "draftChance": 0,
+        "byeWeek": 8
     },
     {
         "RBrank": "#48",
@@ -428,8 +428,8 @@
         "position": "RB",
         "team": "JAC",
         "avgValue": 1,
-        "draftChance": 30,
-        "tier": "RB Tier 10"
+        "draftChance": 0,
+        "byeWeek": 7
     },
     {
         "RBrank": "#49",
@@ -437,8 +437,8 @@
         "position": "RB",
         "team": "ATL",
         "avgValue": 0,
-        "draftChance": 25,
-        "tier": "RB Tier 10"
+        "draftChance": 0,
+        "byeWeek": 5
     },
     {
         "RBrank": "#50",
@@ -446,7 +446,7 @@
         "position": "RB",
         "team": "NYJ",
         "avgValue": 0,
-        "draftChance": 25,
-        "tier": "RB Tier 10"
+        "draftChance": 0,
+        "byeWeek": 9
     }
 ]
