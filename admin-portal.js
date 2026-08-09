@@ -2587,12 +2587,13 @@ document.addEventListener('DOMContentLoaded', () => {
     row.draggable = true;
     row.dataset.index = String(index);
     const rowPosition = player.position || activePosition;
+    row.classList.add(`admin-pos-row-${String(rowPosition || '').trim().toUpperCase()}`);
     const ajSlotCode = !isTopView() ? getAjSlotCode(rowPosition, index + 1) : '';
     if (isTopView()) {
       row.innerHTML = `
         <span class="admin-drag-handle" aria-hidden="true">⠿</span>
         <span class="admin-rank-number">#${index + 1}</span>
-        <span class="admin-rank-position">${escapeHtml(rowPosition)}</span>
+        <span class="admin-rank-position admin-pos-badge admin-pos-${escapeHtml(String(rowPosition || '').trim().toUpperCase())}">${escapeHtml(rowPosition)}</span>
         <span class="admin-rank-player-name">${escapeHtml(player.name || 'Unknown Player')}</span>
         <label class="admin-av-edit admin-team-edit admin-row-inline-edit">
           <span class="admin-inline-label">Team</span>
@@ -2604,7 +2605,7 @@ document.addEventListener('DOMContentLoaded', () => {
       row.innerHTML = `
         <span class="admin-drag-handle" aria-hidden="true">⠿</span>
         <span class="admin-rank-number">#${index + 1}</span>
-        <span class="admin-rank-position">${escapeHtml(rowPosition)}</span>
+        <span class="admin-rank-position admin-pos-badge admin-pos-${escapeHtml(String(rowPosition || '').trim().toUpperCase())}">${escapeHtml(rowPosition)}</span>
         <span class="admin-rank-player-name">${escapeHtml(player.name || 'Unknown Player')}</span>
         <label class="admin-av-edit admin-team-edit admin-row-inline-edit">
           <span class="admin-inline-label">Team</span>

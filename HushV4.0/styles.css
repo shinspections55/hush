@@ -2560,6 +2560,19 @@ body.dashboard-light-mode .admin-cpu-pill{background:rgba(52,152,219,0.12);borde
 .admin-drag-handle{font-size:0.78rem;opacity:0.6;cursor:grab;color:#666}
 .admin-rank-number{font-size:0.62rem;font-weight:700;color:#4b5563}
 .admin-rank-position{font-size:0.62rem;font-weight:700;color:#374151}
+.admin-pos-badge{display:inline-flex;align-items:center;justify-content:center;min-width:36px;padding:3px 6px;border-radius:999px;border:1px solid rgba(55,65,81,0.18);font-size:0.62rem;font-weight:800;letter-spacing:0.03em}
+.admin-pos-row-QB{background:rgba(52,152,219,0.08)}
+.admin-pos-row-RB{background:rgba(46,204,113,0.08)}
+.admin-pos-row-WR{background:rgba(253,121,168,0.08)}
+.admin-pos-row-TE{background:rgba(253,203,110,0.12)}
+.admin-pos-row-K{background:rgba(162,155,254,0.08)}
+.admin-pos-row-DEF{background:rgba(225,112,85,0.10)}
+.admin-pos-QB{background:rgba(52,152,219,0.2);color:#74b9ff;border-color:rgba(52,152,219,0.3)}
+.admin-pos-RB{background:rgba(46,204,113,0.2);color:#55efc4;border-color:rgba(46,204,113,0.3)}
+.admin-pos-WR{background:rgba(253,121,168,0.2);color:#fd79a8;border-color:rgba(253,121,168,0.3)}
+.admin-pos-TE{background:rgba(253,203,110,0.2);color:#d4a017;border-color:rgba(253,203,110,0.35)}
+.admin-pos-K{background:rgba(162,155,254,0.2);color:#a29bfe;border-color:rgba(162,155,254,0.3)}
+.admin-pos-DEF{background:rgba(225,112,85,0.2);color:#e17055;border-color:rgba(225,112,85,0.3)}
 .admin-rank-player-name{display:block;min-width:0;font-size:0.74rem;line-height:1.02;font-weight:700;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .admin-rank-player-meta{font-size:0.62rem;color:#666;white-space:nowrap}
 .admin-aj-slot-badge{display:inline-flex;align-items:center;justify-content:center;min-width:24px;padding:1px 4px;border-radius:5px;background:#2563eb;border:1px solid #1e40af;color:#ffffff;font-weight:700;font-size:0.64rem;letter-spacing:0.05em}
