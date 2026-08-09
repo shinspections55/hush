@@ -1042,7 +1042,7 @@ function initSilentDraft() {
         
         for (const pos of positions) {
             try {
-                const response = await fetch(`players%20file/${pos}.json`);
+                const response = await fetch(`/${pos}.json`, { cache: 'no-store' });
                 if (response.ok) {
                     const positionPlayers = await response.json();
                     
@@ -1067,7 +1067,7 @@ function initSilentDraft() {
         }
         
         players = loadedPlayers;
-        console.log(`[silentdraft] Loaded ${players.length} players from JSON files`);
+        console.log(`[silentdraft] Loaded ${players.length} players from position JSON fallback`);
         return players;
     }
 

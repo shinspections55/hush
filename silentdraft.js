@@ -1119,7 +1119,7 @@ function initSilentDraft() {
         
         for (const pos of positions) {
             try {
-                const response = await fetch(`/${pos}.json`);
+                const response = await fetch(`/${pos}.json`, { cache: 'no-store' });
                 if (response.ok) {
                     const positionPlayers = await response.json();
                     
