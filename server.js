@@ -1003,6 +1003,7 @@ async function readDefaultRankingsData() {
       const players = sortAndReindexRankings(normalized);
       snapshots.push({
         sourceFile: path.basename(filePath),
+        isPrimary: filePath === DEFAULT_RANKINGS_FILE,
         lastUpdatedAt: stat.mtimeMs,
         players,
         hash: buildRankingsHash(players)
@@ -1016,13 +1017,17 @@ async function readDefaultRankingsData() {
   if (snapshots.length > 0) {
     const desiredHash = String(meta.hash || '').trim();
     let selected = null;
+    const primarySnapshot = snapshots.find((snapshot) => snapshot && snapshot.isPrimary) || null;
 
     if (desiredHash) {
-      selected = snapshots.find((snapshot) => snapshot.hash === desiredHash) || null;
+      const matchingSnapshots = snapshots.filter((snapshot) => snapshot && snapshot.hash === desiredHash);
+      selected = matchingSnapshots.find((snapshot) => snapshot.isPrimary) || matchingSnapshots[0] || null;
     }
 
     if (!selected) {
-      selected = snapshots.sort((a, b) => {
+      // The generated default rankings file is the authoritative source of truth.
+      // Only fall back to the backup file when the primary file is unavailable.
+      selected = primarySnapshot || snapshots.sort((a, b) => {
         const timeA = Number(a && a.lastUpdatedAt || 0);
         const timeB = Number(b && b.lastUpdatedAt || 0);
         if (timeA !== timeB) return timeB - timeA;
