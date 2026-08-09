@@ -75,9 +75,6 @@ const HUSH_GIF_DEFAULT_LIBRARY = Object.freeze({
   money: []
 });
 const PERSISTENT_DATA_DIR = path.join(__dirname, 'data');
-const CHAT_MEDIA_DIR = path.join(__dirname, 'chat-media');
-const CHAT_MEDIA_MAX_BYTES = 3 * 1024 * 1024;
-const DRAFT_CHAT_MESSAGE_MAX_LENGTH = 600;
 const DEFAULT_RANKINGS_FILE = path.join(PERSISTENT_DATA_DIR, 'top250.generated.json');
 const FALLBACK_RANKINGS_FILE = path.join(PERSISTENT_DATA_DIR, 'top250.json');
 const DEFAULT_RANKINGS_META_FILE = path.join(PERSISTENT_DATA_DIR, 'top250.meta.json');
@@ -152,149 +149,6 @@ async function migrateLegacyPositionRankingsFiles() {
         // try next candidate
       }
     }
-  }
-}
-
-async function ensureChatMediaDir() {
-  await fs.mkdir(CHAT_MEDIA_DIR, { recursive: true });
-}
-
-function parseDataUrl(input) {
-  const raw = String(input || '').trim();
-  const match = raw.match(/^data:([^;,]+);base64,([a-z0-9+/=\r\n]+)$/i);
-  if (!match) return null;
-
-  const mimeType = String(match[1] || '').toLowerCase();
-  const base64Payload = String(match[2] || '').replace(/\s+/g, '');
-  if (!mimeType || !base64Payload) return null;
-
-  let buffer = null;
-  try {
-    buffer = Buffer.from(base64Payload, 'base64');
-  } catch (_error) {
-    return null;
-  }
-
-  if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) return null;
-  return { mimeType, buffer };
-}
-
-function getChatMediaExtensionFromMime(mimeType) {
-  const normalized = String(mimeType || '').toLowerCase();
-  if (normalized === 'image/gif') return 'gif';
-  if (normalized === 'image/webp') return 'webp';
-  if (normalized === 'image/png') return 'png';
-  if (normalized === 'image/jpeg') return 'jpg';
-  if (normalized === 'video/mp4') return 'mp4';
-  return '';
-}
-
-function stripTrailingUrlPunctuation(value) {
-  let normalized = String(value || '').trim();
-  while (/[),.!?:;]$/.test(normalized)) {
-    normalized = normalized.slice(0, -1);
-  }
-  return normalized;
-}
-
-function extractMetaContentTag(html, propertyNames = []) {
-  const haystack = String(html || '');
-  if (!haystack) return '';
-
-  for (const propertyName of propertyNames) {
-    const escaped = String(propertyName || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const patterns = [
-      new RegExp(`<meta[^>]+property=["']${escaped}["'][^>]*content=["']([^"']+)["'][^>]*>`, 'i'),
-      new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]*property=["']${escaped}["'][^>]*>`, 'i'),
-      new RegExp(`<meta[^>]+name=["']${escaped}["'][^>]*content=["']([^"']+)["'][^>]*>`, 'i'),
-      new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]*name=["']${escaped}["'][^>]*>`, 'i')
-    ];
-
-    for (const pattern of patterns) {
-      const match = haystack.match(pattern);
-      if (match && match[1]) {
-        return String(match[1]).trim();
-      }
-    }
-  }
-
-  return '';
-}
-
-function isDirectAnimatedMediaUrl(rawUrl) {
-  const value = String(rawUrl || '').trim();
-  if (!value) return false;
-
-  try {
-    const parsed = new URL(value);
-    if (!/^https?:$/i.test(parsed.protocol)) return false;
-
-    const pathname = String(parsed.pathname || '').toLowerCase();
-    const search = String(parsed.search || '').toLowerCase();
-    const hash = String(parsed.hash || '').toLowerCase();
-
-    return /\.(gif|webp|mp4)$/i.test(pathname) ||
-      pathname.includes('/giphy.gif') ||
-      pathname.includes('/tenor.gif') ||
-      pathname.includes('/giphy.mp4') ||
-      pathname.includes('/tenor.mp4') ||
-      search.includes('format=gif') ||
-      hash.includes('.gif');
-  } catch (_error) {
-    return false;
-  }
-}
-
-async function resolveAnimatedMediaUrl(rawUrl) {
-  const source = stripTrailingUrlPunctuation(rawUrl);
-  if (!source) return '';
-  if (isDirectAnimatedMediaUrl(source)) return source;
-
-  let parsed = null;
-  try {
-    parsed = new URL(source);
-  } catch (_error) {
-    return '';
-  }
-
-  if (!/^https?:$/i.test(parsed.protocol)) return '';
-
-  const pathname = String(parsed.pathname || '');
-  const host = String(parsed.hostname || '').toLowerCase().replace(/^www\./, '');
-
-  if (host.endsWith('giphy.com')) {
-    const mediaMatch = pathname.match(/^\/media\/([A-Za-z0-9]+)(?:\/|$)/i);
-    const slugMatch = pathname.match(/-([A-Za-z0-9]+)(?:\/|$)/);
-    const giphyId = (mediaMatch && mediaMatch[1]) || (slugMatch && slugMatch[1]) || '';
-    if (giphyId) {
-      return `https://media.giphy.com/media/${giphyId}/giphy.gif`;
-    }
-  }
-
-  try {
-    const response = await fetch(parsed.toString(), {
-      method: 'GET',
-      redirect: 'follow',
-      headers: {
-        'user-agent': 'HushBot/1.0 (+https://hushff.com)'
-      }
-    });
-
-    if (!response.ok) return '';
-
-    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
-    if (contentType.startsWith('image/gif') || contentType.startsWith('image/webp') || contentType.startsWith('video/mp4')) {
-      return response.url || parsed.toString();
-    }
-
-    if (!contentType.includes('text/html')) return '';
-    const html = await response.text();
-    const candidate = extractMetaContentTag(html, ['og:image', 'og:video', 'twitter:image', 'twitter:player:stream']);
-    const normalizedCandidate = stripTrailingUrlPunctuation(candidate);
-    if (!normalizedCandidate) return '';
-    return isDirectAnimatedMediaUrl(normalizedCandidate) ? normalizedCandidate : '';
-  } catch (_error) {
-    return '';
   }
 }
 
@@ -3824,83 +3678,6 @@ app.get('/api/public/rankings/default', async (_req, res) => {
   } catch (error) {
     console.error('[PUBLIC] Default rankings error:', error);
     return res.status(500).json({ ok: false, error: 'Unable to load default rankings' });
-  }
-});
-
-app.post('/api/public/draft-chat-media', async (req, res) => {
-  try {
-    const draftCode = String(req.body && req.body.draftCode || '').trim().toUpperCase();
-    const username = String(req.body && req.body.username || '').trim();
-    const dataUrl = String(req.body && req.body.dataUrl || '').trim();
-
-    if (!draftCode || !username || !dataUrl) {
-      return res.status(400).json({ ok: false, error: 'Missing draftCode, username, or dataUrl' });
-    }
-
-    const draft = drafts[draftCode];
-    if (!draft || !draft.draftState) {
-      return res.status(404).json({ ok: false, error: 'Draft not found' });
-    }
-
-    const normalizedUsername = username.toLowerCase();
-    const matchedMember = Array.isArray(draft.members)
-      ? draft.members.find((member) => String(member || '').trim().toLowerCase() === normalizedUsername)
-      : null;
-
-    if (!matchedMember) {
-      return res.status(403).json({ ok: false, error: 'User is not in this draft' });
-    }
-
-    const parsedDataUrl = parseDataUrl(dataUrl);
-    if (!parsedDataUrl) {
-      return res.status(400).json({ ok: false, error: 'Invalid media payload' });
-    }
-
-    const extension = getChatMediaExtensionFromMime(parsedDataUrl.mimeType);
-    if (!extension) {
-      return res.status(415).json({ ok: false, error: 'Unsupported media type' });
-    }
-
-    if (parsedDataUrl.buffer.length > CHAT_MEDIA_MAX_BYTES) {
-      return res.status(413).json({ ok: false, error: 'Media file is too large' });
-    }
-
-    await ensureChatMediaDir();
-
-    const safeDraft = draftCode.replace(/[^A-Z0-9]/g, '').slice(0, 12) || 'DRAFT';
-    const randomPart = crypto.randomBytes(6).toString('hex');
-    const fileName = `${safeDraft}_${Date.now()}_${randomPart}.${extension}`;
-    const filePath = path.join(CHAT_MEDIA_DIR, fileName);
-    await fs.writeFile(filePath, parsedDataUrl.buffer);
-
-    return res.json({
-      ok: true,
-      url: `/chat-media/${fileName}`,
-      mimeType: parsedDataUrl.mimeType,
-      size: parsedDataUrl.buffer.length
-    });
-  } catch (error) {
-    console.error('[draft-chat-media] upload failed:', error);
-    return res.status(500).json({ ok: false, error: 'Failed to upload media' });
-  }
-});
-
-app.post('/api/public/draft-chat-media/resolve', async (req, res) => {
-  try {
-    const rawUrl = String(req.body && req.body.url || '').trim();
-    if (!rawUrl) {
-      return res.status(400).json({ ok: false, error: 'Missing URL' });
-    }
-
-    const resolvedUrl = await resolveAnimatedMediaUrl(rawUrl);
-    if (!resolvedUrl) {
-      return res.status(404).json({ ok: false, error: 'No animated media URL found' });
-    }
-
-    return res.json({ ok: true, url: resolvedUrl });
-  } catch (error) {
-    console.error('[draft-chat-media] resolve failed:', error);
-    return res.status(500).json({ ok: false, error: 'Unable to resolve media URL' });
   }
 });
 
@@ -8617,7 +8394,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const normalized = trimmed.slice(0, DRAFT_CHAT_MESSAGE_MAX_LENGTH);
+    const normalized = trimmed.slice(0, 240);
     const payload = {
       username: matchedMember,
       text: normalized,

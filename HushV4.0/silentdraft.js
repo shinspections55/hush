@@ -4342,11 +4342,9 @@ function initSilentDraft() {
             const searchLower = String(parsed.search || '').toLowerCase();
             const hashLower = String(parsed.hash || '').toLowerCase();
 
-            const looksAnimated = /\.(gif|webp|mp4)$/i.test(pathnameLower) ||
+            const looksAnimated = /\.(gif|webp)$/i.test(pathnameLower) ||
                 pathnameLower.includes('/giphy.gif') ||
-                pathnameLower.includes('/giphy.mp4') ||
                 pathnameLower.includes('/tenor.gif') ||
-                pathnameLower.includes('/tenor.mp4') ||
                 searchLower.includes('format=gif') ||
                 hashLower.includes('.gif');
 
@@ -4373,40 +4371,14 @@ function initSilentDraft() {
         return resolveKnownGifUrl(rawUrl);
     }
 
-    function isVideoMediaUrl(urlValue) {
-        return /\.mp4(?:$|\?)/i.test(String(urlValue || ''));
-    }
-
-    async function resolveMediaUrlFromServer(rawUrl) {
-        const value = String(rawUrl || '').trim();
-        if (!value) return '';
-
-        try {
-            const response = await fetch('/api/public/draft-chat-media/resolve', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                cache: 'no-store',
-                body: JSON.stringify({ url: value })
-            });
-            if (!response.ok) return '';
-            const payload = await response.json().catch(() => null);
-            return String(payload && payload.url || '').trim();
-        } catch (_error) {
-            return '';
-        }
-    }
-
-    async function normalizeOutgoingDraftChatText(rawText) {
+    function normalizeOutgoingDraftChatText(rawText) {
         const textValue = String(rawText || '').trim();
         if (!textValue) return '';
 
         const rawUrl = extractFirstUrl(textValue);
         if (!rawUrl) return textValue;
 
-        let resolvedUrl = resolveKnownGifUrl(rawUrl);
-        if (!resolvedUrl) {
-            resolvedUrl = await resolveMediaUrlFromServer(rawUrl);
-        }
+        const resolvedUrl = resolveKnownGifUrl(rawUrl);
         if (!resolvedUrl) return textValue;
         if (resolvedUrl === rawUrl) return textValue;
 
@@ -4428,27 +4400,14 @@ function initSilentDraft() {
             container.appendChild(captionNode);
         }
 
-        if (isVideoMediaUrl(gifUrl)) {
-            const previewVideo = document.createElement('video');
-            previewVideo.className = 'draft-chat-gif-preview';
-            previewVideo.src = gifUrl;
-            previewVideo.autoplay = true;
-            previewVideo.loop = true;
-            previewVideo.muted = true;
-            previewVideo.playsInline = true;
-            previewVideo.preload = 'metadata';
-            previewVideo.setAttribute('aria-label', 'GIF preview');
-            container.appendChild(previewVideo);
-        } else {
-            const preview = document.createElement('img');
-            preview.className = 'draft-chat-gif-preview';
-            preview.src = gifUrl;
-            preview.alt = 'GIF preview';
-            preview.loading = 'lazy';
-            preview.decoding = 'async';
-            preview.referrerPolicy = 'no-referrer';
-            container.appendChild(preview);
-        }
+        const preview = document.createElement('img');
+        preview.className = 'draft-chat-gif-preview';
+        preview.src = gifUrl;
+        preview.alt = 'GIF preview';
+        preview.loading = 'lazy';
+        preview.decoding = 'async';
+        preview.referrerPolicy = 'no-referrer';
+        container.appendChild(preview);
 
         const link = document.createElement('a');
         link.className = 'draft-chat-gif-link';
@@ -4536,8 +4495,6 @@ function initSilentDraft() {
         let gifToggleReenableTimer = null;
 
         const GIF_SEARCH_API_URL = '/api/hush-gifs';
-        const CHAT_MEDIA_UPLOAD_API_URL = '/api/public/draft-chat-media';
-        const CHAT_MEDIA_MAX_BYTES = 3 * 1024 * 1024;
         const GIF_DEFAULT_CATEGORIES = ['football', 'funny', 'hype', 'victory', 'trashTalk'];
         let gifFilterCategories = [...GIF_DEFAULT_CATEGORIES];
         if (!gifFilterCategories.includes(gifCategoryFilter)) {
@@ -4557,133 +4514,6 @@ function initSilentDraft() {
             { label: 'Fire', category: 'hype', tags: 'fire hot', url: 'https://media.giphy.com/media/3o72FfM5HJydzafgUE/giphy.gif' }
         ];
         let gifOptions = [];
-        let chatMediaUploadInFlight = false;
-
-        const mediaUploadInput = document.createElement('input');
-        mediaUploadInput.type = 'file';
-        mediaUploadInput.accept = 'image/gif,image/webp,image/png,image/jpeg,video/mp4';
-        mediaUploadInput.hidden = true;
-        mediaUploadInput.setAttribute('aria-hidden', 'true');
-        form.appendChild(mediaUploadInput);
-
-        let mediaUploadButton = form.querySelector('#draft-chat-upload-media');
-        if (!mediaUploadButton) {
-            mediaUploadButton = document.createElement('button');
-            mediaUploadButton.type = 'button';
-            mediaUploadButton.id = 'draft-chat-upload-media';
-            mediaUploadButton.className = 'draft-chat-gif-add-btn';
-            mediaUploadButton.textContent = 'Upload';
-            mediaUploadButton.setAttribute('aria-label', 'Upload GIF or image');
-            mediaUploadButton.setAttribute('title', 'Upload GIF or image');
-            form.insertBefore(mediaUploadButton, sendButton);
-        }
-
-        function fileToDataUrl(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(String(reader.result || ''));
-                reader.onerror = () => reject(new Error('read_failed'));
-                reader.readAsDataURL(file);
-            });
-        }
-
-        async function uploadDraftChatMediaFile(file) {
-            if (!file) throw new Error('no_file');
-
-            const size = Number(file.size || 0);
-            if (!Number.isFinite(size) || size <= 0) {
-                throw new Error('invalid_file');
-            }
-            if (size > CHAT_MEDIA_MAX_BYTES) {
-                throw new Error('file_too_large');
-            }
-
-            const dataUrl = await fileToDataUrl(file);
-            const payload = {
-                draftCode: currentDraftCode,
-                username,
-                dataUrl,
-                fileName: String(file.name || '')
-            };
-
-            const response = await fetch(CHAT_MEDIA_UPLOAD_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                cache: 'no-store',
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                const errPayload = await response.json().catch(() => null);
-                throw new Error(String(errPayload && errPayload.error || 'upload_failed'));
-            }
-
-            const result = await response.json().catch(() => null);
-            const mediaUrl = String(result && result.url || '').trim();
-            if (!mediaUrl) throw new Error('missing_media_url');
-            return mediaUrl;
-        }
-
-        async function handleDraftChatMediaUpload(file) {
-            if (chatMediaUploadInFlight) return;
-            if (!(window.draftSocket && currentDraftCode)) {
-                showNotification('Chat unavailable: not connected.');
-                return;
-            }
-
-            chatMediaUploadInFlight = true;
-            sendButton.disabled = true;
-            mediaUploadButton.disabled = true;
-
-            try {
-                showNotification('Uploading media...');
-                const mediaUrl = await uploadDraftChatMediaFile(file);
-                const prefix = input.value && !/\s$/.test(input.value) ? ' ' : '';
-                insertTextIntoInput(`${prefix}${mediaUrl}`);
-                showNotification('Media ready. Tap Send.');
-            } catch (error) {
-                const reason = String(error && error.message || 'upload_failed');
-                if (reason === 'file_too_large') {
-                    showNotification('Media too large. Max 3MB.');
-                } else {
-                    showNotification('Unable to upload media.');
-                }
-            } finally {
-                chatMediaUploadInFlight = false;
-                sendButton.disabled = false;
-                mediaUploadButton.disabled = false;
-                mediaUploadInput.value = '';
-                input.focus();
-            }
-        }
-
-        mediaUploadButton.addEventListener('click', () => {
-            if (chatMediaUploadInFlight) return;
-            mediaUploadInput.click();
-        });
-
-        mediaUploadInput.addEventListener('change', () => {
-            const file = mediaUploadInput.files && mediaUploadInput.files[0];
-            if (!file) return;
-            void handleDraftChatMediaUpload(file);
-        });
-
-        input.addEventListener('paste', (event) => {
-            const clipboardData = event.clipboardData;
-            if (!clipboardData || !clipboardData.items || clipboardData.items.length === 0) return;
-
-            const fileItem = Array.from(clipboardData.items).find((item) => {
-                const type = String(item && item.type || '').toLowerCase();
-                return item.kind === 'file' && (type.startsWith('image/') || type === 'video/mp4');
-            });
-
-            if (!fileItem) return;
-            const file = fileItem.getAsFile();
-            if (!file) return;
-
-            event.preventDefault();
-            void handleDraftChatMediaUpload(file);
-        });
 
         const emojiOptions = [
             '😀', '😁', '😂', '🤣', '😊', '😍', '😎', '🤝',
@@ -5136,11 +4966,11 @@ function initSilentDraft() {
             }
         });
 
-        form.addEventListener('submit', async (event) => {
+        form.addEventListener('submit', (event) => {
             event.preventDefault();
             const raw = String(input.value || '').trim();
             if (!raw) return;
-            const normalized = await normalizeOutgoingDraftChatText(raw);
+            const normalized = normalizeOutgoingDraftChatText(raw);
             const text = normalized.slice(0, DRAFT_CHAT_MAX_LENGTH);
 
             closeEmojiPicker();
