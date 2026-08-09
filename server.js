@@ -5636,7 +5636,9 @@ const io = new Server(server, {
 // In-memory map of drafts for real-time sync. This mirrors client localStorage but is ephemeral.
 const drafts = {};
 const pendingLobbyDisconnectTimers = new Map();
+const pendingRoundAutoAdvanceTimers = new Map();
 const LOBBY_DISCONNECT_GRACE_MS = Number.parseInt(process.env.LOBBY_DISCONNECT_GRACE_MS || '1800000', 10);
+const ROUND_RESULTS_AUTO_ADVANCE_MS = Math.max(4000, Number.parseInt(String(process.env.ROUND_RESULTS_AUTO_ADVANCE_MS || '15000'), 10) || 15000);
 const RELIABILITY_PROFILE = String(process.env.HUSH_RELIABILITY_PROFILE || 'high-latency').trim().toLowerCase();
 const RELIABILITY_PRESETS = {
   standard: {
@@ -8047,6 +8049,79 @@ function scheduleLobbyDisconnectRemoval(code, username) {
 io.on('connection', (socket) => {
   console.log(`[connection] New socket connected: ${socket.id}`);
 
+  const clearPendingRoundAutoAdvance = (draftCode) => {
+    const safeCode = String(draftCode || '').trim();
+    const pending = pendingRoundAutoAdvanceTimers.get(safeCode);
+    if (!pending) return;
+    try { clearTimeout(pending); } catch (_) {}
+    pendingRoundAutoAdvanceTimers.delete(safeCode);
+  };
+
+  const finalizeRoundResultsWindow = (draftCode, trigger = 'manual') => {
+    const safeCode = String(draftCode || '').trim();
+    if (!safeCode) return { ok: false, reason: 'missing_code' };
+
+    const draft = drafts[safeCode];
+    if (!draft || !draft.draftState) return { ok: false, reason: 'draft_not_ready' };
+
+    const pendingRoundResults = draft.draftState.pendingRoundResults;
+    if (!pendingRoundResults || !Array.isArray(pendingRoundResults.results)) {
+      return { ok: false, reason: 'no_pending_round_results' };
+    }
+
+    const pendingRoundNumber = Number.parseInt(String(pendingRoundResults.roundNumber || draft.draftState.currentRound || 1), 10) || 1;
+    const lastResults = draft.draftState.lastRoundResults;
+    const tiedBids = Array.isArray(lastResults && lastResults.tiedBids) ? lastResults.tiedBids : [];
+
+    io.to(`draft_${safeCode}`).emit('allMembersAccepted', {
+      roundNumber: pendingRoundNumber,
+      trigger: String(trigger || 'manual').trim() || 'manual'
+    });
+
+    if (tiedBids.length > 0) {
+      try {
+        draft.draftState.pendingAuctions = [...tiedBids];
+        const firstTie = draft.draftState.pendingAuctions.shift();
+        if (firstTie) {
+          startServerLiveAuction(safeCode, firstTie);
+        }
+      } catch (error) {
+        console.error('[round-flow] Failed to start tied auction during finalizeRoundResultsWindow:', error);
+      }
+    }
+
+    draft.draftState.acceptedMembers = [];
+    draft.draftState.submittedMembers = [];
+    draft.draftState.isProcessingRound = false;
+    draft.draftState.pendingRoundResults = null;
+    clearPendingRoundAutoAdvance(safeCode);
+    schedulePersistDraftState(safeCode, `round_results_finalized:${String(trigger || 'manual')}`);
+
+    return {
+      ok: true,
+      roundNumber: pendingRoundNumber,
+      tiedBidsStarted: tiedBids.length
+    };
+  };
+
+  const schedulePendingRoundAutoAdvance = (draftCode, delayMs = ROUND_RESULTS_AUTO_ADVANCE_MS) => {
+    const safeCode = String(draftCode || '').trim();
+    if (!safeCode) return;
+    clearPendingRoundAutoAdvance(safeCode);
+
+    const timerId = setTimeout(() => {
+      pendingRoundAutoAdvanceTimers.delete(safeCode);
+      const draft = drafts[safeCode];
+      if (!draft || !draft.draftState) return;
+      if (!draft.draftState.pendingRoundResults || !Array.isArray(draft.draftState.pendingRoundResults.results)) return;
+
+      console.warn(`[round-flow] Auto-finalizing pending round results for ${safeCode} after ${delayMs}ms`);
+      finalizeRoundResultsWindow(safeCode, 'auto_timeout');
+    }, Math.max(4000, Number(delayMs || ROUND_RESULTS_AUTO_ADVANCE_MS)));
+
+    pendingRoundAutoAdvanceTimers.set(safeCode, timerId);
+  };
+
   socket.on('hushHeartbeat', (payload, cb) => {
     const clientTs = Number(payload && payload.clientTs || 0);
     const now = Date.now();
@@ -8770,9 +8845,12 @@ io.on('connection', (socket) => {
     }
 
     const draft = drafts[code];
-    const host = draft.members && draft.members[0];
-    if (requester !== host) {
-      if (cb) cb({ ok: false, reason: 'only_host_can_force' });
+    const normalizedRequester = String(requester || '').trim().toLowerCase();
+    const isMember = Array.isArray(draft.members)
+      ? draft.members.some((member) => String(member || '').trim().toLowerCase() === normalizedRequester)
+      : false;
+    if (!isMember) {
+      if (cb) cb({ ok: false, reason: 'not_in_draft' });
       return;
     }
 
@@ -8821,10 +8899,13 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const hostUsername = drafts[code].members && drafts[code].members[0];
-    if (username !== hostUsername) {
-      console.log(`[processRound] Rejected non-host processor ${username}; host is ${hostUsername}`);
-      if (cb) cb({ ok: false, reason: 'only_host_can_process' });
+    const normalizedRequester = String(username || '').trim().toLowerCase();
+    const isMember = Array.isArray(drafts[code].members)
+      ? drafts[code].members.some((member) => String(member || '').trim().toLowerCase() === normalizedRequester)
+      : false;
+    if (!isMember) {
+      console.log(`[processRound] Rejected non-member processor ${username} in ${code}`);
+      if (cb) cb({ ok: false, reason: 'not_in_draft' });
       return;
     }
 
@@ -8891,6 +8972,7 @@ io.on('connection', (socket) => {
         participationStats: existingSnapshot.participationStats || null
       };
       draftState.pendingRoundResults = replayPayload;
+      schedulePendingRoundAutoAdvance(code);
 
       io.to(`draft_${code}`).emit('roundResults', replayPayload);
       console.warn(`[processRound] Replayed saved round results for ${code} round ${safeRoundNumber}`);
@@ -9239,6 +9321,7 @@ io.on('connection', (socket) => {
       };
       roundResultsPayload.stateVersion = recordDraftStateEvent(drafts[code], 'roundResults', roundResultsPayload);
       draftState.pendingRoundResults = roundResultsPayload;
+      schedulePendingRoundAutoAdvance(code);
 
       // Persist authoritative results before broadcasting so reconnect recovery can load exact winners.
       try {
@@ -9378,32 +9461,8 @@ io.on('connection', (socket) => {
       });
 
       if (allAccepted) {
-        console.log(`[acceptRoundResults] All ${totalMembers} human members accepted - advancing to next round`);
-
-        const lastResults = draft.draftState.lastRoundResults;
-        console.log(`[acceptRoundResults] lastResults structure:`, JSON.stringify(lastResults, null, 2));
-
-        io.to(`draft_${code}`).emit('allMembersAccepted');
-
-        if (lastResults && lastResults.tiedBids && lastResults.tiedBids.length > 0) {
-          console.log(`[acceptRoundResults] Found ${lastResults.tiedBids.length} tied bids, will start auctions automatically`);
-          try {
-            draft.draftState.pendingAuctions = [...lastResults.tiedBids];
-            const firstTie = draft.draftState.pendingAuctions.shift();
-            console.log(`[acceptRoundResults] Starting first auction for:`, firstTie);
-            startServerLiveAuction(code, firstTie);
-          } catch (err) {
-            console.error(`[acceptRoundResults] ERROR starting auction:`, err);
-            console.error(err.stack);
-          }
-        } else {
-          console.log(`[acceptRoundResults] No tied bids detected, proceeding to next round`);
-        }
-
-        draft.draftState.acceptedMembers = [];
-        draft.draftState.submittedMembers = [];
-        draft.draftState.isProcessingRound = false;
-        draft.draftState.pendingRoundResults = null;
+        console.log(`[acceptRoundResults] All ${totalMembers} human members accepted - finalizing round window`);
+        finalizeRoundResultsWindow(code, 'all_accepted');
       }
 
       if (cb) cb({ ok: true, acceptedCount, totalMembers, allAccepted, roundNumber: pendingRoundNumber });
@@ -9482,7 +9541,12 @@ io.on('connection', (socket) => {
   // Start next round (host only)
   socket.on('startNextRound', (code, cb) => {
     const username = socket.data.username;
-    if(drafts[code] && drafts[code].members && drafts[code].members[0] === username){
+    const draft = drafts[code];
+    const normalizedRequester = String(username || '').trim().toLowerCase();
+    const isMember = draft && Array.isArray(draft.members)
+      ? draft.members.some((member) => String(member || '').trim().toLowerCase() === normalizedRequester)
+      : false;
+    if(draft && isMember){
       const roundTimerMinutes = Number.isFinite(Number.parseInt(drafts[code].roundTimerMinutes, 10))
         ? Math.max(3, Math.min(Number.parseInt(drafts[code].roundTimerMinutes, 10), 10))
         : 10;
@@ -9492,6 +9556,7 @@ io.on('connection', (socket) => {
       drafts[code].draftState.bids = {};
       drafts[code].draftState.recentAcquisitions = {}; // Clear recent acquisitions for new round
       drafts[code].draftState.pendingRoundResults = null;
+      clearPendingRoundAutoAdvance(code);
       const roundStartedPayload = {
         currentRound: drafts[code].draftState.currentRound,
         roundTimer: drafts[code].draftState.roundTimer,
@@ -9503,10 +9568,11 @@ io.on('connection', (socket) => {
       
       // Broadcast new round to all members
       io.to(`draft_${code}`).emit('roundStarted', drafts[code].draftState);
+      schedulePersistDraftState(code, 'start_next_round');
       
       if(cb) cb({ ok: true });
     } else {
-      if(cb) cb({ ok: false, reason: 'not_host' });
+      if(cb) cb({ ok: false, reason: 'not_in_draft' });
     }
   });
 

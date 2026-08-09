@@ -2245,12 +2245,9 @@ function initSilentDraft() {
             clearAutoDraftSoloGraceWindow();
             console.log('[silentdraft] All members have submitted - showing processing modal');
             showProcessingBidsModal();
-            if (window.isHost) {
-                console.log('[silentdraft] Host is processing round on server');
-                processRoundOnServer();
-            } else {
-                console.log('[silentdraft] Non-host waiting for host round processing');
-            }
+
+            // Any connected member can request processing; server enforces idempotency.
+            processRoundOnServer();
         });
 
         window.draftSocket.on('roundDiagnostics', (payload) => {
@@ -2690,12 +2687,12 @@ function initSilentDraft() {
         lockRoundBidsUI('Time Up - Bids Locked');
 
         syncCurrentRoundBidsToServer().finally(() => {
-            if (window.isHost && window.draftSocket && currentDraftCode) {
+            if (window.draftSocket && currentDraftCode) {
                 setTimeout(() => {
-                    console.log('[silentdraft][debug] host emitting forceTimerRoundEnd');
+                    console.log('[silentdraft][debug] emitting forceTimerRoundEnd');
                     window.draftSocket.emit('forceTimerRoundEnd', currentDraftCode, (response) => {
                         if (response && response.ok) {
-                            console.log('[silentdraft] Host forced timer round end:', response);
+                            console.log('[silentdraft] Timer forced round end:', response);
                         } else {
                             console.warn('[silentdraft] forceTimerRoundEnd rejected:', response);
                         }
@@ -6939,11 +6936,6 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
 
         // Keep round progression server-authoritative to avoid client desync.
         if (window.draftSocket && currentDraftCode) {
-            if (!window.isHost) {
-                console.log('[silentdraft] Waiting for host/server to start next round');
-                return;
-            }
-
             window.draftSocket.emit('startNextRound', currentDraftCode, (response) => {
                 if (response && response.ok) {
                     console.log('[silentdraft] Requested next round from server successfully');
