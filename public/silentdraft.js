@@ -6959,6 +6959,12 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                     return;
                 }
 
+                if (response && response.reason === 'draft_complete') {
+                    console.log('[silentdraft] Server confirmed draft completion at final round; ending draft');
+                    endDraft();
+                    return;
+                }
+
                 console.warn('[silentdraft] startNextRound rejected, requesting fresh draft state:', response);
                 requestFreshDraftState();
             });

@@ -9552,6 +9552,13 @@ io.on('connection', (socket) => {
       ? draft.members.some((member) => String(member || '').trim().toLowerCase() === normalizedRequester)
       : false;
     if(draft && isMember){
+      const currentRound = Number.parseInt(String(drafts[code].draftState && drafts[code].draftState.currentRound || 1), 10) || 1;
+      if (currentRound >= 10) {
+        console.log(`[startNextRound] Ignoring advance beyond final round ${currentRound} requested by ${username}`);
+        if (cb) cb({ ok: false, reason: 'draft_complete', currentRound });
+        return;
+      }
+
       const roundTimerMinutes = Number.isFinite(Number.parseInt(drafts[code].roundTimerMinutes, 10))
         ? Math.max(3, Math.min(Number.parseInt(drafts[code].roundTimerMinutes, 10), 10))
         : 10;
