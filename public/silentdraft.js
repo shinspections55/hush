@@ -4424,17 +4424,31 @@ function initSilentDraft() {
         const emojiPicker = document.getElementById('draft-chat-emoji-picker');
         const gifPicker = document.getElementById('draft-chat-gif-picker');
         if (!form || !input || !sendButton) return;
-        if (gifAddButton) {
-            gifAddButton.setAttribute('aria-label', 'Add GIF powered by GIPHY');
-            gifAddButton.setAttribute('title', 'Add GIF powered by GIPHY');
-            gifAddButton.innerHTML = '<span class="gif-btn-label">GIF</span><img class="gif-btn-brand-mark" src="assets/giphy/Poweredby_100px_Badge.gif" alt="Powered by GIPHY">';
-        }
         const standaloneDisplay = Boolean(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
         const iosStandalone = Boolean(window.navigator && window.navigator.standalone === true);
         const hasPwaClass = Boolean(document.body && document.body.classList.contains('pwa-installed'));
         const hasAppNavClass = Boolean(document.body && document.body.classList.contains('silentdraft-app-nav-enabled'));
         const isInstalledPwa = Boolean(standaloneDisplay || iosStandalone || hasPwaClass || hasAppNavClass);
         const emojiPickerEnabled = Boolean(!isInstalledPwa && emojiToggle && emojiPicker);
+        const gifPickerEnabled = Boolean(isInstalledPwa && gifAddButton && gifPicker);
+        if (gifAddButton) {
+            gifAddButton.setAttribute('aria-label', 'Add GIF powered by GIPHY');
+            gifAddButton.setAttribute('title', 'Add GIF powered by GIPHY');
+            if (isInstalledPwa) {
+                gifAddButton.hidden = false;
+                gifAddButton.style.display = '';
+                gifAddButton.removeAttribute('aria-hidden');
+                gifAddButton.innerHTML = '<img class="gif-btn-brand-mark" src="/assets/giphy/Poweredby_100px_Badge.gif" alt="Powered by GIPHY" loading="lazy" decoding="async">';
+            } else {
+                gifAddButton.hidden = true;
+                gifAddButton.style.display = 'none';
+                gifAddButton.setAttribute('aria-hidden', 'true');
+            }
+        }
+        if (gifPicker && !isInstalledPwa) {
+            gifPicker.hidden = true;
+            gifPicker.classList.remove('is-open');
+        }
         let emojiPickerExpanded = false;
         let gifCategoryFilter = '';
         let gifLoading = false;
@@ -4863,7 +4877,7 @@ function initSilentDraft() {
             });
         }
 
-        if (gifAddButton) {
+        if (gifPickerEnabled) {
             gifAddButton.setAttribute('aria-expanded', 'false');
             gifAddButton.addEventListener('click', async (event) => {
                 event.preventDefault();
