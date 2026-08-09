@@ -15,9 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const isPortalPage = document.body.classList.contains('admin-portal-page');
 
   const keyInput = document.getElementById('adminKeyInput');
-  const rankingsManagerKeyInput = document.getElementById('rankingsManagerKeyInput');
-  const rankingsManagerConnectForm = document.getElementById('rankingsManagerConnectForm');
-  const rankingsManagerConnectStatus = document.getElementById('rankingsManagerConnectStatus');
   const connectForm = document.getElementById('adminConnectForm');
   const connectStatus = document.getElementById('adminConnectStatus');
   const refreshOverviewBtn = document.getElementById('refreshOverviewBtn');
@@ -145,8 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getAdminKey() {
     const typedKey = String(keyInput?.value || '').trim();
-    const managerTypedKey = String(rankingsManagerKeyInput?.value || '').trim();
-    return typedKey || managerTypedKey || adminSessionKey || getStoredAdminKey();
+    return typedKey || adminSessionKey || getStoredAdminKey();
   }
 
   function restoreAdminKey() {
@@ -156,23 +152,19 @@ document.addEventListener('DOMContentLoaded', () => {
       // ignore
     }
     if (keyInput) keyInput.value = '';
-    if (rankingsManagerKeyInput) rankingsManagerKeyInput.value = '';
     adminSessionKey = getStoredAdminKey();
   }
 
   function promoteTypedAdminKeyToSession() {
     const typedKey = String(keyInput?.value || '').trim();
-    const managerTypedKey = String(rankingsManagerKeyInput?.value || '').trim();
-    const promotedKey = typedKey || managerTypedKey;
-    if (!promotedKey) return;
-    adminSessionKey = promotedKey;
+    if (!typedKey) return;
+    adminSessionKey = typedKey;
     try {
-      sessionStorage.setItem(ADMIN_KEY_STORAGE_KEY, promotedKey);
+      sessionStorage.setItem(ADMIN_KEY_STORAGE_KEY, typedKey);
     } catch (_error) {
       // ignore
     }
     if (keyInput) keyInput.value = '';
-    if (rankingsManagerKeyInput) rankingsManagerKeyInput.value = '';
   }
 
   function clearStoredAdminKey() {
@@ -188,7 +180,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     adminSessionKey = '';
     if (keyInput) keyInput.value = '';
-    if (rankingsManagerKeyInput) rankingsManagerKeyInput.value = '';
   }
 
   async function loadCpuReferenceData() {
@@ -492,12 +483,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function setActionStatus(message) {
     if (rankingsActionStatus) {
       rankingsActionStatus.textContent = message;
-    }
-  }
-
-  function setRankingsManagerConnectStatus(message) {
-    if (rankingsManagerConnectStatus) {
-      rankingsManagerConnectStatus.textContent = message;
     }
   }
 
@@ -2981,23 +2966,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    if (rankingsManagerConnectForm) {
-      rankingsManagerConnectForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        setRankingsManagerConnectStatus('Checking admin access...');
-        try {
-          await validateAdminKey();
-          promoteTypedAdminKeyToSession();
-          setRankingsManagerConnectStatus('Unlocked for this session.');
-          setActionStatus('');
-          await loadPositionRankings(activePosition);
-        } catch (error) {
-          setRankingsManagerConnectStatus(error && error.message ? error.message : 'Invalid admin key.');
-          setActionStatus(error && error.message ? error.message : 'Invalid admin key.');
-        }
-      });
-    }
-
     clearUndoHistory();
     loadTierInsertModePreference();
     setLayoutDirty(false);
@@ -3007,17 +2975,19 @@ document.addEventListener('DOMContentLoaded', () => {
     restoreAdminKey();
     const managerAdminKey = getAdminKey();
     if (!managerAdminKey) {
-      setRankingsManagerConnectStatus('Enter the admin key to unlock this page.');
+      setConnectStatus('Enter the admin key.');
       setActionStatus('Admin key not found. Enter it to unlock Admin Rankings Manager.');
     } else {
-      setRankingsManagerConnectStatus('Checking admin access...');
+      setConnectStatus('Checking admin access...');
       setActionStatus('Checking admin access...');
       void validateAdminKey().then(() => {
-        setRankingsManagerConnectStatus('Unlocked for this session.');
+        setConnectApproved(true);
+        setConnectStatus('');
         setActionStatus('');
         void loadPositionRankings(activePosition);
       }).catch((error) => {
-        setRankingsManagerConnectStatus(error && error.message ? error.message : 'Invalid admin key.');
+        setConnectApproved(false);
+        setConnectStatus(error && error.message ? error.message : 'Invalid admin key.');
         setActionStatus(error && error.message ? error.message : 'Invalid admin key.');
       });
     }
@@ -3072,8 +3042,13 @@ document.addEventListener('DOMContentLoaded', () => {
         promoteTypedAdminKeyToSession();
         setConnectApproved(true);
         setConnectStatus('');
-        void loadOverview();
-        void loadPositionRankings(activePosition);
+        if (isPortalPage) {
+          void loadOverview();
+          void loadPositionRankings(activePosition);
+        } else if (isRankingsManagerPage) {
+          setActionStatus('');
+          void loadPositionRankings(activePosition);
+        }
       }).catch((error) => {
         setConnectApproved(false);
         setConnectStatus(error && error.message ? error.message : 'Invalid admin key.');
