@@ -74,6 +74,15 @@ const HUSH_GIF_DEFAULT_LIBRARY = Object.freeze({
   fails: [],
   money: []
 });
+const PERSISTENT_DATA_DIR = path.join(__dirname, 'data');
+const DEFAULT_RANKINGS_FILE = path.join(PERSISTENT_DATA_DIR, 'top250.generated.json');
+const FALLBACK_RANKINGS_FILE = path.join(PERSISTENT_DATA_DIR, 'top250.json');
+const DEFAULT_RANKINGS_META_FILE = path.join(PERSISTENT_DATA_DIR, 'top250.meta.json');
+const LEGACY_DEFAULT_RANKINGS_FILES = [
+  path.join(__dirname, 'top250.generated.json'),
+  path.join(__dirname, 'top250.json'),
+  path.join(__dirname, 'top250.meta.json')
+];
 
 function loadHushGifMaxUniqueIds() {
   try {
@@ -90,6 +99,27 @@ function loadHushGifMaxUniqueIds() {
   return HUSH_GIF_MAX_UNIQUE_IDS_DEFAULT;
 }
 
+async function migrateLegacyDefaultRankingsFiles() {
+  await fs.mkdir(PERSISTENT_DATA_DIR, { recursive: true });
+
+  for (const legacyFile of LEGACY_DEFAULT_RANKINGS_FILES) {
+    const targetFile = path.join(PERSISTENT_DATA_DIR, path.basename(legacyFile));
+    try {
+      await fs.stat(targetFile);
+      continue;
+    } catch (_missingTargetError) {
+      // target missing; consider legacy source
+    }
+
+    try {
+      const legacyRaw = await fs.readFile(legacyFile, 'utf8');
+      await fs.writeFile(targetFile, legacyRaw, 'utf8');
+    } catch (_legacyError) {
+      // ignore missing legacy files; the rankings may be initialized later by admin save
+    }
+  }
+}
+
 async function writeHushGifSettings(maxUniqueIds) {
   await fs.mkdir(HUSH_GIF_DATA_DIR, { recursive: true });
   await fs.writeFile(HUSH_GIF_SETTINGS_FILE, JSON.stringify({
@@ -100,9 +130,6 @@ async function writeHushGifSettings(maxUniqueIds) {
 
 HUSH_GIF_MAX_UNIQUE_IDS = loadHushGifMaxUniqueIds();
 const CPU_LOGIC_FILE = path.join(__dirname, 'cpulogic.js');
-const DEFAULT_RANKINGS_FILE = path.join(__dirname, 'top250.generated.json');
-const FALLBACK_RANKINGS_FILE = path.join(__dirname, 'top250.json');
-const DEFAULT_RANKINGS_META_FILE = path.join(__dirname, 'top250.meta.json');
 const VALID_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
 const POSITION_FILE_MAP = {
   QB: { fileName: 'qb.json', rankField: 'qbRank', rankPrefix: '' },
@@ -993,6 +1020,14 @@ async function readDefaultRankingsData() {
   };
 }
 
+async function servePersistentRankingsFile(res, filePath) {
+  const raw = await fs.readFile(filePath, 'utf8');
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.type('json').send(raw);
+}
+
 async function writeDefaultRankingsData(players, options = {}) {
   const normalized = sortAndReindexRankings(
     (Array.isArray(players) ? players : [])
@@ -1717,6 +1752,34 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/top250.generated.json', async (_req, res) => {
+  try {
+    await servePersistentRankingsFile(res, DEFAULT_RANKINGS_FILE);
+  } catch (_error) {
+    res.status(404).json({ ok: false, error: 'Default rankings not found' });
+  }
+});
+
+app.get('/top250.json', async (_req, res) => {
+  try {
+    await servePersistentRankingsFile(res, FALLBACK_RANKINGS_FILE);
+  } catch (_error) {
+    res.status(404).json({ ok: false, error: 'Fallback rankings not found' });
+  }
+});
+
+app.get('/top250.meta.json', async (_req, res) => {
+  try {
+    const raw = await fs.readFile(DEFAULT_RANKINGS_META_FILE, 'utf8');
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.type('json').send(raw);
+  } catch (_error) {
+    res.status(404).json({ ok: false, error: 'Rankings metadata not found' });
+  }
+});
+
 app.use(express.static(root, {
   extensions: ['html'],
   maxAge: '1h',
@@ -1735,6 +1798,34 @@ app.use(express.static(root, {
     res.setHeader('Cache-Control', 'public, max-age=3600');
   }
 }));
+
+app.get('/top250.generated.json', async (_req, res) => {
+  try {
+    await servePersistentRankingsFile(res, DEFAULT_RANKINGS_FILE);
+  } catch (error) {
+    res.status(404).json({ ok: false, error: 'Default rankings not found' });
+  }
+});
+
+app.get('/top250.json', async (_req, res) => {
+  try {
+    await servePersistentRankingsFile(res, FALLBACK_RANKINGS_FILE);
+  } catch (error) {
+    res.status(404).json({ ok: false, error: 'Fallback rankings not found' });
+  }
+});
+
+app.get('/top250.meta.json', async (_req, res) => {
+  try {
+    const raw = await fs.readFile(DEFAULT_RANKINGS_META_FILE, 'utf8');
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.type('json').send(raw);
+  } catch (_error) {
+    res.status(404).json({ ok: false, error: 'Rankings metadata not found' });
+  }
+});
 
 // Avoid noisy browser 404s when no favicon asset is present.
 app.get('/favicon.ico', (req, res) => {
@@ -10542,4 +10633,12 @@ process.on('SIGTERM', () => {
   });
 });
 
-server.listen(port, () => console.log(`Server listening on http://localhost:${port}`));
+async function startServer() {
+  await migrateLegacyDefaultRankingsFiles();
+  server.listen(port, () => console.log(`Server listening on http://localhost:${port}`));
+}
+
+startServer().catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
+});
