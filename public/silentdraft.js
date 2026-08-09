@@ -5872,9 +5872,6 @@ function initSilentDraft() {
             teamsList.innerHTML = '';
             const draftLightMode = isDraftLightMode();
             teams.forEach(team => {
-                // Skip user's own team (shown in center column)
-                if (team.name === username) return;
-                
                 const teamItem = document.createElement('li');
                 teamItem.style.cssText = draftLightMode
                     ? 'cursor:pointer;padding:10px 14px;margin:6px 0;background:var(--hush-navy);border:1px solid var(--hush-steel)33;border-radius:8px;transition:all 0.2s ease;font-size:14px;color:var(--hush-ice);'
@@ -5888,7 +5885,7 @@ function initSilentDraft() {
                     ? 'display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:11px;font-weight:700;background:var(--hush-steel)22;border:1px solid var(--hush-steel)66;color:var(--hush-ice);'
                     : 'display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.5);color:#93c5fd;';
                 header.innerHTML = `
-                    <span>${team.name} - $${team.budget} (${team.roster.length} players) ${autoDraftStatusByTeam[team.name] ? `<span style="${autoBadgeStyle}">AUTO</span>` : ''}</span>
+                    <span>${team.name}${team.name === username ? ' (You)' : ''} - $${team.budget} (${team.roster.length} players) ${autoDraftStatusByTeam[team.name] ? `<span style="${autoBadgeStyle}">AUTO</span>` : ''}</span>
                     <span class="dropdown-arrow" style="font-size:12px;transition:transform 0.2s;">▼</span>
                 `;
                 teamItem.appendChild(header);
@@ -5900,32 +5897,19 @@ function initSilentDraft() {
                     ? 'display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--hush-steel)33;'
                     : 'display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);';
                 
-                if (team.roster.length > 0) {
-                    const assigned = assignRosterToSlots(team.roster);
-                    rosterDiv.innerHTML = assigned.assignedSlots.map(slot => (
-                        `<div style="margin-top: 4px; display: flex; align-items: center; font-size: 12px;"><b style="font-size: 14px;">${slot.label}</b>: ${slot.player ? `${slot.player.name} - $${slot.player.bid}` : ''}</div>`
-                    )).join('');
-
-                    // Bench players (everyone not in starters), sorted by prerank
-                    const bench = assigned.bench;
-                    if (bench.length > 0) {
-                        rosterDiv.innerHTML += draftLightMode
-                            ? '<div style="margin-top: 8px; padding-top: 4px; border-top: 1px solid var(--hush-steel)33;"></div>'
-                            : '<div style="margin-top: 8px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.1);"></div>';
-                        bench.forEach(p => {
-                            const benchLine = document.createElement('div');
-                            benchLine.style.cssText = draftLightMode
-                                ? 'display:flex;align-items:center;margin:2px 0;font-size:11px;color:var(--muted);'
-                                : 'display:flex;align-items:center;margin:2px 0;font-size:11px;color:#9aa0a6;';
-                            benchLine.innerHTML = `<span style="font-weight: bold; font-size: 12px; background: #3498db; color: white; padding: 1px 4px; border-radius: 2px; margin-right: 4px; display: inline-block;">${p.position}</span> <span style="font-size: 12px;">${p.name}</span> - $${p.bid}`;
-                            rosterDiv.appendChild(benchLine);
-                        });
-                    }
-                } else {
-                    rosterDiv.innerHTML = draftLightMode
-                        ? '<div style="font-size:12px;color:var(--muted);font-style:italic;">No players yet</div>'
-                        : '<div style="font-size:12px;color:#9aa0a6;font-style:italic;">No players yet</div>';
+                const assigned = assignRosterToSlots(team.roster);
+                const starterMarkup = assigned.assignedSlots
+                    .map(slot => buildRosterSlotRow(String(slot.label || '').replace(/\d+$/, ''), slot.player))
+                    .join('');
+                const maxBench = Number.parseInt(rosterSettings.BN, 10) || 0;
+                const benchSlots = [];
+                for (let i = 0; i < maxBench; i++) {
+                    benchSlots.push(assigned.bench[i] || null);
                 }
+                const overflowBench = assigned.bench.slice(maxBench);
+                const benchMarkup = benchSlots.map(player => buildBenchPlayerRow(player, 'BN')).join('')
+                    + overflowBench.map(player => buildBenchPlayerRow(player, 'XBN')).join('');
+                rosterDiv.innerHTML = `${starterMarkup}${benchMarkup}`;
                 
                 teamItem.appendChild(rosterDiv);
                 
