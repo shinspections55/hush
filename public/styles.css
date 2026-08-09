@@ -2306,6 +2306,7 @@ body.dashboard-light-mode .admin-rankings-back-link:hover{
 .admin-header-access .btn{padding:8px 10px;font-size:0.86rem;white-space:nowrap}
 .admin-header-access .btn.admin-connect-approved{background:var(--hush-win);color:var(--hush-bg)}
 .admin-header-access .form-status{margin-top:6px;min-height:16px;font-size:0.8rem}
+.admin-visually-hidden-input{position:absolute;left:-10000px;width:1px;height:1px;opacity:0;pointer-events:none}
 .admin-metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:8px 0 12px 0}
 .admin-metric-card{background:rgba(17,31,51,0.48);border:1px solid rgba(255,255,255,0.16);border-radius:10px;padding:10px}
 .admin-metric-card h3{margin:0 0 6px 0;font-size:0.85rem;color:var(--muted)}
