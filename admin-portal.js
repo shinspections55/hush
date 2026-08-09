@@ -66,23 +66,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const cpuLogicSourceMeta = document.getElementById('cpuLogicSourceMeta');
 
   function getStoredAdminKey() {
-    try {
-      return String(localStorage.getItem(ADMIN_KEY_STORAGE_KEY) || '').trim();
-    } catch (_error) {
-      return '';
-    }
+    return '';
   }
 
   function getAdminKey() {
     const typedKey = String(keyInput?.value || '').trim();
-    return typedKey || getStoredAdminKey();
+    return typedKey;
   }
 
   function restoreAdminKey() {
-    const storedKey = getStoredAdminKey();
-    if (keyInput && storedKey && !String(keyInput.value || '').trim()) {
-      keyInput.value = storedKey;
+    try {
+      localStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
+    } catch (_error) {
+      // ignore
     }
+    if (keyInput) keyInput.value = '';
   }
 
   function clearStoredAdminKey() {
@@ -2821,14 +2819,6 @@ document.addEventListener('DOMContentLoaded', () => {
       setConnectStatus('');
       try {
         await validateAdminKey();
-        const approvedKey = getAdminKey();
-        if (approvedKey) {
-          try {
-            localStorage.setItem(ADMIN_KEY_STORAGE_KEY, approvedKey);
-          } catch (_error) {
-            // ignore
-          }
-        }
       } catch (_e) {
         setConnectStatus(_e && _e.message ? _e.message : 'Invalid admin key.');
         return;
@@ -3184,9 +3174,9 @@ document.addEventListener('DOMContentLoaded', () => {
     restoreAdminKey();
     const managerAdminKey = getAdminKey();
     if (!managerAdminKey) {
-      setActionStatus('Admin key not found. Enter it once on Admin Portal, then return here.');
+      setActionStatus('Admin key not found. Enter it to unlock Admin Rankings Manager.');
     } else {
-      setActionStatus('Checking saved admin access...');
+      setActionStatus('Checking admin access...');
       void validateAdminKey().then(() => {
         setActionStatus('');
         void loadPositionRankings(activePosition);
@@ -3208,7 +3198,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    setConnectStatus('Checking saved admin access...');
+    setConnectStatus('Checking admin access...');
 
     void validateAdminKey().then(() => {
       setConnectApproved(true);

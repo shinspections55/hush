@@ -14,7 +14,6 @@ const ALL_POSITIONS_KEY = 'ALL';
 const POSITIONS        = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 const RANKING_BOARD_KEYS = [ALL_POSITIONS_KEY, ...POSITIONS];
 const DEFAULT_RANKINGS_API_URL = '/api/public/rankings/default';
-const DEFAULT_RANKINGS_API_CACHE_KEY = 'defaultRankingsApiCacheV1';
 const BOARD_MODE_KEY = 'rankingsBoardMode';
 const DATABASE_RANKINGS_SET_KEY = 'databaseRankingsSet';
 const TIER_INSERT_MODE_KEY = 'rankingsTierInsertMode';
@@ -957,25 +956,10 @@ async function loadDefaultRankings() {
       : (Array.isArray(payload && payload.players) ? payload.players : []);
 
     if (applyDefaultRankingsPayload(data)) {
-      try {
-        localStorage.setItem(DEFAULT_RANKINGS_API_CACHE_KEY, JSON.stringify(data));
-      } catch (_error) {
-        // ignore cache write failures
-      }
       return;
     }
   } catch (_error) {
-    // Try cached API snapshot before showing empty state.
-  }
-
-  try {
-    const cached = localStorage.getItem(DEFAULT_RANKINGS_API_CACHE_KEY);
-    const parsed = cached ? JSON.parse(cached) : null;
-    if (applyDefaultRankingsPayload(parsed)) {
-      return;
-    }
-  } catch (_error) {
-    // ignore cache parse failures
+    // API is the single source of truth for default rankings.
   }
 
   defaultRankings = [];

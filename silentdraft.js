@@ -1011,7 +1011,6 @@ function initSilentDraft() {
     let draftRoomDefaultRankings = [];
     let draftRoomDefaultRankingsLastLoadedAt = 0;
     const DRAFTROOM_DEFAULT_RANKINGS_API_URL = '/api/public/rankings/default';
-    const DRAFTROOM_DEFAULT_RANKINGS_API_CACHE_KEY = 'draftRoomDefaultRankingsApiCacheV1';
     const DRAFTROOM_POSITION_FILES = {
         QB: 'qb',
         RB: 'rb',
@@ -1186,27 +1185,11 @@ function initSilentDraft() {
                 : (Array.isArray(payload && payload.players) ? payload.players : []);
 
             if (applyDefaultRankingsPayload(data)) {
-                try {
-                    localStorage.setItem(DRAFTROOM_DEFAULT_RANKINGS_API_CACHE_KEY, JSON.stringify(data));
-                } catch (_cacheError) {
-                    // ignore cache write failures
-                }
                 console.log(`[silentdraft] Loaded ${draftRoomDefaultRankings.length} default rankings from API`);
                 return draftRoomDefaultRankings;
             }
         } catch (error) {
             console.warn('[silentdraft] Failed to load default rankings from API:', error);
-        }
-
-        try {
-            const cached = localStorage.getItem(DRAFTROOM_DEFAULT_RANKINGS_API_CACHE_KEY);
-            const parsed = cached ? JSON.parse(cached) : null;
-            if (applyDefaultRankingsPayload(parsed)) {
-                console.log(`[silentdraft] Loaded ${draftRoomDefaultRankings.length} default rankings from cached API snapshot`);
-                return draftRoomDefaultRankings;
-            }
-        } catch (_cacheReadError) {
-            // ignore cache parse failures
         }
 
         return draftRoomDefaultRankings;
