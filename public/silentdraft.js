@@ -1088,12 +1088,6 @@ function initSilentDraft() {
     }
 
     async function loadDraftRoomDefaultRankings(forceRefresh = false) {
-        const now = Date.now();
-        const staleMs = 15000;
-        if (!forceRefresh && draftRoomDefaultRankings.length > 0 && (now - draftRoomDefaultRankingsLastLoadedAt) < staleMs) {
-            return draftRoomDefaultRankings;
-        }
-
         const applyDefaultRankingsPayload = (data) => {
             if (!Array.isArray(data)) return false;
 

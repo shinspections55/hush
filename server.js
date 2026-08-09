@@ -120,6 +120,38 @@ async function migrateLegacyDefaultRankingsFiles() {
   }
 }
 
+async function migrateLegacyPositionRankingsFiles() {
+  await fs.mkdir(PERSISTENT_DATA_DIR, { recursive: true });
+
+  for (const meta of Object.values(POSITION_FILE_MAP)) {
+    const fileName = String(meta && meta.fileName || '').trim();
+    if (!fileName) continue;
+
+    const targetFile = path.join(PERSISTENT_DATA_DIR, fileName);
+    try {
+      await fs.stat(targetFile);
+      continue;
+    } catch (_missingTargetError) {
+      // target missing; try legacy candidates
+    }
+
+    const legacyCandidates = [
+      path.join(__dirname, fileName),
+      path.join(__dirname, 'players file', fileName)
+    ];
+
+    for (const candidate of legacyCandidates) {
+      try {
+        const legacyRaw = await fs.readFile(candidate, 'utf8');
+        await fs.writeFile(targetFile, legacyRaw, 'utf8');
+        break;
+      } catch (_legacyError) {
+        // try next candidate
+      }
+    }
+  }
+}
+
 async function writeHushGifSettings(maxUniqueIds) {
   await fs.mkdir(HUSH_GIF_DATA_DIR, { recursive: true });
   await fs.writeFile(HUSH_GIF_SETTINGS_FILE, JSON.stringify({
@@ -139,6 +171,7 @@ const POSITION_FILE_MAP = {
   K: { fileName: 'k.json', rankField: 'Krank', rankPrefix: '#' },
   DEF: { fileName: 'def.json', rankField: 'DEFrank', rankPrefix: '#' }
 };
+const POSITION_FILE_NAMES = Object.values(POSITION_FILE_MAP).map((meta) => String(meta.fileName || '').toLowerCase());
 let rankingsSaveQueue = Promise.resolve();
 const BYE_WEEK_BY_TEAM = Object.freeze({
   ATL: 5,
@@ -728,12 +761,14 @@ function reindexPositionPlayers(position, players) {
 }
 
 function getPositionFilePaths(meta) {
+  const persistentPath = path.join(PERSISTENT_DATA_DIR, meta.fileName);
   const legacyPath = path.join(__dirname, 'players file', meta.fileName);
   const rootPath = path.join(__dirname, meta.fileName);
   return {
+    persistentPath,
     legacyPath,
     rootPath,
-    candidates: [legacyPath, rootPath]
+    candidates: [persistentPath, legacyPath, rootPath]
   };
 }
 
@@ -813,7 +848,7 @@ async function readPositionRankingsData(position) {
     throw new Error('Invalid position');
   }
 
-  const { candidates, rootPath } = getPositionFilePaths(meta);
+  const { candidates, persistentPath } = getPositionFilePaths(meta);
 
   for (const filePath of candidates) {
     try {
@@ -840,7 +875,7 @@ async function readPositionRankingsData(position) {
     }
   }
 
-  return bootstrapPositionFileFromDefaultRankings(normalizedPos, meta, rootPath);
+  return bootstrapPositionFileFromDefaultRankings(normalizedPos, meta, persistentPath);
 }
 
 async function writePositionRankingsData(position, players) {
@@ -850,14 +885,8 @@ async function writePositionRankingsData(position, players) {
     throw new Error('Invalid position');
   }
 
-  const { legacyPath, rootPath } = getPositionFilePaths(meta);
-  let filePath = rootPath;
-  try {
-    await fs.stat(path.dirname(legacyPath));
-    filePath = legacyPath;
-  } catch (_error) {
-    filePath = rootPath;
-  }
+  const { persistentPath } = getPositionFilePaths(meta);
+  const filePath = persistentPath;
 
   const normalizedPlayers = reindexPositionPlayers(
     normalizedPos,
@@ -1750,6 +1779,24 @@ app.use((req, res, next) => {
   });
 
   next();
+});
+
+app.get('/:positionFile(qb\\.json|rb\\.json|wr\\.json|te\\.json|k\\.json|def\\.json)', async (req, res) => {
+  try {
+    const requestedFile = String(req.params.positionFile || '').trim().toLowerCase();
+    if (!POSITION_FILE_NAMES.includes(requestedFile)) {
+      return res.status(404).json({ ok: false, error: 'Position file not found' });
+    }
+
+    const filePath = path.join(PERSISTENT_DATA_DIR, requestedFile);
+    const raw = await fs.readFile(filePath, 'utf8');
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    return res.type('json').send(raw);
+  } catch (_error) {
+    return res.status(404).json({ ok: false, error: 'Position file not found' });
+  }
 });
 
 app.get('/top250.generated.json', async (_req, res) => {
@@ -10635,6 +10682,7 @@ process.on('SIGTERM', () => {
 
 async function startServer() {
   await migrateLegacyDefaultRankingsFiles();
+  await migrateLegacyPositionRankingsFiles();
   server.listen(port, () => console.log(`Server listening on http://localhost:${port}`));
 }
 
