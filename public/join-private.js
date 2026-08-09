@@ -1,16 +1,36 @@
 document.addEventListener('DOMContentLoaded', ()=>{
   const form = document.getElementById('joinPrivateForm');
+  const codeInput = form ? form.querySelector('input[name="code"]') : null;
   const user = sessionStorage.getItem('username');
   if(!user){ window.location.href='index.html'; return; }
+  if (codeInput) {
+    codeInput.setAttribute('autocapitalize', 'characters');
+    codeInput.setAttribute('autocomplete', 'off');
+    codeInput.setAttribute('spellcheck', 'false');
+    codeInput.style.textTransform = 'uppercase';
+    codeInput.addEventListener('input', () => {
+      const start = codeInput.selectionStart;
+      const end = codeInput.selectionEnd;
+      codeInput.value = String(codeInput.value || '').toUpperCase();
+      try {
+        if (typeof start === 'number' && typeof end === 'number') {
+          codeInput.setSelectionRange(start, end);
+        }
+      } catch (_error) {
+        // ignore selection restore issues on unsupported browsers
+      }
+    });
+  }
   // If an invite link like /ABC123 was used, location.pathname will contain the code
   const pathCode = (function(){
     const p = location.pathname.replace(/^\//,'').replace(/\/.*/,'');
     // Ignore if it's an HTML file or too short to be a code
     if(!p || p.length < 3 || p.endsWith('.html')) return null;
-    return p;
+    return String(p).toUpperCase();
   })();
 
   async function attemptJoin(code){
+    code = String(code || '').trim().toUpperCase();
     // Prefer server-side authoritative join if socket available
     try{
       if(window.io){
@@ -61,7 +81,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   form.addEventListener('submit', (e)=>{
     e.preventDefault();
     const data = new FormData(form);
-    const code = data.get('code').trim();
+    const code = String(data.get('code') || '').trim().toUpperCase();
     if(!code || code.length < 3){ alert('Enter a valid draft code'); return; }
     attemptJoin(code);
   });
