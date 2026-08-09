@@ -988,7 +988,7 @@ function initSilentDraft() {
     let draftRoomRankingsPosition = 'ALL';
     let draftRoomRankingsRefreshInFlight = null;
     let draftChatMessages = [];
-    const DRAFT_CHAT_MAX_LENGTH = 240;
+    const DRAFT_CHAT_MAX_LENGTH = 600;
     const DRAFT_CHAT_MAX_MESSAGES = 200;
     let draftChatUnreadCount = 0;
     const DRAFTROOM_DEFAULT_RANKINGS_API_URL = '/api/public/rankings/default';
@@ -4259,29 +4259,84 @@ function initSilentDraft() {
     function extractFirstUrl(text) {
         const value = String(text || '');
         const match = value.match(/https?:\/\/[^\s]+/i);
-        return match ? match[0] : '';
+        if (!match) return '';
+
+        // Mobile keyboards sometimes include trailing punctuation around shared URLs.
+        let cleaned = String(match[0] || '').trim();
+        while (/[),.!?:;]$/.test(cleaned)) {
+            cleaned = cleaned.slice(0, -1);
+        }
+        return cleaned;
+    }
+
+    function extractGiphyIdFromPath(pathname) {
+        const value = String(pathname || '').trim();
+        if (!value) return '';
+
+        const mediaMatch = value.match(/^\/media\/([A-Za-z0-9]+)(?:\/|$)/i);
+        if (mediaMatch && mediaMatch[1]) return mediaMatch[1];
+
+        const slugMatch = value.match(/-([A-Za-z0-9]+)(?:\/|$)/);
+        if (slugMatch && slugMatch[1]) return slugMatch[1];
+
+        return '';
+    }
+
+    function resolveKnownGifUrl(rawUrl) {
+        const value = String(rawUrl || '').trim();
+        if (!value) return '';
+
+        try {
+            const parsed = new URL(value);
+            if (!/^https?:$/i.test(parsed.protocol)) return '';
+
+            const host = String(parsed.hostname || '').toLowerCase().replace(/^www\./, '');
+            const pathname = String(parsed.pathname || '');
+            const pathnameLower = pathname.toLowerCase();
+            const searchLower = String(parsed.search || '').toLowerCase();
+            const hashLower = String(parsed.hash || '').toLowerCase();
+
+            const looksAnimated = /\.(gif|webp)$/i.test(pathnameLower) ||
+                pathnameLower.includes('/giphy.gif') ||
+                pathnameLower.includes('/tenor.gif') ||
+                searchLower.includes('format=gif') ||
+                hashLower.includes('.gif');
+
+            if (looksAnimated) {
+                return parsed.toString();
+            }
+
+            if (host.endsWith('giphy.com')) {
+                const giphyId = extractGiphyIdFromPath(pathname);
+                if (giphyId) {
+                    return `https://media.giphy.com/media/${giphyId}/giphy.gif`;
+                }
+            }
+        } catch (_error) {
+            return '';
+        }
+
+        return '';
     }
 
     function getDirectGifUrl(text) {
         const rawUrl = extractFirstUrl(text);
         if (!rawUrl) return '';
+        return resolveKnownGifUrl(rawUrl);
+    }
 
-        try {
-            const parsed = new URL(rawUrl);
-            if (!/^https?:$/i.test(parsed.protocol)) return '';
+    function normalizeOutgoingDraftChatText(rawText) {
+        const textValue = String(rawText || '').trim();
+        if (!textValue) return '';
 
-            const pathname = String(parsed.pathname || '').toLowerCase();
-            const search = String(parsed.search || '').toLowerCase();
-            const hash = String(parsed.hash || '').toLowerCase();
+        const rawUrl = extractFirstUrl(textValue);
+        if (!rawUrl) return textValue;
 
-            const looksAnimated = /\.(gif|webp)$/i.test(pathname) ||
-                search.includes('format=gif') ||
-                hash.includes('.gif');
+        const resolvedUrl = resolveKnownGifUrl(rawUrl);
+        if (!resolvedUrl) return textValue;
+        if (resolvedUrl === rawUrl) return textValue;
 
-            return looksAnimated ? parsed.toString() : '';
-        } catch (_error) {
-            return '';
-        }
+        return textValue.replace(rawUrl, resolvedUrl);
     }
 
     function renderDraftChatTextContent(container, rawText) {
@@ -4869,7 +4924,8 @@ function initSilentDraft() {
             event.preventDefault();
             const raw = String(input.value || '').trim();
             if (!raw) return;
-            const text = raw.slice(0, DRAFT_CHAT_MAX_LENGTH);
+            const normalized = normalizeOutgoingDraftChatText(raw);
+            const text = normalized.slice(0, DRAFT_CHAT_MAX_LENGTH);
 
             closeEmojiPicker();
             closeGifPicker();
