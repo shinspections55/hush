@@ -92,6 +92,15 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => response)
         .catch(() => {
+          const isLiveRankingsApi =
+            url.pathname === '/api/public/rankings/default' ||
+            url.pathname === '/api/admin/rankings/default';
+          if (isLiveRankingsApi) {
+            return new Response(JSON.stringify({ error: 'offline' }), {
+              status: 503,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
           if (url.pathname === '/api/rss/sports-news') {
             return new Response(JSON.stringify({
               ok: false,

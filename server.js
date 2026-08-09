@@ -929,6 +929,8 @@ function sortAndReindexRankings(rankings) {
 async function readDefaultRankingsData() {
   const meta = await readDefaultRankingsMeta();
   const candidates = [DEFAULT_RANKINGS_FILE, FALLBACK_RANKINGS_FILE];
+  const snapshots = [];
+
   for (const filePath of candidates) {
     try {
       const stat = await fs.stat(filePath);
@@ -939,19 +941,45 @@ async function readDefaultRankingsData() {
             .map((player, index) => normalizeRankingPlayer(player, index))
             .filter(Boolean)
         : [];
-      return {
+      const players = sortAndReindexRankings(normalized);
+      snapshots.push({
         sourceFile: path.basename(filePath),
         lastUpdatedAt: stat.mtimeMs,
-        players: sortAndReindexRankings(normalized),
-        version: meta.version,
-        saveId: meta.saveId,
-        updatedBy: meta.updatedBy,
-        metaUpdatedAt: meta.updatedAt
-      };
+        players,
+        hash: buildRankingsHash(players)
+      });
     } catch (error) {
       if (error.code === 'ENOENT') continue;
       throw error;
     }
+  }
+
+  if (snapshots.length > 0) {
+    const desiredHash = String(meta.hash || '').trim();
+    let selected = null;
+
+    if (desiredHash) {
+      selected = snapshots.find((snapshot) => snapshot.hash === desiredHash) || null;
+    }
+
+    if (!selected) {
+      selected = snapshots.sort((a, b) => {
+        const timeA = Number(a && a.lastUpdatedAt || 0);
+        const timeB = Number(b && b.lastUpdatedAt || 0);
+        if (timeA !== timeB) return timeB - timeA;
+        return String(a && a.sourceFile || '').localeCompare(String(b && b.sourceFile || ''));
+      })[0];
+    }
+
+    return {
+      sourceFile: selected.sourceFile,
+      lastUpdatedAt: selected.lastUpdatedAt,
+      players: selected.players,
+      version: meta.version,
+      saveId: meta.saveId,
+      updatedBy: meta.updatedBy,
+      metaUpdatedAt: meta.updatedAt
+    };
   }
 
   return {
@@ -3494,6 +3522,9 @@ app.get('/api/public/cpu-logic-preset', (_req, res) => {
 // Uses the same source as the Admin Default Rankings Manager.
 app.get('/api/public/rankings/default', async (_req, res) => {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     const rankingsData = await readDefaultRankingsData();
     return res.json({
       ok: true,
@@ -5050,6 +5081,9 @@ app.post('/api/admin/simulate-drafts', requireAdminDebugKey, async (req, res) =>
 
 app.get('/api/admin/rankings/default', requireAdminDebugKey, async (req, res) => {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     const rankingsData = await readDefaultRankingsData();
     const lastUpdatedAt = Number(rankingsData.lastUpdatedAt || 0) || null;
     const ageMs = lastUpdatedAt ? Math.max(0, Date.now() - lastUpdatedAt) : null;
