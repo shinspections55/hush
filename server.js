@@ -102,6 +102,7 @@ HUSH_GIF_MAX_UNIQUE_IDS = loadHushGifMaxUniqueIds();
 const CPU_LOGIC_FILE = path.join(__dirname, 'cpulogic.js');
 const DEFAULT_RANKINGS_FILE = path.join(__dirname, 'top250.generated.json');
 const FALLBACK_RANKINGS_FILE = path.join(__dirname, 'top250.json');
+const DEFAULT_RANKINGS_META_FILE = path.join(__dirname, 'top250.meta.json');
 const VALID_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
 const POSITION_FILE_MAP = {
   QB: { fileName: 'qb.json', rankField: 'qbRank', rankPrefix: '' },
@@ -111,6 +112,7 @@ const POSITION_FILE_MAP = {
   K: { fileName: 'k.json', rankField: 'Krank', rankPrefix: '#' },
   DEF: { fileName: 'def.json', rankField: 'DEFrank', rankPrefix: '#' }
 };
+let rankingsSaveQueue = Promise.resolve();
 const BYE_WEEK_BY_TEAM = Object.freeze({
   ATL: 5,
   ARI: 8,
@@ -567,6 +569,66 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function enqueueRankingsSave(task) {
+  const run = rankingsSaveQueue.then(task, task);
+  rankingsSaveQueue = run.catch(() => {});
+  return run;
+}
+
+function buildRankingsHash(players) {
+  return crypto.createHash('sha256').update(JSON.stringify(Array.isArray(players) ? players : [])).digest('hex');
+}
+
+function createRankingsStaleError(currentVersion, expectedVersion) {
+  const error = new Error(`Stale rankings payload. Current version is ${currentVersion}, payload expected ${expectedVersion}. Reload and try again.`);
+  error.code = 'RANKINGS_STALE_VERSION';
+  error.currentVersion = currentVersion;
+  error.expectedVersion = expectedVersion;
+  return error;
+}
+
+async function readDefaultRankingsMeta() {
+  try {
+    const raw = await fs.readFile(DEFAULT_RANKINGS_META_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    return {
+      version: Math.max(0, Number.parseInt(parsed && parsed.version, 10) || 0),
+      updatedAt: Number(parsed && parsed.updatedAt) || null,
+      updatedBy: String(parsed && parsed.updatedBy || '').trim() || 'unknown',
+      count: Math.max(0, Number.parseInt(parsed && parsed.count, 10) || 0),
+      hash: String(parsed && parsed.hash || '').trim(),
+      saveId: String(parsed && parsed.saveId || '').trim()
+    };
+  } catch (_error) {
+    return {
+      version: 0,
+      updatedAt: null,
+      updatedBy: 'unknown',
+      count: 0,
+      hash: '',
+      saveId: ''
+    };
+  }
+}
+
+async function writeJsonFileAtomically(filePath, jsonText) {
+  const tempPath = `${filePath}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  try {
+    await fs.writeFile(tempPath, jsonText, 'utf8');
+    const tempRaw = await fs.readFile(tempPath, 'utf8');
+    JSON.parse(tempRaw);
+    await fs.rename(tempPath, filePath);
+  } catch (error) {
+    try {
+      await fs.unlink(tempPath);
+    } catch (_cleanupError) {
+      // ignore cleanup failures
+    }
+    throw error;
+  }
+}
+
 function getPositionFileMeta(position) {
   const normalizedPos = normalizePosition(position);
   return normalizedPos ? POSITION_FILE_MAP[normalizedPos] || null : null;
@@ -823,7 +885,11 @@ async function rebuildDefaultRankingsFromPositionFiles() {
     };
   });
 
-  return writeDefaultRankingsData(sortedPlayers);
+  const saved = await writeDefaultRankingsData(sortedPlayers, {
+    reason: 'rebuild-from-position-files',
+    updatedBy: 'server-rebuild'
+  });
+  return saved.players;
 }
 
 function normalizeRankingPlayer(rawPlayer, index = 0) {
@@ -861,6 +927,7 @@ function sortAndReindexRankings(rankings) {
 }
 
 async function readDefaultRankingsData() {
+  const meta = await readDefaultRankingsMeta();
   const candidates = [DEFAULT_RANKINGS_FILE, FALLBACK_RANKINGS_FILE];
   for (const filePath of candidates) {
     try {
@@ -875,7 +942,11 @@ async function readDefaultRankingsData() {
       return {
         sourceFile: path.basename(filePath),
         lastUpdatedAt: stat.mtimeMs,
-        players: sortAndReindexRankings(normalized)
+        players: sortAndReindexRankings(normalized),
+        version: meta.version,
+        saveId: meta.saveId,
+        updatedBy: meta.updatedBy,
+        metaUpdatedAt: meta.updatedAt
       };
     } catch (error) {
       if (error.code === 'ENOENT') continue;
@@ -886,23 +957,76 @@ async function readDefaultRankingsData() {
   return {
     sourceFile: path.basename(DEFAULT_RANKINGS_FILE),
     lastUpdatedAt: null,
-    players: []
+    players: [],
+    version: meta.version,
+    saveId: meta.saveId,
+    updatedBy: meta.updatedBy,
+    metaUpdatedAt: meta.updatedAt
   };
 }
 
-async function writeDefaultRankingsData(players) {
+async function writeDefaultRankingsData(players, options = {}) {
   const normalized = sortAndReindexRankings(
     (Array.isArray(players) ? players : [])
       .map((player, index) => normalizeRankingPlayer(player, index))
       .filter(Boolean)
   );
 
-  const serialized = JSON.stringify(normalized, null, 2);
-  await Promise.all([
-    fs.writeFile(DEFAULT_RANKINGS_FILE, serialized, 'utf8'),
-    fs.writeFile(FALLBACK_RANKINGS_FILE, serialized, 'utf8')
-  ]);
-  return normalized;
+  const expectedVersionRaw = options && options.expectedVersion;
+  const hasExpectedVersion = Number.isFinite(Number(expectedVersionRaw));
+  const expectedVersion = hasExpectedVersion ? Number.parseInt(expectedVersionRaw, 10) : null;
+  const reason = String(options && options.reason || 'save').trim() || 'save';
+  const updatedBy = String(options && options.updatedBy || 'admin').trim() || 'admin';
+
+  return enqueueRankingsSave(async () => {
+    const currentMeta = await readDefaultRankingsMeta();
+    if (hasExpectedVersion && expectedVersion !== currentMeta.version) {
+      throw createRankingsStaleError(currentMeta.version, expectedVersion);
+    }
+
+    const currentData = await readDefaultRankingsData();
+    if (Array.isArray(currentData.players) && currentData.players.length > 0) {
+      await backupDefaultRankingsSnapshot(reason);
+    }
+
+    const serialized = JSON.stringify(normalized, null, 2);
+    await writeJsonFileAtomically(DEFAULT_RANKINGS_FILE, serialized);
+    await writeJsonFileAtomically(FALLBACK_RANKINGS_FILE, serialized);
+
+    const verifiedRaw = await fs.readFile(DEFAULT_RANKINGS_FILE, 'utf8');
+    const verifiedParsed = JSON.parse(verifiedRaw);
+    const verifiedPlayers = sortAndReindexRankings(
+      (Array.isArray(verifiedParsed) ? verifiedParsed : [])
+        .map((player, index) => normalizeRankingPlayer(player, index))
+        .filter(Boolean)
+    );
+
+    const submittedHash = buildRankingsHash(normalized);
+    const verifiedHash = buildRankingsHash(verifiedPlayers);
+    if (submittedHash !== verifiedHash) {
+      throw new Error('Rankings verification failed after save. Saved file does not match submitted payload.');
+    }
+
+    const nextMeta = {
+      version: currentMeta.version + 1,
+      updatedAt: Date.now(),
+      updatedBy,
+      count: verifiedPlayers.length,
+      hash: verifiedHash,
+      saveId: crypto.randomUUID()
+    };
+
+    await writeJsonFileAtomically(DEFAULT_RANKINGS_META_FILE, JSON.stringify(nextMeta, null, 2));
+
+    return {
+      players: verifiedPlayers,
+      version: nextMeta.version,
+      saveId: nextMeta.saveId,
+      updatedBy: nextMeta.updatedBy,
+      updatedAt: nextMeta.updatedAt,
+      hash: nextMeta.hash
+    };
+  });
 }
 
 function normalizePlayerNameKey(name) {
@@ -1014,11 +1138,14 @@ async function syncTopPositionOrderFromPositionFile(options = {}) {
   const positionData = await readPositionRankingsData(normalizedPosition);
 
   const syncedPlayers = applyPositionOrderToTopPlayers(topData.players || [], positionData.players || [], normalizedPosition);
-  const saved = await writeDefaultRankingsData(alignTopSlotRanks(clearTopTierMetadata(syncedPlayers)));
+  const saved = await writeDefaultRankingsData(alignTopSlotRanks(clearTopTierMetadata(syncedPlayers)), {
+    reason,
+    updatedBy: 'admin-sync-position-order'
+  });
 
   return {
     backup,
-    updatedCount: saved.length,
+    updatedCount: saved.players.length,
     sourceFile: topData.sourceFile,
     sourcePosition: normalizedPosition,
     positionSourceFile: positionData.sourceFile
@@ -1040,11 +1167,14 @@ async function syncTopAllPositionOrdersFromPositionFiles(options = {}) {
     syncedPlayers = applyPositionOrderToTopPlayers(syncedPlayers, positionData.players || [], position);
   }
 
-  const saved = await writeDefaultRankingsData(alignTopSlotRanks(clearTopTierMetadata(syncedPlayers)));
+  const saved = await writeDefaultRankingsData(alignTopSlotRanks(clearTopTierMetadata(syncedPlayers)), {
+    reason,
+    updatedBy: 'admin-sync-all-position-order'
+  });
 
   return {
     backup,
-    updatedCount: saved.length,
+    updatedCount: saved.players.length,
     sourceFile: topData.sourceFile,
     sourcePositions: positions,
     positionSourceFiles: sourceFiles
@@ -3369,6 +3499,10 @@ app.get('/api/public/rankings/default', async (_req, res) => {
       ok: true,
       sourceFile: rankingsData.sourceFile,
       lastUpdatedAt: rankingsData.lastUpdatedAt,
+      version: Number(rankingsData.version || 0) || 0,
+      saveId: rankingsData.saveId || '',
+      updatedBy: rankingsData.updatedBy || 'unknown',
+      metaUpdatedAt: rankingsData.metaUpdatedAt || null,
       count: Array.isArray(rankingsData.players) ? rankingsData.players.length : 0,
       players: rankingsData.players
     });
@@ -4928,6 +5062,10 @@ app.get('/api/admin/rankings/default', requireAdminDebugKey, async (req, res) =>
       lastUpdatedAt,
       ageDays,
       isStaleWeek,
+      version: Number(rankingsData.version || 0) || 0,
+      saveId: rankingsData.saveId || '',
+      updatedBy: rankingsData.updatedBy || 'unknown',
+      metaUpdatedAt: rankingsData.metaUpdatedAt || null,
       count: rankingsData.players.length,
       players: rankingsData.players
     });
@@ -4966,9 +5104,16 @@ app.post('/api/admin/rankings/default/add', requireAdminDebugKey, async (req, re
       avgValue
     });
 
-    const saved = await writeDefaultRankingsData(rankingsData.players);
-    return res.json({ ok: true, count: saved.length });
+    const saved = await writeDefaultRankingsData(rankingsData.players, {
+      expectedVersion: req.body && req.body.baseVersion,
+      reason: 'admin-default-add',
+      updatedBy: 'admin-portal'
+    });
+    return res.json({ ok: true, count: saved.players.length, version: saved.version, saveId: saved.saveId });
   } catch (error) {
+    if (error && error.code === 'RANKINGS_STALE_VERSION') {
+      return res.status(409).json({ ok: false, error: error.message, currentVersion: error.currentVersion, expectedVersion: error.expectedVersion });
+    }
     console.error('[ADMIN] Add rankings player error:', error);
     return res.status(500).json({ ok: false, error: 'Unable to add player to default rankings' });
   }
@@ -4993,9 +5138,16 @@ app.post('/api/admin/rankings/default/remove', requireAdminDebugKey, async (req,
       return res.status(404).json({ ok: false, error: 'Player not found in default rankings' });
     }
 
-    const saved = await writeDefaultRankingsData(filtered);
-    return res.json({ ok: true, count: saved.length });
+    const saved = await writeDefaultRankingsData(filtered, {
+      expectedVersion: req.body && req.body.baseVersion,
+      reason: 'admin-default-remove',
+      updatedBy: 'admin-portal'
+    });
+    return res.json({ ok: true, count: saved.players.length, version: saved.version, saveId: saved.saveId });
   } catch (error) {
+    if (error && error.code === 'RANKINGS_STALE_VERSION') {
+      return res.status(409).json({ ok: false, error: error.message, currentVersion: error.currentVersion, expectedVersion: error.expectedVersion });
+    }
     console.error('[ADMIN] Remove rankings player error:', error);
     return res.status(500).json({ ok: false, error: 'Unable to remove player from default rankings' });
   }
@@ -5028,13 +5180,24 @@ app.post('/api/admin/rankings/default/save', requireAdminDebugKey, async (req, r
       seen.add(key);
     }
 
-    const saved = await writeDefaultRankingsData(normalizedPlayers);
+    const saved = await writeDefaultRankingsData(normalizedPlayers, {
+      expectedVersion: req.body && req.body.baseVersion,
+      reason: 'admin-default-save',
+      updatedBy: 'admin-portal'
+    });
     return res.json({
       ok: true,
       sourceFile: path.basename(FALLBACK_RANKINGS_FILE),
-      count: saved.length
+      count: saved.players.length,
+      version: saved.version,
+      saveId: saved.saveId,
+      updatedBy: saved.updatedBy,
+      updatedAt: saved.updatedAt
     });
   } catch (error) {
+    if (error && error.code === 'RANKINGS_STALE_VERSION') {
+      return res.status(409).json({ ok: false, error: error.message, currentVersion: error.currentVersion, expectedVersion: error.expectedVersion });
+    }
     console.error('[ADMIN] Save rankings layout error:', error);
     return res.status(500).json({ ok: false, error: 'Unable to save default rankings layout' });
   }

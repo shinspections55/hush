@@ -146,8 +146,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let positionMeta = createEmptyBoards();
   let topPlayers = [];
   let topMeta = null;
+  let topRankingsVersion = null;
   let dragSourceIndex = -1;
   let isLayoutDirty = false;
+  let isRankingsSaveInFlight = false;
   let undoStack = [];
   let jsonSaveBannerTimer = null;
   let easyTierInsertMode = false;
@@ -2348,7 +2350,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateRankingsMeta(meta, count) {
     if (!meta) return;
     const staleText = meta.isStaleWeek ? 'STALE: over 7 days' : 'Fresh: updated this week';
-    rankingsSourceLabel.textContent = `${meta.sourceFile} (${count} players) | Last updated: ${formatLastUpdatedText(meta.lastUpdatedAt)} | ${staleText}`;
+    const versionNumber = Number.parseInt(meta.version, 10);
+    const versionText = Number.isFinite(versionNumber) && versionNumber > 0 ? ` | Version: v${versionNumber}` : '';
+    rankingsSourceLabel.textContent = `${meta.sourceFile} (${count} players) | Last updated: ${formatLastUpdatedText(meta.lastUpdatedAt)} | ${staleText}${versionText}`;
     rankingsSourceLabel.classList.toggle('admin-stale-text', !!meta.isStaleWeek);
   }
 
@@ -2774,6 +2778,10 @@ document.addEventListener('DOMContentLoaded', () => {
           ? inferTierBreaks(defaultPayload.players.map((player) => normalizeDraftChanceField({ ...player })))
           : [];
         topMeta = defaultPayload;
+        topRankingsVersion = Number.parseInt(defaultPayload && defaultPayload.version, 10);
+        if (!Number.isFinite(topRankingsVersion)) {
+          topRankingsVersion = null;
+        }
         activePosition = 'TOP';
         updateRankingsHash(activePosition);
         updateRankingsMeta(topMeta, topPlayers.length);
@@ -2791,6 +2799,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ? inferTierBreaks(payload.players.map((player) => normalizeDraftChanceField({ ...player })))
         : [];
       positionMeta[position] = payload;
+      if (!isTopView(position)) {
+        topRankingsVersion = null;
+      }
       activePosition = position;
       updateRankingsHash(activePosition);
       updateRankingsMeta(payload, positionPlayers[position].length);
@@ -2989,6 +3000,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function saveActiveRankingsFile() {
+        if (isRankingsSaveInFlight) return;
+        isRankingsSaveInFlight = true;
+        if (saveJsonFileBtn) saveJsonFileBtn.disabled = true;
+        if (saveRankingsLayoutBtn) saveRankingsLayoutBtn.disabled = true;
       setActionStatus(`Saving ${activePosition} file...`);
       try {
         if (isTopView()) {
@@ -2996,6 +3011,7 @@ document.addEventListener('DOMContentLoaded', () => {
             method: 'POST',
             headers: authHeaders(),
             body: JSON.stringify({
+                baseVersion: topRankingsVersion,
               players: withPersistedTierLabels(topPlayers, 'TOP').map((player, index) => ({
                 ...player,
                 id: index + 1,
@@ -3006,9 +3022,14 @@ document.addEventListener('DOMContentLoaded', () => {
             })
           });
 
+            topRankingsVersion = Number.parseInt(topPayload && topPayload.version, 10);
+            if (!Number.isFinite(topRankingsVersion)) {
+              topRankingsVersion = null;
+            }
+
           setLayoutDirty(false);
           clearUndoHistory();
-          setActionStatus('TOP rankings saved to top250.json.');
+            setActionStatus(`TOP rankings saved to top250.json (v${topPayload.version || '?'}, saveId ${topPayload.saveId || 'n/a'}).`);
           await loadPositionRankings('TOP');
           showJsonSaveCompletedAlert(`Update completed. ${topPayload.sourceFile || 'top250.json'} finished updating on the server.`);
           return;
@@ -3038,6 +3059,9 @@ document.addEventListener('DOMContentLoaded', () => {
         showJsonSaveCompletedAlert(`Update completed. ${payload.sourceFile || `${activePosition.toLowerCase()}.json`} finished updating on the server.`);
       } catch (error) {
         setActionStatus(error.message);
+      } finally {
+        isRankingsSaveInFlight = false;
+        setLayoutDirty(isLayoutDirty);
       }
     }
 
