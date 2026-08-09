@@ -2299,7 +2299,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function requestJson(url, options = {}) {
-    const response = await fetch(url, options);
+    const headers = Object.assign({}, authHeaders(), options.headers || {});
+    const response = await fetch(url, Object.assign({}, options, { headers }));
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || !payload.ok) {
       throw new Error(payload.error || `Request failed (${response.status})`);
