@@ -5359,9 +5359,20 @@ function initSilentDraft() {
                     ? 'display:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--hush-steel)33;'
                     : 'display:none;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);';
                 
+                const compactRowStyle = draftLightMode
+                    ? 'display:flex;align-items:center;gap:4px;margin:1px 0;font-size:12px;line-height:1.05;color:var(--hush-ice);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
+                    : 'display:flex;align-items:center;gap:4px;margin:1px 0;font-size:12px;line-height:1.05;color:#e5e7eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+                const compactLabelStyle = 'font-weight:700;min-width:34px;flex:0 0 auto;';
+                const compactValueStyle = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                const renderCompactRow = (label, player) => `
+                    <div style="${compactRowStyle}">
+                        <span style="${compactLabelStyle}">${escapeHtml(String(label || ''))}:</span>
+                        <span style="${compactValueStyle}">${escapeHtml(String(player && player.name || ''))}</span>
+                    </div>`;
+
                 const assigned = assignRosterToSlots(team.roster);
                 const starterMarkup = assigned.assignedSlots
-                    .map(slot => buildRosterSlotRow(String(slot.label || '').replace(/\d+$/, ''), slot.player))
+                    .map(slot => renderCompactRow(String(slot.label || '').replace(/\d+$/, ''), slot.player))
                     .join('');
                 const maxBench = Number.parseInt(rosterSettings.BN, 10) || 0;
                 const benchSlots = [];
@@ -5369,8 +5380,8 @@ function initSilentDraft() {
                     benchSlots.push(assigned.bench[i] || null);
                 }
                 const overflowBench = assigned.bench.slice(maxBench);
-                const benchMarkup = benchSlots.map(player => buildBenchPlayerRow(player, 'BN')).join('')
-                    + overflowBench.map(player => buildBenchPlayerRow(player, 'XBN')).join('');
+                const benchMarkup = benchSlots.map(player => renderCompactRow('BN', player)).join('')
+                    + overflowBench.map(player => renderCompactRow('XBN', player)).join('');
                 rosterDiv.innerHTML = `${starterMarkup}${benchMarkup}`;
                 
                 teamItem.appendChild(rosterDiv);

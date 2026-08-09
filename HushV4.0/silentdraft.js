@@ -5305,23 +5305,26 @@ function initSilentDraft() {
                 
                 if (team.roster.length > 0) {
                     const assigned = assignRosterToSlots(team.roster);
-                    rosterDiv.innerHTML = assigned.assignedSlots.map(slot => (
-                        `<div style="margin-top: 4px; display: flex; align-items: center; font-size: 12px;"><b style="font-size: 14px;">${slot.label}</b>: ${slot.player ? `${slot.player.name} - $${slot.player.bid}` : ''}</div>`
-                    )).join('');
+                    const compactRowStyle = draftLightMode
+                        ? 'display:flex;align-items:center;gap:4px;margin:1px 0;font-size:12px;line-height:1.05;color:var(--hush-ice);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
+                        : 'display:flex;align-items:center;gap:4px;margin:1px 0;font-size:12px;line-height:1.05;color:#e5e7eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+                    const compactLabelStyle = 'font-weight:700;min-width:34px;flex:0 0 auto;';
+                    const compactValueStyle = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                    const renderCompactRow = (label, player) => `
+                        <div style="${compactRowStyle}">
+                            <span style="${compactLabelStyle}">${escapeHtml(String(label || ''))}:</span>
+                            <span style="${compactValueStyle}">${escapeHtml(String(player && player.name || ''))}</span>
+                        </div>`;
 
-                    // Bench players (everyone not in starters), sorted by prerank
+                    rosterDiv.innerHTML = assigned.assignedSlots.map(slot => renderCompactRow(slot.label, slot.player)).join('');
+
                     const bench = assigned.bench;
                     if (bench.length > 0) {
                         rosterDiv.innerHTML += draftLightMode
-                            ? '<div style="margin-top: 8px; padding-top: 4px; border-top: 1px solid var(--hush-steel)33;"></div>'
-                            : '<div style="margin-top: 8px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.1);"></div>';
-                        bench.forEach(p => {
-                            const benchLine = document.createElement('div');
-                            benchLine.style.cssText = draftLightMode
-                                ? 'display:flex;align-items:center;margin:2px 0;font-size:11px;color:var(--muted);'
-                                : 'display:flex;align-items:center;margin:2px 0;font-size:11px;color:#9aa0a6;';
-                            benchLine.innerHTML = `<span style="font-weight: bold; font-size: 12px; background: #3498db; color: white; padding: 1px 4px; border-radius: 2px; margin-right: 4px; display: inline-block;">${p.position}</span> <span style="font-size: 12px;">${p.name}</span> - $${p.bid}`;
-                            rosterDiv.appendChild(benchLine);
+                            ? '<div style="margin-top:4px;padding-top:2px;border-top:1px solid var(--hush-steel)33;"></div>'
+                            : '<div style="margin-top:4px;padding-top:2px;border-top:1px solid rgba(255,255,255,0.1);"></div>';
+                        bench.forEach((p) => {
+                            rosterDiv.innerHTML += renderCompactRow('BN', p);
                         });
                     }
                 } else {
