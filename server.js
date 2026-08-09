@@ -62,6 +62,9 @@ const HUSH_GIF_BACKUP_PREFIX = 'hush-gifs.backup';
 const HUSH_GIF_BACKUP_MAX_FILES = Math.max(10, Number.parseInt(String(process.env.HUSH_GIF_BACKUP_MAX_FILES || '200'), 10) || 200);
 const HUSH_GIF_SETTINGS_FILE = path.join(HUSH_GIF_DATA_DIR, 'hush-gif-settings.json');
 const HUSH_ROUND_RESULTS_DIR = path.join(HUSH_GIF_DATA_DIR, 'round-results');
+const HUSH_DRAFT_STATE_DIR = path.join(HUSH_GIF_DATA_DIR, 'draft-state');
+const HUSH_DRAFT_STATE_AUTOSAVE_DEBOUNCE_MS = Math.max(1000, Number.parseInt(String(process.env.HUSH_DRAFT_STATE_AUTOSAVE_DEBOUNCE_MS || '1500'), 10) || 1500);
+const HUSH_DRAFT_STATE_MAX_AGE_MS = Math.max(5 * 60 * 1000, Number.parseInt(String(process.env.HUSH_DRAFT_STATE_MAX_AGE_MS || String(48 * 60 * 60 * 1000)), 10) || (48 * 60 * 60 * 1000));
 const HUSH_GIF_MAX_UNIQUE_IDS_DEFAULT = Math.max(1, Number.parseInt(String(process.env.HUSH_GIF_MAX_UNIQUE_IDS || '150'), 10) || 150);
 let HUSH_GIF_MAX_UNIQUE_IDS = HUSH_GIF_MAX_UNIQUE_IDS_DEFAULT;
 const HUSH_GIF_DEFAULT_LIBRARY = Object.freeze({
@@ -7312,6 +7315,131 @@ function getRoundResultSnapshotFilePath(draftCode, roundNumber) {
   return path.join(HUSH_ROUND_RESULTS_DIR, `${safeCode}.round-${String(safeRound).padStart(2, '0')}.json`);
 }
 
+const draftStatePersistTimers = new Map();
+
+function getDraftStateSnapshotFilePath(draftCode) {
+  const safeCode = normalizeDraftCodeForFile(draftCode);
+  return path.join(HUSH_DRAFT_STATE_DIR, `${safeCode}.draft-state.json`);
+}
+
+function sanitizeDraftForPersistence(draft) {
+  if (!draft || typeof draft !== 'object') return null;
+  try {
+    return JSON.parse(JSON.stringify(draft, (key, value) => {
+      if (key === 'timerInterval') return undefined;
+      if (typeof value === 'function') return undefined;
+      return value;
+    }));
+  } catch (error) {
+    console.warn('[draft-state] Failed to sanitize draft for persistence:', error && error.message ? error.message : error);
+    return null;
+  }
+}
+
+function mergeDraftMembership(restoredDraft, existingDraft) {
+  if (!restoredDraft || typeof restoredDraft !== 'object') return restoredDraft;
+  if (!existingDraft || typeof existingDraft !== 'object') return restoredDraft;
+
+  const restoredMembers = Array.isArray(restoredDraft.members) ? restoredDraft.members : [];
+  const existingMembers = Array.isArray(existingDraft.members) ? existingDraft.members : [];
+  const seenMembers = new Set();
+  const mergedMembers = [];
+
+  for (const member of restoredMembers.concat(existingMembers)) {
+    const normalized = String(member || '').trim().toLowerCase();
+    if (!normalized || seenMembers.has(normalized)) continue;
+    seenMembers.add(normalized);
+    mergedMembers.push(String(member || '').trim());
+  }
+
+  restoredDraft.members = mergedMembers;
+  if (!restoredDraft.host && restoredDraft.members.length > 0) {
+    restoredDraft.host = restoredDraft.members[0];
+  }
+
+  if (typeof existingDraft.capacity !== 'undefined' && existingDraft.capacity !== null) {
+    restoredDraft.capacity = existingDraft.capacity;
+  }
+  if (typeof existingDraft.public !== 'undefined') {
+    restoredDraft.public = existingDraft.public;
+  }
+
+  return restoredDraft;
+}
+
+function loadPersistedDraftStateSync(draftCode) {
+  const safeCode = String(draftCode || '').trim();
+  if (!safeCode) return null;
+
+  const filePath = getDraftStateSnapshotFilePath(safeCode);
+  try {
+    const raw = fsSync.readFileSync(filePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    const savedAt = Number(parsed && parsed.savedAt || 0);
+    if (!Number.isFinite(savedAt) || (Date.now() - savedAt) > HUSH_DRAFT_STATE_MAX_AGE_MS) {
+      return null;
+    }
+
+    const draft = parsed && parsed.draft;
+    if (!draft || typeof draft !== 'object') return null;
+    if (!draft.draftState || typeof draft.draftState !== 'object') return null;
+    return draft;
+  } catch (error) {
+    if (error && error.code !== 'ENOENT') {
+      console.warn('[draft-state] Failed to load persisted draft state:', {
+        draftCode: safeCode,
+        error: error && error.message ? error.message : error
+      });
+    }
+    return null;
+  }
+}
+
+async function persistDraftStateSnapshot(draftCode, reason = 'unspecified') {
+  const safeCode = String(draftCode || '').trim();
+  if (!safeCode) return;
+
+  const draft = drafts[safeCode];
+  if (!draft || !draft.draftState || typeof draft.draftState !== 'object') return;
+
+  const serializedDraft = sanitizeDraftForPersistence(draft);
+  if (!serializedDraft) return;
+
+  const filePath = getDraftStateSnapshotFilePath(safeCode);
+  const payload = {
+    draftCode: safeCode,
+    savedAt: Date.now(),
+    reason: String(reason || 'unspecified').trim() || 'unspecified',
+    draft: serializedDraft
+  };
+
+  try {
+    await writeJsonFileAtomically(filePath, JSON.stringify(payload, null, 2));
+  } catch (error) {
+    console.error('[draft-state] Failed to persist draft state snapshot:', {
+      draftCode: safeCode,
+      reason,
+      error: error && error.message ? error.message : error
+    });
+  }
+}
+
+function schedulePersistDraftState(draftCode, reason = 'unspecified') {
+  const safeCode = String(draftCode || '').trim();
+  if (!safeCode) return;
+  if (!drafts[safeCode] || !drafts[safeCode].draftState) return;
+
+  if (draftStatePersistTimers.has(safeCode)) {
+    return;
+  }
+
+  const timerId = setTimeout(() => {
+    draftStatePersistTimers.delete(safeCode);
+    persistDraftStateSnapshot(safeCode, reason).catch(() => {});
+  }, HUSH_DRAFT_STATE_AUTOSAVE_DEBOUNCE_MS);
+  draftStatePersistTimers.set(safeCode, timerId);
+}
+
 async function saveRoundResultSnapshot(draftCode, roundNumber, payload = {}) {
   const safeRound = normalizeRoundNumberForFile(roundNumber);
   const snapshot = {
@@ -7362,6 +7490,15 @@ function ensureDraftStateForSocket(code, socket, options = {}) {
     return null;
   }
 
+  const shouldAttemptRestore = !drafts[draftCode] || !drafts[draftCode].draftState;
+  if (shouldAttemptRestore) {
+    const restoredDraft = loadPersistedDraftStateSync(draftCode);
+    if (restoredDraft) {
+      drafts[draftCode] = mergeDraftMembership(restoredDraft, drafts[draftCode]);
+      console.log(`[draft-state] Restored draft ${draftCode} from persisted snapshot at round ${Number(drafts[draftCode] && drafts[draftCode].draftState && drafts[draftCode].draftState.currentRound || 1)}`);
+    }
+  }
+
   if (!drafts[draftCode]) {
     drafts[draftCode] = {
       members: [],
@@ -7372,6 +7509,7 @@ function ensureDraftStateForSocket(code, socket, options = {}) {
   }
 
   const draft = drafts[draftCode];
+  draft.draftCode = draftCode;
   draft.members = Array.isArray(draft.members) ? draft.members : [];
   if (!draft.host && draft.members.length > 0) {
     draft.host = draft.members[0];
@@ -7465,6 +7603,8 @@ function ensureDraftStateForSocket(code, socket, options = {}) {
     draft.draftState.roundTimer = Number(draft.draftState.roundTimerMinutes || normalizeServerRoundTimerMinutes(draft.roundTimerMinutes)) * 60;
   }
 
+  schedulePersistDraftState(draftCode, 'ensure_draft_state');
+
   return draft;
 }
 
@@ -7505,6 +7645,16 @@ function recordDraftStateEvent(draft, type, payload) {
 
   if (draft.draftState.resumeEventLog.length > MAX_DRAFT_RESUME_EVENTS) {
     draft.draftState.resumeEventLog = draft.draftState.resumeEventLog.slice(-MAX_DRAFT_RESUME_EVENTS);
+  }
+
+  const draftCode = String(draft.draftCode || draft.code || draft.id || draft.lobbyCode || '').trim();
+  if (draftCode) {
+    schedulePersistDraftState(draftCode, `event:${String(type || 'unknown')}`);
+  } else {
+    const matchedEntry = Object.entries(drafts).find(([, candidate]) => candidate === draft);
+    if (matchedEntry && matchedEntry[0]) {
+      schedulePersistDraftState(matchedEntry[0], `event:${String(type || 'unknown')}`);
+    }
   }
 
   return draft.draftState.stateVersion;
@@ -7888,6 +8038,7 @@ function scheduleLobbyDisconnectRemoval(code, username) {
 
     draft.closed = false;
     io.to(draftCode).emit('draftUpdate', draft);
+    schedulePersistDraftState(draftCode, 'disconnect_timeout');
   }, delayMs);
 
   pendingLobbyDisconnectTimers.set(key, timerId);
@@ -7930,6 +8081,7 @@ io.on('connection', (socket) => {
   // Client requests to create a draft and join it in one call
   socket.on('createAndJoinDraft', (code, state, username, cb) => {
     drafts[code] = Object.assign(drafts[code] || {}, state || {});
+    drafts[code].draftCode = String(code || '').trim();
     drafts[code].members = drafts[code].members || [];
     if (!drafts[code].host) drafts[code].host = username;
     // Set default capacity if not specified
@@ -7951,6 +8103,7 @@ io.on('connection', (socket) => {
     socket.data.currentDraft = code;
     clearPendingLobbyDisconnect(code, username);
     io.to(code).emit('draftUpdate', drafts[code]);
+    schedulePersistDraftState(code, 'create_and_join');
     if(cb) cb({ ok: true, draft: drafts[code] });
   });
 
@@ -7961,6 +8114,7 @@ io.on('connection', (socket) => {
   
   // If draft doesn't exist yet, this is the first person creating it
   drafts[code] = drafts[code] || { members: [], type: null, capacity: 10, public: false };
+  drafts[code].draftCode = String(code || '').trim();
   if (!drafts[code].host) drafts[code].host = username;
   
   // If draft was closed but a previous member is rejoining, reopen it
@@ -7996,6 +8150,7 @@ io.on('connection', (socket) => {
     clearPendingLobbyDisconnect(code, username);
     console.log(`[requestJoin] ${username} joined ${code} successfully. Total members: ${drafts[code].members.length}`);
     io.to(code).emit('draftUpdate', drafts[code]);
+    schedulePersistDraftState(code, 'request_join');
     if(cb) cb({ ok: true, draft: drafts[code] });
   });
 
@@ -8155,6 +8310,7 @@ io.on('connection', (socket) => {
       // Broadcast to all members in the room (including host)
       io.to(code).emit('draftStarted', draftType);
       console.log(`[startDraft] Broadcast sent`);
+      schedulePersistDraftState(code, 'start_draft');
       const response = { ok: true };
       if (requestId) setDraftActionReceipt(draft, 'startDraft', requestId, response);
       if(cb) cb(response);
