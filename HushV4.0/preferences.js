@@ -473,7 +473,12 @@ initGlobalThemeToggleFallback();
 
   function isDraftRoute(pathname) {
     var route = String(pathname || '').toLowerCase();
-    return route.endsWith('/silentdraft.html') || route.endsWith('/rounds3draft.html');
+    return route.endsWith('/silentdraft.html') ||
+      route.endsWith('/rounds3draft.html') ||
+      route.indexOf('/silentdraft.html/') !== -1 ||
+      route.indexOf('/rounds3draft.html/') !== -1 ||
+      route.indexOf('/silentdraft/') !== -1 ||
+      route.indexOf('/rounds3draft/') !== -1;
   }
 
   function enforceAppViewportLock() {
@@ -786,6 +791,7 @@ initGlobalThemeToggleFallback();
     var route = String(pathname || '').toLowerCase();
     if (route.endsWith('/rankings.html')) return 'rankings';
     if (route.endsWith('/dashboard.html')) return 'home';
+    if (route.indexOf('/silentdraft.html/') !== -1 || route.indexOf('/rounds3draft.html/') !== -1) return 'draft';
     if (route.endsWith('/lobby.html') || route.endsWith('/lobby-private.html') || route.endsWith('/lobby-public.html') || route.endsWith('/join-private.html')) return 'draft';
     return '';
   }
