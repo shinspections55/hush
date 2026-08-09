@@ -983,7 +983,7 @@ async function loadPlayerPools() {
 
   try {
     const fetches = POSITIONS.map(pos =>
-      fetch(`players%20file/${fileMap[pos]}`)
+      fetch(`/${fileMap[pos]}`, { cache: 'no-store' })
         .then(r => r.ok ? r.json() : [])
         .then(data => ({ pos, data: Array.isArray(data) ? data : [] }))
         .catch(() => ({ pos, data: [] }))
@@ -2072,7 +2072,7 @@ function setupEventListeners() {
   });
 
   document.querySelectorAll('.board-tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const requested = btn.dataset.board;
       if (requested === 'default' || requested === 'personal' || requested === 'database') {
         activeBoardType = requested;
@@ -2081,6 +2081,9 @@ function setupEventListeners() {
       }
       saveBoardModePreference();
       updateBoardModeUI();
+      if (activeBoardType === 'default') {
+        await loadDefaultRankings();
+      }
       renderRankings();
       renderPool(activePoolTab);
     });
