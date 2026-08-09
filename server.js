@@ -5225,6 +5225,44 @@ process.on('unhandledRejection', (reason, promise) => {
   // Don't exit, just log the error
 });
 
+function normalizeLobbyCodeFromUrl(rawCode) {
+  const cleaned = String(rawCode || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!cleaned) return '';
+  return cleaned.slice(0, 12);
+}
+
+app.get('/silentdraft/:lobbyCode', (req, res) => {
+  const lobbyCode = normalizeLobbyCodeFromUrl(req.params && req.params.lobbyCode);
+  if (!lobbyCode) {
+    return res.redirect('/silentdraft.html');
+  }
+  return res.sendFile(path.join(root, 'silentdraft.html'));
+});
+
+app.get('/silentdraft.html/:lobbyCode', (req, res) => {
+  const lobbyCode = normalizeLobbyCodeFromUrl(req.params && req.params.lobbyCode);
+  if (!lobbyCode) {
+    return res.redirect('/silentdraft.html');
+  }
+  return res.redirect(`/silentdraft/${encodeURIComponent(lobbyCode)}`);
+});
+
+app.get('/rounds3draft/:lobbyCode', (req, res) => {
+  const lobbyCode = normalizeLobbyCodeFromUrl(req.params && req.params.lobbyCode);
+  if (!lobbyCode) {
+    return res.redirect('/rounds3draft.html');
+  }
+  return res.sendFile(path.join(root, 'rounds3draft.html'));
+});
+
+app.get('/rounds3draft.html/:lobbyCode', (req, res) => {
+  const lobbyCode = normalizeLobbyCodeFromUrl(req.params && req.params.lobbyCode);
+  if (!lobbyCode) {
+    return res.redirect('/rounds3draft.html');
+  }
+  return res.redirect(`/rounds3draft/${encodeURIComponent(lobbyCode)}`);
+});
+
 // Fallback: if a path has no extension, try to serve path + '.html' or the join page
 app.get('*', (req, res, next) => {
   const urlPath = req.path;

@@ -473,7 +473,10 @@ initGlobalThemeToggleFallback();
 
   function isDraftRoute(pathname) {
     var route = String(pathname || '').toLowerCase();
-    return route.endsWith('/silentdraft.html') || route.endsWith('/rounds3draft.html');
+    return route.endsWith('/silentdraft.html') ||
+      route.endsWith('/rounds3draft.html') ||
+      route.indexOf('/silentdraft/') !== -1 ||
+      route.indexOf('/rounds3draft/') !== -1;
   }
 
   function enforceAppViewportLock() {

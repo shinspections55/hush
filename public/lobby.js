@@ -792,9 +792,9 @@ window.initializeLobby = function initializeLobby(opts){
           stopCountdownAudioKeepAlive();
           // Redirect to appropriate draft page
           if (draftType === 'silent') {
-            window.location.href = 'silentdraft.html';
+            window.location.href = `/silentdraft/${encodeURIComponent(code)}`;
           } else if (draftType === 'rounds3') {
-            window.location.href = 'rounds3draft.html';
+            window.location.href = `/rounds3draft/${encodeURIComponent(code)}`;
           }
         }, 800);
       }

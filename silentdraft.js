@@ -968,10 +968,29 @@ function initSilentDraft() {
         );
     }
 
+    function parseDraftCodeFromPathname() {
+        const pathname = String((window.location && window.location.pathname) || '').trim();
+        if (!pathname) return '';
+        const match = pathname.match(/^\/(silentdraft(?:\.html)?|rounds3draft(?:\.html)?)\/([A-Za-z0-9_-]+)\/?$/i);
+        if (!match) return '';
+        const normalized = String(match[2] || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+        return normalized || '';
+    }
+
     // Get username and draft data from session
     const username = sessionStorage.getItem('username') || 'Your Team';
     const normalizedUsername = String(username || '').trim().toLowerCase();
-    const currentDraftCode = sessionStorage.getItem('currentDraft');
+    const pathDraftCode = parseDraftCodeFromPathname();
+    const sessionDraftCode = String(sessionStorage.getItem('currentDraft') || '').trim();
+    const currentDraftCode = (pathDraftCode || sessionDraftCode || '').toUpperCase();
+
+    if (currentDraftCode && currentDraftCode !== sessionDraftCode) {
+        try {
+            sessionStorage.setItem('currentDraft', currentDraftCode);
+        } catch (_error) {
+            // ignore session storage write errors
+        }
+    }
 
     function isCurrentUserTeamName(teamName) {
         return String(teamName || '').trim().toLowerCase() === normalizedUsername;
@@ -7039,6 +7058,72 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         }, 2000);
     }
 
+    let roundPlayerWaitRecoveryTimer = null;
+    let roundPlayerWaitAttempts = 0;
+
+    function clearRoundPlayerWaitRecovery() {
+        if (roundPlayerWaitRecoveryTimer) {
+            clearInterval(roundPlayerWaitRecoveryTimer);
+            roundPlayerWaitRecoveryTimer = null;
+        }
+    }
+
+    function renderRoundPlayerWaitState(message) {
+        const playerList = document.getElementById('players-list');
+        if (!playerList) return;
+        playerList.innerHTML = `<div style="text-align:center;padding:40px;color:#cbd5e0;line-height:1.5;">${message}</div>`;
+    }
+
+    function beginRoundPlayerWaitRecovery() {
+        clearRoundPlayerWaitRecovery();
+        roundPlayerWaitAttempts = 0;
+
+        const runRecoveryTick = () => {
+            if (window.isHost) {
+                clearRoundPlayerWaitRecovery();
+                return;
+            }
+
+            const syncedPlayers = Array.isArray(window.syncedRoundPlayers) ? window.syncedRoundPlayers : [];
+            if (syncedPlayers.length > 0) {
+                clearRoundPlayerWaitRecovery();
+                updateUI(syncedPlayers);
+                return;
+            }
+
+            roundPlayerWaitAttempts += 1;
+            const socketDisconnected = !(window.draftSocket && window.draftSocket.connected);
+            const waitLabel = socketDisconnected
+                ? `Waiting for host to start the round... reconnecting (${roundPlayerWaitAttempts})`
+                : `Waiting for host to start the round... syncing (${roundPlayerWaitAttempts})`;
+            renderRoundPlayerWaitState(waitLabel);
+
+            if (socketDisconnected && window.draftSocket) {
+                try {
+                    window.draftSocket.connect();
+                } catch (error) {
+                    console.warn('[silentdraft] Waiting recovery socket connect() failed:', error);
+                }
+            }
+
+            if (window.draftSocket && window.draftSocket.connected && currentDraftCode) {
+                try { window.draftSocket.emit('joinDraftRoom', currentDraftCode, username); } catch (_) {}
+                try { window.draftSocket.emit('joinActiveDraft', currentDraftCode, username); } catch (_) {}
+            }
+
+            if (typeof requestFreshDraftState === 'function') {
+                try {
+                    requestFreshDraftState();
+                } catch (error) {
+                    console.warn('[silentdraft] Waiting recovery state refresh failed:', error);
+                }
+            }
+        };
+
+        runRecoveryTick();
+        roundPlayerWaitRecoveryTimer = setInterval(runRecoveryTick, 2500);
+    }
+
     function startRound() {
         setDraftScreenAwakeEnabled(true);
         updateDraftTabTitle(false);
@@ -7073,6 +7158,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         
         // Host generates and broadcasts players, non-hosts wait for synced players
         if (window.isHost) {
+            clearRoundPlayerWaitRecovery();
             let roundPlayers = [];
             if (ajDraftModeEnabled) {
                 roundPlayers = getAjRoundPlayers();
@@ -7138,18 +7224,12 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         } else {
             // Non-host waits for synced players
             if (window.syncedRoundPlayers && window.syncedRoundPlayers.length > 0) {
+                clearRoundPlayerWaitRecovery();
                 console.log('[silentdraft] Using synced round players:', window.syncedRoundPlayers.map(p => p.name));
                 updateUI(window.syncedRoundPlayers);
             } else {
                 console.log('[silentdraft] Waiting for host to set round players...');
-                if (typeof requestFreshDraftState === 'function') {
-                    requestFreshDraftState();
-                }
-                // Show loading state
-                const playerList = document.getElementById('players-list');
-                if (playerList) {
-                    playerList.innerHTML = '<div style="text-align:center;padding:40px;color:#cbd5e0;">Waiting for host to start the round...</div>';
-                }
+                beginRoundPlayerWaitRecovery();
             }
         }
 
@@ -7184,6 +7264,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     // Helper function to display round players (for non-hosts receiving synced players)
     function displayRoundPlayers(roundPlayers) {
         console.log('[silentdraft] Displaying synced round players');
+        clearRoundPlayerWaitRecovery();
         updateUI(roundPlayers);
     }
 
