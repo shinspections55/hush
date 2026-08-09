@@ -1048,6 +1048,7 @@ function initSilentDraft() {
     let draftAppSectionViewMode = 'players';
     let draftAppSectionNavEnabled = false;
     let draftRoomRankingsPosition = 'ALL';
+    let draftRoomRankingsRefreshInFlight = null;
     let draftChatMessages = [];
     const DRAFT_CHAT_MAX_LENGTH = 240;
     const DRAFT_CHAT_MAX_MESSAGES = 200;
@@ -4139,6 +4140,29 @@ function initSilentDraft() {
         });
     }
 
+    function refreshDraftRoomRankingsForVisiblePane(forceRefresh = false) {
+        const shouldRefresh = draftRoomRightViewMode === 'rankings' && draftRoomRankingsMode === 'default';
+        if (!shouldRefresh) return Promise.resolve();
+        if (draftRoomRankingsRefreshInFlight) return draftRoomRankingsRefreshInFlight;
+
+        draftRoomRankingsRefreshInFlight = (async () => {
+            try {
+                await loadDraftRoomDefaultRankings(forceRefresh);
+                await loadAllDraftRoomPositionRankings(forceRefresh);
+            } catch (error) {
+                console.warn('[silentdraft] Rankings pane refresh failed:', error);
+            } finally {
+                draftRoomRankingsRefreshInFlight = null;
+            }
+
+            if (draftRoomRightViewMode === 'rankings') {
+                renderDraftRoomRankings();
+            }
+        })();
+
+        return draftRoomRankingsRefreshInFlight;
+    }
+
     function setupRightViewTabs() {
         const tabs = document.querySelectorAll('.right-view-tab');
         if (!tabs || tabs.length === 0) return;
@@ -4315,6 +4339,7 @@ function initSilentDraft() {
 
         if (showRankings) {
             renderDraftRoomRankings();
+            void refreshDraftRoomRankingsForVisiblePane(true);
         }
         if (showChat) {
             draftChatUnreadCount = 0;
