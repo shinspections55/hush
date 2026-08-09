@@ -9156,6 +9156,14 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete, meta = {
 
         const handleRoundResultsReconnect = () => {
             if (!resultsDiv || !resultsDiv.isConnected) return;
+            console.log('[silentdraft] Reconnected while round-results modal is open; requesting round results replay.');
+            if (window.draftSocket && currentDraftCode) {
+                window.draftSocket.emit('recoverRoundResults', currentDraftCode, modalRoundNumber, (response) => {
+                    if (!response || !response.ok) {
+                        console.warn('[silentdraft] recoverRoundResults during modal reconnect failed:', response);
+                    }
+                });
+            }
             if (!acceptRequestInFlight || acceptRequestAcked) return;
             console.log('[silentdraft] Reconnected while round-results acceptance is pending; resending once.');
             sendAcceptRoundResults(true);
