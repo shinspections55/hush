@@ -5310,10 +5310,16 @@ function initSilentDraft() {
                         : 'display:flex;align-items:center;gap:4px;margin:1px 0;font-size:12px;line-height:1.05;color:#e5e7eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
                     const compactLabelStyle = 'font-weight:700;min-width:34px;flex:0 0 auto;';
                     const compactValueStyle = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                    const escapeCompactText = (value) => String(value ?? '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
                     const renderCompactRow = (label, player) => `
                         <div style="${compactRowStyle}">
-                            <span style="${compactLabelStyle}">${escapeHtml(String(label || ''))}:</span>
-                            <span style="${compactValueStyle}">${escapeHtml(String(player && player.name || ''))}</span>
+                            <span style="${compactLabelStyle}">${escapeCompactText(label)}:</span>
+                            <span style="${compactValueStyle}">${escapeCompactText(player && player.name)}</span>
                         </div>`;
 
                     rosterDiv.innerHTML = assigned.assignedSlots.map(slot => renderCompactRow(slot.label, slot.player)).join('');
