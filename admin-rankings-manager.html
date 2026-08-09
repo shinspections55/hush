@@ -23,6 +23,15 @@
         <h2>Default Rankings Manager</h2>
         <p class="form-helper">Edit each position file directly. QB loads qb.json, RB loads rb.json, WR loads wr.json, and so on. Drag to reorder, change AV, add players, remove players, then save.</p>
 
+        <div class="admin-header-access admin-rankings-unlock">
+          <h2>Unlock Rankings Manager</h2>
+          <form id="rankingsManagerConnectForm">
+            <input type="password" id="rankingsManagerKeyInput" placeholder="Admin key" autocomplete="new-password" inputmode="numeric" pattern="[0-9]*">
+            <button type="submit" class="btn btn-login">Unlock</button>
+          </form>
+          <p id="rankingsManagerConnectStatus" class="form-status">Use the admin key to unlock this page.</p>
+        </div>
+
         <div class="admin-portal-actions">
           <button id="loadRankingsBtn" type="button" class="btn btn-login">Load Rankings</button>
           <button id="tierInsertModeBtn" type="button" class="btn btn-login" aria-pressed="false">Easy Tier Breaks: Off</button>
