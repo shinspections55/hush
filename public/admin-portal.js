@@ -130,6 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   let builtinCpuModels = {};
+  let adminSessionKey = '';
 
   function getStoredAdminKey() {
     return '';
@@ -137,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getAdminKey() {
     const typedKey = String(keyInput?.value || '').trim();
-    return typedKey;
+    return typedKey || adminSessionKey;
   }
 
   function restoreAdminKey() {
@@ -148,6 +149,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (!keyInput) return;
     keyInput.value = '';
+    adminSessionKey = '';
+  }
+
+  function promoteTypedAdminKeyToSession() {
+    const typedKey = String(keyInput?.value || '').trim();
+    if (!typedKey) return;
+    adminSessionKey = typedKey;
+    if (keyInput) keyInput.value = '';
   }
 
   async function loadCpuReferenceData() {
@@ -441,19 +450,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function setConnectApproved(isApproved) {
-    if (!connectForm) return;
-    connectForm.classList.toggle('admin-connect-approved', !!isApproved);
-    const button = connectForm.querySelector('button[type="submit"]');
-    if (button) {
-      button.textContent = isApproved ? 'Connected' : 'Connect';
+    if (connectForm) {
+      connectForm.classList.toggle('admin-connect-approved', !!isApproved);
+      const button = connectForm.querySelector('button[type="submit"]');
+      if (button) {
+        button.textContent = isApproved ? 'Connected' : 'Connect';
+      }
     }
-  }
-
-  function setConnectStatus(message) {
-    connectStatus.textContent = message;
-  }
-
-  function setConnectApproved(isApproved) {
     if (!connectStatus) return;
     connectStatus.dataset.tone = isApproved ? 'success' : 'info';
   }
@@ -2965,6 +2968,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       await validateAdminKey();
+      promoteTypedAdminKeyToSession();
     } catch (error) {
       setConnectStatus(error.message || 'Invalid admin key.');
       return;
@@ -2996,6 +3000,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       void validateAdminKey().then(() => {
+        promoteTypedAdminKeyToSession();
         setConnectApproved(true);
         setConnectStatus('');
         void loadOverview();

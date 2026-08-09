@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const cpuProfileImpactTable = document.getElementById('cpuProfileImpactTable');
   const cpuProfileImpactSummary = document.getElementById('cpuProfileImpactSummary');
   const cpuLogicSourceMeta = document.getElementById('cpuLogicSourceMeta');
+  let adminSessionKey = '';
 
   function getStoredAdminKey() {
     return '';
@@ -71,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getAdminKey() {
     const typedKey = String(keyInput?.value || '').trim();
-    return typedKey;
+    return typedKey || adminSessionKey;
   }
 
   function restoreAdminKey() {
@@ -81,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // ignore
     }
     if (keyInput) keyInput.value = '';
+    adminSessionKey = '';
   }
 
   function clearStoredAdminKey() {
@@ -89,6 +91,14 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (_error) {
       // ignore
     }
+    if (keyInput) keyInput.value = '';
+    adminSessionKey = '';
+  }
+
+  function promoteTypedAdminKeyToSession() {
+    const typedKey = String(keyInput?.value || '').trim();
+    if (!typedKey) return;
+    adminSessionKey = typedKey;
     if (keyInput) keyInput.value = '';
   }
 
@@ -2819,6 +2829,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setConnectStatus('');
       try {
         await validateAdminKey();
+        promoteTypedAdminKeyToSession();
       } catch (_e) {
         setConnectStatus(_e && _e.message ? _e.message : 'Invalid admin key.');
         return;
@@ -3202,7 +3213,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     void validateAdminKey().then(() => {
       setConnectApproved(true);
-      setConnectStatus('Connected.');
+      promoteTypedAdminKeyToSession();
+      setConnectStatus('');
       refreshCpuModelSelect('');
       renderCpuTuningLab();
       updateCpuLogicSourceMeta();
