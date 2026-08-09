@@ -67,12 +67,16 @@ document.addEventListener('DOMContentLoaded', () => {
   let adminSessionKey = '';
 
   function getStoredAdminKey() {
-    return '';
+    try {
+      return String(sessionStorage.getItem(ADMIN_KEY_STORAGE_KEY) || '').trim();
+    } catch (_error) {
+      return '';
+    }
   }
 
   function getAdminKey() {
     const typedKey = String(keyInput?.value || '').trim();
-    return typedKey || adminSessionKey;
+    return typedKey || adminSessionKey || getStoredAdminKey();
   }
 
   function restoreAdminKey() {
@@ -81,13 +85,18 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (_error) {
       // ignore
     }
+    adminSessionKey = getStoredAdminKey();
     if (keyInput) keyInput.value = '';
-    adminSessionKey = '';
   }
 
   function clearStoredAdminKey() {
     try {
       localStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
+    } catch (_error) {
+      // ignore
+    }
+    try {
+      sessionStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
     } catch (_error) {
       // ignore
     }
@@ -99,6 +108,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const typedKey = String(keyInput?.value || '').trim();
     if (!typedKey) return;
     adminSessionKey = typedKey;
+    try {
+      sessionStorage.setItem(ADMIN_KEY_STORAGE_KEY, typedKey);
+    } catch (_error) {
+      // ignore
+    }
     if (keyInput) keyInput.value = '';
   }
 

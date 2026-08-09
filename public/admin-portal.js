@@ -133,12 +133,16 @@ document.addEventListener('DOMContentLoaded', () => {
   let adminSessionKey = '';
 
   function getStoredAdminKey() {
-    return '';
+    try {
+      return String(sessionStorage.getItem(ADMIN_KEY_STORAGE_KEY) || '').trim();
+    } catch (_error) {
+      return '';
+    }
   }
 
   function getAdminKey() {
     const typedKey = String(keyInput?.value || '').trim();
-    return typedKey || adminSessionKey;
+    return typedKey || adminSessionKey || getStoredAdminKey();
   }
 
   function restoreAdminKey() {
@@ -149,13 +153,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (!keyInput) return;
     keyInput.value = '';
-    adminSessionKey = '';
+    adminSessionKey = getStoredAdminKey();
   }
 
   function promoteTypedAdminKeyToSession() {
     const typedKey = String(keyInput?.value || '').trim();
     if (!typedKey) return;
     adminSessionKey = typedKey;
+    try {
+      sessionStorage.setItem(ADMIN_KEY_STORAGE_KEY, typedKey);
+    } catch (_error) {
+      // ignore
+    }
+    if (keyInput) keyInput.value = '';
+  }
+
+  function clearStoredAdminKey() {
+    try {
+      localStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
+    } catch (_error) {
+      // ignore
+    }
+    try {
+      sessionStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
+    } catch (_error) {
+      // ignore
+    }
+    adminSessionKey = '';
     if (keyInput) keyInput.value = '';
   }
 
@@ -426,11 +450,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       const message = String(error && error.message || 'Unauthorized');
       if (/unauthorized|401/i.test(message)) {
-        try {
-          localStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
-        } catch (_storageError) {
-          // ignore
-        }
+        clearStoredAdminKey();
         throw new Error('Invalid admin key.');
       }
       throw error;
