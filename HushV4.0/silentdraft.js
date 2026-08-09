@@ -5280,19 +5280,19 @@ function initSilentDraft() {
                 
                 const teamItem = document.createElement('li');
                 teamItem.style.cssText = draftLightMode
-                    ? 'cursor:pointer;padding:10px 14px;margin:6px 0;background:var(--hush-navy);border:1px solid var(--hush-steel)33;border-radius:8px;transition:all 0.2s ease;font-size:14px;color:var(--hush-ice);'
-                    : 'cursor:pointer;padding:10px 14px;margin:6px 0;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;transition:all 0.2s ease;font-size:14px;';
+                    ? 'cursor:pointer;padding:8px 10px;margin:4px 0;background:var(--hush-navy);border:1px solid var(--hush-steel)33;border-radius:8px;transition:all 0.2s ease;font-size:13px;color:var(--hush-ice);'
+                    : 'cursor:pointer;padding:8px 10px;margin:4px 0;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;transition:all 0.2s ease;font-size:13px;';
                 teamItem.dataset.teamName = team.name;
                 
                 // Header with arrow
                 const header = document.createElement('div');
                 header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
                 const autoBadgeStyle = draftLightMode
-                    ? 'display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:11px;font-weight:700;background:var(--hush-steel)22;border:1px solid var(--hush-steel)66;color:var(--hush-ice);'
-                    : 'display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.5);color:#93c5fd;';
+                    ? 'display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:700;background:var(--hush-steel)22;border:1px solid var(--hush-steel)66;color:var(--hush-ice);'
+                    : 'display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.5);color:#93c5fd;';
                 header.innerHTML = `
                     <span>${team.name} - $${team.budget} (${team.roster.length} players) ${autoDraftStatusByTeam[team.name] ? `<span style="${autoBadgeStyle}">AUTO</span>` : ''}</span>
-                    <span class="dropdown-arrow" style="font-size:12px;transition:transform 0.2s;">▼</span>
+                    <span class="dropdown-arrow" style="font-size:11px;transition:transform 0.2s;">▼</span>
                 `;
                 teamItem.appendChild(header);
                 
@@ -5300,8 +5300,8 @@ function initSilentDraft() {
                 const rosterDiv = document.createElement('div');
                 rosterDiv.className = 'team-roster';
                 rosterDiv.style.cssText = draftLightMode
-                    ? 'display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--hush-steel)33;'
-                    : 'display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);';
+                    ? 'display:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--hush-steel)33;'
+                    : 'display:none;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);';
                 
                 if (team.roster.length > 0) {
                     const assigned = assignRosterToSlots(team.roster);
