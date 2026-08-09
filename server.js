@@ -5643,7 +5643,7 @@ const drafts = {};
 const pendingLobbyDisconnectTimers = new Map();
 const pendingRoundAutoAdvanceTimers = new Map();
 const LOBBY_DISCONNECT_GRACE_MS = Number.parseInt(process.env.LOBBY_DISCONNECT_GRACE_MS || '1800000', 10);
-const ROUND_RESULTS_AUTO_ADVANCE_MS = Math.max(4000, Number.parseInt(String(process.env.ROUND_RESULTS_AUTO_ADVANCE_MS || '15000'), 10) || 15000);
+const ROUND_RESULTS_AUTO_ADVANCE_MS = Math.max(4000, Number.parseInt(String(process.env.ROUND_RESULTS_AUTO_ADVANCE_MS || '120000'), 10) || 120000);
 const RELIABILITY_PROFILE = String(process.env.HUSH_RELIABILITY_PROFILE || 'high-latency').trim().toLowerCase();
 const RELIABILITY_PRESETS = {
   standard: {

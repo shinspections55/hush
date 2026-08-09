@@ -6515,6 +6515,8 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         const existing = document.getElementById('draft-end-popup-backdrop');
         if (existing) return;
 
+        let autoAdvanceTimerId = null;
+
         const backdrop = document.createElement('div');
         backdrop.id = 'draft-end-popup-backdrop';
         backdrop.style.position = 'fixed';
@@ -6536,20 +6538,18 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         modal.style.boxShadow = '0 14px 40px rgba(0,0,0,0.45)';
         modal.innerHTML = `
             <h3 style="margin:0 0 10px 0;color:#2ecc71;font-size:24px;">Draft Completed</h3>
-            <p style="margin:0 0 18px 0;line-height:1.5;opacity:0.95;">Hit OK to advance to the draft summary page.</p>
-            <button id="draft-end-ok-btn" style="background:#2ecc71;color:#0f172a;border:none;border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer;">OK</button>
+            <p style="margin:0 0 0 0;line-height:1.5;opacity:0.95;">Advancing to the draft summary page...</p>
         `;
 
         backdrop.appendChild(modal);
         document.body.appendChild(backdrop);
 
-        const okBtn = document.getElementById('draft-end-ok-btn');
-        if (okBtn) {
-            okBtn.addEventListener('click', () => {
+        autoAdvanceTimerId = setTimeout(() => {
+            if (backdrop.parentNode) {
                 backdrop.remove();
-                showDraftSummary();
-            });
-        }
+            }
+            showDraftSummary();
+        }, 2500);
     }
 
     function logDraftEndDebug(stage, details = {}) {
@@ -8471,7 +8471,7 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete, meta = {
         window.draftSocket.on('disconnect', handleRoundResultsDisconnect);
 
         window.roundResultsTimeoutId = setTimeout(() => {
-            console.warn('[silentdraft] WARNING: Round results modal timeout - allMembersAccepted event not received within 10 minutes');
+            console.warn('[silentdraft] WARNING: Round results modal timeout - allMembersAccepted event not received within 2 minutes');
             window.draftSocket.off('memberAcceptedResults', memberAcceptedHandler);
             window.draftSocket.off('allMembersAccepted', allAcceptedHandler);
             window.draftSocket.off('connect', handleRoundResultsReconnect);
@@ -8486,7 +8486,7 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete, meta = {
             activeRoundResultsModalRound = null;
 
             onComplete();
-        }, 600000);
+        }, 120000);
 
         setTimeout(() => {
             const acceptBtn = document.getElementById('accept-results-btn');
