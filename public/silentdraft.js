@@ -990,15 +990,76 @@ function initSilentDraft() {
     const DRAFT_CHAT_MAX_LENGTH = 240;
     const DRAFT_CHAT_MAX_MESSAGES = 200;
     let draftChatUnreadCount = 0;
+    const DRAFTROOM_DEFAULT_RANKINGS_API_URL = '/api/public/rankings/default';
+    const DRAFTROOM_DEFAULT_RANKINGS_API_CACHE_KEY = 'draftRoomDefaultRankingsApiCacheV1';
+
+    function mapDefaultRankingsToDraftPlayers(defaultRankings = []) {
+        const perPositionRankCounter = {};
+        const validPositions = new Set(Object.keys(DRAFTROOM_POSITION_FILES));
+
+        const normalized = (Array.isArray(defaultRankings) ? defaultRankings : [])
+            .map((player, index) => {
+                const name = String(player && player.name || '').trim();
+                const position = String(player && player.position || '').trim().toUpperCase();
+                if (!name || !validPositions.has(position)) return null;
+
+                perPositionRankCounter[position] = (perPositionRankCounter[position] || 0) + 1;
+                const fallbackPositionRank = perPositionRankCounter[position];
+                const prerank = Number.isFinite(player && player.prerank)
+                    ? Number(player.prerank)
+                    : (Number.parseInt(player && player.prerank, 10) || (index + 1));
+                const team = String(player && player.team || '').trim().toUpperCase();
+
+                return {
+                    id: index + 1,
+                    name,
+                    position,
+                    team,
+                    prerank,
+                    avgValue: Number(player && (player.avgValue || player.value) || 0),
+                    draftChance: Number(player && (player.draftChance ?? player.draftPercent ?? player.draftedPercent ?? player.draftedPercentage) || 0),
+                    owner: null,
+                    shown: false,
+                    byeWeek: extractPlayerByeWeek(player) ?? (BYE_WEEK_BY_TEAM[normalizeTeamAbbreviation(team)] || null),
+                    positionRank: parseDraftRoomPositionRank(position, {
+                        ...player,
+                        rank: fallbackPositionRank,
+                        positionRank: fallbackPositionRank
+                    }, fallbackPositionRank)
+                };
+            })
+            .filter(Boolean)
+            .sort((a, b) => {
+                const rankA = Number.isFinite(a && a.prerank) ? a.prerank : 9999;
+                const rankB = Number.isFinite(b && b.prerank) ? b.prerank : 9999;
+                if (rankA !== rankB) return rankA - rankB;
+                return String(a && a.name || '').localeCompare(String(b && b.name || ''));
+            });
+
+        return normalized.map((player, idx) => ({ ...player, id: idx + 1, prerank: idx + 1 }));
+    }
     
-    // Load players from JSON files
+    // Load players from the same source used by Admin Default Rankings Manager.
     async function loadPlayers() {
+        try {
+            const defaults = await loadDraftRoomDefaultRankings(true);
+            const fromDefaults = mapDefaultRankingsToDraftPlayers(defaults);
+            if (fromDefaults.length > 0) {
+                players = fromDefaults;
+                console.log(`[silentdraft] Loaded ${players.length} players from Admin default rankings source`);
+                return players;
+            }
+        } catch (error) {
+            console.warn('[silentdraft] Failed to build players from Admin default rankings source:', error);
+        }
+
+        // Fallback to position files if API/default source is unavailable.
         const positions = ['qb', 'rb', 'wr', 'te', 'k', 'def'];
         const loadedPlayers = [];
         
         for (const pos of positions) {
             try {
-                const response = await fetch(`players%20file/${pos}.json`);
+                const response = await fetch(`/${pos}.json`);
                 if (response.ok) {
                     const positionPlayers = await response.json();
                     
@@ -1023,7 +1084,7 @@ function initSilentDraft() {
         }
         
         players = loadedPlayers;
-        console.log(`[silentdraft] Loaded ${players.length} players from JSON files`);
+        console.log(`[silentdraft] Loaded ${players.length} players from position JSON fallback`);
         return players;
     }
 
@@ -1034,35 +1095,57 @@ function initSilentDraft() {
             return draftRoomDefaultRankings;
         }
 
-        const candidates = [
-            `top250.generated.json?t=${now}`,
-            `top250.json?t=${now}`
-        ];
+        const applyDefaultRankingsPayload = (data) => {
+            if (!Array.isArray(data)) return false;
 
-        for (const url of candidates) {
-            try {
-                const response = await fetch(url, { cache: 'no-store' });
-                if (!response.ok) continue;
+            draftRoomDefaultRankings = data
+                .map((player, index) => ({
+                    name: String(player && player.name || '').trim(),
+                    position: String(player && player.position || 'UNK').trim().toUpperCase(),
+                    team: String(player && player.team || '—').trim().toUpperCase() || '—',
+                    avgValue: Number(player && (player.avgValue || player.value) || 0),
+                    prerank: Number.isFinite(player && player.prerank)
+                        ? Number(player.prerank)
+                        : (Number.parseInt(player && player.prerank, 10) || (index + 1))
+                }))
+                .filter((player) => player.name)
+                .sort((a, b) => a.prerank - b.prerank);
 
-                const raw = await response.json();
-                if (!Array.isArray(raw)) continue;
+            draftRoomDefaultRankingsLastLoadedAt = Date.now();
+            return true;
+        };
 
-                draftRoomDefaultRankings = raw
-                    .map((player, index) => ({
-                        name: String(player && player.name || '').trim(),
-                        position: String(player && player.position || 'UNK').trim().toUpperCase(),
-                        team: String(player && player.team || '—').trim().toUpperCase() || '—',
-                        avgValue: Number(player && (player.avgValue || player.value) || 0),
-                        prerank: Number.parseInt(player && player.prerank, 10) || (index + 1)
-                    }))
-                    .filter((player) => player.name);
+        try {
+            const response = await fetch(DRAFTROOM_DEFAULT_RANKINGS_API_URL, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-                draftRoomDefaultRankingsLastLoadedAt = Date.now();
-                console.log(`[silentdraft] Loaded ${draftRoomDefaultRankings.length} default rankings from ${url}`);
+            const payload = await response.json();
+            const data = Array.isArray(payload)
+                ? payload
+                : (Array.isArray(payload && payload.players) ? payload.players : []);
+
+            if (applyDefaultRankingsPayload(data)) {
+                try {
+                    localStorage.setItem(DRAFTROOM_DEFAULT_RANKINGS_API_CACHE_KEY, JSON.stringify(data));
+                } catch (_cacheError) {
+                    // ignore cache write failures
+                }
+                console.log(`[silentdraft] Loaded ${draftRoomDefaultRankings.length} default rankings from API`);
                 return draftRoomDefaultRankings;
-            } catch (error) {
-                console.warn(`[silentdraft] Failed to load default rankings from ${url}:`, error);
             }
+        } catch (error) {
+            console.warn('[silentdraft] Failed to load default rankings from API:', error);
+        }
+
+        try {
+            const cached = localStorage.getItem(DRAFTROOM_DEFAULT_RANKINGS_API_CACHE_KEY);
+            const parsed = cached ? JSON.parse(cached) : null;
+            if (applyDefaultRankingsPayload(parsed)) {
+                console.log(`[silentdraft] Loaded ${draftRoomDefaultRankings.length} default rankings from cached API snapshot`);
+                return draftRoomDefaultRankings;
+            }
+        } catch (_cacheReadError) {
+            // ignore cache parse failures
         }
 
         return draftRoomDefaultRankings;
@@ -1083,8 +1166,7 @@ function initSilentDraft() {
 
     async function loadDraftRoomPositionRankings(position, forceRefresh = false) {
         const pos = String(position || '').trim().toUpperCase();
-        const fileKey = DRAFTROOM_POSITION_FILES[pos];
-        if (!fileKey) return [];
+        if (!Object.prototype.hasOwnProperty.call(DRAFTROOM_POSITION_FILES, pos)) return [];
 
         const now = Date.now();
         const staleMs = 15000;
@@ -1094,33 +1176,29 @@ function initSilentDraft() {
             return current;
         }
 
-        try {
-            const url = `players%20file/${fileKey}.json?t=${now}`;
-            const response = await fetch(url, { cache: 'no-store' });
-            if (!response.ok) return current;
+        const sourcePlayers = (Array.isArray(players) && players.length > 0)
+            ? players
+            : mapDefaultRankingsToDraftPlayers(await loadDraftRoomDefaultRankings(forceRefresh));
+        const normalized = (Array.isArray(sourcePlayers) ? sourcePlayers : [])
+            .filter(player => String(player && player.position || '').trim().toUpperCase() === pos)
+            .map((player, index) => ({
+                name: String(player && player.name || '').trim(),
+                position: pos,
+                team: String(player && player.team || '—').trim().toUpperCase() || '—',
+                avgValue: Number(player && (player.avgValue || player.value) || 0),
+                prerank: Number.isFinite(player && player.positionRank)
+                    ? Number(player.positionRank)
+                    : (Number.isFinite(player && player.prerank)
+                        ? Number(player.prerank)
+                        : (Number.parseInt(player && player.prerank, 10) || (index + 1)))
+            }))
+            .filter(player => player.name)
+            .sort((a, b) => a.prerank - b.prerank);
 
-            const raw = await response.json();
-            if (!Array.isArray(raw)) return current;
-
-            const normalized = raw
-                .map((player, index) => ({
-                    name: String(player && player.name || '').trim(),
-                    position: pos,
-                    team: String(player && player.team || '—').trim().toUpperCase() || '—',
-                    avgValue: Number(player && (player.avgValue || player.value) || 0),
-                    prerank: parseDraftRoomPositionRank(pos, player, index + 1)
-                }))
-                .filter((player) => player.name)
-                .sort((a, b) => a.prerank - b.prerank);
-
-            draftRoomDefaultPositionRankings[pos] = normalized;
-            draftRoomDefaultPositionRankingsLastLoadedAt[pos] = Date.now();
-            console.log(`[silentdraft] Loaded ${normalized.length} ${pos} rankings from position file`);
-            return normalized;
-        } catch (error) {
-            console.warn(`[silentdraft] Failed to load ${pos} rankings from position file:`, error);
-            return current;
-        }
+        draftRoomDefaultPositionRankings[pos] = normalized;
+        draftRoomDefaultPositionRankingsLastLoadedAt[pos] = Date.now();
+        console.log(`[silentdraft] Loaded ${normalized.length} ${pos} rankings from Admin default rankings source`);
+        return normalized;
     }
 
     async function loadAllDraftRoomPositionRankings(forceRefresh = false) {
