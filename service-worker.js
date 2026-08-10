@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hush-v9';
+const CACHE_NAME = 'hush-v10';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -10,6 +10,8 @@ const STATIC_ASSETS = [
   '/silentdraft.css',
   '/rankings.css',
   '/HUSHBKGD.png',
+  '/hushGifs.js',
+  '/assets/giphy/Poweredby_100px_Badge.gif',
   '/scripts.js',
   '/dashboard.js',
   '/silentdraft.js',

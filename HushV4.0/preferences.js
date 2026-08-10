@@ -346,6 +346,7 @@ initGlobalThemeToggleFallback();
   window.__hushSharedSwRegistered = true;
 
   var hasRefreshed = false;
+  var registrationRef = null;
 
   function activateWaitingWorker(registration) {
     if (registration && registration.waiting) {
@@ -353,10 +354,17 @@ initGlobalThemeToggleFallback();
     }
   }
 
+  function refreshServiceWorker() {
+    if (!registrationRef) return;
+    registrationRef.update().catch(function () {});
+  }
+
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('/service-worker.js', { updateViaCache: 'none' })
       .then(function (registration) {
+        registrationRef = registration;
         activateWaitingWorker(registration);
+        refreshServiceWorker();
 
         registration.addEventListener('updatefound', function () {
           var newWorker = registration.installing;
@@ -376,8 +384,16 @@ initGlobalThemeToggleFallback();
         });
 
         window.setInterval(function () {
-          registration.update().catch(function () {});
+          refreshServiceWorker();
         }, 60 * 1000);
+
+        window.addEventListener('focus', refreshServiceWorker);
+        window.addEventListener('online', refreshServiceWorker);
+        document.addEventListener('visibilitychange', function () {
+          if (!document.hidden) {
+            refreshServiceWorker();
+          }
+        });
       })
       .catch(function () {
         // ignore service worker registration failures

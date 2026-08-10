@@ -2,6 +2,7 @@
   if (!('serviceWorker' in navigator)) return;
 
   let hasRefreshed = false;
+  let registrationRef = null;
 
   function activateWaitingWorker(registration) {
     if (registration && registration.waiting) {
@@ -9,14 +10,21 @@
     }
   }
 
+  function refreshServiceWorker() {
+    if (!registrationRef) return;
+    registrationRef.update().catch(() => {});
+  }
+
   window.addEventListener('load', async () => {
     try {
       const registration = await navigator.serviceWorker.register('/service-worker.js', {
         updateViaCache: 'none'
       });
+      registrationRef = registration;
       console.log('[PWA] Service Worker registered:', registration);
 
       activateWaitingWorker(registration);
+      refreshServiceWorker();
 
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
@@ -36,8 +44,16 @@
       });
 
       window.setInterval(() => {
-        registration.update().catch(() => {});
+        refreshServiceWorker();
       }, 60 * 1000);
+
+      window.addEventListener('focus', refreshServiceWorker);
+      window.addEventListener('online', refreshServiceWorker);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          refreshServiceWorker();
+        }
+      });
     } catch (error) {
       console.warn('[PWA] Service Worker registration failed:', error);
     }
