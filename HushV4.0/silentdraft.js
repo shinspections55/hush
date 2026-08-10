@@ -6477,7 +6477,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             destination: 'draft-summary.html',
             completedDraftsCount: completedDrafts.length
         });
-        window.location.href = 'draft-summary.html';
+        window.location.href = '/draft-summary.html';
     }
 
     function showDraftFinalizingSplash() {
