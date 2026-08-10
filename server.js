@@ -61,6 +61,11 @@ const HUSH_GIF_BACKUP_DIR = path.join(HUSH_GIF_DATA_DIR, 'backups');
 const HUSH_GIF_BACKUP_PREFIX = 'hush-gifs.backup';
 const HUSH_GIF_BACKUP_MAX_FILES = Math.max(10, Number.parseInt(String(process.env.HUSH_GIF_BACKUP_MAX_FILES || '200'), 10) || 200);
 const HUSH_GIF_SETTINGS_FILE = path.join(HUSH_GIF_DATA_DIR, 'hush-gif-settings.json');
+const HUSH_GIF_MODULE_FILES = [
+  path.join(__dirname, 'hushGifs.js'),
+  path.join(__dirname, 'public', 'hushGifs.js'),
+  path.join(__dirname, 'HushV4.0', 'hushGifs.js')
+];
 const HUSH_ROUND_RESULTS_DIR = path.join(HUSH_GIF_DATA_DIR, 'round-results');
 const HUSH_DRAFT_STATE_DIR = path.join(HUSH_GIF_DATA_DIR, 'draft-state');
 const HUSH_DRAFT_STATE_AUTOSAVE_DEBOUNCE_MS = Math.max(1000, Number.parseInt(String(process.env.HUSH_DRAFT_STATE_AUTOSAVE_DEBOUNCE_MS || '1500'), 10) || 1500);
@@ -1548,6 +1553,22 @@ function getHushGifLibraryStats(library) {
   };
 }
 
+function serializeHushGifLibraryModule(library) {
+  return `const HUSH_GIFS = ${JSON.stringify(library, null, 2)};\n\nif (typeof window !== 'undefined') {\n  window.HUSH_GIFS = HUSH_GIFS;\n}\n\nif (typeof module !== 'undefined' && module.exports) {\n  module.exports = HUSH_GIFS;\n}\n`;
+}
+
+async function writeHushGifModules(library) {
+  const moduleText = serializeHushGifLibraryModule(library);
+  await Promise.all(HUSH_GIF_MODULE_FILES.map(async (targetPath) => {
+    try {
+      await fs.mkdir(path.dirname(targetPath), { recursive: true });
+      await fs.writeFile(targetPath, moduleText, 'utf8');
+    } catch (error) {
+      console.warn('[giphy] Failed to sync hushGifs.js module:', targetPath, error && error.message ? error.message : error);
+    }
+  }));
+}
+
 function getHushGifBackupFileName() {
   return `${HUSH_GIF_BACKUP_PREFIX}.${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
 }
@@ -1630,6 +1651,7 @@ async function writeHushGifLibrary(library, options = {}) {
   // Write atomically to reduce risk of partial JSON during interrupted writes.
   await fs.writeFile(tempFile, serialized, 'utf8');
   await fs.rename(tempFile, HUSH_GIF_DATA_FILE);
+  await writeHushGifModules(normalized);
 
   if (writeBackup) {
     try {

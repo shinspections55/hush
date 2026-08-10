@@ -4505,7 +4505,6 @@ function initSilentDraft() {
         let gifRateLimitedActive = false;
         let gifToggleReenableTimer = null;
 
-        const GIF_SEARCH_API_URL = '/api/hush-gifs';
         const GIF_DEFAULT_CATEGORIES = ['football', 'funny', 'hype', 'victory', 'trashTalk'];
         let gifFilterCategories = [...GIF_DEFAULT_CATEGORIES];
         if (!gifFilterCategories.includes(gifCategoryFilter)) {
@@ -4670,51 +4669,55 @@ function initSilentDraft() {
             return '';
         }
 
+        function getLocalHushGifLibrary() {
+            const rawLibrary = (window && window.HUSH_GIFS && typeof window.HUSH_GIFS === 'object')
+                ? window.HUSH_GIFS
+                : {};
+            const normalizedLibrary = {};
+            Object.keys(rawLibrary).forEach((rawCategory) => {
+                const category = String(rawCategory || '').trim();
+                if (!category) return;
+                const values = Array.isArray(rawLibrary[rawCategory]) ? rawLibrary[rawCategory] : [];
+                const ids = Array.from(new Set(
+                    values
+                        .map((value) => extractGifIdFromValue(value) || String(value || '').trim())
+                        .map((value) => String(value || '').replace(/[^A-Za-z0-9_-]/g, ''))
+                        .filter(Boolean)
+                ));
+                normalizedLibrary[category] = ids;
+            });
+            return normalizedLibrary;
+        }
+
         async function loadGiphyGifs(queryText, _offset = 0, _limit = GIF_PAGE_SIZE) {
+            const library = getLocalHushGifLibrary();
+            const discoveredCategories = Object.keys(library).filter((value) => value && value.toLowerCase() !== 'favorites');
+            if (discoveredCategories.length) {
+                gifFilterCategories = discoveredCategories;
+            } else {
+                gifFilterCategories = [...GIF_DEFAULT_CATEGORIES];
+            }
+
             const fallbackCategory = gifFilterCategories[0] || 'football';
             const category = gifFilterCategories.includes(gifCategoryFilter) ? gifCategoryFilter : fallbackCategory;
-            const url = `${GIF_SEARCH_API_URL}?category=${encodeURIComponent(category)}`;
-            const response = await fetch(url, { cache: 'no-store' });
-            if (!response.ok) {
-                const payload = await response.json().catch(() => null);
-                const err = new Error('Hush GIF lookup failed');
-                err.status = response.status;
-                const retryAfterMs = Number(payload && payload.retryAfterMs || 0);
-                if (response.status === 429 && retryAfterMs > 0) {
-                    err.retryAfterMs = retryAfterMs;
-                    gifRateLimitedUntil = Date.now() + retryAfterMs;
-                }
-                throw err;
-            }
-            const payload = await response.json().catch(() => null);
-            if (payload && payload.rateLimited && Number(payload.retryAfterMs || 0) > 0) {
-                gifRateLimitedUntil = Date.now() + Number(payload.retryAfterMs || 0);
-                gifRateLimitedActive = true;
-            }
 
-            const responseCategories = Array.isArray(payload && payload.categories)
-                ? payload.categories
-                    .map((value) => String(value || '').trim())
-                    .filter((value) => value && value.toLowerCase() !== 'favorites')
-                : [];
-            if (responseCategories.length) {
-                gifFilterCategories = responseCategories;
-                if (!gifFilterCategories.includes(gifCategoryFilter)) {
-                    gifCategoryFilter = gifFilterCategories[0];
-                }
-            }
+            const buildItemsFromCategory = (categoryName) => {
+                const ids = Array.isArray(library[categoryName]) ? library[categoryName] : [];
+                return ids.map((id) => ({
+                    id,
+                    title: 'Giphy',
+                    category: categoryName,
+                    previewUrl: buildGiphyGifUrlFromId(id),
+                    url: buildGiphyGifUrlFromId(id)
+                }));
+            };
 
-            let normalized = normalizeGiphyResponse(payload && payload.items);
+            let normalized = normalizeGiphyResponse(buildItemsFromCategory(category));
 
-            // Some environments can return an empty first category even when the shared library has GIFs.
-            if (!normalized.length && responseCategories.length > 1) {
-                for (const candidateCategory of responseCategories) {
+            if (!normalized.length && gifFilterCategories.length > 1) {
+                for (const candidateCategory of gifFilterCategories) {
                     if (!candidateCategory || candidateCategory === category) continue;
-                    const candidateUrl = `${GIF_SEARCH_API_URL}?category=${encodeURIComponent(candidateCategory)}`;
-                    const candidateResponse = await fetch(candidateUrl, { cache: 'no-store' });
-                    if (!candidateResponse.ok) continue;
-                    const candidatePayload = await candidateResponse.json().catch(() => null);
-                    const candidateItems = normalizeGiphyResponse(candidatePayload && candidatePayload.items);
+                    const candidateItems = normalizeGiphyResponse(buildItemsFromCategory(candidateCategory));
                     if (candidateItems.length) {
                         gifCategoryFilter = candidateCategory;
                         normalized = candidateItems;
@@ -4722,6 +4725,9 @@ function initSilentDraft() {
                     }
                 }
             }
+
+            gifRateLimitedActive = false;
+            gifRateLimitedUntil = 0;
 
             return {
                 items: normalized,
