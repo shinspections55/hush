@@ -4601,23 +4601,45 @@ function initSilentDraft() {
             }, duration);
         }
 
+        function buildGiphyGifUrlFromId(rawId) {
+            const id = String(rawId || '').trim().replace(/[^A-Za-z0-9_-]/g, '');
+            if (!id) return '';
+            return `https://media.giphy.com/media/${encodeURIComponent(id)}/giphy.gif`;
+        }
+
         function normalizeGiphyResponse(items) {
             const list = Array.isArray(items) ? items : [];
             return list.map((entry) => {
+                if (typeof entry === 'string') {
+                    const directFromId = buildGiphyGifUrlFromId(entry);
+                    if (!directFromId) return null;
+                    return {
+                        label: 'Giphy',
+                        category: String(gifCategoryFilter || 'football').trim() || 'football',
+                        tags: '',
+                        previewUrl: directFromId,
+                        url: directFromId
+                    };
+                }
+
                 const images = entry && entry.images ? entry.images : {};
+                const idBasedUrl = buildGiphyGifUrlFromId(entry && entry.id);
                 const preferred = (images.fixed_width && images.fixed_width.url) ||
                     (images.downsized && images.downsized.url) ||
-                    (images.original && images.original.url) || '';
+                    (images.original && images.original.url) ||
+                    String(entry && (entry.gifUrl || entry.mediaUrl) || '').trim() ||
+                    idBasedUrl || '';
                 const preview = (images.fixed_width && images.fixed_width.url) ||
                     (images.downsized && images.downsized.url) ||
                     (images.preview_gif && images.preview_gif.url) ||
                     (images.fixed_width_still && images.fixed_width_still.url) ||
                     (images.downsized_still && images.downsized_still.url) ||
+                    String(entry && entry.previewUrl || '').trim() ||
                     preferred ||
                     String(entry && entry.url || '').trim();
                 const title = String(entry && entry.title || '').trim() || 'Giphy';
                 const directUrl = String(entry && entry.url || '').trim();
-                const url = String(preferred || directUrl || '').trim();
+                const url = String(preferred || directUrl || idBasedUrl || '').trim();
                 return {
                     label: title,
                     category: String(entry && entry.category || gifCategoryFilter || 'football').trim() || 'football',
@@ -4625,7 +4647,7 @@ function initSilentDraft() {
                     previewUrl: String(preview || '').trim(),
                     url
                 };
-            }).filter((entry) => Boolean(entry.url));
+            }).filter((entry) => Boolean(entry && entry.url));
         }
 
         function resolveGifSearchQuery() {
@@ -4666,7 +4688,25 @@ function initSilentDraft() {
                 }
             }
 
-            const normalized = normalizeGiphyResponse(payload && payload.items);
+            let normalized = normalizeGiphyResponse(payload && payload.items);
+
+            // Some environments can return an empty first category even when the shared library has GIFs.
+            if (!normalized.length && responseCategories.length > 1) {
+                for (const candidateCategory of responseCategories) {
+                    if (!candidateCategory || candidateCategory === category) continue;
+                    const candidateUrl = `${GIF_SEARCH_API_URL}?category=${encodeURIComponent(candidateCategory)}`;
+                    const candidateResponse = await fetch(candidateUrl, { cache: 'no-store' });
+                    if (!candidateResponse.ok) continue;
+                    const candidatePayload = await candidateResponse.json().catch(() => null);
+                    const candidateItems = normalizeGiphyResponse(candidatePayload && candidatePayload.items);
+                    if (candidateItems.length) {
+                        gifCategoryFilter = candidateCategory;
+                        normalized = candidateItems;
+                        break;
+                    }
+                }
+            }
+
             return {
                 items: normalized,
                 pagination: {
