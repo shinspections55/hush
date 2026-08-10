@@ -2149,7 +2149,7 @@ function initSilentDraft() {
                 }
                 
                 if (tiedBids.length === 0) {
-                    advanceDraftAfterRound();
+                    finalizeRoundProgression(nextModalRound);
                 }
             }, {
                 roundNumber: nextModalRound,
@@ -6301,10 +6301,10 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                             page2List.innerHTML += auctionResultsHTML;
                         }
                     }
-                    advanceDraftAfterRound();
+                    finalizeRoundProgression();
                 });
             } else {
-                advanceDraftAfterRound();
+                finalizeRoundProgression();
             }
         });
 
@@ -6331,6 +6331,15 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     }
     function getYourTeam() {
         return teams.find(t => t.name === username) || null;
+    }
+
+    function finalizeRoundProgression(roundNumber = currentRound) {
+        const resolvedRound = Number.parseInt(String(roundNumber || currentRound || 0), 10) || 0;
+        if (resolvedRound >= totalRounds) {
+            endDraft();
+            return;
+        }
+        advanceDraftAfterRound();
     }
 
     function advanceDraftAfterRound() {
@@ -6423,7 +6432,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             handleLiveAuction(tiedBids, () => {
                 // After all auctions complete, advance to next round
                 console.log('[applyRoundResults] All auctions complete');
-                advanceDraftAfterRound();
+                finalizeRoundProgression();
             });
         }
 
