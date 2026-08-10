@@ -1485,6 +1485,11 @@ body.pwa-installed.silentdraft-page .draft-chat-gif-picker {
     overflow: hidden;
 }
 
+body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-chat-gif-picker {
+    top: 8px;
+    bottom: 54px;
+}
+
 .draft-chat-gif-picker[hidden] {
     display: none !important;
 }
@@ -1646,6 +1651,10 @@ body.silentdraft-app-nav-enabled .draft-chat-gif-title {
 .draft-chat-gif-attribution {
     text-align: right;
     opacity: 0.9;
+}
+
+body.pwa-installed.silentdraft-page .draft-chat-gif-attribution {
+    display: none;
 }
 
 .draft-chat-gif-attribution-mark {
