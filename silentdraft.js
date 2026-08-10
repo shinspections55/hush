@@ -4464,14 +4464,6 @@ function initSilentDraft() {
         preview.decoding = 'async';
         preview.referrerPolicy = 'no-referrer';
         container.appendChild(preview);
-
-        const link = document.createElement('a');
-        link.className = 'draft-chat-gif-link';
-        link.href = gifUrl;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.textContent = 'Open GIF';
-        container.appendChild(link);
     }
 
     function renderDraftChatMessages() {
