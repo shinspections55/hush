@@ -1447,6 +1447,41 @@ body.silentdraft-app-nav-enabled #draft-chat-emoji-picker {
     background: rgba(0, 0, 0, 0.25);
 }
 
+body.pwa-installed.silentdraft-page .draft-chat-gif-grid,
+body.silentdraft-app-nav-enabled .draft-chat-gif-grid {
+    max-height: min(68svh, 540px);
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+body.pwa-installed.silentdraft-page .draft-chat-gif-option,
+body.silentdraft-app-nav-enabled .draft-chat-gif-option {
+    flex-direction: row;
+    align-items: stretch;
+    min-height: 180px;
+}
+
+body.pwa-installed.silentdraft-page .draft-chat-gif-thumb,
+body.silentdraft-app-nav-enabled .draft-chat-gif-thumb {
+    width: min(46vw, 260px);
+    height: auto;
+    max-height: 180px;
+    object-fit: contain;
+    flex: 0 0 auto;
+}
+
+body.pwa-installed.silentdraft-page .draft-chat-gif-title,
+body.silentdraft-app-nav-enabled .draft-chat-gif-title {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    flex: 1 1 auto;
+    align-self: center;
+}
+
 .draft-chat-gif-title {
     display: block;
     padding: 6px 8px;
