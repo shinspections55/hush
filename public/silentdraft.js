@@ -9155,6 +9155,7 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete, meta = {
                 console.log('[silentdraft] Ignoring allMembersAccepted while draft ending');
                 return;
             }
+            const shouldCompleteDraft = Number.parseInt(String(modalRoundNumber || 0), 10) >= totalRounds;
             console.log('[silentdraft] All members accepted results, advancing round');
             const statusEl = document.getElementById('waiting-status');
             if (statusEl) {
@@ -9182,6 +9183,10 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete, meta = {
                     resultsDiv.parentNode.removeChild(resultsDiv);
                 }
                 setRoundResultsChromeVisible(false);
+                if (shouldCompleteDraft) {
+                    endDraft();
+                    return;
+                }
                 onComplete();
             }, 1000);
         };
@@ -9225,6 +9230,11 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete, meta = {
             setRoundResultsChromeVisible(false);
 
             activeRoundResultsModalRound = null;
+
+            if (Number.parseInt(String(modalRoundNumber || 0), 10) >= totalRounds) {
+                endDraft();
+                return;
+            }
 
             onComplete();
         }, 120000);
