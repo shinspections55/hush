@@ -4607,6 +4607,20 @@ function initSilentDraft() {
             return `https://media.giphy.com/media/${encodeURIComponent(id)}/giphy.gif`;
         }
 
+        function extractGifIdFromValue(rawValue) {
+            const value = String(rawValue || '').trim();
+            if (!value) return '';
+            const directId = value.replace(/[^A-Za-z0-9_-]/g, '');
+            if (directId && directId.length >= 6 && directId.length <= 64 && directId === value) {
+                return directId;
+            }
+            const urlMatch = value.match(/\/media\/([A-Za-z0-9_-]+)\//i) || value.match(/i\.giphy\.com\/([A-Za-z0-9_-]+)\./i);
+            if (urlMatch && urlMatch[1]) {
+                return String(urlMatch[1]).trim();
+            }
+            return '';
+        }
+
         function normalizeGiphyResponse(items) {
             const list = Array.isArray(items) ? items : [];
             return list.map((entry) => {
@@ -4640,7 +4654,9 @@ function initSilentDraft() {
                 const title = String(entry && entry.title || '').trim() || 'Giphy';
                 const directUrl = String(entry && entry.url || '').trim();
                 const url = String(preferred || directUrl || idBasedUrl || '').trim();
+                const resolvedId = extractGifIdFromValue(entry && entry.id) || extractGifIdFromValue(url) || extractGifIdFromValue(preview);
                 return {
+                    id: resolvedId,
                     label: title,
                     category: String(entry && entry.category || gifCategoryFilter || 'football').trim() || 'football',
                     tags: String((entry && (entry.slug || entry.tags)) || ''),
@@ -4817,9 +4833,10 @@ function initSilentDraft() {
                 </div>
                 <div class="draft-chat-gif-grid">
                     ${available.length ? available.map((entry, index) => {
+                        const gifId = String(entry.id || extractGifIdFromValue(entry.url) || extractGifIdFromValue(entry.previewUrl) || '').replace(/"/g, '&quot;');
                         const thumb = String(entry.previewUrl || entry.url || '').replace(/"/g, '&quot;');
                         const label = String(entry.label || 'GIF').replace(/"/g, '&quot;');
-                        return `<button type="button" class="draft-chat-gif-option" data-gif-index="${index}" title="${label}" aria-label="Insert GIF: ${label}"><img class="draft-chat-gif-thumb" src="${thumb}" alt="${label}" loading="lazy" decoding="async" referrerpolicy="no-referrer"><span class="draft-chat-gif-title">${label}</span></button>`;
+                        return `<button type="button" class="draft-chat-gif-option" data-gif-index="${index}" title="${label}" aria-label="Insert GIF: ${label}"><img class="draft-chat-gif-thumb" data-gif-id="${gifId}" src="${thumb}" alt="${label}" loading="lazy" decoding="async"><span class="draft-chat-gif-title">${label}</span></button>`;
                     }).join('') : '<p class="draft-chat-gif-empty">No GIF matches your current filter.</p>'}
                 </div>
                 ${loader}
@@ -4828,6 +4845,18 @@ function initSilentDraft() {
                 ${rateLimitHint}
                 <div class="draft-chat-gif-attribution" aria-label="Powered by GIPHY"><img class="draft-chat-gif-attribution-logo" src="/Poweredby_100px-White_VertLogo.png" alt="Powered by GIPHY" loading="lazy" decoding="async"></div>
             `;
+
+            const thumbs = gifPicker.querySelectorAll('.draft-chat-gif-thumb');
+            thumbs.forEach((thumbEl) => {
+                if (!(thumbEl instanceof HTMLImageElement)) return;
+                thumbEl.addEventListener('error', () => {
+                    if (thumbEl.dataset.fallbackTried === '1') return;
+                    const gifId = String(thumbEl.dataset.gifId || '').trim();
+                    if (!gifId) return;
+                    thumbEl.dataset.fallbackTried = '1';
+                    thumbEl.src = `https://i.giphy.com/${encodeURIComponent(gifId)}.gif`;
+                }, { once: true });
+            });
 
             const grid = gifPicker.querySelector('.draft-chat-gif-grid');
             if (grid && !gifUsingFallback) {
