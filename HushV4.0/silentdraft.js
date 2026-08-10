@@ -4834,14 +4834,16 @@ function initSilentDraft() {
                         const gifId = String(entry.id || extractGifIdFromValue(entry.url) || extractGifIdFromValue(entry.previewUrl) || '').replace(/"/g, '&quot;');
                         const thumb = String(entry.previewUrl || entry.url || '').replace(/"/g, '&quot;');
                         const label = String(entry.label || 'GIF').replace(/"/g, '&quot;');
-                        return `<button type="button" class="draft-chat-gif-option" data-gif-index="${index}" title="${label}" aria-label="Insert GIF: ${label}"><img class="draft-chat-gif-thumb" data-gif-id="${gifId}" src="${thumb}" alt="${label}" loading="lazy" decoding="async"><span class="draft-chat-gif-title">${label}</span></button>`;
+                        return `<button type="button" class="draft-chat-gif-option" data-gif-index="${index}" title="${label}" aria-label="Insert GIF: ${label}"><img class="draft-chat-gif-thumb" data-gif-id="${gifId}" src="${thumb}" alt="${label}" loading="lazy" decoding="async"><span class="draft-chat-gif-title" aria-hidden="true">${label}</span></button>`;
                     }).join('') : '<p class="draft-chat-gif-empty">No GIF matches your current filter.</p>'}
                 </div>
                 ${loader}
                 ${moreHint}
                 ${fallbackHint}
                 ${rateLimitHint}
-                <div class="draft-chat-gif-attribution" aria-label="Powered by GIPHY"><img class="draft-chat-gif-attribution-logo" src="/Poweredby_100px-White_VertLogo.png" alt="Powered by GIPHY" loading="lazy" decoding="async"></div>
+                <div class="draft-chat-gif-footer">
+                    <button type="button" class="draft-chat-gif-close" data-gif-action="close">Close Giphy</button>
+                </div>
             `;
 
             const thumbs = gifPicker.querySelectorAll('.draft-chat-gif-thumb');
@@ -5357,10 +5359,7 @@ function initSilentDraft() {
                 const autoBadgeStyle = draftLightMode
                     ? 'display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:700;background:var(--hush-steel)22;border:1px solid var(--hush-steel)66;color:var(--hush-ice);'
                     : 'display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.5);color:#93c5fd;';
-                header.innerHTML = `
-                    <span>${team.name} - $${team.budget} (${team.roster.length} players) ${autoDraftStatusByTeam[team.name] ? `<span style="${autoBadgeStyle}">AUTO</span>` : ''}</span>
-                    <span class="dropdown-arrow" style="font-size:11px;transition:transform 0.2s;">▼</span>
-                `;
+                header.textContent = String(team.name || 'Team');
                 teamItem.appendChild(header);
                 
                 // Roster container (initially hidden)
@@ -5369,14 +5368,12 @@ function initSilentDraft() {
                 rosterDiv.style.cssText = draftLightMode
                     ? 'display:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--hush-steel)33;'
                     : 'display:none;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);';
-                
                 if (team.roster.length > 0) {
                     const assigned = assignRosterToSlots(team.roster);
                     const compactRowStyle = draftLightMode
                         ? 'display:flex;align-items:center;gap:4px;margin:1px 0;font-size:12px;line-height:1.05;color:var(--hush-ice);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
                         : 'display:flex;align-items:center;gap:4px;margin:1px 0;font-size:12px;line-height:1.05;color:#e5e7eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
                     const compactLabelStyle = 'font-weight:700;min-width:34px;flex:0 0 auto;';
-                    const compactValueStyle = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
                     const escapeCompactText = (value) => String(value ?? '')
                         .replace(/&/g, '&amp;')
                         .replace(/</g, '&lt;')

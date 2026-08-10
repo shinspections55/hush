@@ -1361,7 +1361,7 @@ body.pwa-installed.silentdraft-page .draft-chat-gif-picker {
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-chat-gif-picker {
-    top: 8px;
+    top: calc(var(--draft-app-header-height) + 6px);
     bottom: 54px;
 }
 
@@ -1373,6 +1373,10 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-chat-gif-
     display: flex;
     gap: 6px;
     align-items: center;
+}
+
+body.pwa-installed.silentdraft-page .draft-chat-gif-toolbar {
+    display: none;
 }
 
 .draft-chat-gif-filter {
@@ -1402,6 +1406,10 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-chat-gif-
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+}
+
+body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-chat-gif-categories {
+    margin-top: 2px;
 }
 
 .draft-chat-gif-category {
@@ -1484,14 +1492,15 @@ body.pwa-installed.silentdraft-page .draft-chat-gif-option,
 body.silentdraft-app-nav-enabled .draft-chat-gif-option {
     flex-direction: column;
     align-items: stretch;
-    min-height: 210px;
+    min-height: 194px;
+    padding: 0;
 }
 
 body.pwa-installed.silentdraft-page .draft-chat-gif-thumb,
 body.silentdraft-app-nav-enabled .draft-chat-gif-thumb {
     width: 100%;
-    height: 128px;
-    max-height: 128px;
+    height: 112px;
+    max-height: 112px;
     object-fit: contain;
     flex: 0 0 auto;
 }
@@ -1499,21 +1508,22 @@ body.silentdraft-app-nav-enabled .draft-chat-gif-thumb {
 body.pwa-installed.silentdraft-page .draft-chat-gif-title,
 body.silentdraft-app-nav-enabled .draft-chat-gif-title {
     white-space: normal;
-    overflow: visible;
+    overflow: hidden;
     text-overflow: clip;
     flex: 1 1 auto;
     align-self: stretch;
     min-height: 0;
+    max-height: 1px;
+    opacity: 0;
+    padding: 0;
+    margin: 0;
 }
 
-.draft-chat-gif-title {
-    display: block;
-    padding: 6px 8px;
-    font-size: 11px;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.draft-chat-gif-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: 2px;
 }
 
 .draft-chat-gif-status {
@@ -1533,6 +1543,13 @@ body.silentdraft-app-nav-enabled .draft-chat-gif-title {
 
 body.pwa-installed.silentdraft-page .draft-chat-gif-attribution {
     display: none;
+}
+
+body.pwa-installed.silentdraft-page .draft-chat-gif-close {
+    min-width: 118px;
+    padding: 8px 12px;
+    font-size: 12px;
+    border-radius: 10px;
 }
 
 .draft-chat-gif-attribution-logo {
