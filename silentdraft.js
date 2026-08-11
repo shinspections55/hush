@@ -5083,7 +5083,6 @@ function initSilentDraft() {
         };
 
         document.addEventListener('pointerdown', dismissGifPickerIfOutside);
-        document.addEventListener('click', dismissGifPickerIfOutside);
 
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {

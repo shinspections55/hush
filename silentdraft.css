@@ -1471,6 +1471,7 @@ body.silentdraft-app-nav-enabled .draft-chat-gif-grid {
     flex: 1 1 auto;
     min-height: 0;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -1492,7 +1493,7 @@ body.pwa-installed.silentdraft-page .draft-chat-gif-option,
 body.silentdraft-app-nav-enabled .draft-chat-gif-option {
     flex-direction: column;
     align-items: stretch;
-    min-height: 194px;
+    min-height: 114px;
     padding: 0;
 }
 
@@ -1513,10 +1514,11 @@ body.silentdraft-app-nav-enabled .draft-chat-gif-title {
     flex: 1 1 auto;
     align-self: stretch;
     min-height: 0;
-    max-height: 1px;
+    max-height: 0;
     opacity: 0;
     padding: 0;
     margin: 0;
+    line-height: 0;
 }
 
 .draft-chat-gif-footer {
