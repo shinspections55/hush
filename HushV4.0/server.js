@@ -13,6 +13,8 @@ const { Server } = require('socket.io');
 const app = express();
 const port = process.env.PORT || 8000;
 
+app.disable('x-powered-by');
+
 // Import database module
 const { logAuctionResult, logIndividualBid, bulkLogIndividualBids, getPlayerAV, getPlayerAuctionCount, getPlayerAvTrends, closeDatabase } = require('./database');
 
@@ -53,6 +55,8 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
   res.setHeader('Permissions-Policy', [
     'camera=()',
     'microphone=()',
