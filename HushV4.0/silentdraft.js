@@ -6880,8 +6880,20 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     let pendingAuctionTransitionPayload = null;
 
     function playLiveAuctionAttentionDing() {
+        const audioContext = getDraftAudioContext();
+        if (!audioContext) {
+            return;
+        }
+
+        // Reuse the draft audio unlock pipeline so auction alerts can fire on iOS/PWA reliably.
+        if (audioContext.state === 'suspended') {
+            unlockDraftAudio();
+            if (audioContext.state === 'suspended') {
+                return;
+            }
+        }
+
         try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
             const playDing = (frequency, delay) => {
                 setTimeout(() => {
                     const oscillator = audioContext.createOscillator();
@@ -7934,40 +7946,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
 
         // Play "ding ding ding" sound effect if user is in the tied auction
         if (userInTie) {
-            try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                
-                // Create three quick "ding" sounds like a boxing match bell
-                const playDing = (frequency, delay) => {
-                    setTimeout(() => {
-                        const oscillator = audioContext.createOscillator();
-                        const gainNode = audioContext.createGain();
-                        
-                        oscillator.connect(gainNode);
-                        gainNode.connect(audioContext.destination);
-                        
-                        // Bell-like sound with harmonics
-                        oscillator.frequency.value = frequency;
-                        oscillator.type = 'sine';
-                        
-                        // Quick attack and decay for bell sound
-                        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-                        gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.05); // Quick attack
-                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3); // Decay
-                        
-                        oscillator.start(audioContext.currentTime);
-                        oscillator.stop(audioContext.currentTime + 0.3);
-                    }, delay);
-                };
-                
-                // Play three dings with decreasing frequency (like a bell)
-                playDing(800, 0);    // First ding
-                playDing(700, 200);  // Second ding (slightly lower)
-                playDing(600, 400);  // Third ding (even lower)
-                
-            } catch (e) {
-                console.log('[startLiveAuction] Audio not supported for auction sound effect');
-            }
+            playLiveAuctionAttentionDing();
         }
 
         // Socket listener for bid updates
