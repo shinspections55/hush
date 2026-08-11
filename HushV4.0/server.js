@@ -7050,6 +7050,23 @@ function normalizeServerRoundTimerMinutes(value) {
   return Math.max(3, Math.min(parsed, 10));
 }
 
+function resolveDraftMemberName(draft, username) {
+  const rawName = String(username || '').trim();
+  if (!rawName) return '';
+  const members = Array.isArray(draft && draft.members) ? draft.members : [];
+  const normalizedRawName = rawName.toLowerCase();
+  const matchedMember = members.find((member) => (
+    String(member || '').trim().toLowerCase() === normalizedRawName
+  ));
+  return matchedMember || rawName;
+}
+
+function isSameDraftMemberName(left, right) {
+  const a = String(left || '').trim().toLowerCase();
+  const b = String(right || '').trim().toLowerCase();
+  return !!a && a === b;
+}
+
 function ensureDraftStateForSocket(code, socket, options = {}) {
   const draftCode = String(code || '').trim();
   if (!draftCode) {
@@ -7072,18 +7089,22 @@ function ensureDraftStateForSocket(code, socket, options = {}) {
   }
 
   const username = String(options.username || socket?.data?.username || '').trim();
-  if (username && !draft.members.includes(username)) {
+  const resolvedUsername = resolveDraftMemberName(draft, username);
+  const hasMatchingMember = username
+    ? draft.members.some((member) => isSameDraftMemberName(member, username))
+    : false;
+  if (username && !hasMatchingMember) {
     draft.members.push(username);
   }
 
   if (!Array.isArray(draft.userTeamNames)) {
     draft.userTeamNames = [];
   }
-  if (username) {
-    const normalizedUsername = username.toLowerCase();
+  if (resolvedUsername) {
+    const normalizedUsername = resolvedUsername.toLowerCase();
     const alreadyTracked = draft.userTeamNames.some((name) => String(name || '').trim().toLowerCase() === normalizedUsername);
     if (!alreadyTracked) {
-      draft.userTeamNames.push(username);
+      draft.userTeamNames.push(resolvedUsername);
     }
   }
 
@@ -8009,19 +8030,33 @@ io.on('connection', (socket) => {
       drafts[code].draftState.autoDraftStarTargets = {};
     }
 
-    const requestUser = socket.data.username;
-    if (!requestUser || requestUser !== username) {
+    const draft = drafts[code];
+    const requestUser = resolveDraftMemberName(draft, socket.data.username);
+    const targetUser = resolveDraftMemberName(draft, username);
+    if (!requestUser || !targetUser || !isSameDraftMemberName(requestUser, targetUser)) {
       if (cb) cb({ ok: false, reason: 'unauthorized' });
       return;
     }
 
-    drafts[code].draftState.autoDraftStatus[username] = !!enabled;
+    const normalizedTargetUser = String(targetUser || '').trim().toLowerCase();
+    Object.keys(draft.draftState.autoDraftStatus).forEach((key) => {
+      if (String(key || '').trim().toLowerCase() === normalizedTargetUser && key !== targetUser) {
+        delete draft.draftState.autoDraftStatus[key];
+      }
+    });
+    Object.keys(draft.draftState.autoDraftStarTargets).forEach((key) => {
+      if (String(key || '').trim().toLowerCase() === normalizedTargetUser && key !== targetUser) {
+        delete draft.draftState.autoDraftStarTargets[key];
+      }
+    });
+
+    drafts[code].draftState.autoDraftStatus[targetUser] = !!enabled;
     if (typeof starredPayload !== 'undefined') {
-      drafts[code].draftState.autoDraftStarTargets[username] = sanitizeStarredNamesInput(starredPayload);
+      drafts[code].draftState.autoDraftStarTargets[targetUser] = sanitizeStarredNamesInput(starredPayload);
     }
 
     const autoDraftPayload = {
-      username,
+      username: targetUser,
       enabled: !!enabled,
       statuses: drafts[code].draftState.autoDraftStatus
     };
@@ -8134,6 +8169,11 @@ io.on('connection', (socket) => {
   const applyUserBidToDraftState = (draft, username, playerId, bidAmount) => {
     if (!draft || !draft.draftState || !draft.draftState.bids) return { ok: false, reason: 'draft_not_ready' };
 
+    const safeUsername = resolveDraftMemberName(draft, username);
+    if (!safeUsername) {
+      return { ok: false, reason: 'invalid_username' };
+    }
+
     const safePlayerId = Number(playerId);
     if (!Number.isFinite(safePlayerId)) {
       return { ok: false, reason: 'invalid_player_id' };
@@ -8147,9 +8187,9 @@ io.on('connection', (socket) => {
     }
 
     if (safeBid > 0) {
-      draft.draftState.bids[safePlayerId][username] = safeBid;
+      draft.draftState.bids[safePlayerId][safeUsername] = safeBid;
     } else {
-      delete draft.draftState.bids[safePlayerId][username];
+      delete draft.draftState.bids[safePlayerId][safeUsername];
       if (Object.keys(draft.draftState.bids[safePlayerId]).length === 0) {
         delete draft.draftState.bids[safePlayerId];
       }
@@ -8236,10 +8276,32 @@ io.on('connection', (socket) => {
 
     const requestId = String(meta && meta.requestId || '').trim();
     const draftCode = String(code || '').trim();
-    const submissionUsername = String(username || socket.data.username || '').trim();
-    console.log(`[submitBids] ${submissionUsername} submitted bids in ${draftCode}`);
+    const requestedUsername = String(username || '').trim();
+    const socketUsername = String(socket.data.username || '').trim();
+    const preferredUsername = socketUsername || requestedUsername;
+    console.log(`[submitBids] submit request in ${draftCode} from requested=${requestedUsername || 'none'} socket=${socketUsername || 'none'}`);
 
-    const draft = ensureDraftStateForSocket(draftCode, socket, { username: submissionUsername });
+    const draft = ensureDraftStateForSocket(draftCode, socket, { username: preferredUsername });
+    const submissionUsername = resolveDraftMemberName(draft, preferredUsername);
+    if (!submissionUsername) {
+      const response = { ok: false, reason: 'not_in_draft' };
+      if (requestId) setDraftActionReceipt(draft, 'submitBids', requestId, response);
+      if (cb) cb(response);
+      return;
+    }
+
+    const isMember = Array.isArray(draft && draft.members)
+      ? draft.members.some((member) => isSameDraftMemberName(member, submissionUsername))
+      : false;
+    if (!isMember) {
+      const response = { ok: false, reason: 'not_in_draft' };
+      if (requestId) setDraftActionReceipt(draft, 'submitBids', requestId, response);
+      if (cb) cb(response);
+      return;
+    }
+
+    socket.data.username = submissionUsername;
+    console.log(`[submitBids] ${submissionUsername} submitted bids in ${draftCode}`);
     if (requestId) {
       const cached = getDraftActionReceipt(draft, 'submitBids', requestId);
       if (cached) {
@@ -8259,10 +8321,8 @@ io.on('connection', (socket) => {
       draft.draftState.autoDraftStatus = {};
     }
 
-    // Keep server authority aligned with the client's current toggle at submit time.
-    if (typeof autoDraftEnabled === 'boolean') {
-      draft.draftState.autoDraftStatus[submissionUsername] = autoDraftEnabled;
-    }
+    // Auto-draft status is only changed via setAutoDraftStatus.
+    // submitBids must not implicitly toggle user auto-draft state.
     
     if(!draft.draftState.submittedMembers) {
       draft.draftState.submittedMembers = [];
