@@ -5413,7 +5413,43 @@ function initSilentDraft() {
                 const autoBadgeStyle = draftLightMode
                     ? 'display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:700;background:var(--hush-steel)22;border:1px solid var(--hush-steel)66;color:var(--hush-ice);'
                     : 'display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.5);color:#93c5fd;';
-                header.textContent = String(team.name || 'Team');
+                const teamName = String(team.name || 'Team');
+                const safeBudget = Number.isFinite(Number(team.budget)) ? Math.max(0, Number(team.budget)) : 0;
+                const draftedCount = Array.isArray(team.roster) ? team.roster.length : 0;
+                const totalSlots = Number.isFinite(Number(rosterSize)) && Number(rosterSize) > 0 ? Number(rosterSize) : draftedCount;
+
+                const headerLeft = document.createElement('div');
+                headerLeft.style.cssText = 'display:flex;align-items:center;gap:8px;min-width:0;';
+
+                const headerMain = document.createElement('span');
+                headerMain.style.cssText = 'font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+                headerMain.textContent = teamName;
+
+                const headerMeta = document.createElement('span');
+                headerMeta.style.cssText = draftLightMode
+                    ? 'font-size:11px;color:var(--hush-ice);opacity:0.88;white-space:nowrap;'
+                    : 'font-size:11px;color:#cbd5e1;white-space:nowrap;';
+                headerMeta.textContent = `$${safeBudget} | ${draftedCount} out of ${totalSlots}`;
+
+                headerLeft.appendChild(headerMain);
+                headerLeft.appendChild(headerMeta);
+
+                if (autoDraftStatusByTeam && autoDraftStatusByTeam[team.name]) {
+                    const autoBadge = document.createElement('span');
+                    autoBadge.style.cssText = autoBadgeStyle;
+                    autoBadge.textContent = 'AUTO';
+                    headerLeft.appendChild(autoBadge);
+                }
+
+                const arrow = document.createElement('span');
+                arrow.className = 'dropdown-arrow';
+                arrow.textContent = '▼';
+                arrow.style.cssText = draftLightMode
+                    ? 'font-size:12px;color:var(--hush-ice);opacity:0.8;transition:transform 0.2s ease;flex:0 0 auto;'
+                    : 'font-size:12px;color:#94a3b8;transition:transform 0.2s ease;flex:0 0 auto;';
+
+                header.appendChild(headerLeft);
+                header.appendChild(arrow);
                 teamItem.appendChild(header);
                 
                 // Roster container (initially hidden)
@@ -5466,7 +5502,9 @@ function initSilentDraft() {
                     // Toggle this one
                     if (!isOpen) {
                         rosterDiv.style.display = 'block';
-                        arrow.style.transform = 'rotate(180deg)';
+                        if (arrow) {
+                            arrow.style.transform = 'rotate(180deg)';
+                        }
                     }
                 });
                 
