@@ -8674,7 +8674,6 @@ io.on('connection', (socket) => {
 
     // If toggling auto-draft means all required manual members are already submitted,
     // immediately advance submission state for the round.
-    const draft = drafts[code];
     const allMembers = draft.members || [];
     const statusMap = draft.draftState.autoDraftStatus || {};
     const requiredManualMembers = allMembers.filter(member => !statusMap[member]);
