@@ -42,7 +42,7 @@ app.use((req, res, next) => {
     "object-src 'none'",
     "frame-ancestors 'self'",
     "form-action 'self'",
-    "script-src 'self' 'unsafe-inline' https://cdn.socket.io https://www.gstatic.com",
+    "script-src 'self' https://cdn.socket.io https://www.gstatic.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' data: blob: https://media.giphy.com https://i.giphy.com https://*.giphy.com",

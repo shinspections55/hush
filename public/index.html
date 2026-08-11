@@ -46,21 +46,7 @@
             </section>
         </div>
     </main>
-
-    <script>
-        // Safety net: prevent credential query-string submits if module scripts fail to load.
-        window.__hushLoginHandlerAttached = false;
-        document.addEventListener('DOMContentLoaded', function () {
-            var loginForm = document.getElementById('loginForm');
-            if (!loginForm) return;
-
-            loginForm.addEventListener('submit', function (event) {
-                if (window.__hushLoginHandlerAttached) return;
-                event.preventDefault();
-                alert('Login is unavailable right now because required scripts did not load. Please refresh and try again on a stable network.');
-            });
-        });
-    </script>
+    <script src="index-login-failsafe.js"></script>
     <script src="firebase-config.js?v=20260805a"></script>
     <script src="preferences.js"></script>
     <script type="module" src="scripts.js?v=20260805a"></script>

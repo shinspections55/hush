@@ -111,14 +111,7 @@
   </main>
 
   <script src="preferences.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const username = sessionStorage.getItem('username');
-      if (typeof getUserThemePreference === 'function' && username) {
-        document.body.classList.toggle('dashboard-light-mode', getUserThemePreference(username, 'dark') === 'light');
-      }
-    });
-  </script>
+  <script src="learn-hush-theme-init.js"></script>
 </body>
 </html>
 
