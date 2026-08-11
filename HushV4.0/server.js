@@ -23,6 +23,47 @@ const { runTiedAuctionRound, pickRandomCPU, placeForcedBid, getAggression, decid
 app.use(express.json({ limit: '5mb' }));
 app.use(compression({ threshold: 1024 }));
 
+function isHttpsRequest(req) {
+  if (req && req.secure) return true;
+  const forwardedProto = String((req && req.headers && req.headers['x-forwarded-proto']) || '').toLowerCase();
+  return forwardedProto.split(',').map((part) => part.trim()).includes('https');
+}
+
+app.use((req, res, next) => {
+  if (isHttpsRequest(req)) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'self'",
+    "form-action 'self'",
+    "script-src 'self' 'unsafe-inline' https://cdn.socket.io https://www.gstatic.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https://media.giphy.com https://i.giphy.com https://*.giphy.com",
+    "connect-src 'self' ws: wss: https://api.giphy.com https://media.giphy.com https://www.gstatic.com",
+    "media-src 'self' blob: data: https://media.giphy.com https://*.giphy.com",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
+    "frame-src 'self' https://www.paypal.com"
+  ].join('; '));
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', [
+    'camera=()',
+    'microphone=()',
+    'geolocation=()',
+    'usb=()',
+    'payment=(self)'
+  ].join(', '));
+
+  next();
+});
+
 // Ensure API consumers always get JSON for malformed request bodies.
 app.use((err, req, res, next) => {
   if (err && err instanceof SyntaxError && 'body' in err) {
