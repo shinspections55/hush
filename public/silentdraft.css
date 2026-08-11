@@ -2213,8 +2213,13 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .column {
     min-width: 0;
     height: 100%;
     max-height: 100%;
-    padding-bottom: calc(16px + var(--draft-app-nav-height) + env(safe-area-inset-bottom));
-    scroll-padding-bottom: calc(16px + var(--draft-app-nav-height) + env(safe-area-inset-bottom));
+    padding-bottom: calc(52px + var(--draft-app-nav-height) + env(safe-area-inset-bottom));
+    scroll-padding-bottom: calc(52px + var(--draft-app-nav-height) + env(safe-area-inset-bottom));
+}
+
+body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #center-column {
+    padding-bottom: calc(120px + var(--draft-app-nav-height) + env(safe-area-inset-bottom));
+    scroll-padding-bottom: calc(120px + var(--draft-app-nav-height) + env(safe-area-inset-bottom));
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-section="players"] #left-column,
@@ -2229,12 +2234,15 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-s
 /* Keep roster starters and bench sections from visually colliding in PWA roster view. */
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-section="roster"] #center-column {
     min-height: 0;
-    max-height: 100%;
+    height: calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom));
+    max-height: calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom));
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
     gap: 0;
-    padding-bottom: calc(20px + var(--draft-app-nav-height) + env(safe-area-inset-bottom));
+    padding-bottom: calc(160px + var(--draft-app-nav-height) + env(safe-area-inset-bottom));
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-section="roster"] #your-team,

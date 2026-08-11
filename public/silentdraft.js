@@ -4108,6 +4108,34 @@ function initSilentDraft() {
         return Boolean(isInstalled);
     }
 
+    function applyRosterPaneScrollStyling(isRosterMode) {
+        const centerColumn = document.getElementById('center-column');
+        if (!centerColumn) return;
+
+        if (isRosterMode) {
+            centerColumn.style.minHeight = '0';
+            centerColumn.style.height = 'calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom))';
+            centerColumn.style.maxHeight = 'calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom))';
+            centerColumn.style.overflowY = 'auto';
+            centerColumn.style.overflowX = 'hidden';
+            centerColumn.style.setProperty('-webkit-overflow-scrolling', 'touch');
+            centerColumn.style.touchAction = 'pan-y';
+            centerColumn.style.paddingBottom = 'calc(160px + var(--draft-app-nav-height) + env(safe-area-inset-bottom))';
+            centerColumn.style.scrollPaddingBottom = 'calc(160px + var(--draft-app-nav-height) + env(safe-area-inset-bottom))';
+            return;
+        }
+
+        centerColumn.style.removeProperty('min-height');
+        centerColumn.style.removeProperty('height');
+        centerColumn.style.removeProperty('max-height');
+        centerColumn.style.removeProperty('overflow-y');
+        centerColumn.style.removeProperty('overflow-x');
+        centerColumn.style.removeProperty('-webkit-overflow-scrolling');
+        centerColumn.style.removeProperty('touch-action');
+        centerColumn.style.removeProperty('padding-bottom');
+        centerColumn.style.removeProperty('scroll-padding-bottom');
+    }
+
     function applyDraftAppSectionMode(section, options = {}) {
         const mode = (section === 'roster' || section === 'budgets' || section === 'rankings' || section === 'chat') ? section : 'players';
         draftAppSectionViewMode = mode;
@@ -4130,6 +4158,8 @@ function initSilentDraft() {
         navButtons.forEach((button) => {
             button.classList.toggle('is-active', button.dataset.sdSection === draftAppSectionViewMode);
         });
+
+        applyRosterPaneScrollStyling(mode === 'roster');
 
         if (mode === 'chat') {
             setTimeout(() => {

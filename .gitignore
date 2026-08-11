@@ -10,6 +10,13 @@ __pycache__/
 auth-users.json
 auction_data.db
 .hush-data/
+data/**/*.json
+!data/hush-gifs.json
+!data/hush-gif-settings.json
+!data/backups/
+!data/backups/**
+!data/round-results/
+!data/round-results/**
 .env
 .env.*
 
