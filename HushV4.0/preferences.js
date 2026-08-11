@@ -457,6 +457,7 @@ initGlobalThemeToggleFallback();
 
   function clearLaunchBlackout() {
     document.documentElement.classList.remove('pwa-launch-blackout');
+    document.documentElement.classList.remove('pwa-startup-veil');
     if (launchBlackoutEl && launchBlackoutEl.parentNode) {
       launchBlackoutEl.parentNode.removeChild(launchBlackoutEl);
     }

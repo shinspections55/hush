@@ -8,6 +8,38 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
     <link rel="apple-touch-icon" href="/icon-192x192.png">
+    <script>
+        (function () {
+            try {
+                var isStandalone = (window.matchMedia && (
+                    window.matchMedia('(display-mode: standalone)').matches ||
+                    window.matchMedia('(display-mode: fullscreen)').matches ||
+                    window.matchMedia('(display-mode: minimal-ui)').matches
+                )) || window.navigator.standalone === true || (typeof document.referrer === 'string' && document.referrer.startsWith('android-app://'));
+                if (isStandalone && document.documentElement) {
+                    document.documentElement.classList.add('pwa-startup-veil');
+                }
+            } catch (_error) {
+                // ignore
+            }
+        })();
+    </script>
+    <style>
+        html.pwa-startup-veil,
+        html.pwa-startup-veil body {
+            background: #020617 !important;
+        }
+
+        html.pwa-startup-veil body > :not(#hushLaunchBlackout):not(#hushAppSplash):not(#hushThemeDebugBadge) {
+            visibility: hidden !important;
+        }
+
+        html.pwa-startup-veil body > #hushLaunchBlackout,
+        html.pwa-startup-veil body > #hushAppSplash,
+        html.pwa-startup-veil body > #hushThemeDebugBadge {
+            visibility: visible !important;
+        }
+    </style>
     <link rel="stylesheet" href="silentdraft.css?v=20260804b">
     <title>Silent Draft</title>
 </head>

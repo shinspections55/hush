@@ -1607,14 +1607,7 @@ function initSilentDraft() {
         draftRoomRightViewMode = 'budgets';
     }
 
-    try {
-        const savedSection = localStorage.getItem(DRAFT_APP_SECTION_VIEW_KEY);
-        if (savedSection === 'players' || savedSection === 'roster' || savedSection === 'budgets' || savedSection === 'rankings' || savedSection === 'chat') {
-            draftAppSectionViewMode = savedSection;
-        }
-    } catch (e) {
-        draftAppSectionViewMode = 'players';
-    }
+    draftAppSectionViewMode = 'players';
     
     console.log('[silentdraft] All draft members:', allDraftMembers);
     console.log('[silentdraft] Draft host name:', draftHostName);
@@ -1628,6 +1621,18 @@ function initSilentDraft() {
     renderDraftRoomRankings();
     setupDraftChat();
     renderDraftChatMessages();
+
+    function clearDraftStartupVeil() {
+        if (document.documentElement) {
+            document.documentElement.classList.remove('pwa-startup-veil');
+        }
+    }
+
+    if (document.documentElement && document.documentElement.classList.contains('pwa-startup-veil')) {
+        window.requestAnimationFrame(function () {
+            clearDraftStartupVeil();
+        });
+    }
 
     function updateSocketConnectionIndicator(isConnected, detailText, quality = 'good') {
         const indicatorId = 'socket-connection-indicator';

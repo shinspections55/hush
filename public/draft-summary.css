@@ -139,6 +139,94 @@
     margin-top: 16px;
 }
 
+body.pwa-installed.draft-summary-page-body .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 12000;
+    padding: calc(10px + env(safe-area-inset-top)) 12px 8px;
+    background: linear-gradient(180deg, rgba(8, 19, 30, 0.98) 0%, rgba(8, 19, 30, 0.9) 100%);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+}
+
+body.pwa-installed.draft-summary-page-body .page {
+    padding: 10px 10px calc(18px + env(safe-area-inset-bottom));
+}
+
+body.pwa-installed.draft-summary-page-body .draft-summary-box {
+    max-width: none;
+    border-radius: 18px;
+    padding: 14px;
+}
+
+body.pwa-installed.draft-summary-page-body .summary-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+}
+
+body.pwa-installed.draft-summary-page-body .summary-header-right {
+    margin-left: 0;
+    justify-items: stretch;
+    min-width: 0;
+}
+
+body.pwa-installed.draft-summary-page-body .summary-top-actions,
+body.pwa-installed.draft-summary-page-body .team-nav-wrap,
+body.pwa-installed.draft-summary-page-body .team-nav-controls {
+    width: 100%;
+}
+
+body.pwa-installed.draft-summary-page-body .team-nav-controls {
+    justify-content: stretch;
+}
+
+body.pwa-installed.draft-summary-page-body .team-select {
+    width: 100%;
+}
+
+body.pwa-installed.draft-summary-page-body .summary-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+body.pwa-installed.draft-summary-page-body .summary-panel {
+    padding: 12px;
+    border-radius: 14px;
+}
+
+body.pwa-installed.draft-summary-page-body .summary-title {
+    font-size: 24px;
+}
+
+body.pwa-installed.draft-summary-page-body .summary-section-title {
+    font-size: 16px;
+}
+
+body.pwa-installed.draft-summary-page-body .lineup-grid,
+body.pwa-installed.draft-summary-page-body #benchContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+body.pwa-installed.draft-summary-page-body .lineup-grid,
+body.pwa-installed.draft-summary-page-body .bench-list {
+    padding-left: 10px;
+    padding-right: 10px;
+    width: 100%;
+}
+
+@media (max-width: 780px) {
+    body.pwa-installed.draft-summary-page-body .page {
+        padding: 8px 8px calc(16px + env(safe-area-inset-bottom));
+    }
+
+    body.pwa-installed.draft-summary-page-body .draft-summary-box {
+        padding: 12px;
+    }
+}
+
 .team-list {
     display: grid;
     gap: 8px;

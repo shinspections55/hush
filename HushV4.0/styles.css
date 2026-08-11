@@ -1541,7 +1541,7 @@ body.pwa-installed.dashboard-page .dashboard-header .wallet-balance {
 
 /* Keep dashboard action cards clear of fixed PWA bottom nav on iPhone. */
 body.pwa-installed.dashboard-page .dashboard-main-centered {
-    padding-bottom: calc(124px + env(safe-area-inset-bottom));
+    padding-bottom: calc(168px + env(safe-area-inset-bottom));
 }
 
 @media (max-width: 700px) {
@@ -1584,7 +1584,7 @@ body.pwa-installed.dashboard-page .dashboard-main-centered {
     }
 
     body.pwa-installed.dashboard-page .dashboard-main-centered {
-        padding-bottom: calc(140px + env(safe-area-inset-bottom));
+        padding-bottom: calc(184px + env(safe-area-inset-bottom));
     }
 }
 
@@ -3104,6 +3104,106 @@ body.dashboard-light-mode .lobby-share-friends-list{
     gap: 8px;
     flex-wrap: wrap;
     margin-top: 10px;
+}
+
+body.pwa-installed.lobby-page .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 12000;
+    padding: calc(10px + env(safe-area-inset-top)) 12px 8px;
+    background: linear-gradient(180deg, rgba(8, 19, 30, 0.98) 0%, rgba(8, 19, 30, 0.9) 100%);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+}
+
+body.pwa-installed.lobby-page .page {
+    max-width: none;
+    width: 100%;
+    padding: 10px 10px calc(18px + env(safe-area-inset-bottom));
+    box-sizing: border-box;
+}
+
+body.pwa-installed.lobby-page .container {
+    max-width: none;
+    width: 100%;
+    margin: 0;
+}
+
+body.pwa-installed.lobby-page #lobbyBox {
+    max-width: none;
+    margin: 0;
+    padding: 12px;
+    border-radius: 16px;
+}
+
+body.pwa-installed.lobby-page .lobby-top-row,
+body.pwa-installed.lobby-page .lobby-heading-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+}
+
+body.pwa-installed.lobby-page .lobby-member-counter,
+body.pwa-installed.lobby-page .lobby-share-row {
+    width: 100%;
+}
+
+body.pwa-installed.lobby-page .lobby-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+body.pwa-installed.lobby-page .lobby-members-column,
+body.pwa-installed.lobby-page .lobby-options-column,
+body.pwa-installed.lobby-page .lobby-custom-settings,
+body.pwa-installed.lobby-page .custom-budget-panel,
+body.pwa-installed.lobby-page .lobby-share-modal-card {
+    border-radius: 14px;
+}
+
+body.pwa-installed.lobby-page .lobby-members-column,
+body.pwa-installed.lobby-page .lobby-options-column {
+    padding: 12px;
+}
+
+body.pwa-installed.lobby-page .lobby-action-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+
+body.pwa-installed.lobby-page .lobby-action-row .btn,
+body.pwa-installed.lobby-page .lobby-action-row .btn-signup {
+    width: 100%;
+}
+
+body.pwa-installed.lobby-page .custom-budget-list {
+    grid-template-columns: 1fr;
+}
+
+body.pwa-installed.lobby-page .custom-budget-row {
+    align-items: center;
+}
+
+body.pwa-installed.lobby-page .lobby-share-modal-card {
+    width: min(94vw, 560px);
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+    overflow: auto;
+}
+
+@media (max-width: 640px) {
+    body.pwa-installed.lobby-page .site-header {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    body.pwa-installed.lobby-page .lobby-action-row {
+        grid-template-columns: 1fr;
+    }
+
+    body.pwa-installed.lobby-page .roster-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width:640px){
