@@ -9475,6 +9475,7 @@ io.on('connection', (socket) => {
           nextPlayerId: nextTiePreview ? nextTiePreview.playerId : null,
           nextPlayerName: nextTiePreview ? nextTiePreview.playerName : null,
           nextPlayerPosition: nextTiePreview ? nextTiePreview.playerPosition || 'UNK' : 'UNK',
+          nextTiedTeams: nextTiePreview && Array.isArray(nextTiePreview.tiedTeams) ? nextTiePreview.tiedTeams.slice() : [],
           message: nextTiePreview
             ? `Preparing for next auction: ${nextTiePreview.playerName || 'Next player'}...`
             : 'Preparing for next auction...'

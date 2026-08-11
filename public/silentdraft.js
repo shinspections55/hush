@@ -2274,8 +2274,7 @@ function initSilentDraft() {
 
         window.draftSocket.on('liveAuctionTransition', (payload) => {
             if (!payload) return;
-            const message = String(payload.message || 'Preparing for next auction...');
-            showAuctionTransitionPopup(message);
+            showAuctionTransitionPopup(payload);
         });
         
         window.draftSocket.on('roundPlayersSet', (payload) => {
@@ -7490,23 +7489,117 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         }, 2200);
     }
 
-    function showAuctionTransitionPopup(message, attempt = 0) {
+    const LIVE_AUCTION_PHASE_TIMINGS_MS = Object.freeze({
+        backoutSummary: 1800,
+        winnerDisplay: 3000,
+        nextAuctionLoading: 2500
+    });
+    let liveAuctionPresentationActive = false;
+    let pendingAuctionTransitionPayload = null;
+
+    function playLiveAuctionAttentionDing() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const playDing = (frequency, delay) => {
+                setTimeout(() => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+
+                    oscillator.frequency.value = frequency;
+                    oscillator.type = 'sine';
+
+                    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.05);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.3);
+                }, delay);
+            };
+
+            playDing(800, 0);
+            playDing(700, 200);
+            playDing(600, 400);
+        } catch (_error) {
+            // Ignore autoplay restrictions.
+        }
+    }
+
+    function ensureAuctionPrepareShakeStyle() {
+        if (document.getElementById('auction-prepare-shake-style')) return;
+        const styleTag = document.createElement('style');
+        styleTag.id = 'auction-prepare-shake-style';
+        styleTag.textContent = `
+            @keyframes auctionPrepareShake {
+                0%, 100% { transform: translateX(0); }
+                20% { transform: translateX(-5px); }
+                40% { transform: translateX(5px); }
+                60% { transform: translateX(-4px); }
+                80% { transform: translateX(4px); }
+            }
+        `;
+        document.head.appendChild(styleTag);
+    }
+
+    function flushPendingAuctionTransition() {
+        if (liveAuctionPresentationActive || !pendingAuctionTransitionPayload) {
+            return;
+        }
+
+        const payload = pendingAuctionTransitionPayload;
+        pendingAuctionTransitionPayload = null;
+        showAuctionTransitionPopup(payload);
+    }
+
+    function setLiveAuctionPresentationActive(isActive) {
+        liveAuctionPresentationActive = !!isActive;
+        if (!liveAuctionPresentationActive) {
+            setTimeout(flushPendingAuctionTransition, 0);
+        }
+    }
+
+    function showAuctionTransitionPopup(payloadOrMessage, attempt = 0) {
+        const transitionPayload = (payloadOrMessage && typeof payloadOrMessage === 'object')
+            ? payloadOrMessage
+            : { message: payloadOrMessage };
+        const transitionMessage = String(transitionPayload.message || 'Preparing for next auction...');
+        const nextTiedTeams = Array.isArray(transitionPayload.nextTiedTeams) ? transitionPayload.nextTiedTeams : [];
+        const userInNextAuction = nextTiedTeams.some((teamName) => isCurrentUserTeamName(teamName));
+
+        if (liveAuctionPresentationActive) {
+            pendingAuctionTransitionPayload = transitionPayload;
+            return;
+        }
+
         const activeAuctionModal = document.getElementById('live-auction-modal');
         const countdownEl = (activeAuctionModal && activeAuctionModal.querySelector('#auction-countdown')) || document.getElementById('auction-countdown');
         if (countdownEl) {
             // Never replace the active bidding UI. Retry later and only render transition when bidding modal is no longer active.
             if (attempt < 120) {
-                setTimeout(() => showAuctionTransitionPopup(message, attempt + 1), 100);
+                setTimeout(() => showAuctionTransitionPopup(transitionPayload, attempt + 1), 100);
             }
             return;
         }
 
+        if (userInNextAuction) {
+            ensureAuctionPrepareShakeStyle();
+            playLiveAuctionAttentionDing();
+        }
+
+        const cardBorder = userInNextAuction ? '2px solid rgba(46,204,113,0.9)' : '1px solid rgba(173,220,246,0.28)';
+        const cardAnimation = userInNextAuction ? 'animation:auctionPrepareShake 0.45s ease-in-out 6;' : '';
+        const titleText = userInNextAuction ? 'Your auction is next!' : 'Preparing for next auction...';
+        const titleColor = userInNextAuction ? '#66f0a8' : '#eef7ff';
+
         const existingTransition = document.getElementById('auction-transition-popup');
         const content = `
             <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:220px;padding:8px 4px;box-sizing:border-box;">
-                <div style="width:min(92%,420px);padding:18px 18px 16px 18px;border-radius:14px;border:1px solid rgba(173,220,246,0.28);background:linear-gradient(180deg, rgba(9,22,32,0.98) 0%, rgba(8,14,20,0.98) 100%);box-shadow:0 16px 42px rgba(0,0,0,0.38);text-align:center;color:#eef7ff;">
-                    <div style="font-size:18px;font-weight:800;margin-bottom:8px;">Preparing for next auction...</div>
-                    <div style="font-size:14px;line-height:1.45;color:#c8d9e6;">${message ? message : 'Loading the next tied player now.'}</div>
+                <div style="width:min(92%,420px);padding:18px 18px 16px 18px;border-radius:14px;border:${cardBorder};background:linear-gradient(180deg, rgba(9,22,32,0.98) 0%, rgba(8,14,20,0.98) 100%);box-shadow:0 16px 42px rgba(0,0,0,0.38);text-align:center;color:#eef7ff;${cardAnimation}">
+                    <div style="font-size:18px;font-weight:800;margin-bottom:8px;color:${titleColor};">${titleText}</div>
+                    <div style="font-size:14px;line-height:1.45;color:#c8d9e6;">${transitionMessage ? transitionMessage : 'Loading the next tied player now.'}</div>
                     <div style="margin-top:14px;height:8px;border-radius:999px;background:rgba(255,255,255,0.12);overflow:hidden;">
                         <div style="height:100%;width:100%;background:linear-gradient(90deg,#2ecc71,#3498db);animation:auctionTransitionBar 1.1s ease-in-out infinite alternate;"></div>
                     </div>
@@ -7523,7 +7616,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 if (existingTransition && existingTransition.parentNode) {
                     existingTransition.parentNode.removeChild(existingTransition);
                 }
-            }, 1000);
+            }, LIVE_AUCTION_PHASE_TIMINGS_MS.nextAuctionLoading);
             existingTransition.dataset.transitionTimeoutId = String(dismissTimeoutId);
             return;
         }
@@ -7538,7 +7631,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             if (backdrop && backdrop.parentNode) {
                 backdrop.parentNode.removeChild(backdrop);
             }
-        }, 1000);
+        }, LIVE_AUCTION_PHASE_TIMINGS_MS.nextAuctionLoading);
         backdrop.dataset.transitionTimeoutId = String(dismissTimeoutId);
     }
 
@@ -8146,6 +8239,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     // Handle live auctions for tied bids
     function handleLiveAuction(tiedBids, onComplete) {
         console.log('[handleLiveAuction] Called with tiedBids:', tiedBids);
+        setLiveAuctionPresentationActive(false);
         if (typeof window.currentAuctionCleanup === 'function') {
             try {
                 window.currentAuctionCleanup();
@@ -8218,6 +8312,8 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 return;
             }
 
+            setLiveAuctionPresentationActive(true);
+
             const existingBackdrop = document.getElementById('live-auction-backdrop');
             if (!existingBackdrop) {
                 const backdrop = document.createElement('div');
@@ -8248,6 +8344,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 if (backdrop && backdrop.parentNode) {
                     backdrop.parentNode.removeChild(backdrop);
                 }
+                setLiveAuctionPresentationActive(false);
                 markAuctionPresentationComplete(playerId);
             }, 5000);
         };
@@ -8320,6 +8417,12 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     function startLiveAuction(tied, auctionId, onPresentationComplete) {
         const theme = getLiveAuctionTheme();
         console.log('[startLiveAuction] Starting auction for:', tied, 'with auctionId:', auctionId);
+        setLiveAuctionPresentationActive(false);
+
+        const transitionPopup = document.getElementById('auction-transition-popup');
+        if (transitionPopup && transitionPopup.parentNode) {
+            transitionPopup.parentNode.removeChild(transitionPopup);
+        }
 
         if (activeLiveAuctionUi && typeof activeLiveAuctionUi.detach === 'function') {
             activeLiveAuctionUi.detach('superseded_auction');
@@ -8638,11 +8741,13 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             const backedOutSummary = backedOutTeams.length
                 ? backedOutTeams.join(', ')
                 : '';
-            const BACKOUT_SUMMARY_MS = 2000;
-            const WINNER_DISPLAY_MS = 4000;
+            const BACKOUT_SUMMARY_MS = LIVE_AUCTION_PHASE_TIMINGS_MS.backoutSummary;
+            const WINNER_DISPLAY_MS = LIVE_AUCTION_PHASE_TIMINGS_MS.winnerDisplay;
+            setLiveAuctionPresentationActive(true);
 
             const finishPresentation = () => {
                 removeAuctionUi();
+                setLiveAuctionPresentationActive(false);
                 if (typeof onPresentationComplete === 'function') {
                     onPresentationComplete();
                 }
