@@ -987,6 +987,8 @@ function initSilentDraft() {
     let draftAppSectionNavEnabled = false;
     // Product lock: preserve Players scroll to prevent bounce unless explicitly requested otherwise.
     const LOCK_PWA_PLAYERS_SCROLL_PRESERVATION = true;
+    // Product lock: keep roster pane scrollable in PWA whenever roster pane is the visible column.
+    const LOCK_PWA_ROSTER_ALWAYS_SCROLLABLE = true;
     let draftAppPlayersScrollTop = 0;
     let draftRoomRankingsPosition = 'ALL';
     let draftRoomRankingsRefreshInFlight = null;
@@ -4139,6 +4141,27 @@ function initSilentDraft() {
         centerColumn.style.removeProperty('scroll-padding-bottom');
     }
 
+    function enforcePwaRosterScrollLock() {
+        if (!LOCK_PWA_ROSTER_ALWAYS_SCROLLABLE || !document.body) return;
+        if (!document.body.classList.contains('pwa-installed') || !document.body.classList.contains('silentdraft-app-nav-enabled')) return;
+
+        const centerColumn = document.getElementById('center-column');
+        if (!centerColumn) return;
+
+        const centerVisible = window.getComputedStyle(centerColumn).display !== 'none';
+        if (!centerVisible) return;
+
+        centerColumn.style.minHeight = '0';
+        centerColumn.style.height = 'calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom))';
+        centerColumn.style.maxHeight = 'calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom))';
+        centerColumn.style.overflowY = 'scroll';
+        centerColumn.style.overflowX = 'hidden';
+        centerColumn.style.setProperty('-webkit-overflow-scrolling', 'touch');
+        centerColumn.style.touchAction = 'pan-y';
+        centerColumn.style.paddingBottom = 'calc(220px + var(--draft-app-nav-height) + env(safe-area-inset-bottom))';
+        centerColumn.style.scrollPaddingBottom = 'calc(220px + var(--draft-app-nav-height) + env(safe-area-inset-bottom))';
+    }
+
     function applyDraftAppSectionMode(section, options = {}) {
         const previousMode = draftAppSectionViewMode;
         if (LOCK_PWA_PLAYERS_SCROLL_PRESERVATION && previousMode === 'players') {
@@ -4171,6 +4194,7 @@ function initSilentDraft() {
         });
 
         applyRosterPaneScrollStyling(mode === 'roster');
+        enforcePwaRosterScrollLock();
 
         if (LOCK_PWA_PLAYERS_SCROLL_PRESERVATION && mode === 'players') {
             const playersColumn = document.getElementById('left-column');
