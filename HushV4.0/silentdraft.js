@@ -4165,7 +4165,7 @@ function initSilentDraft() {
             centerColumn.style.minHeight = '0';
             centerColumn.style.height = 'calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom))';
             centerColumn.style.maxHeight = 'calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom))';
-            centerColumn.style.overflowY = 'auto';
+            centerColumn.style.overflowY = 'scroll';
             centerColumn.style.overflowX = 'hidden';
             centerColumn.style.setProperty('-webkit-overflow-scrolling', 'touch');
             centerColumn.style.touchAction = 'pan-y';

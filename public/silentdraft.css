@@ -2237,7 +2237,7 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-s
     min-height: 0;
     height: calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom));
     max-height: calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom));
-    overflow-y: auto;
+    overflow-y: scroll;
     overflow-x: hidden;
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
@@ -2245,6 +2245,21 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-s
     gap: 0;
     padding-bottom: calc(220px + var(--draft-app-nav-height) + env(safe-area-inset-bottom));
     scroll-padding-bottom: calc(220px + var(--draft-app-nav-height) + env(safe-area-inset-bottom));
+}
+
+body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-section="roster"] #center-column::-webkit-scrollbar {
+    width: 10px;
+}
+
+body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-section="roster"] #center-column::-webkit-scrollbar-track {
+    background: rgba(13, 27, 45, 0.42);
+    border-radius: 999px;
+}
+
+body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-section="roster"] #center-column::-webkit-scrollbar-thumb {
+    background: rgba(170, 183, 200, 0.66);
+    border-radius: 999px;
+    border: 2px solid rgba(13, 27, 45, 0.32);
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-section="roster"] #your-team,
