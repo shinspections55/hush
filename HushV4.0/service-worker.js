@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hush-v10';
+const CACHE_NAME = 'hush-v11';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
