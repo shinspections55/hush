@@ -1560,6 +1560,7 @@ function initSilentDraft() {
     setupRightViewTabs();
     applyRightViewMode();
     setupDraftAppSectionNav();
+    applyDraftAppSectionMode('players', { persist: false });
     setupDraftRoomRankingsTabs();
     setupDraftRoomRankingsPositionTabs();
     renderDraftRoomRankings();
@@ -4124,7 +4125,7 @@ function initSilentDraft() {
             centerColumn.style.maxHeight = 'calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom))';
             centerColumn.style.overflowY = 'scroll';
             centerColumn.style.overflowX = 'hidden';
-            centerColumn.style.setProperty('-webkit-overflow-scrolling', 'touch');
+            centerColumn.style.overscrollBehaviorY = 'none';
             centerColumn.style.touchAction = 'pan-y';
             centerColumn.style.paddingBottom = 'calc(220px + var(--draft-app-nav-height) + env(safe-area-inset-bottom))';
             centerColumn.style.scrollPaddingBottom = 'calc(220px + var(--draft-app-nav-height) + env(safe-area-inset-bottom))';
@@ -4137,7 +4138,7 @@ function initSilentDraft() {
         centerColumn.style.removeProperty('max-height');
         centerColumn.style.removeProperty('overflow-y');
         centerColumn.style.removeProperty('overflow-x');
-        centerColumn.style.removeProperty('-webkit-overflow-scrolling');
+        centerColumn.style.removeProperty('overscroll-behavior-y');
         centerColumn.style.removeProperty('touch-action');
         centerColumn.style.removeProperty('padding-bottom');
         centerColumn.style.removeProperty('scroll-padding-bottom');
@@ -4157,7 +4158,7 @@ function initSilentDraft() {
         centerColumn.style.maxHeight = 'calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom))';
         centerColumn.style.overflowY = 'scroll';
         centerColumn.style.overflowX = 'hidden';
-        centerColumn.style.setProperty('-webkit-overflow-scrolling', 'touch');
+        centerColumn.style.overscrollBehaviorY = 'none';
         centerColumn.style.touchAction = 'pan-y';
         centerColumn.style.paddingBottom = 'calc(220px + var(--draft-app-nav-height) + env(safe-area-inset-bottom))';
         centerColumn.style.scrollPaddingBottom = 'calc(220px + var(--draft-app-nav-height) + env(safe-area-inset-bottom))';
@@ -4196,6 +4197,20 @@ function initSilentDraft() {
 
         applyRosterPaneScrollStyling(mode === 'roster');
         enforcePwaRosterScrollLock();
+
+        if (mode === 'roster') {
+            const rosterColumn = document.getElementById('center-column');
+            if (rosterColumn) {
+                const jumpRosterToTop = () => {
+                    rosterColumn.scrollTop = 0;
+                };
+                if (typeof window.requestAnimationFrame === 'function') {
+                    window.requestAnimationFrame(jumpRosterToTop);
+                } else {
+                    jumpRosterToTop();
+                }
+            }
+        }
 
         if (LOCK_PWA_PLAYERS_SCROLL_PRESERVATION && mode === 'players') {
             const playersColumn = document.getElementById('left-column');

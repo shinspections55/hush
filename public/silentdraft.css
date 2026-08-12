@@ -2239,7 +2239,7 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-s
     max-height: calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom));
     overflow-y: scroll;
     overflow-x: hidden;
-    overscroll-behavior-y: contain;
+    overscroll-behavior-y: none;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
     gap: 0;
