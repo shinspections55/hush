@@ -4118,6 +4118,7 @@ function initSilentDraft() {
         if (!centerColumn) return;
 
         if (isRosterMode) {
+            centerColumn.style.display = 'block';
             centerColumn.style.minHeight = '0';
             centerColumn.style.height = 'calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom))';
             centerColumn.style.maxHeight = 'calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom))';
@@ -4131,6 +4132,7 @@ function initSilentDraft() {
         }
 
         centerColumn.style.removeProperty('min-height');
+        centerColumn.style.removeProperty('display');
         centerColumn.style.removeProperty('height');
         centerColumn.style.removeProperty('max-height');
         centerColumn.style.removeProperty('overflow-y');
@@ -4143,14 +4145,13 @@ function initSilentDraft() {
 
     function enforcePwaRosterScrollLock() {
         if (!LOCK_PWA_ROSTER_ALWAYS_SCROLLABLE || !document.body) return;
+        if (draftAppSectionViewMode !== 'roster') return;
         if (!document.body.classList.contains('pwa-installed') || !document.body.classList.contains('silentdraft-app-nav-enabled')) return;
 
         const centerColumn = document.getElementById('center-column');
         if (!centerColumn) return;
 
-        const centerVisible = window.getComputedStyle(centerColumn).display !== 'none';
-        if (!centerVisible) return;
-
+        centerColumn.style.display = 'block';
         centerColumn.style.minHeight = '0';
         centerColumn.style.height = 'calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom))';
         centerColumn.style.maxHeight = 'calc(100dvh - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom))';
