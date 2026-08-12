@@ -1913,6 +1913,7 @@ html[data-theme="light"] body #center-column #your-team > .roster-slot-card .ros
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled {
     --draft-app-header-height: calc(74px + env(safe-area-inset-top));
+    --draft-app-header-overlap: 18px;
     --draft-app-nav-height: 82px;
 }
 
@@ -2079,8 +2080,8 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .silentdraft-app
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .container {
     display: block;
-    margin-top: var(--draft-app-header-height);
-    height: calc(100% - var(--draft-app-header-height) - var(--draft-app-nav-height) - env(safe-area-inset-bottom));
+    margin-top: calc(var(--draft-app-header-height) + var(--draft-app-header-overlap));
+    height: calc(100% - var(--draft-app-header-height) - var(--draft-app-header-overlap) - var(--draft-app-nav-height) - env(safe-area-inset-bottom));
     padding: 10px 12px;
 }
 
@@ -2171,6 +2172,7 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .right-view-sect
 @media (max-width: 390px) {
     body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled {
         --draft-app-header-height: calc(68px + env(safe-area-inset-top));
+        --draft-app-header-overlap: 14px;
     }
 
     body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .header-bar {

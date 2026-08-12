@@ -1029,6 +1029,9 @@ function initSilentDraft() {
     let draftRoomRightViewMode = 'budgets';
     let draftAppSectionViewMode = 'players';
     let draftAppSectionNavEnabled = false;
+    // Product lock: preserve Players scroll to prevent bounce unless explicitly requested otherwise.
+    const LOCK_PWA_PLAYERS_SCROLL_PRESERVATION = true;
+    let draftAppPlayersScrollTop = 0;
     let draftRoomRankingsPosition = 'ALL';
     let draftRoomRankingsRefreshInFlight = null;
     let draftChatMessages = [];
@@ -4183,6 +4186,14 @@ function initSilentDraft() {
     }
 
     function applyDraftAppSectionMode(section, options = {}) {
+        const previousMode = draftAppSectionViewMode;
+        if (LOCK_PWA_PLAYERS_SCROLL_PRESERVATION && previousMode === 'players') {
+            const previousPlayersColumn = document.getElementById('left-column');
+            if (previousPlayersColumn) {
+                draftAppPlayersScrollTop = previousPlayersColumn.scrollTop;
+            }
+        }
+
         const mode = (section === 'roster' || section === 'budgets' || section === 'rankings' || section === 'chat') ? section : 'players';
         draftAppSectionViewMode = mode;
 
@@ -4206,6 +4217,20 @@ function initSilentDraft() {
         });
 
         applyRosterPaneScrollStyling(mode === 'roster');
+
+        if (LOCK_PWA_PLAYERS_SCROLL_PRESERVATION && mode === 'players') {
+            const playersColumn = document.getElementById('left-column');
+            if (playersColumn) {
+                const restorePlayersScroll = () => {
+                    playersColumn.scrollTop = draftAppPlayersScrollTop;
+                };
+                if (typeof window.requestAnimationFrame === 'function') {
+                    window.requestAnimationFrame(restorePlayersScroll);
+                } else {
+                    restorePlayersScroll();
+                }
+            }
+        }
 
         if (mode === 'chat') {
             setTimeout(() => {
