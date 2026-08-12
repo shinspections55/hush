@@ -4160,6 +4160,19 @@ function initSilentDraft() {
         return Boolean(isInstalled);
     }
 
+    function syncDraftAppChromeHeights() {
+        if (!document.body) return;
+        const headerBar = document.querySelector('.header-bar');
+        const appNav = document.getElementById('silentdraft-app-nav');
+
+        if (headerBar && headerBar.offsetHeight > 0) {
+            document.body.style.setProperty('--draft-app-header-height', `${headerBar.offsetHeight}px`);
+        }
+        if (appNav && appNav.offsetHeight > 0) {
+            document.body.style.setProperty('--draft-app-nav-height', `${appNav.offsetHeight}px`);
+        }
+    }
+
     function applyRosterPaneScrollStyling(isRosterMode) {
         const centerColumn = document.getElementById('center-column');
         if (!centerColumn) return;
@@ -4299,8 +4312,12 @@ function initSilentDraft() {
 
         if (!enabled) {
             document.body.removeAttribute('data-draft-app-section');
+            document.body.style.removeProperty('--draft-app-header-height');
+            document.body.style.removeProperty('--draft-app-nav-height');
             return;
         }
+
+        syncDraftAppChromeHeights();
 
         applyDraftAppSectionMode(draftAppSectionViewMode, { persist: false });
         updateDraftAppChatBadge();
