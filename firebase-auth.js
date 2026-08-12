@@ -77,6 +77,20 @@ export {
   updateProfile
 };
 
+export function buildPasswordResetActionSettings() {
+  const origin = String(window.location.origin || '').trim();
+  const baseUrl = origin || String(window.location.href || '').trim();
+  return {
+    url: `${baseUrl.replace(/\/$/, '')}/index.html?reset=complete`,
+    handleCodeInApp: false
+  };
+}
+
+export async function sendHushPasswordResetEmail(instance, email) {
+  const actionCodeSettings = buildPasswordResetActionSettings();
+  return sendPasswordResetEmail(instance, email, actionCodeSettings);
+}
+
 export function requireFirebaseAuth() {
   if (!auth) {
     throw new Error(getFirebaseSetupMessage());
@@ -209,6 +223,18 @@ export function formatAuthError(error, fallback = 'Authentication request failed
       return 'Too many attempts. Wait a moment and try again.';
     case 'auth/network-request-failed':
       return 'Network error while contacting Firebase.';
+    case 'auth/operation-not-allowed':
+      return 'Firebase Email/Password sign-in is not enabled for this project.';
+    case 'auth/unauthorized-continue-uri':
+      return 'This website domain is not authorized in Firebase Auth. Add it under Firebase Authentication authorized domains.';
+    case 'auth/invalid-continue-uri':
+      return 'Firebase rejected the password reset return URL. Check the authorized domain and project URL settings.';
+    case 'auth/missing-continue-uri':
+      return 'Password reset return URL is missing. Please try again.';
+    case 'auth/invalid-api-key':
+      return 'Firebase API key is invalid for this site.';
+    case 'auth/app-not-authorized':
+      return 'This website is not authorized to use the current Firebase project.';
     default:
       return String(error && error.message || fallback);
   }

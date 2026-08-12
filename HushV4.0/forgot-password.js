@@ -1,7 +1,7 @@
 import {
   formatAuthError,
   requireFirebaseAuth,
-  sendPasswordResetEmail
+  sendHushPasswordResetEmail
 } from './firebase-auth.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const auth = requireFirebaseAuth();
-      await sendPasswordResetEmail(auth, email);
+      await sendHushPasswordResetEmail(auth, email);
       status.textContent = 'Reset email sent. Open the link in that email to finish changing your password.';
     } catch (error) {
       console.error('[forgot-password] request failed:', error);
