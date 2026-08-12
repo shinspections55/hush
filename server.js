@@ -1407,15 +1407,80 @@ function findUserByResetToken(users, token) {
 }
 
 async function sendResetEmail(to, username, resetLink, code) {
+  const postmarkServerToken = String(process.env.POSTMARK_SERVER_TOKEN || '').trim();
+  const postmarkFromEmail = String(process.env.POSTMARK_FROM_EMAIL || '').trim();
+  const postmarkFromName = String(process.env.POSTMARK_FROM_NAME || 'Hush').trim();
   const smtpHost = process.env.SMTP_HOST;
   const smtpPort = Number(process.env.SMTP_PORT || 587);
   const smtpSecure = String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true';
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
   const smtpFrom = process.env.SMTP_FROM || smtpUser;
+  const replyTo = String(process.env.SMTP_REPLY_TO || postmarkFromEmail || smtpFrom || '').trim() || undefined;
 
   const subject = 'Reset your password';
   const text = `Hi ${username},\n\nUse this link to reset your password:\n${resetLink}\n\nIf prompted, your verification code is: ${code}\nThis code expires in 10 minutes.\n\nIf you did not request this, ignore this email.`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827;max-width:560px;margin:0 auto;padding:24px;">
+      <h2 style="margin:0 0 16px;">Reset your password</h2>
+      <p style="margin:0 0 16px;">Hi ${String(username || 'there').replace(/[<>]/g, '')},</p>
+      <p style="margin:0 0 16px;">We received a request to reset your Hush password.</p>
+      <p style="margin:0 0 20px;">
+        <a href="${resetLink}" style="display:inline-block;background:#0f2f44;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600;">Reset password</a>
+      </p>
+      <p style="margin:0 0 8px;">Verification code: <strong>${code}</strong></p>
+      <p style="margin:0 0 16px;">This code expires in 10 minutes.</p>
+      <p style="margin:0 0 8px;font-size:14px;color:#4b5563;">If the button does not work, use this link:</p>
+      <p style="margin:0 0 16px;font-size:14px;word-break:break-all;"><a href="${resetLink}">${resetLink}</a></p>
+      <p style="margin:0;font-size:14px;color:#4b5563;">If you did not request this, you can ignore this email.</p>
+    </div>`;
+
+  if (postmarkServerToken && postmarkFromEmail) {
+    const postmarkFrom = postmarkFromName ? `${postmarkFromName} <${postmarkFromEmail}>` : postmarkFromEmail;
+    const response = await fetch('https://api.postmarkapp.com/email', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-Postmark-Server-Token': postmarkServerToken
+      },
+      body: JSON.stringify({
+        From: postmarkFrom,
+        To: to,
+        Subject: subject,
+        TextBody: text,
+        HtmlBody: html,
+        ReplyTo: replyTo,
+        MessageStream: String(process.env.POSTMARK_MESSAGE_STREAM || 'outbound').trim() || 'outbound',
+        Tag: 'password-reset'
+      })
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const errorMessage = String(payload && (payload.Message || payload.ErrorCode || response.statusText) || 'Postmark send failed');
+      deliveryDebugState.lastEmail = {
+        at: Date.now(),
+        to,
+        simulated: false,
+        ok: false,
+        provider: 'postmark',
+        note: errorMessage
+      };
+      throw new Error(`[AUTH] Postmark send failed: ${errorMessage}`);
+    }
+
+    deliveryDebugState.lastEmail = {
+      at: Date.now(),
+      to,
+      simulated: false,
+      ok: true,
+      provider: 'postmark',
+      note: 'Delivered via Postmark'
+    };
+
+    return { delivered: true, simulated: false, provider: 'postmark' };
+  }
 
   if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom) {
     console.log('[AUTH] SMTP not configured. Simulated email delivery.');
@@ -1425,7 +1490,8 @@ async function sendResetEmail(to, username, resetLink, code) {
       to,
       simulated: true,
       ok: true,
-      note: 'SMTP not configured'
+      provider: 'none',
+      note: 'No Postmark or SMTP provider configured'
     };
     return { delivered: false, simulated: true };
   }
@@ -1444,7 +1510,9 @@ async function sendResetEmail(to, username, resetLink, code) {
     from: smtpFrom,
     to,
     subject,
-    text
+    text,
+    html,
+    replyTo
   });
 
   deliveryDebugState.lastEmail = {
@@ -1452,10 +1520,11 @@ async function sendResetEmail(to, username, resetLink, code) {
     to,
     simulated: false,
     ok: true,
+    provider: 'smtp',
     note: 'Delivered via SMTP'
   };
 
-  return { delivered: true, simulated: false };
+  return { delivered: true, simulated: false, provider: 'smtp' };
 }
 
 async function sendResetSms(to, code, resetLink) {
@@ -3504,6 +3573,11 @@ app.post('/api/auth/reset-password', async (req, res) => {
 });
 
 app.get('/api/admin/delivery/status', requireAdminDebugKey, (req, res) => {
+  const postmarkConfigured = !!(
+    process.env.POSTMARK_SERVER_TOKEN &&
+    process.env.POSTMARK_FROM_EMAIL
+  );
+
   const smtpConfigured = !!(
     process.env.SMTP_HOST &&
     process.env.SMTP_USER &&
@@ -3519,8 +3593,10 @@ app.get('/api/admin/delivery/status', requireAdminDebugKey, (req, res) => {
 
   return res.json({
     ok: true,
+    postmarkConfigured,
     smtpConfigured,
     twilioConfigured,
+    emailProviderPreference: postmarkConfigured ? 'postmark' : (smtpConfigured ? 'smtp' : 'none'),
     appBaseUrl: process.env.APP_BASE_URL || null,
     lastEmail: deliveryDebugState.lastEmail,
     lastSms: deliveryDebugState.lastSms
