@@ -4228,8 +4228,8 @@ function initSilentDraft() {
             centerColumn.style.overflowX = 'hidden';
             centerColumn.style.setProperty('-webkit-overflow-scrolling', 'touch');
             centerColumn.style.touchAction = 'pan-y';
-            centerColumn.style.paddingBottom = 'calc(160px + var(--draft-app-nav-height) + env(safe-area-inset-bottom))';
-            centerColumn.style.scrollPaddingBottom = 'calc(160px + var(--draft-app-nav-height) + env(safe-area-inset-bottom))';
+            centerColumn.style.paddingBottom = 'calc(220px + var(--draft-app-nav-height) + env(safe-area-inset-bottom))';
+            centerColumn.style.scrollPaddingBottom = 'calc(220px + var(--draft-app-nav-height) + env(safe-area-inset-bottom))';
             return;
         }
 

@@ -2243,7 +2243,8 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-s
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
     gap: 0;
-    padding-bottom: calc(160px + var(--draft-app-nav-height) + env(safe-area-inset-bottom));
+    padding-bottom: calc(220px + var(--draft-app-nav-height) + env(safe-area-inset-bottom));
+    scroll-padding-bottom: calc(220px + var(--draft-app-nav-height) + env(safe-area-inset-bottom));
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled[data-draft-app-section="roster"] #your-team,
