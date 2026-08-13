@@ -18,13 +18,17 @@ function sha256(content) {
   return crypto.createHash('sha256').update(content).digest('hex');
 }
 
+function normalizeForHash(content) {
+  return String(content || '').replace(/\r\n/g, '\n');
+}
+
 function hashFile(relPath) {
   const absPath = path.join(repoRoot, relPath);
   if (!fs.existsSync(absPath)) {
     throw new Error(`Missing locked file: ${relPath}`);
   }
-  const content = fs.readFileSync(absPath);
-  return sha256(content);
+  const content = fs.readFileSync(absPath, 'utf8');
+  return sha256(normalizeForHash(content));
 }
 
 function buildManifest() {

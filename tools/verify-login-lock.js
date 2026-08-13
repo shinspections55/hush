@@ -10,6 +10,10 @@ function sha256(content) {
   return crypto.createHash('sha256').update(content).digest('hex');
 }
 
+function normalizeForHash(content) {
+  return String(content || '').replace(/\r\n/g, '\n');
+}
+
 function fail(message) {
   console.error(`\n[login-lock] ${message}`);
   console.error('[login-lock] If this change is intentional, run: npm run lock:refresh-login-flow');
@@ -46,7 +50,7 @@ function main() {
       continue;
     }
 
-    const actualHash = sha256(fs.readFileSync(absPath));
+    const actualHash = sha256(normalizeForHash(fs.readFileSync(absPath, 'utf8')));
     if (String(actualHash) !== String(expectedHash)) {
       changed.push(relPath);
     }
