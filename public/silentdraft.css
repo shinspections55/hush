@@ -2049,6 +2049,7 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .header-bar {
     min-height: 0;
     display: grid;
     grid-template-columns: minmax(124px, 1fr) minmax(88px, auto) minmax(108px, auto);
+    grid-template-rows: auto auto auto;
     align-items: center;
     gap: 8px;
     padding: calc(4px + env(safe-area-inset-top)) 8px 6px 8px;
@@ -2059,10 +2060,16 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .header-bar {
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-controls {
+    display: grid;
+    grid-template-columns: auto;
+    grid-template-rows: auto auto;
     min-width: 0;
-    gap: 8px;
-    align-items: center;
+    gap: 4px;
+    align-items: start;
+    justify-items: start;
     position: static;
+    grid-column: 1;
+    grid-row: 1;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #pause-draft {
@@ -2071,6 +2078,9 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #pause-draft {
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .header-bid-counter {
     position: static;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: center;
     width: max-content;
     max-width: calc(100% - 16px);
     font-size: 10px;
@@ -2098,12 +2108,18 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #auto-draft-togg
     border-radius: 10px;
     white-space: nowrap;
     flex-shrink: 0;
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info {
     text-align: center;
     min-width: 0;
     padding-top: 0;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info h1,
@@ -2135,6 +2151,8 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info #tim
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .submit-area {
     justify-content: flex-end;
     padding-top: 0;
+    grid-column: 3;
+    grid-row: 1;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #submit-bids {
