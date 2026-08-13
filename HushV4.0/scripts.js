@@ -86,22 +86,79 @@ function protectCriticalLocalData() {
   window.addEventListener('beforeunload', snapshotCriticalLocalData);
 }
 
+function normalizeEmailValue(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function looksLikeEmail(value) {
+  const text = normalizeEmailValue(value);
+  return text.includes('@') && text.includes('.');
+}
+
+function resolveEmailFromLocalProfiles(identifier) {
+  const key = String(identifier || '').trim().toLowerCase();
+  if (!key) return '';
+
+  try {
+    const raw = localStorage.getItem('firebaseLocalProfiles');
+    if (!raw) return '';
+    const profiles = JSON.parse(raw);
+    if (!profiles || typeof profiles !== 'object') return '';
+
+    for (const profile of Object.values(profiles)) {
+      if (!profile || typeof profile !== 'object') continue;
+      const username = String(profile.username || '').trim().toLowerCase();
+      const email = normalizeEmailValue(profile.email);
+      if (username && username === key && email) {
+        return email;
+      }
+    }
+  } catch (_error) {
+    // Ignore malformed profile cache.
+  }
+
+  return '';
+}
+
 async function resolveLoginEmail(identifier) {
   const value = String(identifier || '').trim();
   if (!value) {
     throw new Error('Enter your username or email.');
   }
 
-  const response = await fetch(`/api/auth/resolve-login?identifier=${encodeURIComponent(value)}`, {
-    cache: 'no-store'
-  });
+  if (looksLikeEmail(value)) {
+    return normalizeEmailValue(value);
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  let response;
+  try {
+    response = await fetch(`/api/auth/resolve-login?identifier=${encodeURIComponent(value)}`, {
+      cache: 'no-store',
+      signal: controller.signal
+    });
+  } catch (_error) {
+    const localEmail = resolveEmailFromLocalProfiles(value);
+    if (localEmail) {
+      return localEmail;
+    }
+    throw new Error('Unable to reach login services. Try email login instead.');
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   const payload = await response.json().catch(() => null);
   if (!response.ok || !payload || !payload.ok || !payload.email) {
+    const localEmail = resolveEmailFromLocalProfiles(value);
+    if (localEmail) {
+      return localEmail;
+    }
     throw new Error(payload && payload.error ? payload.error : 'Unable to resolve username. Try email instead.');
   }
 
-  return String(payload.email).trim();
+  return normalizeEmailValue(payload.email);
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
