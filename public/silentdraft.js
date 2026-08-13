@@ -405,6 +405,7 @@ function initSilentDraft() {
     let lastServerRoundStarted = 0;
     let lastSeenDraftStateVersion = 0;
     const totalRounds = 10;
+    const ROUND_SYNC_COUNTDOWN_SECONDS = 10;
     const DEFAULT_ROUND_TIMER_MINUTES = 3;
     let roundDuration = DEFAULT_ROUND_TIMER_MINUTES * 60;
     let timerInterval = null;
@@ -8166,6 +8167,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
 
     let roundPlayerWaitRecoveryTimer = null;
     let roundPlayerWaitAttempts = 0;
+    let roundSyncCountdownTimer = null;
 
     function clearRoundPlayerWaitRecovery() {
         if (roundPlayerWaitRecoveryTimer) {
@@ -8221,6 +8223,108 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         roundPlayerWaitRecoveryTimer = setInterval(runRecoveryTick, 2500);
     }
 
+    function clearRoundSyncCountdown() {
+        if (roundSyncCountdownTimer) {
+            clearInterval(roundSyncCountdownTimer);
+            roundSyncCountdownTimer = null;
+        }
+    }
+
+    function setRoundSubmitEnabled(enabled, labelText) {
+        const submitBtn = document.getElementById('submit-bids');
+        if (!submitBtn) return;
+        submitBtn.disabled = !enabled;
+        if (typeof labelText === 'string' && labelText.trim()) {
+            submitBtn.textContent = labelText;
+        }
+    }
+
+    function startLiveRoundTimer() {
+        const timerElement = document.getElementById('timer');
+        timer = roundDuration;
+        if (timerElement) {
+            timerElement.textContent = `${Math.floor(timer / 60)}:${String(timer % 60).padStart(2, '0')}`;
+        }
+
+        setRoundSubmitEnabled(true, 'Submit Bids');
+
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+
+        timerInterval = setInterval(() => {
+            if (!isPaused) {
+                let minutes = Math.floor(timer / 60);
+                let seconds = timer % 60;
+                if (timerElement) {
+                    timerElement.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                }
+                playCountdownCue(timer);
+                timer--;
+                if (timer < 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    // Timer expired - trigger round processing on server
+                    console.log('[silentdraft] Timer expired, processing round');
+                    window.handleRoundTimerExpired();
+                }
+            }
+        }, 1000);
+
+        // In solo auto-draft mode, give a short window to disable auto before final auto-submit.
+        scheduleAutoDraftSoloGraceWindow();
+    }
+
+    function beginRoundSyncCountdown() {
+        clearRoundSyncCountdown();
+        const timerElement = document.getElementById('timer');
+        let remaining = ROUND_SYNC_COUNTDOWN_SECONDS;
+
+        const renderCountdown = () => {
+            const hasPlayers = Array.isArray(window.syncedRoundPlayers) && window.syncedRoundPlayers.length > 0;
+            const suffix = hasPlayers ? '' : ' (syncing players)';
+            if (timerElement) {
+                timerElement.textContent = `Sync ${remaining}s`;
+            }
+            setRoundSubmitEnabled(false, `Syncing... ${remaining}s`);
+            if (!window.isHost && !hasPlayers) {
+                renderRoundPlayerWaitState(`Waiting for host to start the round... syncing (${remaining}s)`);
+            }
+        };
+
+        renderCountdown();
+        roundSyncCountdownTimer = setInterval(() => {
+            if (isDraftEnding) {
+                clearRoundSyncCountdown();
+                return;
+            }
+
+            const hasPlayers = Array.isArray(window.syncedRoundPlayers) && window.syncedRoundPlayers.length > 0;
+            if (!window.isHost && !hasPlayers) {
+                Promise.resolve(resyncDraftConnection('round-sync-countdown')).catch((error) => {
+                    console.warn('[silentdraft] Countdown resync failed:', error);
+                });
+            }
+
+            remaining -= 1;
+            if (remaining > 0) {
+                renderCountdown();
+                return;
+            }
+
+            // Do not start timer until non-host clients have at least one round payload.
+            if (!window.isHost && !hasPlayers) {
+                remaining = 3;
+                renderCountdown();
+                return;
+            }
+
+            clearRoundSyncCountdown();
+            startLiveRoundTimer();
+        }, 1000);
+    }
+
     function startRound() {
         setDraftScreenAwakeEnabled(true);
         // Guard against duplicate round starts
@@ -8245,11 +8349,6 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             if (currentRound > totalRounds) {
                 endDraft();
                 return;
-            }
-            timer = roundDuration;
-            const timerElement = document.getElementById('timer');
-            if (timerElement) {
-                timerElement.textContent = `${Math.floor(timer / 60)}:${String(timer % 60).padStart(2, '0')}`;
             }
         
         // Host generates and broadcasts players, non-hosts wait for synced players
@@ -8329,27 +8428,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             }
         }
 
-        timerInterval = setInterval(() => {
-            if (!isPaused) {
-                let minutes = Math.floor(timer / 60);
-                let seconds = timer % 60;
-                if (timerElement) {
-                    timerElement.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-                }
-                playCountdownCue(timer);
-                timer--;
-                if (timer < 0) {
-                    clearInterval(timerInterval);
-                    timerInterval = null;
-                    // Timer expired - trigger round processing on server
-                    console.log('[silentdraft] Timer expired, processing round');
-                    window.handleRoundTimerExpired();
-                }
-            }
-        }, 1000);
-
-        // In solo auto-draft mode, give a short window to disable auto before final auto-submit.
-        scheduleAutoDraftSoloGraceWindow();
+        beginRoundSyncCountdown();
         
         // Clear the guard flag to allow next round to start
         window.__roundStarting = false;
