@@ -183,6 +183,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
   function onLogin(e){
     e.preventDefault();
     const form = e.target;
+    const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
+    const submitBtnDefaultLabel = submitBtn ? submitBtn.textContent : '';
+    const setSubmittingState = (isSubmitting) => {
+      if (!submitBtn) return;
+      submitBtn.disabled = !!isSubmitting;
+      submitBtn.textContent = isSubmitting ? 'Signing in...' : submitBtnDefaultLabel;
+    };
     const data = new FormData(form);
     const identifier = String(data.get('identifier') || '').trim();
     const password = String(data.get('password') || '');
@@ -191,8 +198,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
       alert('Login: Please enter your username or email.');
       return;
     }
+    if(!password){
+      alert('Login: Please enter your password.');
+      return;
+    }
 
     (async ()=>{
+      setSubmittingState(true);
       try{
         const auth = requireFirebaseAuth();
         const resolvedEmail = await resolveLoginEmail(identifier);
@@ -228,6 +240,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
           console.error(fallbackError);
           alert(formatAuthError(err, String(fallbackError && fallbackError.message || 'Login failed.')));
         }
+      } finally {
+        setSubmittingState(false);
       }
     })();
   }

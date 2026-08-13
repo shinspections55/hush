@@ -185,6 +185,13 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
       const emailInput = appHomeLoginForm.querySelector('#appHomeEmail');
       const passwordInput = appHomeLoginForm.querySelector('#appHomePassword');
+      const submitBtn = appHomeLoginForm.querySelector('button[type="submit"]');
+      const submitBtnDefaultLabel = submitBtn ? submitBtn.textContent : '';
+      const setSubmittingState = (isSubmitting) => {
+        if (!submitBtn) return;
+        submitBtn.disabled = !!isSubmitting;
+        submitBtn.textContent = isSubmitting ? 'Signing in...' : submitBtnDefaultLabel;
+      };
 
       appHomeLoginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -200,6 +207,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
         }
 
         try {
+          setSubmittingState(true);
           if (!auth) throw new Error('Firebase Auth is not configured yet.');
           const resolvedEmail = await resolveLoginEmail(identifier);
           await setPersistence(auth, browserLocalPersistence);
@@ -208,6 +216,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
           window.location.replace(`dashboard.html?login=${Date.now()}#home`);
         } catch (error) {
           alert(formatAuthError(error, 'Sign in failed.'));
+        } finally {
+          setSubmittingState(false);
         }
       });
 
