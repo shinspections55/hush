@@ -161,6 +161,39 @@ async function resolveLoginEmail(identifier) {
   return normalizeEmailValue(payload.email);
 }
 
+async function loginWithServerFallback(identifier, password) {
+  const response = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      username: String(identifier || '').trim(),
+      password: String(password || '')
+    })
+  });
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload || !payload.ok) {
+    throw new Error(payload && payload.error ? payload.error : 'Login failed.');
+  }
+
+  const resolvedUsername = String(payload.username || identifier || '').trim();
+  if (resolvedUsername) {
+    sessionStorage.setItem('username', resolvedUsername);
+    localStorage.setItem('lastSignedInUsername', resolvedUsername);
+  }
+
+  if (looksLikeEmail(identifier)) {
+    sessionStorage.setItem('userEmail', normalizeEmailValue(identifier));
+    localStorage.setItem('lastSignedInEmail', normalizeEmailValue(identifier));
+  }
+
+  return {
+    username: resolvedUsername
+  };
+}
+
 document.addEventListener('DOMContentLoaded', ()=>{
   protectCriticalLocalData();
   const signup = document.getElementById('signupForm');
@@ -248,7 +281,21 @@ document.addEventListener('DOMContentLoaded', ()=>{
         window.location.href = 'dashboard.html';
       }catch(err){
         console.error(err);
-        alert(formatAuthError(err, 'Login failed.'));
+        try {
+          await loginWithServerFallback(identifier, password);
+
+          if (rememberPassword) {
+            localStorage.setItem('rememberedEmail', identifier);
+          } else {
+            localStorage.removeItem('rememberedEmail');
+          }
+
+          window.location.href = 'dashboard.html';
+          return;
+        } catch (fallbackError) {
+          console.error(fallbackError);
+          alert(formatAuthError(err, String(fallbackError && fallbackError.message || 'Login failed.')));
+        }
       } finally {
         setSubmittingState(false);
       }
