@@ -4182,10 +4182,14 @@ function initSilentDraft() {
         const appNav = document.getElementById('silentdraft-app-nav');
 
         if (headerBar && headerBar.offsetHeight > 0) {
-            document.body.style.setProperty('--draft-app-header-height', `${headerBar.offsetHeight}px`);
+            const measuredHeaderHeight = Math.round(headerBar.getBoundingClientRect().height || headerBar.offsetHeight || 0);
+            const stableHeaderHeight = Math.max(56, Math.min(104, measuredHeaderHeight));
+            document.body.style.setProperty('--draft-app-header-height', `${stableHeaderHeight}px`);
         }
         if (appNav && appNav.offsetHeight > 0) {
-            document.body.style.setProperty('--draft-app-nav-height', `${appNav.offsetHeight}px`);
+            const measuredNavHeight = Math.round(appNav.getBoundingClientRect().height || appNav.offsetHeight || 0);
+            const stableNavHeight = Math.max(56, Math.min(98, measuredNavHeight));
+            document.body.style.setProperty('--draft-app-nav-height', `${stableNavHeight}px`);
         }
     }
 

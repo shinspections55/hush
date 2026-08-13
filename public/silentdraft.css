@@ -2036,7 +2036,7 @@ html[data-theme="light"] body #center-column #your-team > .roster-slot-card .ros
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled {
     --draft-app-header-height: calc(74px + env(safe-area-inset-top));
-    --draft-app-header-overlap: 18px;
+    --draft-app-header-overlap: 4px;
     --draft-app-nav-height: 82px;
 }
 
@@ -2046,12 +2046,12 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .header-bar {
     left: 0;
     right: 0;
     z-index: 12025;
-    min-height: var(--draft-app-header-height);
+    min-height: 0;
     display: grid;
     grid-template-columns: minmax(124px, 1fr) minmax(88px, auto) minmax(108px, auto);
-    align-items: start;
-    gap: 10px;
-    padding: calc(8px + env(safe-area-inset-top)) 10px 18px 10px;
+    align-items: center;
+    gap: 8px;
+    padding: calc(4px + env(safe-area-inset-top)) 8px 6px 8px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.14);
     background: linear-gradient(180deg, rgba(8, 15, 22, 0.98) 0%, rgba(10, 20, 30, 0.96) 100%);
     -webkit-backdrop-filter: blur(10px);
@@ -2070,21 +2070,18 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #pause-draft {
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .header-bid-counter {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: 1px;
+    position: static;
     width: max-content;
     max-width: calc(100% - 16px);
-    font-size: 11px;
-    line-height: 1.2;
-    padding: 5px 8px;
+    font-size: 10px;
+    line-height: 1.1;
+    padding: 3px 6px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: clip;
     text-align: center;
     margin: 0;
-    z-index: 1;
+    z-index: auto;
     border-radius: 7px;
     background: rgba(11, 11, 13, 0.78);
     white-space: nowrap;
@@ -2094,9 +2091,9 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #auto-draft-togg
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 36px;
-    padding: 6px 10px;
-    font-size: 11px;
+    min-height: 30px;
+    padding: 4px 8px;
+    font-size: 10px;
     font-weight: 700;
     border-radius: 10px;
     white-space: nowrap;
@@ -2106,7 +2103,7 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #auto-draft-togg
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info {
     text-align: center;
     min-width: 0;
-    padding-top: 3px;
+    padding-top: 0;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info h1,
@@ -2117,35 +2114,35 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info .bud
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info .draft-stats {
     display: inline-flex;
     align-items: baseline;
-    gap: 8px;
+    gap: 6px;
     white-space: nowrap;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info #current-round {
     margin: 0;
-    font-size: 11px;
+    font-size: 10px;
     color: #b8d1e3;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info #timer {
-    font-size: 20px;
+    font-size: 16px;
     line-height: 1;
     color: #f3fbff;
     display: inline-block;
-    min-width: 52px;
+    min-width: 42px;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .submit-area {
     justify-content: flex-end;
-    padding-top: 1px;
+    padding-top: 0;
 }
 
 body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #submit-bids {
-    padding: 8px 12px;
-    font-size: 12px;
+    padding: 6px 10px;
+    font-size: 11px;
     border-radius: 10px;
-    min-height: 42px;
-    min-width: 104px;
+    min-height: 34px;
+    min-width: 92px;
     white-space: nowrap;
 }
 
@@ -2311,18 +2308,18 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .right-view-sect
 @media (max-width: 390px) {
     body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled {
         --draft-app-header-height: calc(68px + env(safe-area-inset-top));
-        --draft-app-header-overlap: 14px;
+        --draft-app-header-overlap: 2px;
     }
 
     body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .header-bar {
         grid-template-columns: minmax(112px, 1fr) minmax(76px, auto) minmax(94px, auto);
         gap: 6px;
-        padding: calc(6px + env(safe-area-inset-top)) 8px 14px 8px;
+        padding: calc(3px + env(safe-area-inset-top)) 7px 6px 7px;
     }
 
     body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #auto-draft-toggle {
-        min-height: 34px;
-        padding: 5px 8px;
+        min-height: 28px;
+        padding: 3px 6px;
         font-size: 10px;
         border-radius: 9px;
     }
@@ -2332,25 +2329,22 @@ body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .right-view-sect
     }
 
     body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .draft-info #timer {
-        font-size: 18px;
-        min-width: 46px;
+        font-size: 15px;
+        min-width: 38px;
     }
 
     body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled #submit-bids {
-        min-height: 38px;
-        min-width: 94px;
-        padding: 7px 10px;
+        min-height: 30px;
+        min-width: 82px;
+        padding: 5px 8px;
         font-size: 11px;
         border-radius: 9px;
     }
 
     body.pwa-installed.silentdraft-page.silentdraft-app-nav-enabled .header-bid-counter {
-        left: 50%;
-        transform: translateX(-50%);
-        bottom: 1px;
-        padding: 4px 6px;
+        padding: 3px 5px;
         line-height: 1.1;
-        font-size: 10px;
+        font-size: 9px;
         max-width: calc(100% - 12px);
     }
 }
