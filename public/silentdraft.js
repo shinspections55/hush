@@ -1991,7 +1991,7 @@ function initSilentDraft() {
                 console.warn('[silentdraft] Failed to join lobby room:', error);
             }
 
-            return emitSocketAckWithRetry('joinActiveDraft', [currentDraftCode, username, { suppressInitialSync: true }], {
+            return emitSocketAckWithRetry('joinActiveDraft', [currentDraftCode, username], {
                 timeoutMs: 7000,
                 overallTimeoutMs: 12000,
                 maxRetries: 1,
@@ -8212,20 +8212,9 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 }
             }
 
-            if (window.draftSocket && window.draftSocket.connected && currentDraftCode) {
-                try { window.draftSocket.emit('joinDraftRoom', currentDraftCode, username); } catch (_) {}
-            }
-
-            if (typeof syncDraftSocketRooms === 'function') {
-                Promise.resolve(syncDraftSocketRooms()).catch((error) => {
-                    console.warn('[silentdraft] Waiting recovery room sync failed:', error);
-                });
-            }
-            if (typeof requestFreshDraftState === 'function') {
-                Promise.resolve(requestFreshDraftState()).catch((error) => {
-                    console.warn('[silentdraft] Waiting recovery state refresh failed:', error);
-                });
-            }
+            Promise.resolve(resyncDraftConnection('round-player-wait-recovery')).catch((error) => {
+                console.warn('[silentdraft] Waiting recovery resync failed:', error);
+            });
         };
 
         runRecoveryTick();
