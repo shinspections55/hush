@@ -92,6 +92,81 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     if (dashboardAppDownload) dashboardAppDownload.classList.remove('hidden');
   }
 
+  function normalizeEmailValue(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function looksLikeEmail(value) {
+    const text = normalizeEmailValue(value);
+    return text.includes('@') && text.includes('.');
+  }
+
+  function resolveEmailFromLocalProfiles(identifier) {
+    const key = String(identifier || '').trim().toLowerCase();
+    if (!key) return '';
+
+    try {
+      const raw = localStorage.getItem('firebaseLocalProfiles');
+      if (!raw) return '';
+      const profiles = JSON.parse(raw);
+      if (!profiles || typeof profiles !== 'object') return '';
+
+      for (const profile of Object.values(profiles)) {
+        if (!profile || typeof profile !== 'object') continue;
+        const username = String(profile.username || '').trim().toLowerCase();
+        const email = normalizeEmailValue(profile.email);
+        if (username && username === key && email) {
+          return email;
+        }
+      }
+    } catch (_error) {
+      // Ignore malformed profile cache.
+    }
+
+    return '';
+  }
+
+  async function resolveLoginEmail(identifier) {
+    const value = String(identifier || '').trim();
+    if (!value) {
+      throw new Error('Enter your username or email.');
+    }
+
+    if (looksLikeEmail(value)) {
+      return normalizeEmailValue(value);
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    let response;
+    try {
+      response = await fetch(`/api/auth/resolve-login?identifier=${encodeURIComponent(value)}`, {
+        cache: 'no-store',
+        signal: controller.signal
+      });
+    } catch (_error) {
+      const localEmail = resolveEmailFromLocalProfiles(value);
+      if (localEmail) {
+        return localEmail;
+      }
+      throw new Error('Unable to reach login services. Try email login instead.');
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload || !payload.ok || !payload.email) {
+      const localEmail = resolveEmailFromLocalProfiles(value);
+      if (localEmail) {
+        return localEmail;
+      }
+      throw new Error(payload && payload.error ? payload.error : 'Unable to resolve username. Try email instead.');
+    }
+
+    return normalizeEmailValue(payload.email);
+  }
+
   if(!user){
     if (!isInstalledApp) {
       // not logged in, redirect back to login for website mode
@@ -137,15 +212,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
         try {
           if (!auth) throw new Error('Firebase Auth is not configured yet.');
-          const resolveResponse = await fetch(`/api/auth/resolve-login?identifier=${encodeURIComponent(identifier)}`, {
-            cache: 'no-store'
-          });
-          const resolvePayload = await resolveResponse.json().catch(() => null);
-          if (!resolveResponse.ok || !resolvePayload || !resolvePayload.ok || !resolvePayload.email) {
-            throw new Error((resolvePayload && resolvePayload.error) || 'Unable to resolve username. Try email instead.');
-          }
+          const resolvedEmail = await resolveLoginEmail(identifier);
           await setPersistence(auth, browserLocalPersistence);
-          const credential = await signInWithEmailAndPassword(auth, String(resolvePayload.email).trim(), password);
+          const credential = await signInWithEmailAndPassword(auth, resolvedEmail, password);
           syncSessionFromUser(credential.user);
           window.location.replace(`dashboard.html?login=${Date.now()}#home`);
         } catch (error) {
