@@ -46,7 +46,7 @@ app.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' data: blob: https://media.giphy.com https://i.giphy.com https://*.giphy.com",
-    "connect-src 'self' ws: wss: https://api.giphy.com https://media.giphy.com https://www.gstatic.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebaseinstallations.googleapis.com https://*.firebaseapp.com https://cloudflareinsights.com https://*.cloudflareinsights.com",
+    "connect-src 'self' ws: wss: https://api.giphy.com https://media.giphy.com https://www.gstatic.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebaseinstallations.googleapis.com https://*.firebaseapp.com https://*.firebaseio.com https://firestore.googleapis.com https://firebasestorage.googleapis.com https://*.googleapis.com https://*.google-analytics.com https://cloudflareinsights.com https://*.cloudflareinsights.com",
     "media-src 'self' blob: data: https://media.giphy.com https://*.giphy.com",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
