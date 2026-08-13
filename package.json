@@ -4,6 +4,9 @@
   "description": "Static site with Express server to rewrite extensionless routes to .html",
   "main": "server.js",
   "scripts": {
+    "prestart": "node tools/verify-login-lock.js",
+    "lock:check-login-flow": "node tools/verify-login-lock.js",
+    "lock:refresh-login-flow": "node tools/refresh-login-lock.js",
     "start": "node server.js"
   },
   "engines": {
