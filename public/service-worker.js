@@ -11,7 +11,7 @@ const STATIC_ASSETS = [
   '/rankings.css',
   '/HUSHBKGD.png',
   '/hushGifs.js',
-  '/assets/giphy/Poweredby_100px_Badge.gif',
+  '/Poweredby_100px-White_VertLogo.png',
   '/scripts.js',
   '/dashboard.js',
   '/silentdraft.js',

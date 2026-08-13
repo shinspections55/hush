@@ -1029,10 +1029,16 @@ function initSilentDraft() {
     let draftRoomRightViewMode = 'budgets';
     let draftAppSectionViewMode = 'players';
     let draftAppSectionNavEnabled = false;
+    const PWA_LAYOUT_STABILITY_LOCK = Object.freeze({
+        preservePlayersScroll: true,
+        rosterAlwaysScrollable: true,
+        syncMeasuredChromeHeights: true,
+        forcePlayersDefaultSection: true
+    });
     // Product lock: preserve Players scroll to prevent bounce unless explicitly requested otherwise.
-    const LOCK_PWA_PLAYERS_SCROLL_PRESERVATION = true;
+    const LOCK_PWA_PLAYERS_SCROLL_PRESERVATION = PWA_LAYOUT_STABILITY_LOCK.preservePlayersScroll;
     // Product lock: keep roster pane scrollable in PWA whenever roster pane is the visible column.
-    const LOCK_PWA_ROSTER_ALWAYS_SCROLLABLE = true;
+    const LOCK_PWA_ROSTER_ALWAYS_SCROLLABLE = PWA_LAYOUT_STABILITY_LOCK.rosterAlwaysScrollable;
     let draftAppPlayersScrollTop = 0;
     let draftRoomRankingsPosition = 'ALL';
     let draftRoomRankingsRefreshInFlight = null;
@@ -1553,7 +1559,9 @@ function initSilentDraft() {
         draftRoomRightViewMode = 'budgets';
     }
 
-    draftAppSectionViewMode = 'players';
+    if (PWA_LAYOUT_STABILITY_LOCK.forcePlayersDefaultSection) {
+        draftAppSectionViewMode = 'players';
+    }
     
     console.log('[silentdraft] All draft members:', allDraftMembers);
     console.log('[silentdraft] Draft host name:', draftHostName);
@@ -4156,8 +4164,16 @@ function initSilentDraft() {
     }
 
     function isDraftAppSectionNavSupported() {
-        const isInstalled = document.body && document.body.classList.contains('pwa-installed');
-        return Boolean(isInstalled);
+        const standaloneDisplay = Boolean(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+        const iosStandalone = Boolean(window.navigator && window.navigator.standalone === true);
+        const hasInstalledClass = Boolean(document.body && document.body.classList.contains('pwa-installed'));
+        return Boolean(standaloneDisplay || iosStandalone || hasInstalledClass);
+    }
+
+    function applyDraftAppStabilityLock() {
+        if (PWA_LAYOUT_STABILITY_LOCK.forcePlayersDefaultSection) {
+            draftAppSectionViewMode = 'players';
+        }
     }
 
     function syncDraftAppChromeHeights() {
@@ -4317,7 +4333,11 @@ function initSilentDraft() {
             return;
         }
 
-        syncDraftAppChromeHeights();
+        if (PWA_LAYOUT_STABILITY_LOCK.syncMeasuredChromeHeights) {
+            syncDraftAppChromeHeights();
+        }
+
+        applyDraftAppStabilityLock();
 
         applyDraftAppSectionMode(draftAppSectionViewMode, { persist: false });
         updateDraftAppChatBadge();
@@ -4340,6 +4360,27 @@ function initSilentDraft() {
 
         refreshDraftAppSectionNavState();
         window.addEventListener('resize', refreshDraftAppSectionNavState);
+        window.addEventListener('orientationchange', refreshDraftAppSectionNavState);
+        window.addEventListener('pageshow', refreshDraftAppSectionNavState);
+        window.addEventListener('load', refreshDraftAppSectionNavState);
+        if (window.visualViewport && typeof window.visualViewport.addEventListener === 'function') {
+            window.visualViewport.addEventListener('resize', refreshDraftAppSectionNavState);
+        }
+        const standaloneMedia = window.matchMedia ? window.matchMedia('(display-mode: standalone)') : null;
+        if (standaloneMedia) {
+            if (typeof standaloneMedia.addEventListener === 'function') {
+                standaloneMedia.addEventListener('change', refreshDraftAppSectionNavState);
+            } else if (typeof standaloneMedia.addListener === 'function') {
+                standaloneMedia.addListener(refreshDraftAppSectionNavState);
+            }
+        }
+
+        // Run a few delayed passes because iOS/Android PWA chrome sizes can settle after initial paint.
+        if (typeof window.requestAnimationFrame === 'function') {
+            window.requestAnimationFrame(refreshDraftAppSectionNavState);
+        }
+        window.setTimeout(refreshDraftAppSectionNavState, 180);
+        window.setTimeout(refreshDraftAppSectionNavState, 850);
     }
 
     function applyRightViewMode() {
@@ -4581,24 +4622,14 @@ function initSilentDraft() {
         const hasAppNavClass = Boolean(document.body && document.body.classList.contains('silentdraft-app-nav-enabled'));
         const isInstalledPwa = Boolean(standaloneDisplay || iosStandalone || hasPwaClass || hasAppNavClass);
         const emojiPickerEnabled = Boolean(!isInstalledPwa && emojiToggle && emojiPicker);
-        const gifPickerEnabled = Boolean(isInstalledPwa && gifAddButton && gifPicker);
+        const gifPickerEnabled = Boolean(gifAddButton && gifPicker);
         if (gifAddButton) {
             gifAddButton.setAttribute('aria-label', 'Add GIF powered by GIPHY');
             gifAddButton.setAttribute('title', 'Add GIF powered by GIPHY');
-            if (isInstalledPwa) {
-                gifAddButton.hidden = false;
-                gifAddButton.style.display = '';
-                gifAddButton.removeAttribute('aria-hidden');
-                gifAddButton.innerHTML = '<img class="gif-btn-logo" src="/Poweredby_100px-White_VertLogo.png" alt="Powered by GIPHY" loading="lazy" decoding="async">';
-            } else {
-                gifAddButton.hidden = true;
-                gifAddButton.style.display = 'none';
-                gifAddButton.setAttribute('aria-hidden', 'true');
-            }
-        }
-        if (gifPicker && !isInstalledPwa) {
-            gifPicker.hidden = true;
-            gifPicker.classList.remove('is-open');
+            gifAddButton.hidden = false;
+            gifAddButton.style.display = '';
+            gifAddButton.removeAttribute('aria-hidden');
+            gifAddButton.innerHTML = '<img class="gif-btn-logo" src="/Poweredby_100px-White_VertLogo.png" alt="Powered by GIPHY" loading="lazy" decoding="async">';
         }
         let emojiPickerExpanded = false;
         let gifCategoryFilter = '';
