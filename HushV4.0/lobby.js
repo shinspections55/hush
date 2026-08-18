@@ -764,6 +764,9 @@ window.initializeLobby = function initializeLobby(opts){
 
   // Countdown banner function - define before use
   function showCountdownBanner(draftType) {
+    const countdownPayload = (draftType && typeof draftType === 'object') ? draftType : {};
+    const resolvedDraftType = countdownPayload.draftType || draftType || 'silent';
+    const countdownEndAt = Number(countdownPayload.countdownEndAt || 0);
     // Prevent multiple countdowns
     if (document.getElementById('countdownOverlay')) {
       console.log('[lobby] Countdown already showing');
@@ -842,7 +845,9 @@ window.initializeLobby = function initializeLobby(opts){
     document.body.appendChild(overlay);
     
     const countdownNumberEl = document.getElementById('countdownNumber');
-    let timeLeft = 10;
+    let timeLeft = countdownEndAt > 0
+      ? Math.max(0, Math.ceil((countdownEndAt - Date.now()) / 1000))
+      : 10;
     
     // Function to play beep sound
     function playBeep(frequency = 800, duration = 150) {
@@ -885,7 +890,9 @@ window.initializeLobby = function initializeLobby(opts){
     }
     
     const countdownInterval = setInterval(() => {
-      timeLeft--;
+      timeLeft = countdownEndAt > 0
+        ? Math.max(0, Math.ceil((countdownEndAt - Date.now()) / 1000))
+        : timeLeft - 1;
       console.log('[lobby] Countdown:', timeLeft);
       
       if (timeLeft > 0) {
@@ -908,9 +915,9 @@ window.initializeLobby = function initializeLobby(opts){
         setTimeout(() => {
           stopCountdownAudioKeepAlive();
           // Redirect to appropriate draft page
-          if (draftType === 'silent') {
+          if (resolvedDraftType === 'silent') {
             window.location.href = 'silentdraft.html';
-          } else if (draftType === 'rounds3') {
+          } else if (resolvedDraftType === 'rounds3') {
             window.location.href = 'rounds3draft.html';
           }
         }, 800);
@@ -922,7 +929,11 @@ window.initializeLobby = function initializeLobby(opts){
     if (!draft || !draft.started) return;
     const serverType = draft.type || 'silent';
     console.log(`[lobby] ${sourceLabel}: draft already started, launching countdown for`, serverType);
-    showCountdownBanner(serverType);
+    showCountdownBanner({
+      draftType: serverType,
+      countdownStartAt: draft.countdownStartAt,
+      countdownEndAt: draft.countdownEndAt
+    });
   }
 
   refreshMembers();

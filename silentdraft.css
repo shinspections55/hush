@@ -762,7 +762,7 @@ body.dashboard-light-mode .bench-player-bid {
     color: var(--hush-ice);
     font-size: 14px;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 34px 44px;
+    grid-template-columns: minmax(0, 1fr) 42px minmax(62px, auto);
     align-items: center;
     gap: 6px;
     white-space: nowrap;
@@ -803,6 +803,7 @@ body.dashboard-light-mode .bench-player-bid {
     background: rgba(52, 152, 219, 0.2);
     color: #cfe9ff;
     border-color: rgba(52, 152, 219, 0.34);
+    min-width: 0;
 }
 
 body.light-mode .roster-player-bye,

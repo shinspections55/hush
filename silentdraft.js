@@ -2585,6 +2585,19 @@ function initSilentDraft() {
         });
     }
 
+    let currentRoundBidSyncTimer = null;
+
+    function scheduleCurrentRoundBidSync(delayMs = 1200) {
+        if (currentRoundBidSyncTimer) {
+            clearTimeout(currentRoundBidSyncTimer);
+        }
+
+        currentRoundBidSyncTimer = window.setTimeout(() => {
+            currentRoundBidSyncTimer = null;
+            syncCurrentRoundBidsToServer().catch(() => {});
+        }, Math.max(0, delayMs));
+    }
+
     function submitCurrentRoundBidsToServer(options = {}) {
         const lockUI = options.lockUI !== false;
         const lockLabel = options.lockLabel || 'Bids Submitted';

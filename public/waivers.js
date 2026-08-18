@@ -613,14 +613,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     : activity
                         ? (activity.type === 'addDrop' ? '' : 'Passed')
                         : '';
+                const isOnClock = !!(waiverState && waiverState.active && currentTurn === teamName);
+                const showInlinePass = isOnClock && isUsersWaiverTurn();
                 return `
-                    <div class="waiver-order-item ${waiverState && waiverState.active && currentTurn === teamName ? 'active' : ''}">
+                    <div class="waiver-order-item ${isOnClock ? 'active' : ''}">
                         <span class="waiver-order-rank">${index + 1}</span>
                         <div class="waiver-order-main">
                             ${activity && activity.type === 'addDrop' ? '' : `<span class="waiver-order-team">${escapeHtml(teamName)}</span>`}
                             ${activityMarkup}
                         </div>
-                        <span class="bench-rank">${badgeText}</span>
+                        ${showInlinePass
+                            ? '<button type="button" class="waiver-inline-pass-btn" data-waiver-pass>Pass</button>'
+                            : `<span class="bench-rank">${badgeText}</span>`}
                     </div>
                 `;
             }).join('')
@@ -1029,7 +1033,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         waiverStartBtn.hidden = !canStart;
         waiverStartBtn.disabled = !canStart;
-        waiverPassBtn.hidden = false;
+        // The pass action now lives inline on the on-the-clock row.
+        waiverPassBtn.hidden = canPass;
         waiverPassBtn.disabled = !canPass;
 
         if (!waiverState || (!waiverState.active && !waiverState.completed)) {
@@ -1065,12 +1070,9 @@ document.addEventListener('DOMContentLoaded', () => {
         handleWaiverCompletionFlow();
     }
 
-    waiverPassBtn.addEventListener('click', () => {
+    function submitWaiverPass() {
         if (!socket || !draftSummary.draftCode || !waiverState || !waiverState.active) return;
-        const confirmed = window.confirm('Are you sure you want to pass?');
-        if (!confirmed) {
-            return;
-        }
+        if (!window.confirm('Are you sure you want to pass?')) return;
         socket.emit('submitWaiverMove', {
             draftCode: draftSummary.draftCode,
             teamName: username,
@@ -1080,6 +1082,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert(`Unable to pass turn: ${(response && response.reason) || 'unknown_error'}`);
             }
         });
+    }
+
+    waiverPassBtn.addEventListener('click', submitWaiverPass);
+
+    waiverOrderList.addEventListener('click', (event) => {
+        if (event.target.closest('[data-waiver-pass]')) submitWaiverPass();
     });
 
     waiverStartBtn.addEventListener('click', () => {

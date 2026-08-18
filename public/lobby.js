@@ -420,6 +420,13 @@ window.initializeLobby = function initializeLobby(opts){
     return Boolean(host && host === user);
   }
 
+  const memberConnectionStates = new Map();
+  let socket = null;
+
+  function normalizeMemberConnectionName(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+
   function refreshMembers(){
     const draftsRaw = localStorage.getItem('drafts');
     const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
@@ -458,7 +465,20 @@ window.initializeLobby = function initializeLobby(opts){
         orderNum = ` [#${draftOrderAssignments[m]}]`;
       }
       
-      li.textContent = m + orderNum + (labels.length ? ' (' + labels.join(', ') + ')' : '');
+      const statusDot = document.createElement('span');
+      const connectionState = memberConnectionStates.get(normalizeMemberConnectionName(m)) || (m === user && socket && socket.connected ? 'connected' : 'unknown');
+      const isConnected = connectionState === 'connected' || connectionState === 'good' || connectionState === 'excellent';
+      statusDot.style.display = 'inline-block';
+      statusDot.style.width = '10px';
+      statusDot.style.height = '10px';
+      statusDot.style.borderRadius = '50%';
+      statusDot.style.marginRight = '8px';
+      statusDot.style.background = isConnected ? '#22c55e' : connectionState === 'reconnecting' ? '#f59e0b' : '#ef4444';
+      statusDot.style.boxShadow = isConnected ? '0 0 7px rgba(34,197,94,0.7)' : '0 0 7px rgba(239,68,68,0.55)';
+      statusDot.title = isConnected ? 'Connected' : connectionState === 'reconnecting' ? 'Reconnecting' : 'Disconnected';
+      statusDot.setAttribute('aria-label', statusDot.title);
+      li.appendChild(statusDot);
+      li.appendChild(document.createTextNode(m + orderNum + (labels.length ? ' (' + labels.join(', ') + ')' : '')));
       memberList.appendChild(li);
     });
     // show draft type
@@ -647,6 +667,9 @@ window.initializeLobby = function initializeLobby(opts){
 
   // Countdown banner function - define before use
   function showCountdownBanner(draftType) {
+    const countdownPayload = (draftType && typeof draftType === 'object') ? draftType : {};
+    const resolvedDraftType = countdownPayload.draftType || draftType || 'silent';
+    const countdownEndAt = Number(countdownPayload.countdownEndAt || 0);
     // Prevent multiple countdowns
     if (document.getElementById('countdownOverlay')) {
       console.log('[lobby] Countdown already showing');
@@ -654,6 +677,17 @@ window.initializeLobby = function initializeLobby(opts){
     }
     
     console.log('[lobby] Starting countdown...');
+
+    // Prime the active draft room while the redirect countdown is visible.
+    if (draftType === 'silent' && socket && socket.connected && code && user) {
+      const clientSentAt = Date.now();
+      socket.emit('joinActiveDraft', code, user, { clientSentAt }, (response) => {
+        if (response && response.ok) {
+          socket.emit('draftReady', code, user);
+          console.log('[lobby] Primed silent draft connection during countdown:', code, user);
+        }
+      });
+    }
 
     let countdownAudioContext = null;
     let countdownAudioKeepAlive = null;
@@ -725,7 +759,9 @@ window.initializeLobby = function initializeLobby(opts){
     document.body.appendChild(overlay);
     
     const countdownNumberEl = document.getElementById('countdownNumber');
-    let timeLeft = 10;
+    let timeLeft = countdownEndAt > 0
+      ? Math.max(0, Math.ceil((countdownEndAt - Date.now()) / 1000))
+      : 10;
     
     // Function to play beep sound
     function playBeep(frequency = 800, duration = 150) {
@@ -768,7 +804,9 @@ window.initializeLobby = function initializeLobby(opts){
     }
     
     const countdownInterval = setInterval(() => {
-      timeLeft--;
+      timeLeft = countdownEndAt > 0
+        ? Math.max(0, Math.ceil((countdownEndAt - Date.now()) / 1000))
+        : timeLeft - 1;
       console.log('[lobby] Countdown:', timeLeft);
       
       if (timeLeft > 0) {
@@ -791,9 +829,9 @@ window.initializeLobby = function initializeLobby(opts){
         setTimeout(() => {
           stopCountdownAudioKeepAlive();
           // Redirect to appropriate draft page
-          if (draftType === 'silent') {
+          if (resolvedDraftType === 'silent') {
             window.location.href = `/silentdraft/${encodeURIComponent(code)}`;
-          } else if (draftType === 'rounds3') {
+          } else if (resolvedDraftType === 'rounds3') {
             window.location.href = `/rounds3draft/${encodeURIComponent(code)}`;
           }
         }, 800);
@@ -805,7 +843,11 @@ window.initializeLobby = function initializeLobby(opts){
     if (!draft || !draft.started) return;
     const serverType = draft.type || 'silent';
     console.log(`[lobby] ${sourceLabel}: draft already started, launching countdown for`, serverType);
-    showCountdownBanner(serverType);
+    showCountdownBanner({
+      draftType: serverType,
+      countdownStartAt: draft.countdownStartAt,
+      countdownEndAt: draft.countdownEndAt
+    });
   }
 
   function setupLobbyVoicePanel(socketInstance) {
@@ -1559,7 +1601,6 @@ window.initializeLobby = function initializeLobby(opts){
 
   refreshMembers();
   // connect to Socket.IO for real-time updates (guarded)
-  let socket = null;
   try{ 
     if(window.io){ 
       socket = io({
@@ -1599,6 +1640,8 @@ window.initializeLobby = function initializeLobby(opts){
       // Wait for connection before joining room
       socket.on('connect', () => {
         console.log('[lobby] Socket connected for user:', user, 'joining room:', code);
+        memberConnectionStates.set(normalizeMemberConnectionName(user), 'connected');
+        refreshMembers();
         socket.emit('joinDraftRoom', code, user);
         setupLobbyVoicePanel(socket);
         socket.emit('getDraftState', code, (response) => {
@@ -1613,6 +1656,12 @@ window.initializeLobby = function initializeLobby(opts){
             refreshMembers();
           }
         });
+      });
+
+      socket.on('memberConnectionState', (payload) => {
+        if (!payload || !payload.username) return;
+        memberConnectionStates.set(normalizeMemberConnectionName(payload.username), String(payload.state || 'unknown').trim().toLowerCase());
+        refreshMembers();
       });
 
       socket.io.on('reconnect_attempt', () => {

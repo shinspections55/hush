@@ -4,11 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="theme-color" content="#0F2F44">
-    <meta name="description" content="Hush - Silent draft fantasy football league management">
+    <meta name="description" content="Hush Fantasy Football is a unique drafting experience with silent bids, tied live auctions, and team exports to ESPN, Sleeper, and Yahoo.">
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
     <link rel="apple-touch-icon" href="/icon-192x192.png">
-    <title>Signup — Account System</title>
+    <title>Hushff Fantasy Football</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -18,6 +18,11 @@
 
     <main class="page">
         <div class="container">
+            <section class="box site-introduction">
+                <h1>Hushff Fantasy Football</h1>
+                <p>Hush Fantasy Football is a unique drafting experience where teams participate in silent bids on random players each round. Tied bids are settled with our Tied Live Auction at the end of each round. Hush gives you a new draft experience, then lets you export your teams to your normal fantasy football website, including ESPN, Sleeper, and Yahoo.</p>
+            </section>
+
             <section class="box">
                 <h2>Create Account</h2>
                 <p class="account-intro-copy">Use the full registration page to create your account.</p>
@@ -44,11 +49,59 @@
                     <a class="form-link" href="admin-portal.html">Open Admin Portal</a>
                 </p>
             </section>
+
+            <section class="box site-faq" aria-labelledby="faq-heading">
+                <h2 id="faq-heading">Frequently Asked Questions</h2>
+                <details>
+                    <summary>What is Hushff?</summary>
+                    <p>Hushff is a fantasy football platform where private leagues can organize synchronized silent drafts, manage rosters, review rankings, and run live auctions.</p>
+                </details>
+                <details>
+                    <summary>What can I do on Hushff?</summary>
+                    <p>You can create or join a private league, participate in a synchronized draft, manage your roster and budget, and review draft results.</p>
+                </details>
+                <details>
+                    <summary>How does the silent draft work?</summary>
+                    <p>League members join the same draft room, receive the same player pool, submit bids during each round, and see synchronized draft results.</p>
+                </details>
+            </section>
         </div>
     </main>
     <script src="index-login-failsafe.js"></script>
     <script src="firebase-config.js?v=20260805a"></script>
     <script src="preferences.js"></script>
     <script type="module" src="scripts.js?v=20260805a"></script>
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+                {
+                    "@type": "Question",
+                    "name": "What is Hushff?",
+                    "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": "Hushff is a fantasy football platform where private leagues can organize synchronized silent drafts, manage rosters, review rankings, and run live auctions."
+                    }
+                },
+                {
+                    "@type": "Question",
+                    "name": "What can I do on Hushff?",
+                    "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": "You can create or join a private league, participate in a synchronized draft, manage your roster and budget, and review draft results."
+                    }
+                },
+                {
+                    "@type": "Question",
+                    "name": "How does the silent draft work?",
+                    "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": "League members join the same draft room, receive the same player pool, submit bids during each round, and see synchronized draft results."
+                    }
+                }
+            ]
+        }
+        </script>
 </body>
 </html>

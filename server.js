@@ -7870,6 +7870,141 @@ function buildDraftMetaPayload(draft) {
   };
 }
 
+function buildDraftReadinessPayload(draft) {
+  const requiredMembers = getHumanDraftMembers(draft);
+  const readyMembers = Array.isArray(draft && draft.readyMembers) ? draft.readyMembers.slice() : [];
+  const readyNames = new Set(readyMembers.map((member) => String(member || '').trim().toLowerCase()));
+  const ready = requiredMembers.filter((member) => readyNames.has(String(member || '').trim().toLowerCase()));
+  return {
+    requiredMembers,
+    readyMembers: ready,
+    complete: requiredMembers.length > 0 && ready.length >= requiredMembers.length
+  };
+}
+
+function getHumanDraftMembers(draft) {
+  const seen = new Set();
+  const sourceMembers = Array.isArray(draft && draft.requiredHumanMembers)
+    ? draft.requiredHumanMembers
+    : (Array.isArray(draft && draft.members) ? draft.members : []);
+  return sourceMembers
+    .map((member) => String(member || '').trim())
+    .filter((member) => {
+      const normalized = member.toLowerCase();
+      if (!normalized || seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    });
+}
+
+function getConnectedDraftMembers(draftCode) {
+  const activeRoom = io && io.sockets && io.sockets.adapter && io.sockets.adapter.rooms
+    ? io.sockets.adapter.rooms.get(`draft_${draftCode}`)
+    : null;
+  if (!activeRoom) return [];
+
+  const connected = new Set();
+  for (const socketId of activeRoom) {
+    const roomSocket = io.sockets.sockets.get(socketId);
+    const username = String(roomSocket && roomSocket.data && roomSocket.data.username || '').trim();
+    if (username) connected.add(username.toLowerCase());
+  }
+  return [...connected];
+}
+
+function scheduleRoundTimerIfReady(draftCode, draft) {
+  if (!draft || !draft.draftState) return false;
+  const requiredMembers = getHumanDraftMembers(draft);
+  const readyMembers = Array.isArray(draft.readyMembers)
+    ? draft.readyMembers
+    : [];
+  const missingUsers = requiredMembers.filter((required) => (
+    !readyMembers.some((ready) => String(ready || '').trim().toLowerCase() === required.toLowerCase())
+  ));
+  const connectedMemberNames = getConnectedDraftMembers(draftCode);
+  const missingUsersFromSocket = requiredMembers.filter((required) => (
+    !connectedMemberNames.includes(required.toLowerCase())
+  ));
+  const activeRoom = io && io.sockets && io.sockets.adapter && io.sockets.adapter.rooms
+    ? io.sockets.adapter.rooms.get(`draft_${draftCode}`)
+    : null;
+  const connectedMembers = activeRoom
+    ? [...activeRoom].map((socketId) => io.sockets.sockets.get(socketId))
+      .map((roomSocket) => String(roomSocket && roomSocket.data && roomSocket.data.username || '').trim())
+      .filter(Boolean)
+    : [];
+  const readinessDebug = {
+    draftCode,
+    requiredMembers,
+    connectedMembers,
+    draftReadyMembers: readyMembers.slice(),
+    missingMembers: missingUsers,
+    missingMembersFromSocket: missingUsersFromSocket,
+    currentRound: Number(draft.draftState.currentRound),
+    hasCurrentPlayers: Array.isArray(draft.draftState.currentPlayers) && draft.draftState.currentPlayers.length > 0,
+    roundStartAt: draft.draftState.roundStartAt || null
+  };
+  console.log('[readiness] round timer check:', readinessDebug);
+  io.to(`draft_${draftCode}`).emit('readinessDebug', readinessDebug);
+  const allUsersConnected = requiredMembers.length > 0 && requiredMembers.every((required) => (
+    connectedMemberNames.includes(required.toLowerCase())
+  ));
+  const allUsersReady = requiredMembers.length > 0 && requiredMembers.every((required) => (
+    readyMembers.some((ready) => String(ready || '').trim().toLowerCase() === required.toLowerCase())
+  ));
+  // draftReady is emitted only after joinActiveDraft succeeds, so it is the
+  // authoritative confirmation for the human lobby roster. Socket membership
+  // remains visible in diagnostics but cannot block a confirmed user.
+  const allReady = allUsersReady;
+
+  if (!allReady || Number.isFinite(Number(draft.draftState.roundStartAt))) return allReady;
+
+  const currentRound = Number(draft.draftState.currentRound);
+  const roundTimerMinutes = normalizeServerRoundTimerMinutes(draft.roundTimerMinutes);
+  const startAt = Date.now() + 750;
+  const endAt = startAt + (roundTimerMinutes * 60 * 1000);
+  draft.draftState.roundStartAt = startAt;
+  draft.draftState.roundEndsAt = endAt;
+  draft.draftState.roundTimer = roundTimerMinutes * 60;
+  draft.draftState.roundTimerMinutes = roundTimerMinutes;
+  const schedule = { currentRound, startAt, endAt, serverNow: Date.now() };
+  schedule.stateVersion = recordDraftStateEvent(draft, 'roundTimerScheduled', schedule);
+  io.to(`draft_${draftCode}`).emit('roundTimerScheduled', schedule);
+  schedulePersistDraftState(draftCode, 'round_timer_scheduled');
+  return true;
+}
+
+function emitDraftReadinessReport(draftCode, draft, targetSocket = null) {
+  if (!draft || !draft.draftState) return null;
+  // Re-attempt scheduling here so the client's readiness poll is self-healing.
+  if (Array.isArray(draft.draftState.currentPlayers) && draft.draftState.currentPlayers.length > 0) {
+    scheduleRoundTimerIfReady(draftCode, draft);
+  }
+  const requiredMembers = getHumanDraftMembers(draft);
+  const connectedMembers = getConnectedDraftMembers(draftCode);
+  const roundPlayersReadyMembers = Array.isArray(draft.draftState.roundPlayersReadyMembers)
+    ? draft.draftState.roundPlayersReadyMembers.slice()
+    : [];
+  const report = {
+    draftCode,
+    requiredMembers,
+    lobbyCount: requiredMembers.length,
+    connectedMembers,
+    connectedCount: connectedMembers.length,
+    draftReadyMembers: Array.isArray(draft.readyMembers) ? draft.readyMembers.slice() : [],
+    draftReadyCount: Array.isArray(draft.readyMembers) ? draft.readyMembers.length : 0,
+    missingMembers: requiredMembers.filter((member) => !connectedMembers.includes(member.toLowerCase())),
+    currentRound: Number(draft.draftState.currentRound),
+    hasCurrentPlayers: Array.isArray(draft.draftState.currentPlayers) && draft.draftState.currentPlayers.length > 0,
+    timerScheduled: !!(draft.draftState.roundStartAt && draft.draftState.roundEndsAt),
+    roundStartAt: draft.draftState.roundStartAt || null,
+    roundEndsAt: draft.draftState.roundEndsAt || null
+  };
+  console.log('[readiness] explicit report:', report);
+  (targetSocket || io.to(`draft_${draftCode}`)).emit('readinessReport', report);
+  return report;
+}
+
 function buildDraftPendingRoundResultsPayload(draft, username) {
   const pendingRoundResults = draft && draft.draftState ? draft.draftState.pendingRoundResults : null;
   if (!pendingRoundResults || !Array.isArray(pendingRoundResults.results)) {
@@ -8318,6 +8453,12 @@ io.on('connection', (socket) => {
       socket.data.currentDraft = code;
       clearPendingLobbyDisconnect(code, username);
       console.log(`[joinDraftRoom] ${username} (${socket.id}) joined room ${code}`);
+      io.to(code).emit('memberConnectionState', {
+        username: String(username || '').trim(),
+        state: 'connected',
+        graceMsRemaining: 0,
+        at: Date.now()
+      });
     }
     socket.emit('draftUpdate', drafts[code] || { members: [], type: null, capacity: null, public: false });
   });
@@ -8532,8 +8673,12 @@ io.on('connection', (socket) => {
       draft.started = true;
       draft.type = draftType;
       draft.startedAt = Date.now();
+      draft.countdownStartAt = Date.now();
+      draft.countdownEndAt = draft.countdownStartAt + 10000;
+      draft.readyMembers = [];
 
       const memberSnapshot = Array.isArray(draft.members) ? draft.members : [];
+      draft.requiredHumanMembers = memberSnapshot.slice();
       const existingSnapshot = Array.isArray(draft.userTeamNames) ? draft.userTeamNames : [];
       const mergedSnapshot = [...existingSnapshot];
       memberSnapshot.forEach((member) => {
@@ -8551,8 +8696,22 @@ io.on('connection', (socket) => {
       console.log(`[startDraft] Broadcasting to ${roomSockets ? roomSockets.size : 0} sockets in room ${code}`);
       console.log(`[startDraft] Members in draft: ${(draft.members || []).join(', ')}`);
       
-      // Broadcast to all members in the room (including host)
-      io.to(code).emit('draftStarted', draftType);
+      const draftStartedPayload = {
+        draftCode: String(code || '').trim(),
+        draftType,
+        countdownStartAt: draft.countdownStartAt,
+        countdownEndAt: draft.countdownEndAt
+      };
+      // Broadcast to the lobby room and directly to every connected member.
+      io.to(code).emit('draftStarted', draftStartedPayload);
+      const memberNames = new Set((draft.members || []).map((member) => String(member || '').trim().toLowerCase()).filter(Boolean));
+      for (const roomSocket of io.sockets.sockets.values()) {
+        const socketUser = String(roomSocket.data && roomSocket.data.username || '').trim().toLowerCase();
+        const socketDraft = String(roomSocket.data && roomSocket.data.currentDraft || '').trim();
+        if (socketDraft === String(code || '').trim() && memberNames.has(socketUser)) {
+          roomSocket.emit('draftStarted', draftStartedPayload);
+        }
+      }
       console.log(`[startDraft] Broadcast sent`);
       schedulePersistDraftState(code, 'start_draft');
       const response = { ok: true };
@@ -8564,6 +8723,98 @@ io.on('connection', (socket) => {
       if (requestId) setDraftActionReceipt(draft, 'startDraft', requestId, response);
       if(cb) cb(response);
     }
+  });
+
+  socket.on('draftReady', (code, username, cb) => {
+    const draftCode = String(code || '').trim();
+    const draft = drafts[draftCode];
+    const requestedUser = String(username || socket.data.username || '').trim();
+    const member = draft && Array.isArray(draft.members)
+      ? draft.members.find((candidate) => String(candidate || '').trim().toLowerCase() === requestedUser.toLowerCase())
+      : null;
+    if (!draft || !member) {
+      if (cb) cb({ ok: false, reason: 'not_a_draft_member' });
+      return;
+    }
+
+    if (!Array.isArray(draft.readyMembers)) draft.readyMembers = [];
+    if (!draft.readyMembers.some((candidate) => String(candidate || '').trim().toLowerCase() === String(member).trim().toLowerCase())) {
+      draft.readyMembers.push(member);
+    }
+    const readiness = buildDraftReadinessPayload(draft);
+    console.log('[readiness] draftReady accepted:', {
+      draftCode,
+      member,
+      requiredMembers: getHumanDraftMembers(draft),
+      draftReadyMembers: readiness.readyMembers,
+      complete: readiness.complete
+    });
+    io.to(`draft_${draftCode}`).emit('draftReadiness', readiness);
+    const timerReady = draft.draftState && Array.isArray(draft.draftState.currentPlayers) && draft.draftState.currentPlayers.length > 0
+      ? scheduleRoundTimerIfReady(draftCode, draft)
+      : false;
+    if (readiness.complete) {
+      const membersReadyPayload = {
+        draftCode,
+        requiredMembers: getHumanDraftMembers(draft),
+        confirmedMembers: readiness.readyMembers.slice(),
+        currentRound: Number(draft.draftState && draft.draftState.currentRound || 1)
+      };
+      io.to(`draft_${draftCode}`).emit('membersReadyForRound', membersReadyPayload);
+      socket.emit('membersReadyForRound', membersReadyPayload);
+      console.log('[readiness] all lobby members confirmed; allowing round preparation:', membersReadyPayload);
+    }
+    const roundTimerScheduled = draft.draftState && draft.draftState.roundStartAt && draft.draftState.roundEndsAt
+      ? {
+          currentRound: Number(draft.draftState.currentRound),
+          startAt: Number(draft.draftState.roundStartAt),
+          endAt: Number(draft.draftState.roundEndsAt),
+          serverNow: Date.now()
+        }
+      : null;
+    if (cb) cb({ ok: true, ...readiness, timerReady, requiredMembers: getHumanDraftMembers(draft), roundTimerScheduled });
+  });
+
+  socket.on('getDraftReadiness', (code, cb) => {
+    const draftCode = String(code || '').trim();
+    const draft = drafts[draftCode];
+    const report = emitDraftReadinessReport(draftCode, draft, socket);
+    if (cb) cb({ ok: !!report, report });
+  });
+
+  socket.on('roundPlayersReady', (code, username, roundNumber, cb) => {
+    const draftCode = String(code || '').trim();
+    const draft = drafts[draftCode];
+    const requestedUser = String(username || socket.data.username || '').trim();
+    const member = draft && Array.isArray(draft.members)
+      ? draft.members.find((candidate) => String(candidate || '').trim().toLowerCase() === requestedUser.toLowerCase())
+      : null;
+    const currentRound = Number(draft && draft.draftState && draft.draftState.currentRound);
+    if (!draft || !member || !Array.isArray(draft.draftState && draft.draftState.currentPlayers) || currentRound !== Number(roundNumber)) {
+      console.warn('[readiness] roundPlayersReady rejected:', {
+        draftCode,
+        requestedUser,
+        member,
+        requestedRound: Number(roundNumber),
+        currentRound,
+        hasCurrentPlayers: !!(draft && draft.draftState && Array.isArray(draft.draftState.currentPlayers) && draft.draftState.currentPlayers.length)
+      });
+      if (cb) cb({ ok: false, reason: 'round_not_ready' });
+      return;
+    }
+
+    if (!Array.isArray(draft.draftState.roundPlayersReadyMembers)) {
+      draft.draftState.roundPlayersReadyMembers = [];
+    }
+    if (!draft.draftState.roundPlayersReadyMembers.some((candidate) => String(candidate || '').trim().toLowerCase() === String(member).trim().toLowerCase())) {
+      draft.draftState.roundPlayersReadyMembers.push(member);
+    }
+
+    const requiredMembers = getHumanDraftMembers(draft);
+    const readyMembers = draft.draftState.roundPlayersReadyMembers;
+    const allReady = scheduleRoundTimerIfReady(draftCode, draft);
+
+    if (cb) cb({ ok: true, allReady, readyMembers: readyMembers.slice() });
   });
 
   // Get current draft state from server (for draft page to load)
@@ -8649,6 +8900,18 @@ io.on('connection', (socket) => {
       // Send current draft state to the joining player
       socket.emit('draftStateSync', buildDraftStatePayloadForClient(draft.draftState));
 
+      // Replay the current player list so clients that joined during startup cannot
+      // miss the roundPlayersSet event before their UI listeners are attached.
+      if (Array.isArray(draft.draftState.currentPlayers) && draft.draftState.currentPlayers.length > 0) {
+        socket.emit('roundPlayersSet', {
+          players: draft.draftState.currentPlayers,
+          roundNumber: Number(draft.draftState.currentRound),
+          stateVersion: getDraftStateVersion(draft)
+        });
+        scheduleRoundTimerIfReady(draftCode, draft);
+        emitDraftReadinessReport(draftCode, draft, socket);
+      }
+
       // If this member reconnects during an active round-results acceptance window,
       // replay authoritative results so they can accept the correct round.
       const pendingRoundResults = draft.draftState.pendingRoundResults;
@@ -8679,7 +8942,22 @@ io.on('connection', (socket) => {
       socket.emit('autoDraftStatusSync', draft.draftState.autoDraftStatus);
     }
 
-    if (cb) cb({ ok: true, username: resolvedUsername, stateVersion: getDraftStateVersion(draft) });
+    const activeRoundSchedule = draft.draftState && draft.draftState.roundStartAt && draft.draftState.roundEndsAt
+      ? {
+          currentRound: Number(draft.draftState.currentRound),
+          startAt: Number(draft.draftState.roundStartAt),
+          endAt: Number(draft.draftState.roundEndsAt),
+          serverNow: Date.now()
+        }
+      : null;
+    if (cb) cb({
+      ok: true,
+      username: resolvedUsername,
+      stateVersion: getDraftStateVersion(draft),
+      serverTs: Date.now(),
+      clientSentAt: Number(options.clientSentAt || 0),
+      roundTimerScheduled: activeRoundSchedule
+    });
   });
 
   socket.on('resumeActiveDraft', (code, username, lastSeenVersion, cb) => {
@@ -8832,17 +9110,32 @@ io.on('connection', (socket) => {
     const username = socket.data.username;
     console.log(`[setRoundPlayers] ${username} set ${players.length} players for round ${drafts[code].draftState.currentRound}`);
     
-    if(drafts[code] && drafts[code].members && drafts[code].members[0] === username){
+    const hostName = drafts[code] && (drafts[code].host || (drafts[code].members && drafts[code].members[0]) || username);
+    if (drafts[code] && drafts[code].members && isSameDraftMemberName(hostName, username)) {
       // Host is setting the round players
       drafts[code].draftState.currentPlayers = players;
+      drafts[code].draftState.roundPlayersReadyMembers = [];
+      drafts[code].draftState.roundStartAt = null;
+      drafts[code].draftState.roundEndsAt = null;
+
+      // The host generated and published this list, so count the host immediately.
+      const publishedBy = String(username || '').trim();
+      if (publishedBy) drafts[code].draftState.roundPlayersReadyMembers.push(publishedBy);
+      if (!Array.isArray(drafts[code].readyMembers)) drafts[code].readyMembers = [];
+      if (publishedBy && !drafts[code].readyMembers.some((member) => (
+        String(member || '').trim().toLowerCase() === publishedBy.toLowerCase()
+      ))) {
+        drafts[code].readyMembers.push(publishedBy);
+      }
       
       // Reset submission tracking for new round
       drafts[code].draftState.submittedMembers = [];
       
       // Broadcast to all members in the draft
-      const roundPlayersPayload = { players };
+      const roundPlayersPayload = { players, roundNumber: drafts[code].draftState.currentRound };
       roundPlayersPayload.stateVersion = recordDraftStateEvent(drafts[code], 'roundPlayersSet', roundPlayersPayload);
       io.to(`draft_${code}`).emit('roundPlayersSet', roundPlayersPayload);
+      scheduleRoundTimerIfReady(code, drafts[code]);
       
       if(cb) cb({ ok: true });
     } else {

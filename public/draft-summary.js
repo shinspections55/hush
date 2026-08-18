@@ -679,10 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     waiverHostPrompt.hidden = false;
                     waiverHostPrompt.textContent = 'Host alert: waivers can be started now.';
                 }
-                if (!waiverReadyPromptShown) {
-                    waiverReadyPromptShown = true;
-                    alert('Waivers are ready to start.');
-                }
+                waiverReadyPromptShown = true;
             } else {
                 waiverStatus.textContent = `Waivers are enabled (${configuredMode.toUpperCase()}). Waiting for the host to start them.`;
                 waiverOrderList.innerHTML = '<div class="bench-empty">The host will start waivers when ready.</div>';
