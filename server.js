@@ -9117,6 +9117,10 @@ io.on('connection', (socket) => {
   // Host sets the players for a round (all members will see these same players)
   socket.on('setRoundPlayers', (code, players, cb) => {
     const username = socket.data.username;
+    if (!drafts[code] || !drafts[code].draftState || !Array.isArray(players) || players.length === 0) {
+      if (cb) cb({ ok: false, reason: 'invalid_round_players' });
+      return;
+    }
     console.log(`[setRoundPlayers] ${username} set ${players.length} players for round ${drafts[code].draftState.currentRound}`);
     
     const hostName = drafts[code] && (drafts[code].host || (drafts[code].members && drafts[code].members[0]) || username);
@@ -9564,7 +9568,7 @@ io.on('connection', (socket) => {
     logTeamProfileDebugMap(code, teams, humanMembers);
 
     // Remove stale manual bids for teams currently controlled by auto-draft.
-    const autoDraftMembers = allMembers.filter(member => autoDraftStatus[member]);
+    const autoDraftMembers = allMembers.filter((member) => isDraftMemberOnAutoDraft(drafts[code], member));
     const autoDraftStarTargets = draftState.autoDraftStarTargets || {};
     const autoDraftStarPlayerIdsByTeam = buildAutoDraftStarPlayerIdsByTeam(
       teams,
@@ -10629,8 +10633,7 @@ io.on('connection', (socket) => {
     const normalizedUsername = String(username || '').trim().toLowerCase();
     console.log(`[placeLiveAuctionBid] ${username} bid $${bidAmount}`);
 
-    const autoDraftStatus = drafts[code]?.draftState?.autoDraftStatus || {};
-    if (autoDraftStatus[username]) {
+    if (isDraftMemberOnAutoDraft(drafts[code], username)) {
       if (cb) cb({ ok: false, reason: 'auto_draft_enabled' });
       return;
     }
@@ -10830,8 +10833,7 @@ io.on('connection', (socket) => {
     const normalizedUsername = String(username || '').trim().toLowerCase();
     console.log(`[backoutLiveAuction] ${username} backing out`);
 
-    const autoDraftStatus = drafts[code]?.draftState?.autoDraftStatus || {};
-    if (autoDraftStatus[username]) {
+    if (isDraftMemberOnAutoDraft(drafts[code], username)) {
       if (cb) cb({ ok: false, reason: 'auto_draft_enabled' });
       return;
     }
@@ -11292,9 +11294,15 @@ io.on('connection', (socket) => {
       return;
     }
 
+    if (!Array.isArray(waiverState.order) || waiverState.order.length === 0) {
+      if (cb) cb({ ok: false, reason: 'waiver_order_unavailable' });
+      return;
+    }
+
     const normalizedRequestUser = String(requestUser || '').trim().toLowerCase();
-    const normalizedExpectedTeamName = String(waiverState.order[Math.max(0, Math.min(Number(waiverState.turnIndex || 0), waiverState.order.length - 1))] || '').trim().toLowerCase();
-    const expectedTeamName = waiverState.order[Math.max(0, Math.min(Number(waiverState.turnIndex || 0), waiverState.order.length - 1))];
+    const turnPosition = Math.max(0, Math.min(Number(waiverState.turnIndex || 0), waiverState.order.length - 1));
+    const normalizedExpectedTeamName = String(waiverState.order[turnPosition] || '').trim().toLowerCase();
+    const expectedTeamName = waiverState.order[turnPosition];
     const requestMatchesTurn = normalizedRequestUser && normalizedExpectedTeamName && normalizedRequestUser === normalizedExpectedTeamName;
 
     if (!expectedTeamName || !requestMatchesTurn) {
@@ -11309,7 +11317,6 @@ io.on('connection', (socket) => {
     }
 
     if (action === 'pass') {
-      markWaiverTeamActed(waiverState, expectedTeamName);
       markWaiverTeamActed(waiverState, expectedTeamName);
       waiverState.passesInRow = Number(waiverState.passesInRow || 0) + 1;
       waiverState.lastAction = {

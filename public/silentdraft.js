@@ -7499,9 +7499,9 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             return;
         }
 
-        // Fallback for local/offline scenarios with no socket.
-        currentRound++;
-        startRound();
+        console.warn('[silentdraft] Cannot advance round without an active server connection.');
+        setRoundSubmitEnabled(false, 'Reconnecting to draft...');
+        scheduleConnectionResync();
     }
 
     // Apply authoritative round results from server
