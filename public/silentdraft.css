@@ -452,6 +452,30 @@ body.color-blind .draftroom-rankings > h3 {
     box-shadow: 0 4px 12px rgba(3, 5, 9, 0.12);
 }
 
+/* Keep the Page 1/2 switcher reachable while the players column scrolls. */
+#draftable-players-header-row {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--hush-navy);
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+body.color-blind #draftable-players-header-row {
+    background: rgba(13, 27, 45, 0.98);
+}
+
+body.light-mode #draftable-players-header-row,
+body.dashboard-light-mode #draftable-players-header-row,
+html[data-theme="light"] body #draftable-players-header-row {
+    background: #ffffff;
+}
+
+#draftable-players-header-row #page-switch-btn {
+    flex: 0 0 auto;
+}
+
 .player-card {
     border: 1px solid var(--hush-steel)33;
     border-radius: 8px;

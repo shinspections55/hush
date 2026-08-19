@@ -1011,7 +1011,7 @@ function initSilentDraft() {
     let roundPreparationStarted = false;
     const ROUND_SCHEDULE_POLL_MS = 250;
     const ROUND_START_FALLBACK_MS = 3000;
-    let latestMemberReadiness = { lobbyCount: 0, connectedCount: 0, missingMembers: [] };
+    let latestMemberReadiness = { lobbyCount: 0, gateLobbyCount: 0, connectedCount: 0, missingMembers: [], currentRound: 0 };
     let draftRoomDefaultRankings = [];
     let draftRoomDefaultRankingsLastLoadedAt = 0;
     const DRAFTROOM_POSITION_FILES = {
@@ -1789,6 +1789,17 @@ function initSilentDraft() {
                 ? payload
                 : (payload && Array.isArray(payload.players) ? payload.players : []);
             updateLastSeenDraftStateVersion(payload && payload.stateVersion);
+
+            // The server round is authoritative; never let a client drift onto its own round.
+            const serverRound = Number(payload && payload.roundNumber);
+            if (Number.isFinite(serverRound) && serverRound > 0 && serverRound !== currentRound) {
+                console.warn('[silentdraft] Snapping client from round', currentRound, 'to server round', serverRound);
+                currentRound = serverRound;
+                lastServerRoundStarted = serverRound;
+                const roundElem = document.getElementById('current-round');
+                if (roundElem) roundElem.textContent = `Round ${currentRound}/${totalRounds}`;
+            }
+
             console.log('[silentdraft] Round players received from server:', roundPlayers.length, 'source=', sourceLabel);
             const shouldRenderPlayers = !sameRoundPlayers(window.syncedRoundPlayers, roundPlayers);
             window.syncedRoundPlayers = roundPlayers;
@@ -2104,7 +2115,8 @@ function initSilentDraft() {
                     console.log('[silentdraft] Joined draft socket rooms:', currentDraftCode, username);
                     window.draftSocket.emit('draftReady', currentDraftCode, username);
                     window.draftSocket.emit('getDraftReadiness', currentDraftCode);
-                    if (response.roundTimerScheduled && Number(response.roundTimerScheduled.currentRound) === currentRound) {
+                    if (response.roundTimerScheduled && Number(response.roundTimerScheduled.currentRound) === currentRound
+                        && (Number(response.roundTimerScheduled.endAt) - serverClockOffsetMs) > Date.now()) {
                         clearRoundSyncCountdown();
                         setDraftablePlayersVisible(true);
                         startLiveRoundTimer(
@@ -2482,6 +2494,7 @@ function initSilentDraft() {
 
         window.draftSocket.on('roundTimerScheduled', (schedule) => {
             if (!schedule || Number(schedule.currentRound) !== currentRound) return;
+            if (Number(schedule.endAt) - serverClockOffsetMs <= Date.now()) return;
             clearRoundSyncCountdown();
             setDraftablePlayersVisible(true);
             startLiveRoundTimer(Number(schedule.startAt), Number(schedule.endAt));
@@ -2498,12 +2511,15 @@ function initSilentDraft() {
             console.warn('[silentdraft] Readiness report:', report);
             latestMemberReadiness = {
                 lobbyCount: Number(report && report.lobbyCount || 0),
+                gateLobbyCount: Number(report && report.gateLobbyCount || 0),
                 connectedCount: Number(report && report.connectedCount || 0),
+                currentRound: Number(report && report.currentRound || 0),
                 missingMembers: Array.isArray(report && report.missingMembers) ? report.missingMembers : []
             };
 
             if (report && report.timerScheduled && report.roundStartAt && report.roundEndsAt
-                && Number(report.currentRound) === currentRound && !timerInterval) {
+                && Number(report.currentRound) === currentRound && !timerInterval
+                && (Number(report.roundEndsAt) - serverClockOffsetMs) > Date.now()) {
                 console.log('[silentdraft] Recovering round timer from readiness report.');
                 clearRoundSyncCountdown();
                 setDraftablePlayersVisible(true);
@@ -7464,7 +7480,8 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
 
         // Keep round progression server-authoritative to avoid client desync.
         if (window.draftSocket && currentDraftCode) {
-            window.draftSocket.emit('startNextRound', currentDraftCode, (response) => {
+            // Declare the round being left so the server advances only once.
+            window.draftSocket.emit('startNextRound', currentDraftCode, currentRound, (response) => {
                 if (response && response.ok) {
                     console.log('[silentdraft] Requested next round from server successfully');
                     return;
@@ -8583,6 +8600,15 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     }
 
     function beginRoundSyncCountdown() {
+        function allMembersThroughGate() {
+            const report = latestMemberReadiness || {};
+            if (Number(report.currentRound) !== currentRound) return false;
+            const gateLobbyCount = Number(report.gateLobbyCount || 0);
+            if (gateLobbyCount === 0) return true;
+            return (report.missingMembers || []).length === 0
+                && Number(report.connectedCount) >= gateLobbyCount;
+        }
+
         clearRoundSyncCountdown();
         setDraftablePlayersVisible(true);
         setRoundSubmitEnabled(false, 'Starting round...');
@@ -8605,7 +8631,17 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             elapsedMs += ROUND_SCHEDULE_POLL_MS;
             requestSchedule();
 
-            // Never let a missed server broadcast stall the round.
+            // The member gate is authoritative: never start until every member is on this round.
+            if (!allMembersThroughGate()) {
+                const waiting = (latestMemberReadiness.missingMembers || []).length;
+                setRoundSubmitEnabled(false, waiting
+                    ? `Waiting for ${waiting} member${waiting === 1 ? '' : 's'}...`
+                    : 'Starting round...');
+                elapsedMs = 0;
+                return;
+            }
+
+            // Everyone is through the gate, so a missing schedule is a dropped broadcast.
             if (elapsedMs >= ROUND_START_FALLBACK_MS) {
                 clearRoundSyncCountdown();
                 console.warn('[silentdraft] No authoritative schedule received; starting round locally.');

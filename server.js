@@ -7871,14 +7871,14 @@ function buildDraftMetaPayload(draft) {
 }
 
 function buildDraftReadinessPayload(draft) {
-  const requiredMembers = getHumanDraftMembers(draft);
+  const requiredMembers = getActiveHumanDraftMembers(draft);
   const readyMembers = Array.isArray(draft && draft.readyMembers) ? draft.readyMembers.slice() : [];
   const readyNames = new Set(readyMembers.map((member) => String(member || '').trim().toLowerCase()));
   const ready = requiredMembers.filter((member) => readyNames.has(String(member || '').trim().toLowerCase()));
   return {
     requiredMembers,
     readyMembers: ready,
-    complete: requiredMembers.length > 0 && ready.length >= requiredMembers.length
+    complete: requiredMembers.length === 0 || ready.length >= requiredMembers.length
   };
 }
 
@@ -7895,6 +7895,19 @@ function getHumanDraftMembers(draft) {
       seen.add(normalized);
       return true;
     });
+}
+
+function isDraftMemberOnAutoDraft(draft, member) {
+  const statuses = draft && draft.draftState && draft.draftState.autoDraftStatus;
+  if (!statuses || typeof statuses !== 'object') return false;
+  const normalizedMember = String(member || '').trim().toLowerCase();
+  return Object.entries(statuses).some(([name, enabled]) => (
+    String(name || '').trim().toLowerCase() === normalizedMember && enabled === true
+  ));
+}
+
+function getActiveHumanDraftMembers(draft) {
+  return getHumanDraftMembers(draft).filter((member) => !isDraftMemberOnAutoDraft(draft, member));
 }
 
 function getConnectedDraftMembers(draftCode) {
@@ -7914,48 +7927,38 @@ function getConnectedDraftMembers(draftCode) {
 
 function scheduleRoundTimerIfReady(draftCode, draft) {
   if (!draft || !draft.draftState) return false;
-  const requiredMembers = getHumanDraftMembers(draft);
-  const readyMembers = Array.isArray(draft.readyMembers)
-    ? draft.readyMembers
+  const currentRoundNumber = Number(draft.draftState.currentRound);
+  const requiredMembers = getActiveHumanDraftMembers(draft);
+  // Per-round acknowledgment: members confirm they rendered THIS round's players.
+  const roundReadyMembers = Array.isArray(draft.draftState.roundPlayersReadyMembers)
+    ? draft.draftState.roundPlayersReadyMembers
     : [];
-  const missingUsers = requiredMembers.filter((required) => (
-    !readyMembers.some((ready) => String(ready || '').trim().toLowerCase() === required.toLowerCase())
-  ));
   const connectedMemberNames = getConnectedDraftMembers(draftCode);
-  const missingUsersFromSocket = requiredMembers.filter((required) => (
-    !connectedMemberNames.includes(required.toLowerCase())
+
+  const isOnCurrentRound = (member) => roundReadyMembers.some((ready) => (
+    String(ready || '').trim().toLowerCase() === member.toLowerCase()
   ));
-  const activeRoom = io && io.sockets && io.sockets.adapter && io.sockets.adapter.rooms
-    ? io.sockets.adapter.rooms.get(`draft_${draftCode}`)
-    : null;
-  const connectedMembers = activeRoom
-    ? [...activeRoom].map((socketId) => io.sockets.sockets.get(socketId))
-      .map((roomSocket) => String(roomSocket && roomSocket.data && roomSocket.data.username || '').trim())
-      .filter(Boolean)
-    : [];
+  const isConnected = (member) => connectedMemberNames.includes(member.toLowerCase());
+
+  const missingMembers = requiredMembers.filter((member) => !isOnCurrentRound(member));
+  const missingMembersFromSocket = requiredMembers.filter((member) => !isConnected(member));
+
   const readinessDebug = {
     draftCode,
+    currentRound: currentRoundNumber,
     requiredMembers,
-    connectedMembers,
-    draftReadyMembers: readyMembers.slice(),
-    missingMembers: missingUsers,
-    missingMembersFromSocket: missingUsersFromSocket,
-    currentRound: Number(draft.draftState.currentRound),
+    connectedMembers: connectedMemberNames,
+    roundReadyMembers: roundReadyMembers.slice(),
+    missingMembers,
+    missingMembersFromSocket,
     hasCurrentPlayers: Array.isArray(draft.draftState.currentPlayers) && draft.draftState.currentPlayers.length > 0,
     roundStartAt: draft.draftState.roundStartAt || null
   };
   console.log('[readiness] round timer check:', readinessDebug);
   io.to(`draft_${draftCode}`).emit('readinessDebug', readinessDebug);
-  const allUsersConnected = requiredMembers.length > 0 && requiredMembers.every((required) => (
-    connectedMemberNames.includes(required.toLowerCase())
-  ));
-  const allUsersReady = requiredMembers.length > 0 && requiredMembers.every((required) => (
-    readyMembers.some((ready) => String(ready || '').trim().toLowerCase() === required.toLowerCase())
-  ));
-  // draftReady is emitted only after joinActiveDraft succeeds, so it is the
-  // authoritative confirmation for the human lobby roster. Socket membership
-  // remains visible in diagnostics but cannot block a confirmed user.
-  const allReady = allUsersReady;
+
+  // Only members currently on human control must be connected and acknowledged.
+  const allReady = requiredMembers.every((member) => isConnected(member) && isOnCurrentRound(member));
 
   if (!allReady || Number.isFinite(Number(draft.draftState.roundStartAt))) return allReady;
 
@@ -7981,19 +7984,26 @@ function emitDraftReadinessReport(draftCode, draft, targetSocket = null) {
     scheduleRoundTimerIfReady(draftCode, draft);
   }
   const requiredMembers = getHumanDraftMembers(draft);
+  const gateMembers = getActiveHumanDraftMembers(draft);
   const connectedMembers = getConnectedDraftMembers(draftCode);
   const roundPlayersReadyMembers = Array.isArray(draft.draftState.roundPlayersReadyMembers)
     ? draft.draftState.roundPlayersReadyMembers.slice()
     : [];
+  const roundReadyLower = roundPlayersReadyMembers.map((member) => String(member || '').trim().toLowerCase());
   const report = {
     draftCode,
     requiredMembers,
     lobbyCount: requiredMembers.length,
+    gateMembers,
+    gateLobbyCount: gateMembers.length,
     connectedMembers,
     connectedCount: connectedMembers.length,
     draftReadyMembers: Array.isArray(draft.readyMembers) ? draft.readyMembers.slice() : [],
     draftReadyCount: Array.isArray(draft.readyMembers) ? draft.readyMembers.length : 0,
-    missingMembers: requiredMembers.filter((member) => !connectedMembers.includes(member.toLowerCase())),
+    roundPlayersReadyMembers,
+    // A member is missing until they are connected AND acked this exact round.
+    missingMembers: gateMembers.filter((member) => !connectedMembers.includes(member.toLowerCase())
+      || !roundReadyLower.includes(member.toLowerCase())),
     currentRound: Number(draft.draftState.currentRound),
     hasCurrentPlayers: Array.isArray(draft.draftState.currentPlayers) && draft.draftState.currentPlayers.length > 0,
     timerScheduled: !!(draft.draftState.roundStartAt && draft.draftState.roundEndsAt),
@@ -8745,7 +8755,7 @@ io.on('connection', (socket) => {
     console.log('[readiness] draftReady accepted:', {
       draftCode,
       member,
-      requiredMembers: getHumanDraftMembers(draft),
+      requiredMembers: getActiveHumanDraftMembers(draft),
       draftReadyMembers: readiness.readyMembers,
       complete: readiness.complete
     });
@@ -8756,7 +8766,7 @@ io.on('connection', (socket) => {
     if (readiness.complete) {
       const membersReadyPayload = {
         draftCode,
-        requiredMembers: getHumanDraftMembers(draft),
+        requiredMembers: getActiveHumanDraftMembers(draft),
         confirmedMembers: readiness.readyMembers.slice(),
         currentRound: Number(draft.draftState && draft.draftState.currentRound || 1)
       };
@@ -9028,11 +9038,10 @@ io.on('connection', (socket) => {
 
     // If toggling auto-draft means all required manual members are already submitted,
     // immediately advance submission state for the round.
-    const allMembers = draft.members || [];
-    const statusMap = draft.draftState.autoDraftStatus || {};
-    const requiredManualMembers = allMembers.filter(member => !statusMap[member]);
+    const requiredManualMembers = getActiveHumanDraftMembers(draft);
     const submittedMembers = draft.draftState.submittedMembers || [];
-    const submittedRequiredCount = submittedMembers.filter(member => requiredManualMembers.includes(member)).length;
+    const requiredManualNames = new Set(requiredManualMembers.map((member) => member.toLowerCase()));
+    const submittedRequiredCount = submittedMembers.filter((member) => requiredManualNames.has(String(member || '').toLowerCase())).length;
     if (requiredManualMembers.length === 0 || submittedRequiredCount >= requiredManualMembers.length) {
       io.to(`draft_${code}`).emit('allBidsSubmitted');
     }
@@ -9314,10 +9323,9 @@ io.on('connection', (socket) => {
     socket.to(`draft_${draftCode}`).emit('bidsSubmitted', { username: submissionUsername });
     
     // Only members with auto-draft OFF are required to submit manually.
-    const allMembers = Array.isArray(draft.members) ? draft.members : [];
-    const autoDraftStatus = draft.draftState.autoDraftStatus || {};
-    const requiredManualMembers = allMembers.filter(member => !autoDraftStatus[member]);
-    const submittedCount = draft.draftState.submittedMembers.filter(member => requiredManualMembers.includes(member)).length;
+    const requiredManualMembers = getActiveHumanDraftMembers(draft);
+    const requiredManualNames = new Set(requiredManualMembers.map((member) => member.toLowerCase()));
+    const submittedCount = draft.draftState.submittedMembers.filter((member) => requiredManualNames.has(String(member || '').toLowerCase())).length;
     console.log('[submitBids][debug] submittedMembers:', draft.draftState.submittedMembers);
     console.log('[submitBids][debug] requiredManualMembers:', requiredManualMembers);
     console.log('[submitBids][debug] current bids snapshot:', JSON.stringify(draft.draftState.bids || {}, null, 2));
@@ -9358,9 +9366,7 @@ io.on('connection', (socket) => {
       draft.draftState.submittedMembers = [];
     }
 
-    const allMembers = draft.members || [];
-    const autoDraftStatus = draft.draftState.autoDraftStatus || {};
-    const requiredManualMembers = allMembers.filter(member => !autoDraftStatus[member]);
+    const requiredManualMembers = getActiveHumanDraftMembers(draft);
 
     const missingMembers = requiredManualMembers.filter(
       member => !draft.draftState.submittedMembers.includes(member)
@@ -9427,11 +9433,10 @@ io.on('connection', (socket) => {
     }
     
     // Ensure all required manual members have submitted bids before processing
-    const allMembers = drafts[code].members || [];
-    const autoDraftStatus = drafts[code].draftState.autoDraftStatus || {};
-    const requiredManualMembers = allMembers.filter(member => !autoDraftStatus[member]);
+    const requiredManualMembers = getActiveHumanDraftMembers(drafts[code]);
     const submittedMembers = drafts[code].draftState.submittedMembers || [];
-    const submittedRequiredCount = submittedMembers.filter(member => requiredManualMembers.includes(member)).length;
+    const requiredManualNames = new Set(requiredManualMembers.map((member) => member.toLowerCase()));
+    const submittedRequiredCount = submittedMembers.filter((member) => requiredManualNames.has(String(member || '').toLowerCase())).length;
     console.log('[processRound][debug] requiredManualMembers:', requiredManualMembers);
     console.log('[processRound][debug] submittedMembers:', submittedMembers);
     console.log('[processRound][debug] server bids at process start:', JSON.stringify(drafts[code].draftState.bids || {}, null, 2));
@@ -9944,7 +9949,7 @@ io.on('connection', (socket) => {
         draft.draftState.acceptedMembers.push(resolvedUser);
       }
 
-      const humanMembers = Array.isArray(draft.members) ? draft.members : [];
+      const humanMembers = getActiveHumanDraftMembers(draft);
       const acceptedCount = draft.draftState.acceptedMembers.length;
       const totalMembers = humanMembers.length;
       const allAccepted = totalMembers === 0 || acceptedCount >= totalMembers;
@@ -10039,7 +10044,9 @@ io.on('connection', (socket) => {
   });
 
   // Start next round (host only)
-  socket.on('startNextRound', (code, cb) => {
+  socket.on('startNextRound', (code, fromRoundOrCb, cbMaybe) => {
+    const cb = typeof fromRoundOrCb === 'function' ? fromRoundOrCb : cbMaybe;
+    const requestedFromRound = typeof fromRoundOrCb === 'function' ? null : Number.parseInt(String(fromRoundOrCb), 10);
     const username = socket.data.username;
     const draft = drafts[code];
     const normalizedRequester = String(username || '').trim().toLowerCase();
@@ -10048,6 +10055,21 @@ io.on('connection', (socket) => {
       : false;
     if(draft && isMember){
       const currentRound = Number.parseInt(String(drafts[code].draftState && drafts[code].draftState.currentRound || 1), 10) || 1;
+
+      // Every member emits this when results are accepted; only advance once per round.
+      if (Number.isFinite(requestedFromRound) && requestedFromRound !== currentRound) {
+        console.log(`[startNextRound] Ignoring stale advance from round ${requestedFromRound} (server is on ${currentRound})`);
+        if (cb) cb({ ok: true, alreadyAdvanced: true, currentRound });
+        return;
+      }
+
+      const lastAdvanceAt = Number(drafts[code].draftState.lastRoundAdvanceAt || 0);
+      if (Date.now() - lastAdvanceAt < 1500) {
+        console.log(`[startNextRound] Ignoring duplicate advance within dedupe window (round ${currentRound})`);
+        if (cb) cb({ ok: true, alreadyAdvanced: true, currentRound });
+        return;
+      }
+
       if (currentRound >= 10) {
         console.log(`[startNextRound] Ignoring advance beyond final round ${currentRound} requested by ${username}`);
         if (cb) cb({ ok: false, reason: 'draft_complete', currentRound });
@@ -10058,9 +10080,15 @@ io.on('connection', (socket) => {
         ? Math.max(3, Math.min(Number.parseInt(drafts[code].roundTimerMinutes, 10), 10))
         : 10;
       drafts[code].draftState.currentRound++;
+      drafts[code].draftState.lastRoundAdvanceAt = Date.now();
       drafts[code].draftState.roundTimer = roundTimerMinutes * 60;
       drafts[code].draftState.roundTimerMinutes = roundTimerMinutes;
       drafts[code].draftState.bids = {};
+      // Per-round scheduling state must reset or the next round reuses stale timestamps.
+      drafts[code].draftState.roundStartAt = null;
+      drafts[code].draftState.roundEndsAt = null;
+      drafts[code].draftState.roundPlayersReadyMembers = [];
+      drafts[code].draftState.currentPlayers = [];
       drafts[code].draftState.recentAcquisitions = {}; // Clear recent acquisitions for new round
       drafts[code].draftState.pendingRoundResults = null;
       clearPendingRoundAutoAdvance(code);
@@ -10089,8 +10117,7 @@ io.on('connection', (socket) => {
     if (/^Team \d+$/.test(teamName)) {
       return true;
     }
-    const autoDraftStatus = drafts[code]?.draftState?.autoDraftStatus || {};
-    return !!autoDraftStatus[teamName];
+    return isDraftMemberOnAutoDraft(drafts[code], teamName);
   }
   
   // Server function to automatically start live auction when ties are detected
@@ -11373,20 +11400,26 @@ io.on('connection', (socket) => {
       }
     }
 
-    // Clear auto-draft status on disconnect for active draft room participants.
+    // A disconnected member remains on the roster but is controlled by auto-draft.
     const activeCode = socket.data.activeDraftCode;
     if (username && activeCode && drafts[activeCode] && drafts[activeCode].draftState) {
-      if (!drafts[activeCode].draftState.autoDraftStatus) {
-        drafts[activeCode].draftState.autoDraftStatus = {};
+      const connectedMembers = getConnectedDraftMembers(activeCode);
+      if (!connectedMembers.includes(String(username).trim().toLowerCase())) {
+        if (!drafts[activeCode].draftState.autoDraftStatus) {
+          drafts[activeCode].draftState.autoDraftStatus = {};
+        }
+        const canonicalUsername = resolveDraftMemberName(drafts[activeCode], username) || username;
+        drafts[activeCode].draftState.autoDraftStatus[canonicalUsername] = true;
+        const disconnectAutoDraftPayload = {
+          username: canonicalUsername,
+          enabled: true,
+          reason: 'disconnected',
+          statuses: drafts[activeCode].draftState.autoDraftStatus
+        };
+        disconnectAutoDraftPayload.stateVersion = recordDraftStateEvent(drafts[activeCode], 'autoDraftStatusChanged', disconnectAutoDraftPayload);
+        io.to(`draft_${activeCode}`).emit('autoDraftStatusChanged', disconnectAutoDraftPayload);
+        schedulePersistDraftState(activeCode, 'disconnect_auto_draft');
       }
-      drafts[activeCode].draftState.autoDraftStatus[username] = false;
-      const disconnectAutoDraftPayload = {
-        username,
-        enabled: false,
-        statuses: drafts[activeCode].draftState.autoDraftStatus
-      };
-      disconnectAutoDraftPayload.stateVersion = recordDraftStateEvent(drafts[activeCode], 'autoDraftStatusChanged', disconnectAutoDraftPayload);
-      io.to(`draft_${activeCode}`).emit('autoDraftStatusChanged', disconnectAutoDraftPayload);
     }
   });
 });
