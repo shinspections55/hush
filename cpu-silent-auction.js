@@ -109,16 +109,18 @@ const DEFAULT_SILENT_PROFILES = [
   { aggression: 0.9, valueHunter: 1.18, sleeperHunter: 1.08, starsAndScrubs: 0.88, QB: 1.0, RB: 1.05, WR: 0.96, TE: 1.0, K: 1.0, DEF: 1.05 }
 ];
 
+// Budget committed by the end of each round. The old curve front-loaded 64% into round 1
+// and left only 16% for rounds 7-10, which is why late rounds had almost no live money.
 const ROUND_COMMITMENT_CURVE = {
-  1: 0.64,
-  2: 0.69,
-  3: 0.73,
-  4: 0.76,
-  5: 0.79,
-  6: 0.84,
-  7: 0.89,
-  8: 0.93,
-  9: 0.97,
+  1: 0.24,
+  2: 0.38,
+  3: 0.49,
+  4: 0.58,
+  5: 0.66,
+  6: 0.74,
+  7: 0.82,
+  8: 0.89,
+  9: 0.95,
   10: 1.0
 };
 
@@ -135,7 +137,46 @@ function normalizeCommitmentMode(modeRaw = '') {
 
 function getRoundCommitTargetPct(roundNumber) {
   const round = Math.max(1, Math.min(draftRoundCount, Number(roundNumber) || 1));
+  const cfgSilent = loadCpuLogicConfig()?.silent || {};
+  const configured = Number(cfgSilent[`roundCommitR${round}Pct`]);
+  if (Number.isFinite(configured)) return Math.max(0, Math.min(1, configured));
   return Number(ROUND_COMMITMENT_CURVE[round] || 0.64);
+}
+
+// Identical spend schedules make all 10 CPUs move as a block. A stable per-team tilt
+// makes some teams spend early and others hold back, which steadies the league-wide curve.
+function getTeamCommitmentTilt(teamName) {
+  const name = String(teamName || '').trim();
+  if (!name) return 1;
+  const cfgSilent = loadCpuLogicConfig()?.silent || {};
+  const tiltMin = Math.max(0.5, Math.min(1, Number(cfgSilent.commitmentTiltMin ?? 0.82)));
+  const tiltMax = Math.max(tiltMin, Math.min(1.5, Number(cfgSilent.commitmentTiltMax ?? 1.18)));
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) {
+    hash = (hash * 33 + name.charCodeAt(i)) >>> 0;
+  }
+  return tiltMin + ((hash % 37) / 36) * (tiltMax - tiltMin);
+}
+
+function getTeamCommitmentRangeAdjustment(teamName, roundNumber, totalRounds) {
+  const cfgSilent = loadCpuLogicConfig()?.silent || {};
+  const lockFinalRounds = Math.max(0, Math.min(3, Math.floor(Number(cfgSilent.commitmentRangeLockFinalRounds ?? 2))));
+  if (lockFinalRounds > 0 && Number(roundNumber) > Number(totalRounds || draftRoundCount) - lockFinalRounds) return 0;
+
+  const belowTargetPct = Math.max(0, Math.min(0.5, Number(cfgSilent.commitmentRangeBelowTargetPct ?? 0.15)));
+  const aboveTargetPct = Math.max(0, Math.min(0.5, Number(cfgSilent.commitmentRangeAboveTargetPct ?? 0.10)));
+  const centerBandPct = Math.max(0, Math.min(0.2, Number(cfgSilent.commitmentRangeCenterBandPct ?? 0.03)));
+  const lowTeamPct = Math.max(0, Math.min(0.5, Number(cfgSilent.commitmentRangeLowTeamPct ?? 0.2)));
+  const highTeamPct = Math.max(0, Math.min(0.5, Number(cfgSilent.commitmentRangeHighTeamPct ?? 0.2)));
+  const name = String(teamName || '').trim();
+  let hash = 0;
+  for (let index = 0; index < name.length; index += 1) hash = (hash * 33 + name.charCodeAt(index)) >>> 0;
+  const percentile = (hash % 1000) / 1000;
+
+  if (percentile < lowTeamPct) return -belowTargetPct;
+  if (percentile >= 1 - highTeamPct) return aboveTargetPct;
+  const centerRoll = (percentile - lowTeamPct) / Math.max(0.001, 1 - lowTeamPct - highTeamPct);
+  return ((centerRoll * 2) - 1) * centerBandPct;
 }
 
 function rebalanceFinalRoundCpuBids(cpuBids, cpuTeams, roundPlayers, rosterLimits, maxRosterSize, roundNumber, teamStrategies = {}, commitmentMode = 'B') {
@@ -145,7 +186,7 @@ function rebalanceFinalRoundCpuBids(cpuBids, cpuTeams, roundPlayers, rosterLimit
   const baseTargetPct = getRoundCommitTargetPct(round);
   const modeKey = normalizeCommitmentMode(commitmentMode);
   const modeCfg = ROUND_COMMITMENT_MODE[modeKey];
-  const variationFloor = 0.10;
+  const variationFloor = Math.max(0.02, Math.min(0.35, Number(cfgSilent.commitmentVariationFloor ?? 0.12)));
 
   const teamMap = new Map((cpuTeams || []).map(team => [String(team && team.name || ''), team]));
   const availablePlayers = Array.isArray(roundPlayers) ? roundPlayers : [];
@@ -161,8 +202,13 @@ function rebalanceFinalRoundCpuBids(cpuBids, cpuTeams, roundPlayers, rosterLimit
       return;
     }
 
+    const lockFinalRounds = Math.max(0, Math.min(3, Math.floor(Number(cfgSilent.commitmentRangeLockFinalRounds ?? 2))));
     if (round >= draftRoundCount) {
       targetPctByTeam[teamName] = 1;
+      return;
+    }
+    if (lockFinalRounds > 0 && round > draftRoundCount - lockFinalRounds) {
+      targetPctByTeam[teamName] = baseTargetPct;
       return;
     }
 
@@ -177,6 +223,8 @@ function rebalanceFinalRoundCpuBids(cpuBids, cpuTeams, roundPlayers, rosterLimit
     const rosterPressure = Number(strategy.rosterPressure || 0);
     const deterministicNoise = (getTeamSeed(teamName) % 1000) / 1000; // 0..1
     const centeredNoise = (deterministicNoise - 0.5) * 2; // -1..1
+    const rangeAdjustment = getTeamCommitmentRangeAdjustment(teamName, round, draftRoundCount);
+    const tiltedBaseTargetPct = Math.max(0.05, Math.min(0.99, baseTargetPct * (1 + rangeAdjustment)));
 
     let situational = 0;
     situational += Math.max(-1, Math.min(1.4, needRatio - 0.8)) * 0.08;
@@ -186,20 +234,21 @@ function rebalanceFinalRoundCpuBids(cpuBids, cpuTeams, roundPlayers, rosterLimit
     if (isAheadOfPace) situational -= 0.03;
     situational += centeredNoise * modeCfg.situationalSwing;
 
-    const minPct = Math.max(0.05, baseTargetPct - variationFloor);
-    const maxPct = Math.min(0.99, baseTargetPct + variationFloor);
-    const firstPassPct = Math.max(minPct, Math.min(maxPct, baseTargetPct + situational));
+    const minPct = Math.max(0.05, tiltedBaseTargetPct - variationFloor);
+    const maxPct = Math.min(0.99, tiltedBaseTargetPct + variationFloor);
+    const firstPassPct = Math.max(minPct, Math.min(maxPct, tiltedBaseTargetPct + situational));
     targetPctByTeam[teamName] = firstPassPct;
   });
 
   // Pull average commitment toward the round target. Mode A is soft, C is strong.
   const targetRows = Object.values(targetPctByTeam).filter(v => Number.isFinite(v) && v > 0);
-  if (round < draftRoundCount && targetRows.length > 0) {
+  const lockFinalRounds = Math.max(0, Math.min(3, Math.floor(Number(cfgSilent.commitmentRangeLockFinalRounds ?? 2))));
+  if (round < draftRoundCount && round <= draftRoundCount - lockFinalRounds && targetRows.length > 0) {
     const currentAvg = targetRows.reduce((sum, v) => sum + v, 0) / targetRows.length;
     const avgDelta = (baseTargetPct - currentAvg) * modeCfg.pullToAverage;
     Object.keys(targetPctByTeam).forEach((teamName) => {
-      const minPct = Math.max(0.05, baseTargetPct - variationFloor);
-      const maxPct = Math.min(0.99, baseTargetPct + variationFloor);
+      const minPct = Math.max(0.05, baseTargetPct * (1 - Math.max(0, Math.min(0.5, Number(cfgSilent.commitmentRangeBelowTargetPct ?? 0.15)))));
+      const maxPct = Math.min(0.99, baseTargetPct * (1 + Math.max(0, Math.min(0.5, Number(cfgSilent.commitmentRangeAboveTargetPct ?? 0.10)))));
       const adjusted = Number(targetPctByTeam[teamName] || 0) + avgDelta;
       targetPctByTeam[teamName] = Math.max(minPct, Math.min(maxPct, adjusted));
     });
@@ -246,11 +295,15 @@ function rebalanceFinalRoundCpuBids(cpuBids, cpuTeams, roundPlayers, rosterLimit
     const sortedBids = [...validBids]
       .sort((a, b) => Number(b.cpuBid || 0) - Number(a.cpuBid || 0) || Number(b.player?.avgValue || 0) - Number(a.player?.avgValue || 0));
 
-    const totalWeight = sortedBids.reduce((sum, entry) => sum + Math.max(1, Number(entry.cpuBid || 0)), 0);
+    const weightCap = Math.max(1, Math.min(50, Number(cfgSilent.commitmentBidWeightCap ?? 5)));
+    const totalWeight = sortedBids.reduce((sum, entry) => {
+      const w = Math.max(1, Math.min(Number(entry.cpuBid || 0), weightCap));
+      return sum + w;
+    }, 0);
     if (totalWeight <= 0) return;
 
     const allocations = sortedBids.map(entry => {
-      const weight = Math.max(1, Number(entry.cpuBid || 0));
+      const weight = Math.max(1, Math.min(Number(entry.cpuBid || 0), weightCap));
       const exact = (targetCommit * weight) / totalWeight;
       const isTargetPlayer = starredTargetIds.has(getPlayerIdKey(entry.player));
       const bidCap = getHardPlayerBidCap(entry.player, round, budgetRemaining, cfgSilent, {
@@ -527,22 +580,58 @@ function calculateRequiredPacePerRound(targetRosterSize, totalRounds) {
   return targetRosterSize / Math.max(1, totalRounds);
 }
 
+// Teams count as "on pace" anywhere inside this band rather than at one exact integer.
+// At a 16.4 roster over 10 rounds this is roughly 1.31-1.90 players per round.
+const ROSTER_PACE_BAND = Object.freeze({
+  minMultiplier: 0.80,
+  maxMultiplier: 1.16,
+  teamJitter: 0.7
+});
+
+// Stable per-team shift so CPUs do not all cross the pace line on the same round and stampede.
+function getTeamPaceOffset(team) {
+  const name = String(team && team.name || '');
+  if (!name) return 0;
+  const cfgSilent = loadCpuLogicConfig()?.silent || {};
+  const jitter = Math.max(0, Math.min(2, Number(cfgSilent.paceBandTeamJitter ?? ROSTER_PACE_BAND.teamJitter)));
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) {
+    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  }
+  return (((hash % 71) / 70) - 0.5) * jitter;
+}
+
+function getRosterPaceBandAtRound(roundNumber, targetRosterSize, totalRounds, team = null) {
+  const cfgSilent = loadCpuLogicConfig()?.silent || {};
+  // Teams aim past the league minimum so hitting it is comfortable rather than a scramble.
+  const targetBonus = Math.max(0, Math.floor(Number(cfgSilent.cpuRosterTargetBonus ?? 2)));
+  const pacedTarget = Math.max(1, Number(targetRosterSize || 0) + targetBonus);
+  const perRound = calculateRequiredPacePerRound(pacedTarget, totalRounds);
+  const minMultiplier = Math.max(0.3, Math.min(1.5, Number(cfgSilent.paceBandMinMultiplier ?? ROSTER_PACE_BAND.minMultiplier)));
+  const maxMultiplier = Math.max(minMultiplier, Math.min(2, Number(cfgSilent.paceBandMaxMultiplier ?? ROSTER_PACE_BAND.maxMultiplier)));
+  const offset = getTeamPaceOffset(team);
+  const min = Math.min(pacedTarget, (perRound * minMultiplier * roundNumber) + offset);
+  const max = Math.min(pacedTarget, (perRound * maxMultiplier * roundNumber) + offset);
+  return { min: Math.max(0, min), max: Math.max(0, max) };
+}
+
 // Calculate expected roster size at current round if team is on pace
-function getExpectedRosterSizeAtRound(roundNumber, targetRosterSize, totalRounds) {
-  const requiredPace = calculateRequiredPacePerRound(targetRosterSize, totalRounds);
-  const paceProjection = requiredPace * roundNumber;
-  const earlyRoundCutoff = Math.ceil(totalRounds * 0.6);
-  const expected = roundNumber <= earlyRoundCutoff
-    ? Math.ceil(paceProjection)
-    : Math.floor(paceProjection);
-  return Math.min(targetRosterSize, expected);
+function getExpectedRosterSizeAtRound(roundNumber, targetRosterSize, totalRounds, team = null) {
+  const band = getRosterPaceBandAtRound(roundNumber, targetRosterSize, totalRounds, team);
+  return (band.min + band.max) / 2;
 }
 
 // Calculate pace variance (how far behind/ahead of pace is the team?)
 function calculatePaceVariance(team, roundNumber, targetRosterSize, totalRounds) {
   const currentSize = team.roster ? team.roster.length : 0;
-  const expectedSize = getExpectedRosterSizeAtRound(roundNumber, targetRosterSize, totalRounds);
-  return currentSize - expectedSize; // Negative = behind, positive = ahead
+  const cfgSilent = loadCpuLogicConfig()?.silent || {};
+  // Opening rounds still have the whole draft left, so an empty roster is not genuinely behind.
+  const paceGraceRounds = Math.max(0, Math.min(Number(totalRounds || 10), Math.floor(Number(cfgSilent.paceGraceRounds ?? 1))));
+  if (Number(roundNumber) <= paceGraceRounds) return 0;
+  const band = getRosterPaceBandAtRound(roundNumber, targetRosterSize, totalRounds, team);
+  if (currentSize < band.min) return currentSize - band.min; // Behind, fractional
+  if (currentSize > band.max) return currentSize - band.max; // Ahead, fractional
+  return 0; // Inside the band counts as on pace
 }
 
 // Players a team must win per remaining round to reach target roster size.
@@ -553,12 +642,12 @@ function calculateRequiredWinsPerRound(currentRosterSize, targetRosterSize, roun
 
 // Determine bidding urgency based on pace
 function getPaceAdjustment(paceVariance, roundsLeft) {
-  // If significantly behind pace, be aggressive
-  if (paceVariance < -2) return 0.25; // Very behind: +0.25 aggressiveness
-  if (paceVariance < -1) return 0.15; // Behind: +0.15
-  if (paceVariance < 0) return 0.08; // Slightly behind: +0.08
-  if (paceVariance === 0) return 0; // On pace: no adjustment
-  
+  // Scale the nudge to how far outside the band the team actually is, so a small
+  // shortfall no longer triggers the same surge as a genuine collapse.
+  if (paceVariance < 0) {
+    return Math.min(0.18, Math.abs(paceVariance) * 0.09);
+  }
+
   // If ahead of pace in early rounds, relax a bit
   if (roundsLeft > 5 && paceVariance > 1) return -0.12;
   if (roundsLeft > 3 && paceVariance > 2) return -0.08;
@@ -633,11 +722,11 @@ function calculateMinimumInterest(completionPressure) {
 }
 
 const DEFAULT_ROUND_THRESHOLD_BIAS_BY_ROUND = Object.freeze({
-  1: 0.12,
-  2: 0.09,
-  3: 0.06,
-  4: 0,
-  5: -0.01,
+  1: 0.22,
+  2: 0.20,
+  3: 0.18,
+  4: 0.15,
+  5: 0.12,
   6: -0.04,
   7: -0.07,
   8: -0.09,
@@ -671,6 +760,17 @@ function calculateRoundThresholdBias(roundNumber, silentTuning = null) {
 function minimumInterestToThreshold(minimumInterest) {
   const normalized = Math.max(0, Math.min(1, (minimumInterest - 30) / 60)); // 0 at 30, 1 at 90
   return 0.12 + normalized * 0.62; // 0.12 (emergency) → 0.74 (comfortable)
+}
+
+function normalizeDraftChanceValue(player) {
+  const raw = Number(player?.draftChance ?? 0);
+  if (!Number.isFinite(raw) || raw <= 0) return 0;
+  return raw > 1 ? Math.max(0, Math.min(1, raw / 100)) : Math.max(0, Math.min(1, raw));
+}
+
+function hasDraftChanceSignal(player) {
+  const raw = Number(player?.draftChance ?? 0);
+  return Number.isFinite(raw) && (player?.draftChance !== undefined && player?.draftChance !== null);
 }
 
 // PASS-FIRST participation gate.
@@ -761,7 +861,9 @@ const starterMinimumDefaults = {
 };
 
 function getMaxRosterSize(rosterSize) {
-  return Math.max(1, (rosterSize || 0) + 3);
+  const cfgSilent = loadCpuLogicConfig()?.silent || {};
+  const extraSpots = Math.max(0, Math.min(20, Math.floor(Number(cfgSilent.rosterExtraSpots ?? 6))));
+  return Math.max(1, (rosterSize || 0) + extraSpots);
 }
 
 function getRosterCompletionTargets(baseRosterSize, maxRosterSize) {
@@ -1522,11 +1624,10 @@ function enforceRoundAuctionCoverage(cpuBids, cpuTeams, roundPlayers, teamStrate
   const coverageAddCapBase = Math.max(0, Math.floor(Number(cfg?.silent?.coverageAddCap ?? 10)));
   const coverageDraftChanceFloorRaw = Number(cfg?.silent?.coverageDraftChanceFloor ?? 0.5);
   const coverageDraftChanceFloor = Math.max(0, Math.min(1, coverageDraftChanceFloorRaw > 1 ? (coverageDraftChanceFloorRaw / 100) : coverageDraftChanceFloorRaw));
-  const normalizeDraftChance = (player) => {
-    const raw = Number(player?.draftChance ?? 0);
-    if (!Number.isFinite(raw) || raw <= 0) return 0;
-    return raw > 1 ? Math.max(0, Math.min(1, raw / 100)) : Math.max(0, Math.min(1, raw));
-  };
+  const draftedPctPriorityThresholdRaw = Number(cfg?.silent?.draftChancePriorityThreshold ?? 0.6);
+  const draftedPctPriorityThreshold = Math.max(0, Math.min(1, draftedPctPriorityThresholdRaw > 1 ? (draftedPctPriorityThresholdRaw / 100) : draftedPctPriorityThresholdRaw));
+  // Draft-chance discipline removed: do not apply strict drafted% gating here.
+  const strictDraftChanceFloor = coverageDraftChanceFloor;
   const safeBids = cpuBids && typeof cpuBids === 'object' ? cpuBids : {};
   const safeTeams = Array.isArray(cpuTeams) ? cpuTeams : [];
   const availablePlayers = (roundPlayers || []).filter(player => player && !player.owner);
@@ -1547,7 +1648,7 @@ function enforceRoundAuctionCoverage(cpuBids, cpuTeams, roundPlayers, teamStrate
 
   for (const player of uncoveredPlayers) {
     if (coverageAdds >= coverageAddCap) break;
-    if (Number(roundNumber) <= 2 && normalizeDraftChance(player) < coverageDraftChanceFloor) {
+    if (hasDraftChanceSignal(player) && normalizeDraftChanceValue(player) < strictDraftChanceFloor) {
       continue;
     }
 
@@ -1616,15 +1717,22 @@ function applyEarlyRoundBidCoverageCap(cpuBids, roundPlayers, roundNumber) {
   const cfg = loadCpuLogicConfig();
   const enabled = cfg?.silent?.earlyRoundBidCoverageCapEnabled !== false;
   const maxRound = Math.max(1, Math.floor(Number(cfg?.silent?.earlyRoundBidCoverageCapMaxRound ?? 2)));
-  const earlyRoundMaxPlayersWithBids = Math.max(1, Math.floor(Number(cfg?.silent?.earlyRoundMaxPlayersWithBids ?? 10)));
-  const midRoundMaxPlayersWithBids = Math.max(
-    earlyRoundMaxPlayersWithBids,
-    Math.floor(Number(cfg?.silent?.midRoundMaxPlayersWithBids ?? (earlyRoundMaxPlayersWithBids + 2)))
-  );
-  const maxPlayersWithBids = Number(roundNumber) <= 4
-    ? earlyRoundMaxPlayersWithBids
-    : midRoundMaxPlayersWithBids;
   if (!enabled || Number(roundNumber) > maxRound) return 0;
+
+  const offeredCount = Array.isArray(roundPlayers) ? roundPlayers.length : 0;
+  const undraftedFloor = Math.max(0, Math.floor(Number(cfg?.silent?.roundUndraftedFloor ?? 4)));
+  const undraftedCeiling = Math.max(undraftedFloor, Math.floor(Number(cfg?.silent?.roundUndraftedCeiling ?? 11)));
+  // Rosters are built early while boards are deep, so the target ramps up rather than sitting flat.
+  const targetEarly = Number(cfg?.silent?.roundUndraftedTargetEarly ?? 6);
+  const targetLate = Number(cfg?.silent?.roundUndraftedTargetLate ?? 10);
+  const rampProgress = Math.max(0, Math.min(1, (Number(roundNumber) - 1) / Math.max(1, draftRoundCount - 1)));
+  const undraftedTarget = targetEarly + ((targetLate - targetEarly) * rampProgress);
+  const coverageJitter = Math.max(0, Math.floor(Number(cfg?.silent?.bidCoverageCapJitter ?? 3)));
+  const jitterOffset = coverageJitter > 0
+    ? (Math.floor(Math.random() * ((coverageJitter * 2) + 1)) - coverageJitter)
+    : 0;
+  const desiredUndrafted = Math.max(undraftedFloor, Math.min(undraftedCeiling, Math.round(undraftedTarget) + jitterOffset));
+  const maxPlayersWithBids = Math.max(1, offeredCount - desiredUndrafted);
 
   const playerMeta = new Map();
   (Array.isArray(roundPlayers) ? roundPlayers : []).forEach((player) => {
@@ -1679,6 +1787,21 @@ function applyEarlyRoundBidCoverageCap(cpuBids, roundPlayers, roundNumber) {
   return removed;
 }
 
+// Target price-to-AV ratio for a round: holds near full AV early, then falls off faster late.
+function getAvPriceAccuracyForRound(silentCfg, roundNumber, totalRounds = draftRoundCount) {
+  const rounds = Math.max(1, Math.floor(Number(totalRounds || draftRoundCount)));
+  const start = Math.max(0.2, Math.min(1.2, Number(silentCfg?.avPriceAccuracyStart ?? 0.94)));
+  const mid = Math.max(0.2, Math.min(1.2, Number(silentCfg?.avPriceAccuracyMid ?? 0.88)));
+  const end = Math.max(0.2, Math.min(1.2, Number(silentCfg?.avPriceAccuracyEnd ?? 0.75)));
+  const hold = Math.max(1, Math.min(rounds, Math.floor(Number(silentCfg?.avPriceAccuracyHoldRounds ?? 6))));
+  const round = Math.max(1, Math.min(rounds, Number(roundNumber || 1)));
+
+  if (round <= hold) {
+    return start + ((mid - start) * ((round - 1) / Math.max(1, hold - 1)));
+  }
+  return mid + ((end - mid) * ((round - hold) / Math.max(1, rounds - hold)));
+}
+
 function enforceAvMarketDepth(cpuBids, cpuTeams, roundPlayers, teamStrategies, rosterLimits, maxRosterSize, roundNumber) {
   const cfg = loadCpuLogicConfig();
   const enabled = cfg?.silent?.avMarketDepthEnabled !== false;
@@ -1686,14 +1809,28 @@ function enforceAvMarketDepth(cpuBids, cpuTeams, roundPlayers, teamStrategies, r
   if (!enabled || Number(roundNumber) > maxRound) return 0;
 
   const minAv = Math.max(1, Number(cfg?.silent?.avMarketDepthMinAv ?? 24));
-  const minBidMultiplier = Math.max(0.5, Math.min(1.2, Number(cfg?.silent?.avMarketDepthMinBidMultiplier ?? 0.76)));
   const minCompetitiveBids = Math.max(1, Math.floor(Number(cfg?.silent?.avMarketDepthMinCompetitiveBids ?? 3)));
   const maxPlayersPerRound = Math.max(1, Math.floor(Number(cfg?.silent?.avMarketDepthMaxPlayersPerRound ?? 7)));
-  const bidLowMultiplier = Math.max(0.5, Math.min(1.2, Number(cfg?.silent?.avMarketDepthBidLowMultiplier ?? 0.78)));
-  const bidHighMultiplier = Math.max(bidLowMultiplier, Math.min(1.3, Number(cfg?.silent?.avMarketDepthBidHighMultiplier ?? 0.98)));
+  // Second price decides the sale, so centre the added bids on the round's target price-to-AV ratio.
+  const accuracyCenter = getAvPriceAccuracyForRound(cfg?.silent, roundNumber);
+  const cfgBidLow = Math.max(0.5, Math.min(1.2, Number(cfg?.silent?.avMarketDepthBidLowMultiplier ?? 0.78)));
+  const cfgBidHigh = Math.max(cfgBidLow, Math.min(1.3, Number(cfg?.silent?.avMarketDepthBidHighMultiplier ?? 0.98)));
+  const depthSpread = Math.max(0, cfgBidHigh - cfgBidLow);
+  const bidLowMultiplier = Math.max(0.3, accuracyCenter - (depthSpread / 2));
+  const bidHighMultiplier = bidLowMultiplier + depthSpread;
+  const minBidMultiplier = Math.max(0.3, Math.min(accuracyCenter, Number(cfg?.silent?.avMarketDepthMinBidMultiplier ?? 0.76)));
+  const draftedPctPriorityThresholdRaw = Number(cfg?.silent?.draftChancePriorityThreshold ?? 0.6);
+  const draftedPctPriorityThreshold = Math.max(0, Math.min(1, draftedPctPriorityThresholdRaw > 1 ? (draftedPctPriorityThresholdRaw / 100) : draftedPctPriorityThresholdRaw));
+  // Draft-chance discipline window disabled; do not filter targets by draftChance here.
+  const draftChanceWindowActive = false;
 
   const targets = (Array.isArray(roundPlayers) ? roundPlayers : [])
-    .filter((player) => player && !player.owner && Number(player.avgValue || 0) >= minAv)
+    .filter((player) => {
+      if (!player || player.owner) return false;
+      if (Number(player.avgValue || 0) < minAv) return false;
+      // discipline disabled: keep all players subject to AV depth rules
+      return true;
+    })
     .sort((a, b) => Number(b.avgValue || 0) - Number(a.avgValue || 0))
     .slice(0, maxPlayersPerRound);
 
@@ -1940,6 +2077,61 @@ function pruneTeamBidsByPositionPlan(teamBids, team, strategy, rosterLimits = {}
   }
 
   return kept;
+}
+
+function capCpuTiesPerRound(cpuBids, cpuTeams, roundPlayers, roundNumber, rosterLimits, maxRosterSize) {
+  const cfg = loadCpuLogicConfig();
+  const maxTies = Math.max(0, Math.floor(Number(cfg?.silent?.maxTiesPerRound ?? 5)));
+  const playerById = new Map((Array.isArray(roundPlayers) ? roundPlayers : []).map(p => [Number(p?.id || 0), p]));
+  const budgetByTeam = (cpuTeams || []).reduce((acc, team) => {
+    acc[team.name] = Number(team?.budget || 0);
+    return acc;
+  }, {});
+
+  const refsByPlayer = new Map();
+  Object.keys(cpuBids || {}).forEach((teamName) => {
+    (cpuBids[teamName] || []).forEach((bidRef) => {
+      const playerId = Number(bidRef?.player?.id || 0);
+      if (!playerId) return;
+      if (!refsByPlayer.has(playerId)) refsByPlayer.set(playerId, []);
+      refsByPlayer.get(playerId).push({ teamName, bidRef });
+    });
+  });
+
+  const tied = [];
+  refsByPlayer.forEach((refs, playerId) => {
+    if (refs.length < 2) return;
+    const maxBid = Math.max(...refs.map(r => Number(r.bidRef.cpuBid || 0)), 0);
+    if (maxBid <= 0) return;
+    const topRefs = refs.filter(r => Number(r.bidRef.cpuBid || 0) === maxBid);
+    if (topRefs.length < 2) return;
+    tied.push({ playerId, topRefs, maxBid, av: Number(playerById.get(playerId)?.avgValue || 0) });
+  });
+
+  if (tied.length <= maxTies) return 0;
+
+  // Keep the lowest-value ties: a coin-flip on a star is far more damaging than on a filler.
+  tied.sort((a, b) => a.av - b.av || a.maxBid - b.maxBid);
+  const toBreak = tied.slice(maxTies);
+  let broken = 0;
+
+  toBreak.forEach((entry) => {
+    const winner = roundNumber >= 8
+      ? resolveTieWithBudgetAwareness(entry.topRefs, budgetByTeam, cpuTeams, rosterLimits, maxRosterSize)
+      : entry.topRefs[Math.floor(Math.random() * entry.topRefs.length)];
+    if (!winner) return;
+    const headroom = Math.max(0, Number(budgetByTeam[winner.teamName] || 0) - entry.maxBid);
+    if (headroom >= 1) {
+      winner.bidRef.cpuBid = entry.maxBid + 1;
+    } else {
+      entry.topRefs.forEach((ref) => {
+        if (ref !== winner && Number(ref.bidRef.cpuBid || 0) > 1) ref.bidRef.cpuBid -= 1;
+      });
+    }
+    broken += 1;
+  });
+
+  return broken;
 }
 
 function enforceCpuTieRates(cpuBids, cpuTeams, roundPlayers, roundNumber, rosterLimits, maxRosterSize) {
@@ -2555,8 +2747,7 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
     const cfg = loadCpuLogicConfig();
     const presetName = cfg && cfg.presetName ? String(cfg.presetName).trim() : 'Unknown';
     const commitmentMode = normalizeCommitmentMode(options?.commitmentMode || cfg?.silent?.commitmentMode || 'B');
-    console.log('[CPU SILENT AUCTION] Round %d: Generating bids using CPU tuning lab preset: "%s"', roundNumber, presetName);
-    console.log(`[CPU SILENT AUCTION] Commitment mode ${commitmentMode} active for round ${Number(roundNumber) || 1}`);
+    console.log(`[CPU SILENT AUCTION] Using CPU tuning lab preset: "${presetName}" | round ${Number(roundNumber) || 1} | commitment mode ${commitmentMode}`);
     
     // Filter to CPU teams. Team X names are always treated as CPU even if present in member lists.
     const maxRosterSize = getMaxRosterSize(rosterSize);
@@ -2568,6 +2759,27 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       return !normalizedHumanMembers.has(teamName.toLowerCase());
     });
     const cpuBids = {};
+
+    // Draft-chance roll disabled: do not gate players by league draftChance here.
+    const isPlayerDraftableThisRound = (player) => true;
+
+    // Early rounds should mostly chase the best players instead of stocking cheap filler,
+    // but keep it lumpy: roll per player so some low-value guys still go early at random.
+    const earlyCheapSkipMaxRound = Math.max(0, Number(cfg?.silent?.earlyCheapSkipMaxRound ?? 5));
+    const earlyCheapAvThreshold = Math.max(0, Number(cfg?.silent?.earlyCheapAvThreshold ?? 8));
+    const earlyCheapSkipRate = Math.max(0, Math.min(1, Number(cfg?.silent?.earlyCheapSkipRate ?? 0.6)));
+    const earlyCheapSkip = new Map();
+    if (Number(roundNumber) <= earlyCheapSkipMaxRound) {
+      (roundPlayers || []).forEach((player) => {
+        const playerId = Number(player && player.id);
+        if (!Number.isFinite(playerId)) return;
+        const playerAv = Number(player && player.avgValue || 0);
+        if (playerAv >= earlyCheapAvThreshold) return;
+        if (Math.random() < earlyCheapSkipRate) earlyCheapSkip.set(playerId, true);
+      });
+      console.log(`[CPU SILENT AUCTION] Round ${roundNumber}: holding back ${earlyCheapSkip.size} low-value players for later rounds`);
+    }
+    const isHeldBackThisRound = (player) => earlyCheapSkip.get(Number(player && player.id)) === true;
     const thresholdDebug = (options && options.thresholdDebug && options.thresholdDebug.enabled)
       ? options.thresholdDebug
       : null;
@@ -2642,7 +2854,8 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       const completionTargets = getRosterCompletionTargets(rosterSize, maxRosterSize);
       const targetRosterSize = Math.min(maxRosterSize, completionTargets.baseTarget);
       const targetPlayersPerRound = targetRosterSize / Math.max(1, draftRoundCount);
-      const expectedRosterByNow = Math.min(targetRosterSize, Math.ceil(targetPlayersPerRound * roundNumber));
+      const rosterPaceBand = getRosterPaceBandAtRound(roundNumber, targetRosterSize, draftRoundCount, team);
+      const expectedRosterByNow = rosterPaceBand.min;
       const earlyPaceGap = Math.max(0, expectedRosterByNow - currentRosterSize);
       const requiredWinsPerRound = calculateRequiredWinsPerRound(currentRosterSize, targetRosterSize, roundsIncludingCurrent);
       const baselineWinsPerRound = calculateRequiredPacePerRound(targetRosterSize, draftRoundCount);
@@ -2743,6 +2956,17 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       let proactiveFillPositions = Object.keys(missingByPosition || {});
       proactiveFillPositions = [...new Set(proactiveFillPositions)];
 
+      // Chasing every empty starter slot from round 1 is what drained the early pool.
+      // Ramp the focus so teams close in on a full lineup by the target round instead.
+      const starterFillTargetRound = Math.max(1, Number(silentTuning.starterFillTargetRound ?? 8));
+      if (Number(roundNumber) < starterFillTargetRound && proactiveFillPositions.length > 1) {
+        const allowedFocus = Math.max(1, Math.ceil(proactiveFillPositions.length * (Number(roundNumber) / starterFillTargetRound)));
+        proactiveFillPositions = proactiveFillPositions
+          .slice()
+          .sort((a, b) => Number(positionPriorities[b] || 0) - Number(positionPriorities[a] || 0))
+          .slice(0, allowedFocus);
+      }
+
       // --- ENHANCEMENT: Roster balance logic ---
       // If team is unbalanced (e.g., 8 WR, 2 RB), prioritize underrepresented positions
       let underrepresentedPositions = [];
@@ -2763,7 +2987,9 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       else if (team.budget < 50) baseAggressiveness -= Number(silentTuning.budgetPoorReduction || 0);
 
       // Roster needs adjustments
-      if (rosterSpotsLeft <= 3) baseAggressiveness += Number(silentTuning.rosterTightBoost || 0);
+      const rosterTightStartRound = Math.max(1, Math.min(draftRoundCount, Number(silentTuning.rosterTightStartRound ?? 7)));
+      const allowRosterTightBoost = roundNumber >= rosterTightStartRound || roundsIncludingCurrent <= 4 || isBehindMinimumPace;
+      if (rosterSpotsLeft <= 3 && allowRosterTightBoost) baseAggressiveness += Number(silentTuning.rosterTightBoost || 0);
       else if (rosterSpotsLeft >= 10) baseAggressiveness -= Number(silentTuning.rosterLooseReduction || 0);
       if (playersNeededForMinimum > 0 && roundNumber >= 7) baseAggressiveness += Number(silentTuning.finalRoundFillBoost || 0) * 0.45;
       if (isBehindMinimumPace) baseAggressiveness += Number(silentTuning.emergencyStarterBoost || 0);
@@ -2942,7 +3168,10 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
 
       const minimumInterest = calculateMinimumInterest(effectiveCompletionPressure);
       const roundThresholdBias = calculateRoundThresholdBias(roundNumber, silentTuning);
-      const interestThreshold = minimumInterestToThreshold(minimumInterest + roundThresholdBias * 18);
+      // The old x18 scaling meant even a large round bias moved the gate only ~4% of its
+      // range, so early-round selectivity never really took effect.
+      const roundThresholdBiasScale = Math.max(1, Number(cfg?.silent?.roundThresholdBiasScale ?? 45));
+      const interestThreshold = minimumInterestToThreshold(minimumInterest + roundThresholdBias * roundThresholdBiasScale);
 
       // Need Ratio: how many players I need vs how many nomination rounds remain
       // This is the "Roster Completion Score" — works with any lobby size
@@ -3122,8 +3351,11 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
         Math.max(1, Number(strategy.desiredRosterCap || strategy.targetRosterSize || maxRosterSize))
       );
       const effectiveRosterCap = Number(roundNumber) >= 6 ? maxRosterSize : strategicCap;
+      // The roster target is a preferred minimum, not a ceiling: a funded team keeps chasing upgrades.
+      const upgradeBudgetFloor = Math.max(0, Number(loadCpuLogicConfig()?.silent?.upgradeBudgetFloor ?? 15));
+      const canChaseUpgrade = Number(team.budget || 0) >= upgradeBudgetFloor;
 
-      if ((team.roster || []).length >= effectiveRosterCap) {
+      if ((team.roster || []).length >= effectiveRosterCap && !canChaseUpgrade) {
         console.log(`[CPU-${team.name}] At strategic roster cap (${effectiveRosterCap}), skipping low-value depth bids`);
         continue;
       }
@@ -3146,10 +3378,13 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       const midRoundLikelyDraftedDraftChanceFloorRaw = Number(cfg?.silent?.midRoundLikelyDraftedDraftChanceFloor ?? 0.35);
       const midRoundLowAvHardCap = Math.max(0, Number(cfg?.silent?.midRoundLowAvHardCap ?? 3));
       const draftChancePrimaryEnabled = cfg?.silent?.draftChancePrimaryEnabled !== false;
+      const draftedPctPriorityThresholdRaw = Number(cfg?.silent?.draftChancePriorityThreshold ?? 0.6);
+      const draftedPctPriorityThreshold = Math.max(0, Math.min(1, draftedPctPriorityThresholdRaw > 1 ? draftedPctPriorityThresholdRaw / 100 : draftedPctPriorityThresholdRaw));
       const draftChancePrimaryBaseFloor = Math.max(0, Math.min(1, Number(cfg?.silent?.draftChancePrimaryBaseFloor ?? 0.5)));
       const draftChancePrimaryMinFloor = Math.max(0, Math.min(draftChancePrimaryBaseFloor, Number(cfg?.silent?.draftChancePrimaryMinFloor ?? 0.14)));
       const draftChanceNeedDropPerNeedRatio = Math.max(0, Math.min(0.5, Number(cfg?.silent?.draftChanceNeedDropPerNeedRatio ?? 0.2)));
       const draftChancePressureDropScale = Math.max(0, Math.min(0.03, Number(cfg?.silent?.draftChancePressureDropScale ?? 0.008)));
+      const draftChancePriorityWeight = Math.max(0, Math.min(3, Number(cfg?.silent?.draftChancePriorityWeight ?? 1.0)));
       const lateRoundPaceThresholdHitEnabled = cfg?.silent?.lateRoundPaceThresholdHitEnabled !== false;
       const lateRoundPaceThresholdStartRound = Math.max(1, Math.min(draftRoundCount, Math.floor(Number(cfg?.silent?.lateRoundPaceThresholdStartRound ?? 7))));
       const lateRoundPaceThresholdPerRoundHit = Math.max(0, Math.min(0.08, Number(cfg?.silent?.lateRoundPaceThresholdPerRoundHit ?? 0.02)));
@@ -3163,6 +3398,9 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       const earlyRoundCoverageEnabled = cfg?.silent?.earlyRoundCoverageEnabled === true;
       const earlyRoundAvFloorMultiplier = Math.max(0.55, Math.min(1.2, Number(cfg?.silent?.earlyRoundAvFloorMultiplier ?? 0.78)));
       const earlyRoundAvCeilingMultiplier = Math.max(0.8, Math.min(1.35, Number(cfg?.silent?.earlyRoundAvCeilingMultiplier ?? 1.1)));
+      // Rounds 1-N stay selective; after that teams are allowed to chase roster completion.
+      const earlySelectiveMaxRound = Math.max(0, Math.min(draftRoundCount, Number(cfg?.silent?.earlySelectiveMaxRound ?? 6)));
+      const mustFillBypassStartRound = Math.max(1, Math.min(draftRoundCount, Math.floor(Number(cfg?.silent?.mustFillBypassStartRound ?? 2))));
       const normalizeDraftChance = (player) => {
         const raw = Number(player?.draftChance ?? 0);
         if (!Number.isFinite(raw) || raw <= 0) return 0;
@@ -3333,11 +3571,12 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       };
       const getDynamicDraftChanceFloor = (player, isMustKeepPosition = false) => {
         if (!draftChancePrimaryEnabled || Number(roundNumber) === draftRoundCount || isMustKeepPosition) return 0;
+        const relaxScale = 1 / Math.max(0.4, draftChancePriorityWeight);
         let floor = draftChancePrimaryBaseFloor;
-        floor -= Math.max(0, Number(strategy.needRatio || 0)) * draftChanceNeedDropPerNeedRatio;
-        floor -= Math.max(0, Number(strategy.completionPressure || 0)) * draftChancePressureDropScale;
+        floor -= Math.max(0, Number(strategy.needRatio || 0)) * draftChanceNeedDropPerNeedRatio * relaxScale;
+        floor -= Math.max(0, Number(strategy.completionPressure || 0)) * draftChancePressureDropScale * relaxScale;
         if ((strategy.playersNeededForMinimum || 0) >= (strategy.roundsIncludingCurrent || draftRoundCount)) {
-          floor -= 0.1;
+          floor -= 0.1 * relaxScale;
         }
         if (Number(player?.avgValue || 0) >= midRoundLikelyDraftedMinAV) {
           floor = Math.min(floor, 0.22);
@@ -3347,7 +3586,8 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
         } else if (Number(roundNumber) <= 5) {
           floor = Math.max(floor, 0.35);
         }
-        return Math.max(draftChancePrimaryMinFloor, Math.min(1, floor));
+        const weightedFloor = floor * (1 + Math.max(0, draftChancePriorityWeight - 1) * 0.85);
+        return Math.max(draftChancePrimaryMinFloor, Math.min(0.95, weightedFloor));
       };
       const passesMidRoundGuard = (player, isMustKeepPosition = false) => {
         if (!inMidRounds) return true;
@@ -3452,8 +3692,21 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
 
             const draftChance = normalizeDraftChance(player);
             const dynamicDraftChanceFloor = getDynamicDraftChanceFloor(player, isStarred || isMustFill);
-            if (!isStarred && !isMustFill && draftChance < dynamicDraftChanceFloor) {
+            if (!isPlayerDraftableThisRound(player)) {
               return false;
+            }
+            if ((!isStarred || draftChance < draftedPctPriorityThreshold) && (!isMustFill || draftChance < draftedPctPriorityThreshold) && draftChance > 0 && draftChance < dynamicDraftChanceFloor) {
+              return false;
+            }
+
+            // Low-value filler taken in round 3 costs a roster slot the late rounds need.
+            // Applies to must-fill too, since must-fill is position-based; teams behind pace
+            // are exempt so rosters still finish.
+            if (!isStarred && isHeldBackThisRound(player)) {
+              const teamBehindPace = Number(strategy.paceVariance || 0) < 0;
+              if (!teamBehindPace) {
+                return false;
+              }
             }
 
             if (affordabilityTradeDownEnabled && !isStarred && !isMustFill) {
@@ -3484,9 +3737,11 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
           const teamValue = calculatePlayerValueForTeam(team, player, valuationContext);
           const playerIdKey = getPlayerIdKey(player);
           const isStarredTarget = strategy.starredTargetIds?.has(playerIdKey);
+          const isMustFillPosition = (strategy.mustFillPositions || []).includes(player.position);
           const holdForUnavailableStar = !isStarredTarget && strategy.starredUnavailablePositions?.has(player.position);
           const isSpecialist = player.position === 'K' || player.position === 'DEF';
           const missingStarterAtPosition = (positionCounts[player.position] || 0) < getPositionMinimum(player.position, rosterLimits);
+          const draftChanceForWeight = normalizeDraftChance(player);
           let specialistOpportunityMultiplier = 1;
           let earlySpecialistTarget = false;
 
@@ -3628,12 +3883,22 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
                             : 1.60;
           mustFillPriority *= gmConfBoost;
 
+          const draftChanceWeightMultiplier = (!isStarredTarget && !isMustFillPosition)
+            ? Math.max(
+                0.35,
+                Math.min(
+                  2.0,
+                  0.55 + (draftChanceForWeight * (0.9 + (0.6 * draftChancePriorityWeight)))
+                )
+              )
+            : 1;
+
           return {
             player,
             teamValue,
             mustFillPriority,
             earlySpecialistTarget,
-            selectionWeight: Math.max(0.25, teamValue * mustFillPriority * specialistOpportunityMultiplier * (player.avgValue >= 45 ? 1.05 : 1) * (isStarredTarget ? 1.2 : 1))
+            selectionWeight: Math.max(0.25, teamValue * mustFillPriority * specialistOpportunityMultiplier * draftChanceWeightMultiplier * (player.avgValue >= 45 ? 1.05 : 1) * (isStarredTarget ? 1.2 : 1))
           };
         })
         .filter(entry => {
@@ -3641,8 +3906,36 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
             return true;
           }
 
+          // K/DEF are near-interchangeable, so teams hold out for a top-ranked one
+          // instead of burning an early slot, and will still trade up for a better one later.
+          const specialistPosition = String(entry?.player?.position || '').trim().toUpperCase();
+          if ((specialistPosition === 'K' || specialistPosition === 'DEF')
+            && cfg?.silent?.kickerDefensePatienceEnabled !== false) {
+            const releaseRound = Math.max(1, Math.floor(Number(cfg?.silent?.kickerDefensePatienceReleaseRound ?? 9)));
+            if (Number(roundNumber) < releaseRound) {
+              const topRankTarget = Math.max(1, Math.floor(Number(cfg?.silent?.kickerDefenseTopRankTarget ?? 12)));
+              const upgradeGap = Math.max(1, Math.floor(Number(cfg?.silent?.kickerDefenseUpgradeRankGap ?? 4)));
+              const candidateRank = Number(entry?.player?.positionRank || 999);
+              const ownedRanks = (team.roster || [])
+                .filter(rosterPlayer => String(rosterPlayer?.position || '').trim().toUpperCase() === specialistPosition)
+                .map(rosterPlayer => Number(rosterPlayer?.positionRank || 999));
+              if (ownedRanks.length === 0) {
+                if (candidateRank > topRankTarget) return false;
+              } else if (candidateRank > (Math.min(...ownedRanks) - upgradeGap)) {
+                return false;
+              }
+            }
+          }
+
           const isMustFillPosition = (strategy.mustFillPositions || []).includes(entry?.player?.position);
-          if (isMustFillPosition) return true;
+          // must-fill is position-based, so early on nearly the whole board qualifies and an
+          // unconditional pass here let teams take everything and arrive at round 7 already full.
+          // Through the selective phase it only skips the gate when the team is actually behind.
+          const selectivePhase = Number(roundNumber) <= earlySelectiveMaxRound;
+          // Every roster is empty before this round, so the pace deficit is structural, not real.
+          const bypassAllowed = Number(roundNumber) >= mustFillBypassStartRound;
+          const behindPace = Number(strategy.paceVariance || 0) < 0;
+          if (bypassAllowed && isMustFillPosition && (!selectivePhase || behindPace)) return true;
           
           // DYNAMIC INTEREST THRESHOLD (Draft Completion AI)
           // Replaces the old hard 0.75 / 0.2 split.
@@ -4025,12 +4318,18 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
         const budgetPerSpot = openSlots > 0 ? budgetRemaining / openSlots : budgetRemaining;
         
         // ROUND 8+ OVERRIDE: From round 8 onward, teams should spend their remaining budget aggressively.
-        const isFinalRound = Number(roundNumber) >= 8;
+        const finalRoundSpreadStart = Math.max(1, Math.min(draftRoundCount, Math.floor(Number(cfg?.silent?.finalRoundSpreadStart ?? 10))));
+        const isFinalRound = Number(roundNumber) >= finalRoundSpreadStart;
         const lateRoundAggressionDampener = Math.max(0.5, Math.min(1, Number(cfg?.silent?.lateRoundAggressionDampener ?? 0.72)));
         const lateRoundAggression = isFinalRound
           ? Math.max(0.3, Number(strategy.aggressiveness || 0.9) * lateRoundAggressionDampener)
           : Number(strategy.aggressiveness || 0.9);
-        let isInSpreadMode = !isFinalRound && spreadModeIntensity > 0 && (openSlots >= 4 || budgetPerSpot < 30);
+        // Spreading is a catch-up tool. A team on pace can afford to stay picky and chase high AV instead.
+        const spreadPaceTrigger = Number(cfg?.silent?.spreadPaceTriggerVariance ?? -0.5);
+        const budgetPerSpotTrigger = Number(cfg?.silent?.spreadBudgetPerSpotTrigger ?? 30);
+        const needsToCatchUp = Number(strategy.paceVariance || 0) <= spreadPaceTrigger;
+        const budgetForcesSpread = budgetPerSpot < budgetPerSpotTrigger;
+        let isInSpreadMode = !isFinalRound && spreadModeIntensity > 0 && (needsToCatchUp || budgetForcesSpread);
         const starModeActive = !legacyAvDrivenMode && strategy.shouldOverrideLowballMode && isStarredTarget;
         
         // Round 10 strategy: Check if CPU can afford to win their star vs wealthiest opponent
@@ -4118,11 +4417,16 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
         } else if (isInSpreadMode && !isStarOrPriority && lowballIntensity > 0) {
           // Bid in LOW range of AV to find deals (~55-75% of AV depending on lowballing intensity)
           const lowAVMultiplier = 0.55 + (0.2 * (1 - lowballIntensity)); // 0.55 to 0.75 as intensity goes 1.0 to 0
+          // Pull toward the round's target price-to-AV ratio; thinning budgets do the rest of the work late.
+          const avAccuracyStrength = Math.max(0, Math.min(1, Number(cfg?.silent?.earlyAvAccuracyStrength ?? 0.9)));
+          const accuracyTarget = getAvPriceAccuracyForRound(cfg?.silent, roundNumber);
+          const effectiveLowAvMultiplier = lowAVMultiplier + ((accuracyTarget - lowAVMultiplier) * avAccuracyStrength);
           const originalBid = baseBid;
-          baseBid = Math.round(trueValue * lowAVMultiplier);
+          baseBid = Math.round(trueValue * effectiveLowAvMultiplier);
+          if (baseBid > maxBid) maxBid = Math.min(budgetRemaining, baseBid);
           
           if (lowballIntensity > 0.3) {
-            console.log(`[CPU-${team.name}] Spread mode: lowballing ${player.name} ($${player.avgValue} AV, bid=$${baseBid}@${(lowAVMultiplier*100).toFixed(0)}%) (budget: $${budgetRemaining}, ${openSlots} spots)`);
+            console.log(`[CPU-${team.name}] Spread mode: lowballing ${player.name} ($${player.avgValue} AV, bid=$${baseBid}@${(effectiveLowAvMultiplier*100).toFixed(0)}%) (budget: $${budgetRemaining}, ${openSlots} spots)`);
           }
         }
         // STAR MODE: Bid more confidently with high AV range or allow budget override
@@ -4713,20 +5017,13 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       // SYSTEMATIC $1 FILLER BIDS: Every team bids $1-$2 on extra players based on strategy
       // Volume bid target scales with bidding strategy
       let dollarBidTarget = Math.max(3, Math.min(5, Math.floor(cpuBids[team.name].length * 0.6))); // 3-5 by default
-      if (strategy.topTalentMode && !strategy.rosterFloorMode) {
-        dollarBidTarget = 0;
-      }
-      if (Number(roundNumber) <= 2 && !earlyRoundVolumeBidsEnabled) {
-        dollarBidTarget = 0;
-      }
-      if (Number(roundNumber) < volumeBidsStartRound) {
-        dollarBidTarget = 0;
-      }
+      // Evaluated up front but applied after the strategy adjustments, which would otherwise overwrite it.
+      const volumeBidsSuppressed = (strategy.topTalentMode && !strategy.rosterFloorMode)
+        || (Number(roundNumber) <= 2 && !earlyRoundVolumeBidsEnabled)
+        || Number(roundNumber) < volumeBidsStartRound;
+      const volumeBidsEndgameFill = Number(roundNumber) >= (draftRoundCount - 1)
+        && (team.roster || []).length < (strategy.targetRosterSize || maxRosterSize);
 
-      if (Number(roundNumber) >= (draftRoundCount - 1) && (team.roster || []).length < (strategy.targetRosterSize || maxRosterSize)) {
-        dollarBidTarget = Math.max(dollarBidTarget, 8);
-      }
-      
       // Adjust based on strategy direction
       if (strategy.bidStrategyDirection === 'focus') {
         dollarBidTarget = Math.floor(cpuBids[team.name].length * 0.4); // Only 40% $1 bids when focused
@@ -4742,6 +5039,12 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
         dollarBidTarget = Math.max(0, Math.round(dollarBidTarget * spreadDollarBidMultiplier));
       }
       dollarBidTarget = Math.max(0, Math.round(dollarBidTarget * globalBidVolumeMultiplier));
+
+      if (volumeBidsSuppressed) {
+        dollarBidTarget = 0;
+      } else if (volumeBidsEndgameFill) {
+        dollarBidTarget = Math.max(dollarBidTarget, 8);
+      }
       
       const unownedForDollarBids = roundPlayers
         .filter(p => {
@@ -5080,6 +5383,11 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       console.log(`[generateCPUBids] AV market-depth pass added ${avDepthAdds} competitive bids`);
     }
 
+    const draftChancePrunedAfterDepth = enforceDraftChanceDisciplineForTeams(cpuBids, teamStrategies, roundNumber);
+    if (draftChancePrunedAfterDepth > 0) {
+      console.log(`[generateCPUBids] Drafted%-discipline removed ${draftChancePrunedAfterDepth} low-chance bids after depth/coverage passes`);
+    }
+
     const avParticipationRemovals = applyAvParticipationCurve(
       cpuBids,
       roundPlayers,
@@ -5120,7 +5428,53 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       console.log(`[generateCPUBids] Final AV participation pass removed ${finalCurveRemovals} excess bids after rebalance`);
     }
 
+    const draftChancePrunedFinal = enforceDraftChanceDisciplineForTeams(cpuBids, teamStrategies, roundNumber);
+    if (draftChancePrunedFinal > 0) {
+      console.log(`[generateCPUBids] Drafted%-discipline removed ${draftChancePrunedFinal} low-chance bids after final rebalance`);
+    }
+
+    // Depth must be the last word: earlier passes strip the competitive bids that keep top-AV prices honest.
+    if (cfg?.silent?.avMarketDepthFinalPass !== false) {
+      const avDepthFinalAdds = enforceAvMarketDepth(
+        cpuBids,
+        cpuTeams,
+        roundPlayers,
+        teamStrategies,
+        rosterLimits,
+        maxRosterSize,
+        roundNumber
+      );
+      if (avDepthFinalAdds > 0) {
+        console.log(`[generateCPUBids] Final AV market-depth pass restored ${avDepthFinalAdds} competitive bids`);
+      }
+    }
+
+    // Commitment must settle last: the curve and discipline passes above strip bids and break the round target.
+    if (cfg?.silent?.commitmentFinalPass !== false) {
+      const finalCommitTeams = rebalanceFinalRoundCpuBids(
+        cpuBids,
+        cpuTeams,
+        roundPlayers,
+        rosterLimits,
+        maxRosterSize,
+        roundNumber,
+        teamStrategies,
+        commitmentMode
+      );
+      if (finalCommitTeams > 0) {
+        console.log(`[generateCPUBids] Final commitment pass re-set ${finalCommitTeams} teams to their round budget share`);
+      }
+    }
+
+    // The commitment pass distributes remainders by +1, which manufactures ties, so clean up after it.
+    enforceCpuTieRates(cpuBids, cpuTeams, roundPlayers, roundNumber, rosterLimits, maxRosterSize);
+    const tiesBroken = capCpuTiesPerRound(cpuBids, cpuTeams, roundPlayers, roundNumber, rosterLimits, maxRosterSize);
+    if (tiesBroken > 0) {
+      console.log(`[generateCPUBids] Tie cap broke ${tiesBroken} excess ties`);
+    }
+
     console.log(`[generateCPUBids] Completed - generated bids for ${Object.keys(cpuBids).length} CPU teams`);
+    console.log('[CPU SILENT AUCTION] Source: cpu-logic.json | Preset: "%s"', presetName);
     return cpuBids;
   } catch (error) {
     console.error('[generateCPUBids] CRITICAL ERROR generating CPU bids:', error);
@@ -5797,4 +6151,9 @@ function pickParticipationTargetCountFromCurve(silentCfg, avgValue, roundNumber,
   }
 
   return Math.max(1, hardMax);
+}
+
+function enforceDraftChanceDisciplineForTeams(cpuBids, teamStrategies, roundNumber) {
+  // Draft-chance discipline disabled globally; do not prune bids based on drafted%.
+  return 0;
 }
