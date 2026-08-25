@@ -21,6 +21,7 @@ const { logAuctionResult, logIndividualBid, bulkLogIndividualBids, getPlayerAV, 
 // Import CPU logic modules
 const { generateServerCPUBids, evaluateBidStrategy } = require('./cpu-silent-auction');
 const { runTiedAuctionRound, pickRandomCPU, placeForcedBid, getAggression, decideAction } = require('./cpu-tied-live-auction');
+const { loadCpuLogicConfig: loadActiveCpuLogicConfig, saveCpuLogicConfig: saveActiveCpuLogicConfig } = require('./cpu-logic-store');
 
 app.use(express.json({ limit: '5mb' }));
 app.use(compression({ threshold: 1024 }));
@@ -987,7 +988,7 @@ async function rebuildDefaultRankingsFromPositionFiles() {
     if (positionRankDelta !== 0) return positionRankDelta;
 
     return toNumber(a._sourceIndex, 999999) - toNumber(b._sourceIndex, 999999);
-  }).map(({ _sourceIndex, _positionRank, rank, draftChance, img, tier, ...player }) => {
+  }).map(({ _sourceIndex, _positionRank, rank, img, tier, ...player }) => {
     return {
       ...player,
       tier: null
@@ -1015,6 +1016,7 @@ function normalizeRankingPlayer(rawPlayer, index = 0) {
     team: String(rawPlayer.team || '').trim().toUpperCase(),
     prerank: toNumber(rawPlayer.prerank, index + 1),
     avgValue: toNumber(rawPlayer.avgValue, 1),
+    draftChance: toNumber(rawPlayer.draftChance, 0),
     byeWeek: resolvePlayerByeWeek(rawPlayer),
     tier: String(rawPlayer.tier || rawPlayer.tierId || rawPlayer.tierName || '').trim() || null
   };
@@ -1780,16 +1782,7 @@ async function writeHushGifLibrary(library, options = {}) {
 }
 
 function loadCpuLogicConfig() {
-  try {
-    delete require.cache[require.resolve('./cpulogic')];
-    const loaded = require('./cpulogic');
-    if (loaded && typeof loaded === 'object') {
-      return loaded;
-    }
-    return {};
-  } catch (_error) {
-    return {};
-  }
+  return loadActiveCpuLogicConfig();
 }
 
 function getTeamProfileSeed(teamName) {
@@ -1813,6 +1806,7 @@ function getProfileNameOnly(profileLabel) {
 
 function logTeamProfileDebugMap(code, teams, humanMembers) {
   const cfg = loadCpuLogicConfig();
+  const presetName = cfg && cfg.presetName ? String(cfg.presetName).trim() : 'Unknown';
   const silentFallbackNames = ['Balanced', 'Value', 'Sleeper', 'Stars & Scrubs', 'Conservative'];
   const tiedFallbackNames = ['Calm', 'Bulldog', 'Patient', 'Balanced', 'Anxious'];
   const normalizedHumans = new Set((humanMembers || []).map((name) => String(name || '').trim().toLowerCase()));
@@ -1833,7 +1827,10 @@ function logTeamProfileDebugMap(code, teams, humanMembers) {
   }).filter(Boolean);
 
   if (teamProfileRows.length > 0) {
-    console.log(`[CPU PROFILE APPROACH][${code}] ${teamProfileRows.join(' | ')}`);
+    console.log(
+      `[CPU LOGIC PRESET][${code}] Source: cpu-logic.json | Preset: "${presetName}"\n` +
+      `[CPU PROFILE APPROACH][${code}] ${teamProfileRows.join(' | ')}`
+    );
   }
 }
 
@@ -3782,7 +3779,7 @@ app.get('/api/admin/all-data', requireAdminDebugKey, async (req, res) => {
 app.get('/api/admin/cpu-logic', requireAdminDebugKey, async (_req, res) => {
   try {
     const config = loadCpuLogicConfig();
-    return res.json({ ok: true, sourceFile: 'cpulogic.js', config });
+    return res.json({ ok: true, sourceFile: 'cpu-logic.json', config });
   } catch (error) {
     console.error('[ADMIN] CPU logic read error:', error);
     return res.status(500).json({ ok: false, error: 'Unable to load cpulogic.js' });
@@ -3883,16 +3880,18 @@ app.post('/api/admin/cpu-logic/save', requireAdminDebugKey, async (req, res) => 
       return res.status(400).json({ ok: false, error: 'Invalid CPU logic payload' });
     }
 
+    // The running CPU logic is read from cpu-logic.json, so it must be written first.
+    saveActiveCpuLogicConfig(normalized);
     await fs.writeFile(CPU_LOGIC_FILE, serializeCpuLogicConfig(normalized), 'utf8');
     return res.json({
       ok: true,
-      sourceFile: 'cpulogic.js',
+      sourceFile: 'cpu-logic.json',
       updatedAt: normalized.updatedAt,
       presetName: normalized.presetName
     });
   } catch (error) {
     console.error('[ADMIN] CPU logic save error:', error);
-    return res.status(500).json({ ok: false, error: 'Unable to save cpulogic.js' });
+    return res.status(500).json({ ok: false, error: 'Unable to save cpu-logic.json' });
   }
 });
 
@@ -3907,6 +3906,17 @@ function getTargetRosterSizeFromSettings(settings) {
   return ['QB', 'WR', 'RB', 'TE', 'FLEX', 'K', 'DEF', 'BN']
     .reduce((sum, key) => sum + Math.max(0, Number(safe[key] || 0)), 0);
 }
+
+function getConfiguredMaxRosterSize(targetRosterSize) {
+  const extraSpots = Math.max(0, Math.min(20, Math.floor(Number(loadCpuLogicConfig()?.silent?.rosterExtraSpots ?? 6))));
+  return Math.max(1, Number(targetRosterSize || 0) + extraSpots);
+}
+
+// Round-to-round demand evenness goals for CPU bidding. Used by the simulator scorecard.
+const ROUND_BALANCE_TARGET = Object.freeze({
+  maxStdDev: 3,
+  maxEarlyLateSpread: 4
+});
 
 function buildSimulationRosterLimits(rosterSettings) {
   const settings = normalizeRosterSettingsForSummary(rosterSettings);
@@ -3932,6 +3942,7 @@ function clonePlayersForSimulation(players) {
     avgValue: toNumber(player && player.avgValue, 1),
     prerank: toNumber(player && player.prerank, index + 1),
     positionRank: toNumber(player && player.positionRank, toNumber(player && player.prerank, index + 1)),
+    draftChance: toNumber(player && player.draftChance, 0),
     owner: null,
     shown: false,
     bid: 0
@@ -4033,6 +4044,16 @@ function normalizeSimulationAjRoundOrder(raw) {
   return deduped.slice(0, SIM_AJ_ROUND_CODES.length);
 }
 
+// Simulation-only: live silent drafts keep their own sheet ordering.
+function shuffleSimulationAjOrder(codes) {
+  const list = Array.isArray(codes) ? codes.slice() : SIM_AJ_ROUND_CODES.slice();
+  for (let i = list.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list;
+}
+
 function getSimulationPositionMinimums(settings) {
   const safe = settings || SUMMARY_DEFAULT_ROSTER_SETTINGS;
   return {
@@ -4128,7 +4149,7 @@ function buildSimulationAjPagePlayers(allPlayers, roundCode, pageNumber, pageSiz
     const missing = Math.max(0, Number(min || 0) - currentCount);
     if (missing === 0) return;
 
-    const fallbackPool = availablePlayers
+    const fallbackPool = assignedPlayers
       .filter(player => !selectedPlayers.includes(player))
       .sort(compareSimulationPlayersForAjSlot);
 
@@ -4163,14 +4184,7 @@ function buildSimulationAjPagePlayers(allPlayers, roundCode, pageNumber, pageSiz
     selectedPlayers = selectedPlayers.sort(compareSimulationPlayersForAjSlot).slice(0, pageSize);
   });
 
-  if (selectedPlayers.length < pageSize) {
-    const fillers = getBestAvailableSimulationPlayers(allPlayers, currentRound, totalRounds, roundPositionMinimums, excludePlayers.concat(selectedPlayers), player => !selectedPlayers.includes(player));
-    for (const player of fillers) {
-      if (selectedPlayers.length >= pageSize) break;
-      selectedPlayers.push(player);
-    }
-  }
-
+  // A short sheet stays short: borrowing from other sheets pulls future players forward.
   return selectedPlayers.sort(compareSimulationPlayersForAjSlot).slice(0, pageSize);
 }
 
@@ -4299,13 +4313,13 @@ function hasCompletedStarters(roster, settings) {
   return flexEligible >= flexNeeded;
 }
 
-function buildSimulationRoundPlayers(allPlayers, playersPerRound, roundNumber, totalRounds, roundPositionMinimums) {
+function buildSimulationRoundPlayers(allPlayers, playersPerRound, roundNumber, totalRounds, roundPositionMinimums, ajRoundOrderOverride = null) {
   const remaining = (allPlayers || []).filter(player => !player.owner && !player.shown);
   if (remaining.length === 0) return [];
 
   const effectiveRound = Math.max(1, Number(roundNumber || 1));
   const effectiveRounds = Math.max(1, Number(totalRounds || 10));
-  const ajRoundOrder = normalizeSimulationAjRoundOrder(SIM_AJ_ROUND_CODES);
+  const ajRoundOrder = normalizeSimulationAjRoundOrder(ajRoundOrderOverride || SIM_AJ_ROUND_CODES);
   const roundCode = ajRoundOrder[Math.max(0, effectiveRound - 1)] || SIM_AJ_ROUND_CODES[Math.max(0, effectiveRound - 1)] || SIM_AJ_ROUND_CODES[0];
   const desiredCount = SIM_PAGE_SIZE * 2;
 
@@ -4332,18 +4346,7 @@ function buildSimulationRoundPlayers(allPlayers, playersPerRound, roundNumber, t
     roundPositionMinimums
   );
 
-  let combined = page1.concat(page2);
-  if (combined.length < desiredCount) {
-    const fillers = getBestAvailableSimulationPlayers(
-      allPlayers,
-      effectiveRound,
-      effectiveRounds,
-      roundPositionMinimums,
-      combined,
-      player => !combined.includes(player)
-    );
-    combined = combined.concat(fillers.slice(0, Math.max(0, desiredCount - combined.length)));
-  }
+  const combined = page1.concat(page2);
 
   const selected = combined.slice(0, desiredCount);
   selected.forEach((player) => {
@@ -4353,9 +4356,10 @@ function buildSimulationRoundPlayers(allPlayers, playersPerRound, roundNumber, t
   return selected;
 }
 
-function applySimulationWinner(team, player, pricePaid) {
-  const safePrice = Math.max(1, Math.min(Number(pricePaid || 0), Number(team && team.budget || 0)));
-  if (!team || !player || safePrice <= 0) return false;
+function applySimulationWinner(team, player, pricePaid, allowZeroPrice = false) {
+  const minimumPrice = allowZeroPrice ? 0 : 1;
+  const safePrice = Math.max(minimumPrice, Math.min(Number(pricePaid || 0), Number(team && team.budget || 0)));
+  if (!team || !player || (safePrice <= 0 && !allowZeroPrice)) return false;
 
   team.budget = Math.max(0, Number(team.budget || 0) - safePrice);
   if (!Array.isArray(team.roster)) team.roster = [];
@@ -4375,6 +4379,75 @@ function applySimulationWinner(team, player, pricePaid) {
   player.bid = safePrice;
   player.shown = true;
   return true;
+}
+
+function applySimulationRoundReserve(roundPlayers, teams, cpuBids, rosterLimits, maxRosterSize, targetWins, roundNumber) {
+  const cpuConfig = loadCpuLogicConfig();
+  const reserveExponent = Math.max(1, Math.min(6, Number(cpuConfig?.silent?.reserveDraftChanceExponent ?? 3)));
+  const upsetRoundRate = Math.max(0, Math.min(1, Number(cpuConfig?.silent?.reserveUpsetRoundRate ?? 0.16)));
+  const upsetRound = Number(roundNumber) >= 7 && Math.random() < upsetRoundRate;
+  let added = 0;
+  const safePlayers = Array.isArray(roundPlayers) ? roundPlayers : [];
+  const safeTeams = Array.isArray(teams) ? teams : [];
+  const candidates = [];
+
+  Object.entries(cpuBids && typeof cpuBids === 'object' ? cpuBids : {}).forEach(([teamName, bids]) => {
+    const team = safeTeams.find(entry => String(entry?.name || '') === String(teamName));
+    if (!team) return;
+    (Array.isArray(bids) ? bids : []).forEach((bid) => {
+      const player = safePlayers.find(entry => Number(entry?.id) === Number(bid?.player?.id));
+      const amount = Math.max(1, Number(bid?.cpuBid || 0));
+      if (!player || player.owner) return;
+      if (!isValidRosterAddition(team, player, rosterLimits, maxRosterSize)) return;
+      candidates.push({ team, player, amount });
+    });
+  });
+
+  if (Number(roundNumber) >= 7) {
+    safeTeams.forEach((team) => {
+      safePlayers.forEach((player) => {
+        if (!player || player.owner || !isValidRosterAddition(team, player, rosterLimits, maxRosterSize)) return;
+        if (candidates.some(entry => entry.team === team && Number(entry.player.id) === Number(player.id))) return;
+        candidates.push({ team, player, amount: 1 });
+      });
+    });
+  }
+
+  const usedPlayers = new Set();
+  while (added < Math.max(0, Number(targetWins || 0))) {
+    const available = candidates.filter(entry => !entry.player.owner && !usedPlayers.has(Number(entry.player.id)) && isValidRosterAddition(entry.team, entry.player, rosterLimits, maxRosterSize));
+    if (!available.length) break;
+    const targetRosterSize = Math.max(1, Number(maxRosterSize || 1) - 3);
+    const maxDeficit = Math.max(...available.map(entry => Math.max(0, targetRosterSize - (entry.team.roster || []).length)));
+    const deficitFirst = available.filter(entry => Math.max(0, targetRosterSize - (entry.team.roster || []).length) === maxDeficit);
+    const byPlayer = new Map();
+    deficitFirst.forEach((entry) => {
+      const playerId = Number(entry.player.id);
+      const current = byPlayer.get(playerId);
+      if (!current || entry.amount > current.amount) byPlayer.set(playerId, entry);
+    });
+    const weighted = [...byPlayer.values()];
+    const totalWeight = weighted.reduce((sum, entry) => {
+      const chance = Math.max(0, Number(entry.player?.draftChance || 0) / 100);
+      const weight = chance > 0 ? (upsetRound ? chance : Math.pow(chance, reserveExponent)) : 0.000001;
+      return sum + weight;
+    }, 0);
+    let roll = Math.random() * totalWeight;
+    let candidate = weighted[weighted.length - 1];
+    for (const entry of weighted) {
+      const chance = Math.max(0, Number(entry.player?.draftChance || 0) / 100);
+      const weight = chance > 0 ? (upsetRound ? chance : Math.pow(chance, reserveExponent)) : 0.000001;
+      roll -= weight;
+      if (roll <= 0) {
+        candidate = entry;
+        break;
+      }
+    }
+    if (!candidate || !applySimulationWinner(candidate.team, candidate.player, 0, true)) break;
+    usedPlayers.add(Number(candidate.player.id));
+    added += 1;
+  }
+  return added;
 }
 
 function getSimulationRosterCounts(team) {
@@ -4590,6 +4663,29 @@ function resolveSimulationRound(roundPlayers, teams, cpuBids, maxRosterSize, rou
   let winningPriceTotal = 0;
   let tiesTotal = 0;
   const tiesByTeamCount = {};
+  const reserveConfig = loadCpuLogicConfig()?.silent || {};
+  const offeredCount = Array.isArray(roundPlayers) ? roundPlayers.length : 0;
+  const configuredUndraftedCap = reserveConfig.undraftedCap ?? null;
+  const configuredUndraftedNoise = reserveConfig.undraftedCapNoise ?? null;
+  const hasUndraftedKnobs = configuredUndraftedCap !== null || configuredUndraftedNoise !== null;
+  const undraftedCap = Math.max(0, Math.min(24, Number(configuredUndraftedCap ?? 7)));
+  const undraftedCapNoise = Math.max(0, Math.min(8, Math.floor(Number(configuredUndraftedNoise ?? 3))));
+  const reserveMeanWins = hasUndraftedKnobs
+    ? Math.max(0, Math.min(offeredCount, offeredCount - undraftedCap))
+    : Math.max(0, Math.min(24, Number(reserveConfig.reserveTargetWins ?? 17)));
+  const reserveNoise = hasUndraftedKnobs
+    ? undraftedCapNoise
+    : Math.max(0, Math.min(8, Math.floor(Number(reserveConfig.reserveTargetWinsNoise ?? 3))));
+  const reserveTargetWins = Math.max(0, Math.min(24, reserveMeanWins + (reserveNoise > 0 ? Math.floor(Math.random() * (reserveNoise * 2 + 1)) - reserveNoise : 0)));
+  // When off, the sim reports raw CPU outcomes instead of topping up to an undrafted target.
+  const reserveEnabled = reserveConfig.simulationReserveEnabled === true;
+  const shouldAcceptBeyondTarget = (player, eligibleBids, floorNeedBidders) => {
+    if (!reserveEnabled) return true;
+    if (wins < reserveTargetWins || floorNeedBidders.length > 0) return true;
+    if (eligibleBids.length >= 2) return true;
+    const draftChance = Math.max(0, Math.min(100, Number(player?.draftChance ?? 0)));
+    return draftChance >= 60 || Math.random() < 0.2;
+  };
 
   (Array.isArray(roundPlayers) ? roundPlayers : []).forEach((player) => {
     const bids = [];
@@ -4639,6 +4735,7 @@ function resolveSimulationRound(roundPlayers, teams, cpuBids, maxRosterSize, rou
         ? Math.max(...eligibleBids.filter(entry => entry.amount < maxBid).map(entry => entry.amount), 0)
         : 0;
       const pricePaid = Math.max(secondHighest + 1, 1);
+      if (!shouldAcceptBeyondTarget(player, eligibleBids, floorNeedBidders)) return;
       if (applySimulationWinner(winner, player, pricePaid)) {
         wins += 1;
         winningPriceTotal += pricePaid;
@@ -4654,11 +4751,24 @@ function resolveSimulationRound(roundPlayers, teams, cpuBids, maxRosterSize, rou
       .sort((a, b) => b.amount - a.amount);
     const secondHighest = lowerLosingBids.length > 0 ? Number(lowerLosingBids[0].amount || 0) : 0;
     const tiePrice = Math.max(secondHighest + 1, 1);
+    if (!shouldAcceptBeyondTarget(player, eligibleBids, floorNeedBidders)) return;
     if (applySimulationWinner(winnerRef.team, player, tiePrice)) {
       wins += 1;
       winningPriceTotal += tiePrice;
     }
   });
+
+  if (reserveEnabled && wins < reserveTargetWins) {
+    wins += applySimulationRoundReserve(
+      roundPlayers,
+      safeTeams,
+      safeBids,
+      rosterLimits,
+      maxRosterSize,
+      reserveTargetWins - wins,
+      roundNumber
+    );
+  }
 
   return {
     wins,
@@ -4684,7 +4794,7 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
   const roundPositionMinimums = getSimulationPositionMinimums(normalizedSettings);
   const targetRosterSize = getTargetRosterSizeFromSettings(normalizedSettings);
   const rosterLimits = buildSimulationRosterLimits(normalizedSettings);
-  const maxRosterSize = Math.max(1, targetRosterSize + 3);
+  const maxRosterSize = getConfiguredMaxRosterSize(targetRosterSize);
 
   if (playerTemplate.length < Math.max(40, effectivePlayersPerRound)) {
     throw new Error('Not enough ranked players to run simulations.');
@@ -4716,6 +4826,11 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
   const roundBudgetAccumulator = Array.from({ length: Math.max(1, Number(rounds || 10)) }, () => ({
     totalBudgetBeforeRound: 0,
     totalBudgetAfterRound: 0,
+    samples: 0
+  }));
+  const roundUndraftedAccumulator = Array.from({ length: Math.max(1, Number(rounds || 10)) }, () => ({
+    totalUndrafted: 0,
+    totalOffered: 0,
     samples: 0
   }));
   const thresholdDebugExamples = [];
@@ -4767,12 +4882,14 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
     }));
     const draftRoundBidDetails = [];
     const draftNumber = draftIndex + 1;
+    // Real drafts deal the A-J sheets in a random order, so each simulated draft gets its own.
+    const draftAjRoundOrder = shuffleSimulationAjOrder(SIM_AJ_ROUND_CODES);
     const shouldCollectThresholdDebugForDraft = !!thresholdDebug && draftNumber === thresholdDebugDraftNumber;
     const shouldCollectTeamTraceForDraft = !!teamTrace && draftNumber === teamTraceDraftNumber;
     const draftTeamTraceRounds = [];
 
     for (let roundNumber = 1; roundNumber <= rounds; roundNumber += 1) {
-      const roundPlayers = buildSimulationRoundPlayers(allPlayers, effectivePlayersPerRound, roundNumber, rounds, roundPositionMinimums);
+      const roundPlayers = buildSimulationRoundPlayers(allPlayers, effectivePlayersPerRound, roundNumber, rounds, roundPositionMinimums, draftAjRoundOrder);
       if (roundPlayers.length === 0) break;
 
       const roundTeamStateBefore = shouldCollectTeamTraceForDraft
@@ -4899,6 +5016,11 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
           pricePaid
         };
       });
+      if (roundUndraftedAccumulator[roundIdx]) {
+        roundUndraftedAccumulator[roundIdx].totalUndrafted += roundPlayerResults.filter((entry) => !entry.drafted).length;
+        roundUndraftedAccumulator[roundIdx].totalOffered += roundPlayerResults.length;
+        roundUndraftedAccumulator[roundIdx].samples += 1;
+      }
       draftRoundBidDetails.push({
         round: Number(roundNumber || 0),
         totalBidAmount: Number(placedBidSummary && placedBidSummary.totalBidAmount || 0),
@@ -5130,6 +5252,33 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
     avgBudgetBeforeRound: entry.samples > 0 ? Number((entry.totalBudgetBeforeRound / entry.samples).toFixed(2)) : 0,
     avgBudgetAfterRound: entry.samples > 0 ? Number((entry.totalBudgetAfterRound / entry.samples).toFixed(2)) : 0
   }));
+  const roundUndraftedByRound = roundUndraftedAccumulator.map((entry, idx) => ({
+    round: idx + 1,
+    avgUndrafted: entry.samples > 0 ? Number((entry.totalUndrafted / entry.samples).toFixed(2)) : 0,
+    avgOffered: entry.samples > 0 ? Number((entry.totalOffered / entry.samples).toFixed(2)) : 0,
+    undraftedRate: entry.totalOffered > 0 ? Number((entry.totalUndrafted / entry.totalOffered).toFixed(3)) : 0
+  }));
+  // Evenness of demand across rounds. Lower spread/stdDev = CPUs bid more uniformly round to round.
+  const undraftedPerRoundValues = roundUndraftedByRound
+    .filter((entry) => entry.avgOffered > 0)
+    .map((entry) => entry.avgUndrafted);
+  const undraftedRoundMean = undraftedPerRoundValues.length > 0
+    ? undraftedPerRoundValues.reduce((sum, n) => sum + n, 0) / undraftedPerRoundValues.length
+    : 0;
+  const undraftedRoundStdDev = undraftedPerRoundValues.length > 0
+    ? Number(Math.sqrt(undraftedPerRoundValues.reduce((sum, n) => sum + Math.pow(n - undraftedRoundMean, 2), 0) / undraftedPerRoundValues.length).toFixed(2))
+    : 0;
+  const undraftedRoundMin = undraftedPerRoundValues.length > 0 ? Number(Math.min(...undraftedPerRoundValues).toFixed(2)) : 0;
+  const undraftedRoundMax = undraftedPerRoundValues.length > 0 ? Number(Math.max(...undraftedPerRoundValues).toFixed(2)) : 0;
+  const earlyRoundCount = Math.min(5, undraftedPerRoundValues.length);
+  const lateRoundStart = Math.max(0, undraftedPerRoundValues.length - 4);
+  const avgUndraftedEarlyRounds = earlyRoundCount > 0
+    ? Number((undraftedPerRoundValues.slice(0, earlyRoundCount).reduce((sum, n) => sum + n, 0) / earlyRoundCount).toFixed(2))
+    : 0;
+  const avgUndraftedLateRounds = undraftedPerRoundValues.length > lateRoundStart
+    ? Number((undraftedPerRoundValues.slice(lateRoundStart).reduce((sum, n) => sum + n, 0) / (undraftedPerRoundValues.length - lateRoundStart)).toFixed(2))
+    : 0;
+  const undraftedEarlyLateSpread = Number((avgUndraftedLateRounds - avgUndraftedEarlyRounds).toFixed(2));
   const roundOneSpend = Number(roundSpendByRound[0] && roundSpendByRound[0].avgSpend || 0);
   const lastRoundSpend = Number(roundSpendByRound[roundSpendByRound.length - 1] && roundSpendByRound[roundSpendByRound.length - 1].avgSpend || 0);
   const lastRoundPotentialSpend = Number(roundBudgetByRound[roundBudgetByRound.length - 1] && roundBudgetByRound[roundBudgetByRound.length - 1].avgBudgetBeforeRound || 0);
@@ -5262,7 +5411,13 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
       allCompleteDraftRate,
       avgUndraftedCount,
       medianUndraftedCount,
-      p90UndraftedCount
+      p90UndraftedCount,
+      undraftedRoundStdDev,
+      undraftedRoundMin,
+      undraftedRoundMax,
+      avgUndraftedEarlyRounds,
+      avgUndraftedLateRounds,
+      undraftedEarlyLateSpread
     },
     scorecard: {
       budget: {
@@ -5296,6 +5451,18 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
             avgFivePlusWayTiesPerRound: roundTieByRound.length > 0 ? Number((roundTieByRound.reduce((sum, row) => sum + Number(row.avgFivePlusWayTies || 0), 0) / roundTieByRound.length).toFixed(2)) : 0
           },
           rounds: roundTieByRound
+        },
+        roundBalance: {
+          target: ROUND_BALANCE_TARGET,
+          undraftedRoundStdDev,
+          undraftedRoundMin,
+          undraftedRoundMax,
+          avgUndraftedEarlyRounds,
+          avgUndraftedLateRounds,
+          undraftedEarlyLateSpread,
+          withinTarget: undraftedRoundStdDev <= ROUND_BALANCE_TARGET.maxStdDev
+            && Math.abs(undraftedEarlyLateSpread) <= ROUND_BALANCE_TARGET.maxEarlyLateSpread,
+          rounds: roundUndraftedByRound
         }
       },
       overall: {
@@ -6653,6 +6820,23 @@ function autoCutCpuTeamsForSummary(draft) {
       return;
     }
 
+    const seenRosterPlayers = new Set();
+    const originalRosterCount = team.roster.length;
+    team.roster = team.roster.filter((player) => {
+      if (!player || typeof player !== 'object' || !String(player.name || '').trim()) return false;
+      const playerId = Number(player.id);
+      const rosterKey = Number.isFinite(playerId) && playerId > 0
+        ? `id:${playerId}`
+        : `name:${normalizeName(player.name)}`;
+      if (seenRosterPlayers.has(rosterKey)) return false;
+      seenRosterPlayers.add(rosterKey);
+      return true;
+    });
+    if (team.roster.length !== originalRosterCount) {
+      console.log(`[CPU ROSTER NORMALIZE] ${teamName} removed ${originalRosterCount - team.roster.length} duplicate/invalid roster entr${originalRosterCount - team.roster.length === 1 ? 'y' : 'ies'}`);
+      changedTeamNames.push(teamName);
+    }
+
     const initialCutState = getRequiredCutsForTeamSummary(team, draft);
     console.log(`[CPU CUT DEBUG] ${teamName} before auto-cut: requiredCuts=${initialCutState.requiredCuts}, bench=${initialCutState.bench.length}/${initialCutState.benchCutTarget}, roster=${(team.roster || []).length}/${initialCutState.maxTotalPlayers}`);
 
@@ -6871,7 +7055,7 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
     const results = [];
     const tiedBids = [];
     const allIndividualBids = []; // Collect all bids for bulk database operations
-    const maxRosterSize = Math.max(1, Number(rosterSize || 0) + 3);
+    const maxRosterSize = getConfiguredMaxRosterSize(Number(rosterSize || 0));
     const targetRosterSize = Math.max(1, Number(rosterSize || 0));
     const floorRosterSize = Math.max(1, targetRosterSize - 2);
     const floorPriorityActive = Number(roundNumber || 0) >= 9;
@@ -7662,6 +7846,8 @@ function ensureDraftStateForSocket(code, socket, options = {}) {
     const restoredDraft = loadPersistedDraftStateSync(draftCode);
     if (restoredDraft) {
       drafts[draftCode] = mergeDraftMembership(restoredDraft, drafts[draftCode]);
+      // No round can still be in flight after a restore, so never inherit a stuck processing lock.
+      drafts[draftCode].draftState.isProcessingRound = false;
       console.log(`[draft-state] Restored draft ${draftCode} from persisted snapshot at round ${Number(drafts[draftCode] && drafts[draftCode].draftState && drafts[draftCode].draftState.currentRound || 1)}`);
     }
   }
@@ -8274,6 +8460,7 @@ function hasActiveUserSocketInLobby(code, username) {
     if (roomUsername === normalizedUsername) {
       return true;
     }
+
   }
 
   return false;
@@ -8407,6 +8594,7 @@ io.on('connection', (socket) => {
     draft.draftState.acceptedMembers = [];
     draft.draftState.submittedMembers = [];
     draft.draftState.isProcessingRound = false;
+    draft.draftState.lastFinalizedRound = pendingRoundNumber;
     draft.draftState.pendingRoundResults = null;
     clearPendingRoundAutoAdvance(safeCode);
     schedulePersistDraftState(safeCode, `round_results_finalized:${String(trigger || 'manual')}`);
@@ -9400,7 +9588,7 @@ io.on('connection', (socket) => {
   });
 
   // Process round - server authoritatively determines auction results
-  socket.on('processRound', async (code, roundData, cb) => {
+  const handleProcessRound = async (code, roundData, cb) => {
     const username = socket.data.username;
     console.log(`[processRound] ${username} requested processing round in ${code}`);
     
@@ -9437,6 +9625,7 @@ io.on('connection', (socket) => {
     }
     
     // Ensure all required manual members have submitted bids before processing
+    const allMembers = Array.isArray(drafts[code].members) ? drafts[code].members : [];
     const requiredManualMembers = getActiveHumanDraftMembers(drafts[code]);
     const submittedMembers = drafts[code].draftState.submittedMembers || [];
     const requiredManualNames = new Set(requiredManualMembers.map((member) => member.toLowerCase()));
@@ -9620,7 +9809,7 @@ io.on('connection', (socket) => {
 
     if (!cpuBids || Object.keys(cpuBids).length === 0) {
       const normalizedHumans = new Set((humanMembers || []).map(name => String(name || '').trim().toLowerCase()));
-      const maxRosterSize = Math.max(1, (rosterSize || 0) + 3);
+      const maxRosterSize = getConfiguredMaxRosterSize(rosterSize || 0);
       const fallbackBids = {};
       const undraftedRoundPlayers = (roundPlayers || []).filter(player => player && !player.owner);
 
@@ -9912,6 +10101,21 @@ io.on('connection', (socket) => {
       // Always reset the processing flag
       drafts[code].draftState.isProcessingRound = false;
     }
+  };
+
+  socket.on('processRound', (code, roundData, cb) => {
+    // Any failure before the inner try would otherwise strand the round lock and never answer the client.
+    handleProcessRound(code, roundData, cb).catch((error) => {
+      console.error('[processRound] Unhandled failure:', error);
+      if (drafts[code] && drafts[code].draftState) {
+        drafts[code].draftState.isProcessingRound = false;
+      }
+      io.to(`draft_${code}`).emit('roundProcessingError', {
+        message: 'Failed to process round results',
+        error: error && error.message ? error.message : String(error)
+      });
+      if (cb) cb({ ok: false, reason: 'processing_error' });
+    });
   });
 
   // Member accepts round results
@@ -10064,6 +10268,34 @@ io.on('connection', (socket) => {
       if (Number.isFinite(requestedFromRound) && requestedFromRound !== currentRound) {
         console.log(`[startNextRound] Ignoring stale advance from round ${requestedFromRound} (server is on ${currentRound})`);
         if (cb) cb({ ok: true, alreadyAdvanced: true, currentRound });
+        return;
+      }
+
+      if (drafts[code].draftState.isProcessingRound) {
+        console.warn(`[startNextRound] Blocking advance from round ${currentRound}: round processing is still active`);
+        if (cb) cb({ ok: false, reason: 'round_processing', currentRound });
+        return;
+      }
+
+      if (drafts[code].draftState.pendingRoundResults) {
+        console.warn(`[startNextRound] Blocking advance from round ${currentRound}: results are not finalized`);
+        if (cb) cb({ ok: false, reason: 'round_results_pending', currentRound });
+        return;
+      }
+
+      if (Number(drafts[code].draftState.lastFinalizedRound || 0) !== currentRound) {
+        console.warn(`[startNextRound] Blocking advance from round ${currentRound}: no finalized results recorded for this round`);
+        if (cb) cb({ ok: false, reason: 'round_not_finalized', currentRound });
+        return;
+      }
+
+      const activeLiveAuctions = Object.values(drafts[code].draftState.liveAuctions || {})
+        .some((auction) => auction && auction.active);
+      const pendingLiveAuctions = Array.isArray(drafts[code].draftState.pendingAuctions)
+        && drafts[code].draftState.pendingAuctions.length > 0;
+      if (activeLiveAuctions || pendingLiveAuctions) {
+        console.warn(`[startNextRound] Blocking advance from round ${currentRound}: live auction sequence is still active`);
+        if (cb) cb({ ok: false, reason: 'live_auction_pending', currentRound });
         return;
       }
 
@@ -10463,7 +10695,14 @@ io.on('connection', (socket) => {
         console.error(`[completeLiveAuction] Auction ${auctionId} not found`);
         return;
       }
-      
+
+      // This function has multiple call sites (timer expiry, all-backed-out, forced fallback).
+      // Without this guard two of them could both award the player and charge the budget once each.
+      if (!auction.active) {
+        console.warn(`[completeLiveAuction] Auction ${auctionId} already completed - ignoring duplicate call`);
+        return;
+      }
+
       auction.active = false;
       
       // Determine winner strictly from active teams (teams that did not back out).
@@ -10515,18 +10754,27 @@ io.on('connection', (socket) => {
       };
       
       if (winnerTeam) {
-        winnerTeam.budget -= winningBid;
-        winnerTeam.roster.push({
-          id: player.id,
-          name: player.playerName,
-          position: player.position,
-          team: player.team,
-          byeWeek: player.byeWeek,
-          avgValue: player.avgValue,
-          bid: player.bidAmount,
-          prerank: player.avgValue,
-          positionRank: player.positionRank
-        });
+        // Second, independent guard: never award/charge the same player onto a roster twice,
+        // even if some future path re-enters this function despite the auction.active check above.
+        const alreadyOnRoster = Array.isArray(winnerTeam.roster) && winnerTeam.roster.some((candidate) => (
+          Number(candidate && candidate.id) === Number(player.id)
+        ));
+        if (alreadyOnRoster) {
+          console.warn(`[completeLiveAuction] ${winner} already has player ${player.id} (${player.playerName}) on roster - skipping duplicate award/charge`);
+        } else {
+          winnerTeam.budget -= winningBid;
+          winnerTeam.roster.push({
+            id: player.id,
+            name: player.playerName,
+            position: player.position,
+            team: player.team,
+            byeWeek: player.byeWeek,
+            avgValue: player.avgValue,
+            bid: player.bidAmount,
+            prerank: player.avgValue,
+            positionRank: player.positionRank
+          });
+        }
         
         // Reorder roster: sort by position, then by prerank (lower = better)
         winnerTeam.roster.sort((a, b) => {
@@ -11453,6 +11701,9 @@ process.on('SIGTERM', () => {
 async function startServer() {
   await migrateLegacyDefaultRankingsFiles();
   await migrateLegacyPositionRankingsFiles();
+  const cpuConfig = loadCpuLogicConfig();
+  const presetName = String(cpuConfig?.presetName || 'Unknown').trim() || 'Unknown';
+  console.log(`[CPU LOGIC PRESET] Source: cpu-logic.json | Preset: "${presetName}" | Loaded before round 1`);
   server.listen(port, () => console.log(`Server listening on http://localhost:${port}`));
 }
 

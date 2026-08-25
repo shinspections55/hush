@@ -455,11 +455,16 @@ body.color-blind .draftroom-rankings > h3 {
 /* Keep the Page 1/2 switcher reachable while the players column scrolls. */
 #draftable-players-header-row {
     position: sticky;
-    top: 0;
+    top: -1px;
     z-index: 30;
     background: var(--hush-navy);
     padding-top: 6px;
     padding-bottom: 6px;
+    /* Cover the column's own padding so cards cannot peek beside the sticky bar. */
+    margin-left: -12px;
+    margin-right: -12px;
+    padding-left: 12px;
+    padding-right: 12px;
 }
 
 body.color-blind #draftable-players-header-row {

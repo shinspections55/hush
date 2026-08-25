@@ -7,6 +7,8 @@
     "prestart": "node tools/verify-login-lock.js",
     "lock:check-login-flow": "node tools/verify-login-lock.js",
     "lock:refresh-login-flow": "node tools/refresh-login-lock.js",
+    "assets:check": "node tools/asset-version.js check",
+    "assets:bump": "node tools/asset-version.js bump",
     "start": "node server.js"
   },
   "engines": {

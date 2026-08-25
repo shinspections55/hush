@@ -5,7 +5,7 @@
         "position": "RB",
         "team": "DET",
         "avgValue": 51,
-        "draftChance": 0,
+    "draftChance": 98,
         "byeWeek": 6
     },
     {
@@ -14,7 +14,7 @@
         "position": "RB",
         "team": "ATL",
         "avgValue": 52,
-        "draftChance": 0,
+        "draftChance": 97,
         "byeWeek": 5
     },
     {
@@ -23,7 +23,7 @@
         "position": "RB",
         "team": "IND",
         "avgValue": 48,
-        "draftChance": 0,
+        "draftChance": 96,
         "byeWeek": 11
     },
     {
@@ -32,7 +32,7 @@
         "position": "RB",
         "team": "BUF",
         "avgValue": 47,
-        "draftChance": 0,
+        "draftChance": 95,
         "byeWeek": 7
     },
     {
@@ -41,7 +41,7 @@
         "position": "RB",
         "team": "SF",
         "avgValue": 47,
-        "draftChance": 0,
+        "draftChance": 94,
         "byeWeek": 8
     },
     {
@@ -50,7 +50,7 @@
         "position": "RB",
         "team": "ARI",
         "avgValue": 47,
-        "draftChance": 0,
+        "draftChance": 93,
         "byeWeek": 8
     },
     {
@@ -59,7 +59,7 @@
         "position": "RB",
         "team": "MIA",
         "avgValue": 46,
-        "draftChance": 0,
+        "draftChance": 92,
         "byeWeek": 6
     },
     {
@@ -68,7 +68,7 @@
         "position": "RB",
         "team": "LV",
         "avgValue": 37,
-        "draftChance": 0,
+        "draftChance": 91,
         "byeWeek": 13
     },
     {
@@ -86,7 +86,7 @@
         "position": "RB",
         "team": "BAL",
         "avgValue": 35,
-        "draftChance": 0,
+        "draftChance": 89,
         "byeWeek": 7
     },
     {
@@ -95,7 +95,7 @@
         "position": "RB",
         "team": "LAC",
         "avgValue": 30,
-        "draftChance": 0,
+        "draftChance": 88,
         "byeWeek": 7
     },
     {
@@ -104,7 +104,7 @@
         "position": "RB",
         "team": "CIN",
         "avgValue": 29,
-        "draftChance": 0,
+        "draftChance": 88,
         "byeWeek": 6
     },
     {
@@ -113,7 +113,7 @@
         "position": "RB",
         "team": "NYJ",
         "avgValue": 28,
-        "draftChance": 0,
+        "draftChance": 87,
         "byeWeek": 9
     },
     {
@@ -122,7 +122,7 @@
         "position": "RB",
         "team": "KC",
         "avgValue": 27,
-        "draftChance": 0,
+        "draftChance": 86,
         "byeWeek": 5
     },
     {
@@ -131,7 +131,7 @@
         "position": "RB",
         "team": "LAR",
         "avgValue": 26,
-        "draftChance": 0,
+        "draftChance": 85,
         "byeWeek": 8
     },
     {
@@ -140,7 +140,7 @@
         "position": "RB",
         "team": "CHI",
         "avgValue": 26,
-        "draftChance": 0,
+        "draftChance": 84,
         "byeWeek": 5
     },
     {
@@ -149,7 +149,7 @@
         "position": "RB",
         "team": "GB",
         "avgValue": 25,
-        "draftChance": 0,
+        "draftChance": 83,
         "byeWeek": 5
     },
     {
@@ -158,7 +158,7 @@
         "position": "RB",
         "team": "NO",
         "avgValue": 24,
-        "draftChance": 0,
+        "draftChance": 82,
         "byeWeek": 8
     },
     {
@@ -167,7 +167,7 @@
         "position": "RB",
         "team": "DAL",
         "avgValue": 26,
-        "draftChance": 0,
+        "draftChance": 81,
         "byeWeek": 10
     },
     {
@@ -185,7 +185,7 @@
         "position": "RB",
         "team": "TB",
         "avgValue": 21,
-        "draftChance": 0,
+        "draftChance": 79,
         "byeWeek": 9
     },
     {
@@ -194,7 +194,7 @@
         "position": "RB",
         "team": "CLE",
         "avgValue": 20,
-        "draftChance": 0,
+        "draftChance": 78,
         "byeWeek": 9
     },
     {
@@ -203,7 +203,7 @@
         "position": "RB",
         "team": "JAC",
         "avgValue": 18,
-        "draftChance": 0,
+        "draftChance": 77,
         "byeWeek": 7
     },
     {
@@ -212,7 +212,7 @@
         "position": "RB",
         "team": "NE",
         "avgValue": 16,
-        "draftChance": 0,
+        "draftChance": 76,
         "byeWeek": 11
     },
     {
@@ -221,7 +221,7 @@
         "position": "RB",
         "team": "SEA",
         "avgValue": 18,
-        "draftChance": 0,
+        "draftChance": 75,
         "byeWeek": 8
     },
     {
@@ -230,7 +230,7 @@
         "position": "RB",
         "team": "HOU",
         "avgValue": 17,
-        "draftChance": 0,
+        "draftChance": 74,
         "byeWeek": 6
     },
     {
@@ -239,7 +239,7 @@
         "position": "RB",
         "team": "CAR",
         "avgValue": 16,
-        "draftChance": 0,
+        "draftChance": 73,
         "byeWeek": 5
     },
     {
@@ -248,7 +248,7 @@
         "position": "RB",
         "team": "DEN",
         "avgValue": 15,
-        "draftChance": 0,
+        "draftChance": 72,
         "byeWeek": 10
     },
     {
@@ -257,7 +257,7 @@
         "position": "RB",
         "team": "TEN",
         "avgValue": 13,
-        "draftChance": 0,
+        "draftChance": 71,
         "byeWeek": 9
     },
     {
@@ -275,7 +275,7 @@
         "position": "RB",
         "team": "PIT",
         "avgValue": 9,
-        "draftChance": 0,
+        "draftChance": 69,
         "byeWeek": 5
     },
     {
@@ -284,7 +284,7 @@
         "position": "RB",
         "team": "NE",
         "avgValue": 7,
-        "draftChance": 0,
+        "draftChance": 68,
         "byeWeek": 11
     },
     {
@@ -293,7 +293,7 @@
         "position": "RB",
         "team": "PIT",
         "avgValue": 7,
-        "draftChance": 0,
+        "draftChance": 67,
         "byeWeek": 5
     },
     {
@@ -302,7 +302,7 @@
         "position": "RB",
         "team": "TB",
         "avgValue": 6,
-        "draftChance": 0,
+        "draftChance": 66,
         "byeWeek": 9
     },
     {
@@ -311,7 +311,7 @@
         "position": "RB",
         "team": "SEA",
         "avgValue": 4,
-        "draftChance": 0,
+        "draftChance": 65,
         "byeWeek": 8
     },
     {
@@ -320,7 +320,7 @@
         "position": "RB",
         "team": "MIN",
         "avgValue": 4,
-        "draftChance": 0,
+        "draftChance": 64,
         "byeWeek": 6
     },
     {
@@ -329,7 +329,7 @@
         "position": "RB",
         "team": "CHI",
         "avgValue": 3,
-        "draftChance": 0,
+        "draftChance": 63,
         "byeWeek": 5
     },
     {
@@ -338,7 +338,7 @@
         "position": "RB",
         "team": "LAR",
         "avgValue": 3,
-        "draftChance": 0,
+        "draftChance": 62,
         "byeWeek": 8
     },
     {
@@ -347,7 +347,7 @@
         "position": "RB",
         "team": "NO",
         "avgValue": 3,
-        "draftChance": 0,
+        "draftChance": 61,
         "byeWeek": 8
     },
     {
@@ -355,8 +355,8 @@
         "name": "Woody Marks",
         "position": "RB",
         "team": "HOU",
-        "avgValue": 3,
-        "draftChance": 0,
+        "avgValue": 2,
+        "draftChance": 60,
         "byeWeek": 6
     },
     {
@@ -365,7 +365,7 @@
         "position": "RB",
         "team": "TEN",
         "avgValue": 2,
-        "draftChance": 0,
+        "draftChance": 59,
         "byeWeek": 9
     },
     {
@@ -374,7 +374,7 @@
         "position": "RB",
         "team": "DEN",
         "avgValue": 2,
-        "draftChance": 0,
+        "draftChance": 58,
         "byeWeek": 10
     },
     {
@@ -383,7 +383,7 @@
         "position": "RB",
         "team": "MIN",
         "avgValue": 2,
-        "draftChance": 0,
+        "draftChance": 57,
         "byeWeek": 6
     },
     {
@@ -392,7 +392,7 @@
         "position": "RB",
         "team": "WAS",
         "avgValue": 2,
-        "draftChance": 0,
+        "draftChance": 56,
         "byeWeek": 7
     },
     {
@@ -401,7 +401,7 @@
         "position": "RB",
         "team": "CAR",
         "avgValue": 1,
-        "draftChance": 0,
+        "draftChance": 55,
         "byeWeek": 5
     },
     {
@@ -410,7 +410,7 @@
         "position": "RB",
         "team": "DET",
         "avgValue": 1,
-        "draftChance": 0,
+        "draftChance": 54,
         "byeWeek": 6
     },
     {
@@ -419,7 +419,7 @@
         "position": "RB",
         "team": "ARI",
         "avgValue": 1,
-        "draftChance": 0,
+        "draftChance": 53,
         "byeWeek": 8
     },
     {
@@ -428,7 +428,7 @@
         "position": "RB",
         "team": "JAC",
         "avgValue": 1,
-        "draftChance": 0,
+        "draftChance": 52,
         "byeWeek": 7
     },
     {
@@ -437,7 +437,7 @@
         "position": "RB",
         "team": "ATL",
         "avgValue": 0,
-        "draftChance": 0,
+        "draftChance": 51,
         "byeWeek": 5
     },
     {
@@ -446,7 +446,7 @@
         "position": "RB",
         "team": "NYJ",
         "avgValue": 0,
-        "draftChance": 0,
+        "draftChance": 50,
         "byeWeek": 9
     }
 ]

@@ -1,0 +1,78 @@
+Uncaught Exception: RangeError: Maximum call stack size exceeded
+    at [Symbol.hasInstance] (<anonymous>)
+    at isBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:25:32)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:40:9)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+RangeError: Maximum call stack size exceeded
+    at [Symbol.hasInstance] (<anonymous>)
+    at isBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:25:32)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:40:9)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+[processRound] Corrected winning result for Derrick Henry: bid=$17->17, second=$0->15, secondBidder=none->Team 9, price=$1->16
+[round-flow] Auto-finalizing pending round results for U36ABL after 120000ms
+[round-flow] Auto-finalizing pending round results for ARQBBS after 120000ms
+[processRound] Corrected winning result for James Cook III: bid=$31->31, second=$20->23, secondBidder=Team 5->Team 8, price=$21->24
+[processRound] Corrected winning result for New England Patriots: bid=$3->3, second=$0->1, secondBidder=none->Team 8, price=$1->2
+[processRound] Corrected winning result for C.J. Stroud: bid=$2->2, second=$0->1, secondBidder=none->Timbee12, price=$1->2
+[processRound] Corrected winning result for Drake London: bid=$32->32, second=$0->29, secondBidder=none->Team 5, price=$1->30
+[processRound] Corrected winning result for Sam Darnold: bid=$3->3, second=$0->2, secondBidder=none->Timbee12, price=$1->3
+Uncaught Exception: RangeError: Maximum call stack size exceeded
+    at [Symbol.hasInstance] (<anonymous>)
+    at isBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:25:32)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:40:9)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+RangeError: Maximum call stack size exceeded
+    at [Symbol.hasInstance] (<anonymous>)
+    at isBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:25:32)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:40:9)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+[round-flow] Auto-finalizing pending round results for 5SH9JD after 120000ms
+[round-flow] Auto-finalizing pending round results for 5SH9JD after 120000ms
+Uncaught Exception: RangeError: Maximum call stack size exceeded
+    at [Symbol.hasInstance] (<anonymous>)
+    at isBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:25:32)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:40:9)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+RangeError: Maximum call stack size exceeded
+    at [Symbol.hasInstance] (<anonymous>)
+    at isBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:25:32)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:40:9)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+    at hasBinary (E:\HushV4.4-full-backup-2026-08-21\node_modules\socket.io-parser\build\cjs\is-binary.js:49:63)
+[round-flow] Auto-finalizing pending round results for DZDQVH after 120000ms
+[round-flow] Auto-finalizing pending round results for DZDQVH after 120000ms

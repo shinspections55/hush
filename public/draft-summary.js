@@ -1309,18 +1309,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function splitRoster(roster, settings) {
+        // Dedupe by player id first: a duplicate entry (same id, different object) must not
+        // slip past the reference-based "used" check below and render on both starters and bench.
+        const seenIds = new Set();
+        const dedupedRoster = (roster || []).filter(p => {
+            const id = Number(p && p.id);
+            if (!Number.isFinite(id)) return true;
+            if (seenIds.has(id)) return false;
+            seenIds.add(id);
+            return true;
+        });
+
         const blueprint = getSlotBlueprint(settings);
-        const used = [];
+        const usedIds = new Set();
         const slots = blueprint.map(slot => {
-            const found = (roster || [])
-                .filter(p => slot.eligible.includes(p.position) && !used.includes(p))
+            const found = dedupedRoster
+                .filter(p => slot.eligible.includes(p.position) && !usedIds.has(Number(p.id)))
                 .sort((a, b) => Number(a.prerank || 999) - Number(b.prerank || 999))[0] || null;
-            if (found) used.push(found);
+            if (found) usedIds.add(Number(found.id));
             return { label: slot.label, player: found };
         });
 
-        const bench = (roster || [])
-            .filter(p => !used.includes(p))
+        const bench = dedupedRoster
+            .filter(p => !usedIds.has(Number(p.id)))
             .sort((a, b) => Number(a.prerank || 999) - Number(b.prerank || 999));
 
         return { slots, bench };

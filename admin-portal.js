@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Detect which page we're on
   const isRankingsManagerPage = document.body.classList.contains('admin-rankings-manager-page');
   const isPortalPage = document.body.classList.contains('admin-portal-page');
+  const isCpuTuningPage = document.body.classList.contains('admin-cpu-tuning-page');
 
   const keyInput = document.getElementById('adminKeyInput');
   const connectForm = document.getElementById('adminConnectForm');
@@ -36,6 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const silentCpuReference = document.getElementById('silentCpuReference');
   const tiedCpuReference = document.getElementById('tiedCpuReference');
   const cpuTuningControls = document.getElementById('cpuTuningControls');
+  const cpuTuningDebugOutput = document.getElementById('cpuTuningDebugOutput');
+  const cpuTuningDebugMeta = document.getElementById('cpuTuningDebugMeta');
   const cpuTuningStatus = document.getElementById('cpuTuningStatus');
   const cpuPreviewOutput = document.getElementById('cpuPreviewOutput');
   const cpuLoadDefaultsBtn = document.getElementById('cpuLoadDefaultsBtn');
@@ -222,16 +225,166 @@ document.addEventListener('DOMContentLoaded', () => {
       personalityVarianceStep: 0.1,
       roundVarianceMax: 0.15,
       maxAggressionCap: 0.95,
-      round1ThresholdBias: 0.12,
-      round2ThresholdBias: 0.09,
-      round3ThresholdBias: 0.06,
-      round4ThresholdBias: 0,
-      round5ThresholdBias: -0.01,
+      finalRoundSpreadStart: 10,
+      mustFillBypassStartRound: 2,
+      paceGraceRounds: 1,
+      affordabilityTradeDownEnabled: true,
+      avParticipationCurveEnabled: true,
+      cheapFillerBidFrequency: 0.5,
+      curve1to9HardMaxBidders: 4,
+      curve10to19HardMaxBidders: 5,
+      curve20to29HardMaxBidders: 6,
+      curve30to39HardMaxBidders: 7,
+      curve40to49HardMaxBidders: 8,
+      curve50PlusHardMaxBidders: 8,
+      draftChanceNeedDropPerNeedRatio: 0.2,
+      draftChancePressureDropScale: 0.02,
+      earlyInterestHoldMaxPressure: 6.5,
+      earlyInterestHoldPaceTolerance: 0.05,
+      earlyInterestHoldUntilRound: 8,
+      earlyRoundAvCeilingMultiplier: 1.15,
+      earlyRoundAvFloorMultiplier: 0.85,
+      earlyRoundCoverageEnabled: true,
+      earlyRoundRefillEnabled: true,
+      earlyRoundVolumeBidsEnabled: true,
+      earlyTopRankFocusEnabled: true,
+      legacyAvDrivenMaxRound: 4,
+      legacyAvDrivenMode: false,
+      maxTiesPerRound: 5,
+      midRoundLowAvHardCap: 3,
+      reserveDraftChanceExponent: 3,
+      reserveTargetWins: 17,
+      reserveTargetWinsNoise: 3,
+      reserveUpsetRoundRate: 0.16,
+      spreadBidCap: 8,
+      spreadFillerBidMax: 3,
+      targetPlayerOverbidMax: 1.15,
+      targetPlayerOverbidMin: 1.05,
+      trueZeroAvParticipationMultiplier: 0.6,
+      commitmentFinalPass: true,
+      simulationReserveEnabled: false,
+      lowballIntensity: 0.65,
+      commitmentMode: 'B',
+      marketSensitivity: 0.7,
+      band10to19NoBidChance: 0.25,
+      band1to9MinTeamPct: 0.1,
+      band1to9MaxTeamPct: 0.3,
+      band1to9HardMaxTeamPct: 0.45,
+      band10to19MinTeamPct: 0.15,
+      band10to19MaxTeamPct: 0.3,
+      band10to19HardMaxTeamPct: 0.5,
+      band20to29MinTeamPct: 0.25,
+      band20to29MaxTeamPct: 0.4,
+      band20to29HardMaxTeamPct: 0.65,
+      band30to39MinTeamPct: 0.35,
+      band30to39MaxTeamPct: 0.55,
+      band30to39HardMaxTeamPct: 0.75,
+      band40to49MinTeamPct: 0.4,
+      band40to49MaxTeamPct: 0.6,
+      band40to49PullChance: 0.84,
+      band50PlusMinTeamPct: 0.4,
+      band50PlusMaxTeamPct: 0.6,
+      band50PlusPullChance: 0.9,
+      bandDefaultPullChance: 0.75,
+      topAvHardMaxTeamPct: 0.8,
+      topAvPreferredBandPullChance: 0.8,
+      trueZeroAvNoBidPenalty: 0.16,
+      cpuRosterTargetBonus: 2,
+      globalInterestThresholdScale: 1.25,
+      globalInterestThresholdCap: 0.95,
+      earlyTopRankFocusMaxRound: 3,
+      earlyTopRankFocusMaxRank: 180,
+      volumeBidsStartRound: 9,
+      spreadModeIntensity: 0.32,
+      spreadPaceTriggerVariance: -0.5,
+      spreadBudgetPerSpotTrigger: 30,
+      starTargetAggressionBoost: 0.6,
+      starTargetLowballReduction: 0.4,
+      avCenteringStrength: 0.58,
+      avConvergenceWindow: 5,
+      avConvergenceEliteWindow: 7,
+      avMarketDepthEnabled: true,
+      avMarketDepthMinAv: 12,
+      coverageAddCap: 8,
+      commitmentVariationFloor: 0.12,
+      commitmentBidWeightCap: 5,
+      coverageDraftChanceFloor: 0.75,
+      kickerDefensePatienceEnabled: true,
+      kickerDefenseTopRankTarget: 12,
+      kickerDefensePatienceReleaseRound: 9,
+      kickerDefenseUpgradeRankGap: 6,
+      lateRoundPaceThresholdHitEnabled: true,
+      lateRoundPaceThresholdStartRound: 6,
+      lateRoundPaceThresholdPerRoundHit: 0.04,
+      lateRoundPaceThresholdMaxHit: 0.16,
+      lateRoundBudgetForcingIntensity: 0.9,
+      paceCatchBidIntensity: 0.9,
+      affordabilityOverAvBudgetCap: 0.55,
+      midRoundLikelyDraftedMinAV: 3,
+      midRoundLikelyDraftedDraftChanceFloor: 0.2,
+      earlyAvAccuracyStrength: 0.9,
+      avPriceAccuracyStart: 0.94,
+      avPriceAccuracyMid: 0.88,
+      avPriceAccuracyEnd: 0.75,
+      avPriceAccuracyHoldRounds: 6,
+      avMarketDepthMaxRound: 10,
+      rosterExtraSpots: 6,
+      upgradeBudgetFloor: 15,
+      commitmentRangeBelowTargetPct: 0.15,
+      commitmentRangeAboveTargetPct: 0.10,
+      commitmentRangeCenterBandPct: 0.03,
+      commitmentRangeLowTeamPct: 0.20,
+      commitmentRangeHighTeamPct: 0.20,
+      commitmentRangeLockFinalRounds: 2,
+      round1ThresholdBias: 0.22,
+      round2ThresholdBias: 0.20,
+      round3ThresholdBias: 0.18,
+      round4ThresholdBias: 0.15,
+      round5ThresholdBias: 0.12,
       round6ThresholdBias: -0.04,
       round7ThresholdBias: -0.07,
       round8ThresholdBias: -0.09,
       round9ThresholdBias: -0.11,
       round10ThresholdBias: -0.13,
+      roundThresholdBiasScale: 45,
+      draftChancePriorityWeight: 1.0,
+      
+      draftChancePriorityThreshold: 0.60,
+      draftChancePrimaryBaseFloor: 0.55,
+      draftChancePrimaryMinFloor: 0.25,
+      draftChanceLowBidCapPct: 0.15,
+      
+      draftChancePrimaryEnabled: 1,
+      earlyRoundMaxBidsCap: 8,
+      globalBidVolumeMultiplier: 1,
+      spreadBidVolumeMultiplier: 1.0,
+      spreadDollarBidMultiplier: 0.75,
+      undraftedCap: 7,
+      undraftedCapNoise: 3,
+      lateRoundAggressionDampener: 0.55,
+      spreadDraftChanceFloor: 0.45,
+      midRoundLikelyDraftedOnlyEnabled: 0,
+      rosterTightStartRound: 7,
+      earlySelectiveMaxRound: 6,
+      starterFillTargetRound: 8,
+      earlyCheapSkipMaxRound: 5,
+      earlyCheapAvThreshold: 8,
+      earlyCheapSkipRate: 0.6,
+      roundCommitR1Pct: 0.64,
+      roundCommitR2Pct: 0.66,
+      roundCommitR3Pct: 0.68,
+      roundCommitR4Pct: 0.7,
+      roundCommitR5Pct: 0.74,
+      roundCommitR6Pct: 0.78,
+      roundCommitR7Pct: 0.82,
+      roundCommitR8Pct: 0.88,
+      roundCommitR9Pct: 0.95,
+      roundCommitR10Pct: 1.0,
+      commitmentTiltMin: 0.82,
+      commitmentTiltMax: 1.18,
+      paceBandMinMultiplier: 0.80,
+      paceBandMaxMultiplier: 1.16,
+      paceBandTeamJitter: 0.7,
       avCapMult1to5: 1.24,
       avCapMult5to10: 1.2,
       avCapMult10to20: 1.16,
@@ -305,7 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
       band1to9NoBidChance: 0.68,
       band10to19NoBidChance: 0.25,
       bandLowAvNoBidLateRoundRelief: 0.13,
-      lowAvEarlyRoundNoBidBoost: 0.1,
+      lowAvEarlyRoundNoBidBoost: 0.02,
       lowAvLateRoundReliefStartRound: 7,
       lowAvCompletionGuardEnabled: 1,
       lowAvCompletionGuardStartRound: 7,
@@ -315,7 +468,20 @@ document.addEventListener('DOMContentLoaded', () => {
       band40to49PullChance: 0.84,
       bandDefaultPullChance: 0.75,
       topAvHardMaxTeamPct: 0.8,
-      topAvPreferredBandPullChance: 0.8
+      topAvPreferredBandPullChance: 0.8,
+      avMarketDepthMaxPlayersPerRound: 7,
+      avMarketDepthFinalPass: true,
+      earlyRoundBidCoverageCapEnabled: true,
+      earlyRoundBidCoverageCapMaxRound: 10,
+      roundUndraftedTargetEarly: 3,
+      roundUndraftedTargetLate: 10,
+      roundUndraftedFloor: 2,
+      roundUndraftedCeiling: 11,
+      bidCoverageCapJitter: 4,
+      avMarketDepthMinCompetitiveBids: 4,
+      avMarketDepthMinBidMultiplier: 0.88,
+      avMarketDepthBidLowMultiplier: 0.9,
+      avMarketDepthBidHighMultiplier: 1.04
     },
     tied: {
       baseBidProb: 0.34,
@@ -355,6 +521,137 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const BUILTIN_CPU_MODELS = {
+    'Version 4.0': {
+      silent: {
+        paceGraceRounds: 1,
+        rosterExtraSpots: 8,
+        cpuRosterTargetBonus: 2,
+        upgradeBudgetFloor: 8,
+        earlyAvAccuracyStrength: 0.9,
+        avPriceAccuracyStart: 0.94,
+        avPriceAccuracyMid: 0.88,
+        avPriceAccuracyEnd: 0.75,
+        avPriceAccuracyHoldRounds: 6,
+        avMarketDepthEnabled: true,
+        avMarketDepthFinalPass: true,
+        avMarketDepthMaxRound: 10,
+        avMarketDepthMinAv: 12,
+        avMarketDepthMinBidMultiplier: 0.88,
+        avMarketDepthMinCompetitiveBids: 4,
+        avMarketDepthMaxPlayersPerRound: 7,
+        avMarketDepthBidLowMultiplier: 0.9,
+        avMarketDepthBidHighMultiplier: 1.04,
+        earlyRoundBidCoverageCapEnabled: true,
+        earlyRoundBidCoverageCapMaxRound: 10,
+        roundUndraftedTargetEarly: 6,
+        roundUndraftedTargetLate: 6,
+        roundUndraftedFloor: 4,
+        roundUndraftedCeiling: 11,
+        bidCoverageCapJitter: 3,
+        draftChancePriorityThreshold: 0.45,
+        draftChanceLowBidCapPct: 0.45,
+        
+        kickerDefensePatienceEnabled: true,
+        kickerDefenseTopRankTarget: 12,
+        kickerDefensePatienceReleaseRound: 9,
+        kickerDefenseUpgradeRankGap: 6,
+        spreadModeIntensity: 0.32,
+        spreadPaceTriggerVariance: -0.5,
+        spreadBudgetPerSpotTrigger: 30,
+        band1to9NoBidChance: 0.3,
+        lowAvEarlyRoundNoBidBoost: 0.05,
+        commitmentFinalPass: true,
+        commitmentRangeBelowTargetPct: 0.15,
+        commitmentRangeAboveTargetPct: 0.1,
+        roundCommitR1Pct: 0.64,
+        roundCommitR2Pct: 0.66,
+        roundCommitR3Pct: 0.68,
+        roundCommitR4Pct: 0.7,
+        roundCommitR5Pct: 0.74,
+        roundCommitR6Pct: 0.78,
+        roundCommitR7Pct: 0.82,
+        roundCommitR8Pct: 0.88,
+        roundCommitR9Pct: 0.95,
+        roundCommitR10Pct: 1.0,
+        finalRoundSpreadStart: 10,
+        mustFillBypassStartRound: 2,
+        globalBidVolumeMultiplier: 0.82,
+        earlyRoundMaxBidsCap: 5,
+        lateRoundAggressionDampener: 0.55,
+        round1ThresholdBias: 0.22,
+        roundThresholdBiasScale: 45,
+        earlySelectiveMaxRound: 6,
+        paceBandMinMultiplier: 0.8,
+        paceBandMaxMultiplier: 1.16,
+        paceBandTeamJitter: 0.7
+      }
+    },
+    'Version 3.0': {
+      silent: {
+        paceGraceRounds: 1,
+        rosterExtraSpots: 8,
+        cpuRosterTargetBonus: 2,
+        upgradeBudgetFloor: 8,
+        earlyAvAccuracyStrength: 0.9,
+        avPriceAccuracyStart: 0.94,
+        avPriceAccuracyMid: 0.88,
+        avPriceAccuracyEnd: 0.75,
+        avPriceAccuracyHoldRounds: 6,
+        avMarketDepthEnabled: true,
+        avMarketDepthFinalPass: true,
+        avMarketDepthMaxRound: 10,
+        avMarketDepthMinAv: 12,
+        
+        avMarketDepthMinBidMultiplier: 0.88,
+        avMarketDepthMinCompetitiveBids: 4,
+        avMarketDepthMaxPlayersPerRound: 7,
+        avMarketDepthBidLowMultiplier: 0.9,
+        avMarketDepthBidHighMultiplier: 1.04,
+        earlyRoundBidCoverageCapEnabled: true,
+        earlyRoundBidCoverageCapMaxRound: 10,
+        roundUndraftedTargetEarly: 6,
+        roundUndraftedTargetLate: 10,
+        roundUndraftedFloor: 4,
+        roundUndraftedCeiling: 11,
+        kickerDefensePatienceReleaseRound: 8,
+        band1to9NoBidChance: 0.3,
+        lowAvEarlyRoundNoBidBoost: 0.05,
+        bidCoverageCapJitter: 3,
+        finalRoundSpreadStart: 10,
+        mustFillBypassStartRound: 2,
+        globalInterestThresholdScale: 1.25,
+        globalInterestThresholdCap: 0.95,
+        earlyInterestHoldUntilRound: 8,
+        earlyInterestHoldMaxPressure: 6.5,
+        earlyTopRankFocusMaxRound: 4,
+        earlyTopRankFocusMaxRank: 120,
+        earlyRoundMaxBidsCap: 5,
+        globalBidVolumeMultiplier: 0.82,
+        spreadBidVolumeMultiplier: 0.52,
+        spreadDollarBidMultiplier: 0.4,
+        volumeBidsStartRound: 9,
+        spreadModeIntensity: 0.32,
+        spreadPaceTriggerVariance: -0.5,
+        spreadBudgetPerSpotTrigger: 30,
+        avCenteringStrength: 0.58,
+        kickerDefensePatienceEnabled: true,
+        kickerDefenseTopRankTarget: 12,
+        kickerDefensePatienceReleaseRound: 9,
+        kickerDefenseUpgradeRankGap: 6,
+        
+        draftChancePriorityThreshold: 0.45,
+        coverageDraftChanceFloor: 0.75,
+        lateRoundAggressionDampener: 0.55,
+        round1ThresholdBias: 0.22,
+        roundThresholdBiasScale: 45,
+        earlySelectiveMaxRound: 6,
+        undraftedCap: 7,
+        undraftedCapNoise: 3,
+        paceBandMinMultiplier: 0.8,
+        paceBandMaxMultiplier: 1.16,
+        paceBandTeamJitter: 0.7
+      }
+    },
     'Version A': {
       silent: {
         globalInterestThresholdScale: 1.25,
@@ -1428,10 +1725,32 @@ document.addEventListener('DOMContentLoaded', () => {
   function getCpuControlDescription(section, key) {
     const descriptions = {
       silent: {
+        roundThresholdBiasScale: 'How hard the per-round threshold bias actually bites. Low values make the round bias sliders nearly cosmetic; raise it to make early rounds genuinely pickier.',
+        earlySelectiveMaxRound: 'Last round where CPUs stay selective. Through this round a needed position alone will not justify a bid unless the team is behind pace.',
+        starterFillTargetRound: 'Round by which CPUs aim to have their starting lineup filled. Later values stop teams from chasing every empty slot in rounds 1-3.',
+        earlyCheapSkipMaxRound: 'Last round where low-value players can be held back for later rounds.',
+        earlyCheapAvThreshold: 'Players below this AV count as cheap filler during the early rounds.',
+        earlyCheapSkipRate: 'Chance a given cheap player is held back for later rounds. Rolled once per player per round and shared by every CPU, so the draft stays lumpy rather than uniform.',
+        roundCommitR1Pct: 'Share of a team\u2019s REMAINING budget it commits during round 1, before the below/above range is applied.',
+        roundCommitR2Pct: 'Share of remaining budget committed during round 2.',
+        roundCommitR3Pct: 'Share of remaining budget committed during round 3.',
+        roundCommitR4Pct: 'Share of remaining budget committed during round 4.',
+        roundCommitR5Pct: 'Share of remaining budget committed during round 5.',
+        roundCommitR6Pct: 'Share of remaining budget committed during round 6.',
+        roundCommitR7Pct: 'Share of remaining budget committed during round 7.',
+        roundCommitR8Pct: 'Share of remaining budget committed during round 8.',
+        roundCommitR9Pct: 'Share of remaining budget committed during round 9.',
+        roundCommitR10Pct: 'Share of remaining budget committed during round 10. Keep at 1.0 so teams finish spending.',
+        commitmentTiltMin: 'Lowest per-team spend multiplier applied to the round commitment target. Keeps some teams spending less than the league average.',
+        commitmentTiltMax: 'Highest per-team spend multiplier applied to the round commitment target. Keeps some teams spending more than the league average, so all 10 teams do not move as one block.',
+        paceBandMinMultiplier: 'Lower bound of the roster pace band, as a multiple of the even per-round pace. Teams below this are treated as behind pace.',
+        paceBandMaxMultiplier: 'Upper bound of the roster pace band. Teams above this are treated as ahead of pace and become more selective.',
+        paceBandTeamJitter: 'Random per-team shift applied to the pace band so teams do not all cross the pace line on the same round.',
         baseAggression: 'Sets the baseline willingness for CPU teams to push bids before personality and context modifiers apply.',
         budgetRichBoost: 'Raises aggression when a CPU still has a large budget, making it more likely to pay up early.',
         budgetPoorReduction: 'Reduces aggression when budget gets tight so CPU teams conserve cash and avoid overpaying.',
         rosterTightBoost: 'Adds urgency when few roster spots remain, so CPUs are less likely to pass on needed starters.',
+        rosterTightStartRound: 'Earliest round where Roster Tight Boost can apply normally. Before this, it only kicks in when a team is clearly behind pace.',
         rosterLooseReduction: 'Lowers urgency when many spots remain, encouraging patience and value hunting.',
         emergencyStarterBoost: 'Boosts bidding pressure when minimum lineup slots are still empty for the CPU team.',
         finalRoundFillBoost: 'Late-round urgency multiplier to force lineup completion before the draft ends.',
@@ -1449,6 +1768,47 @@ document.addEventListener('DOMContentLoaded', () => {
         lowballIntensity: 'In spread mode, CPUs lower bids on ALL players (not just $40+) to roughly 60-70% of normal bid. Higher = more aggressive lowballing to maximize volume (0=off, 1.0=heavy lowballing on everything).',
         cheapFillerBidFrequency: 'Probability of throwing $1-5 "filler" bids to stretch budget even further when CPUs have multiple open spots. Higher = more frequent cheap filler bids (0=off, 1.0=always throw filler when spreading).',
         starAvailabilityOverride: 'When CPUs\' starred targets are available THIS ROUND, override lowball mode and bid aggressively. Higher threshold = more conservative (only override if many stars available), Lower = eager to override when stars present (0=always lowball, 1.0=only override if 100% of stars available).',
+        draftChancePriorityWeight: 'How strongly CPUs obey drafted percentage (draftChance) when filtering and ranking bids. Higher values sharply favor high draftChance players and suppress low draftChance picks.',
+        draftChancePriorityThreshold: 'Primary drafted% line CPUs try to stay above for non-critical bids. Players below this line are heavily limited unless they are must-fill/star targets.',
+        draftChancePrimaryBaseFloor: 'Base drafted% floor for normal CPU player selection before roster need and completion pressure relax it.',
+        draftChancePrimaryMinFloor: 'Lowest drafted% floor allowed after roster need and completion pressure relax the primary floor.',
+        draftChanceLowBidCapPct: 'Maximum share of a team\'s bids that may target players below the drafted% threshold. Keeps low-percentage player exposure intentionally small.',
+        
+        draftChancePrimaryEnabled: 'Enables the primary drafted% selection filter. Use 1 for enabled and 0 for disabled.',
+        earlyRoundMaxBidsCap: 'Maximum bids per CPU in rounds 1-3. Higher creates more market coverage without forcing every player to sell.',
+        globalBidVolumeMultiplier: 'Global multiplier on CPU bid count. 1.00 is neutral; lower is more selective and higher is broader.',
+        spreadBidVolumeMultiplier: 'Multiplier on bid count while a team is spreading across the roster. Higher creates more depth bids.',
+        spreadDollarBidMultiplier: 'Multiplier on spread-mode bid amounts. Higher makes depth bids more competitive; lower preserves budget.',
+        undraftedCap: 'Target number of undrafted players in a simulator round before soft acceptance rules and completion needs are considered.',
+        undraftedCapNoise: 'Random plus/minus variation applied to the simulator undrafted target each round.',
+        finalRoundSpreadStart: 'First round where the stronger final-round spread/fill behavior begins. Set to 10 to protect AV through rounds 1-9.',
+        mustFillBypassStartRound: 'First round where a must-fill position may skip the interest gate. Set to 2 so round 1 stays selective, since every roster is empty and structurally behind pace.',
+        paceGraceRounds: 'Opening rounds treated as on pace regardless of roster size. Prevents round 1 panic bidding when the whole draft is still ahead.',
+        
+        spreadPaceTriggerVariance: 'How far behind pace a team must fall before it starts spreading bids. Teams at or above this stay picky and chase high AV instead.',
+        spreadBudgetPerSpotTrigger: 'Budget per open roster spot below which a team spreads regardless of pace, because it can no longer afford to be selective.',
+        kickerDefensePatienceEnabled: 'Teams hold out for a top-ranked kicker or defense instead of filling the slot early with whoever appears.',
+        kickerDefenseTopRankTarget: 'Position rank a kicker or defense must beat to be worth an early slot. Ranks worse than this are ignored until the release round.',
+        kickerDefensePatienceReleaseRound: 'Round from which teams stop being patient and will take any kicker or defense to complete the roster.',
+        kickerDefenseUpgradeRankGap: 'How many position ranks better a kicker or defense must be before a team that already owns one will bid to upgrade.',
+        
+        cpuRosterTargetBonus: 'Players above the league minimum that CPUs pace toward. Aiming for 16 when 14 is required makes reaching 14 comfortable rather than a scramble.',
+        avPriceAccuracyStart: 'Target price-to-AV ratio in round 1. The most accurate point of the draft.',
+        avPriceAccuracyMid: 'Target price-to-AV ratio at the end of the hold window. AV still matters strongly up to here.',
+        avPriceAccuracyEnd: 'Target price-to-AV ratio in the final round, after budgets have thinned.',
+        avPriceAccuracyHoldRounds: 'Rounds over which AV accuracy only drifts slightly. After this the ratio falls toward the final-round target faster.',
+        avMarketDepthFinalPass: 'Re-runs the AV market-depth guarantee as the last step. Without it the participation curve and discipline passes strip the competitive bids that keep top-AV prices honest.',
+        earlyRoundBidCoverageCapEnabled: 'Caps how many distinct players receive any bid in a round, keeping the highest-AV ones. This is the primary control over undrafted players per round.',
+        earlyRoundBidCoverageCapMaxRound: 'Last round the coverage cap applies to. Set to the draft length to hold undrafted counts steady across every round.',
+        roundUndraftedTargetEarly: 'Undrafted players aimed for in round 1. Rosters are built early while boards are deep, so this runs lower than the late target.',
+        roundUndraftedTargetLate: 'Undrafted players aimed for in the final round. The target ramps linearly from the early value to this one.',
+        roundUndraftedFloor: 'Fewest undrafted players allowed in any round. Stops a round from being almost fully drafted.',
+        roundUndraftedCeiling: 'Most undrafted players targeted in any round. This bounds the cap, but a round can still exceed it if CPUs decline to bid.',
+        bidCoverageCapJitter: 'Random swing applied to the coverage cap each round. Without it every draft returns an identical undrafted count.',
+        avMarketDepthMinCompetitiveBids: 'Teams forced to bid near AV on each top-AV player. Since price is second-highest plus one, this is what actually sets the sale price.',
+        earlyAvAccuracyStrength: 'How close round 1 spread bids get to full AV. 0.9 means round 1 bids land near 96% of AV instead of the usual 62%.',
+        rosterExtraSpots: 'Spots allowed above the preferred roster minimum. 6 gives a 14-player minimum room to reach 20.',
+        upgradeBudgetFloor: 'Budget a team needs to keep bidding after reaching its preferred roster size. Treats the roster target as a minimum, not a cap.',
         band50PlusMinTeamPct: 'AV 50+ preferred lower participation bound as a percent of total teams.',
         band50PlusMaxTeamPct: 'AV 50+ preferred upper participation bound as a percent of total teams.',
         band40to49MinTeamPct: 'AV 40-49 preferred lower participation bound as a percent of total teams.',
@@ -1474,7 +1834,17 @@ document.addEventListener('DOMContentLoaded', () => {
         band40to49PullChance: 'How strongly AV 40-49 bidder counts are pulled back into the preferred percent band. Higher = tighter adherence.',
         bandDefaultPullChance: 'Shared pull strength for AV 1-39 preferred bands. Higher = tighter adherence to each bucket band.',
         topAvHardMaxTeamPct: 'Absolute cap for AV 40+ participation as a percent of total draft teams. Bids above this percentage are not allowed.',
-        topAvPreferredBandPullChance: 'Legacy global pull fallback. Used only if per-band pull strengths are not set.'
+        topAvPreferredBandPullChance: 'Legacy global pull fallback. Used only if per-band pull strengths are not set.',
+        commitmentRangeBelowTargetPct: 'Maximum percentage below the round commitment target for the lower-spending teams.',
+        commitmentRangeAboveTargetPct: 'Maximum percentage above the round commitment target for the higher-spending teams.',
+        commitmentRangeCenterBandPct: 'Most teams stay within this percentage of the round target.',
+        commitmentRangeLowTeamPct: 'Share of teams assigned the lower commitment range.',
+        commitmentRangeHighTeamPct: 'Share of teams assigned the higher commitment range.',
+        commitmentRangeLockFinalRounds: 'Number of final rounds locked to the exact configured target percentage.',
+        avMarketDepthMaxPlayersPerRound: 'Maximum number of higher-AV players receiving added market-depth bids in a round.',
+        avMarketDepthMinBidMultiplier: 'Minimum bid multiplier versus AV for added market-depth bids.',
+        avMarketDepthBidLowMultiplier: 'Lower bid multiplier versus AV for added market-depth bids.',
+        avMarketDepthBidHighMultiplier: 'Upper bid multiplier versus AV for added market-depth bids.'
       },
       tied: {
         baseBidProb: 'Baseline chance a CPU continues bidding each tied-auction tick before psychology and budget effects.',
@@ -1680,6 +2050,26 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderCpuTuningLab() {
     if (!cpuTuningControls) return;
 
+    try {
+      renderCpuTuningLabInner();
+      const fieldCount = cpuTuningControls.querySelectorAll('[data-cpu-section][data-cpu-key]').length;
+      const silentKeyCount = Object.keys(cpuTuningState.silent || {}).length;
+      const tiedKeyCount = Object.keys(cpuTuningState.tied || {}).length;
+      const summary = `Rendered ${fieldCount} control(s). cpuTuningState: ${silentKeyCount} silent key(s), ${tiedKeyCount} tied key(s). Preset: "${String(cpuTuningState && cpuTuningState.presetName || activeCpuModelName || 'unsaved')}".`;
+      if (cpuTuningDebugOutput) cpuTuningDebugOutput.textContent = summary;
+      if (cpuTuningDebugMeta) cpuTuningDebugMeta.textContent = fieldCount > 0 ? 'CPU Tuning Lab loaded.' : 'CPU Tuning Lab rendered but found 0 controls.';
+      console.log('[CPU Tuning Lab]', summary);
+    } catch (error) {
+      const message = `Render failed: ${error && error.message ? error.message : error}`;
+      if (cpuTuningDebugOutput) cpuTuningDebugOutput.textContent = `${message}\n\n${error && error.stack ? error.stack : ''}`;
+      if (cpuTuningDebugMeta) cpuTuningDebugMeta.textContent = 'CPU Tuning Lab failed to render - see debug output below.';
+      console.error('[CPU Tuning Lab] renderCpuTuningLab failed:', error);
+    }
+  }
+
+  function renderCpuTuningLabInner() {
+    if (!cpuTuningControls) return;
+
     refreshCpuModelSelect(cpuModelSelect ? cpuModelSelect.value : '');
 
     const scenario = cpuTuningState.scenario || {};
@@ -1716,22 +2106,53 @@ document.addEventListener('DOMContentLoaded', () => {
           ${makeCpuField('silent', 'budgetRichBoost', 'Budget Rich Boost', { type: 'range', min: 0, max: 0.5, step: 0.01, typicalMin: 0.03, typicalMax: 0.10 })}
           ${makeCpuField('silent', 'budgetPoorReduction', 'Budget Poor Reduction', { type: 'range', min: 0, max: 0.5, step: 0.01, typicalMin: 0.15, typicalMax: 0.35 })}
           ${makeCpuField('silent', 'rosterTightBoost', 'Roster Tight Boost', { type: 'range', min: 0, max: 0.5, step: 0.01, typicalMin: 0.15, typicalMax: 0.30 })}
+          ${makeCpuField('silent', 'rosterTightStartRound', 'Roster Tight Start Round', { type: 'range', min: 1, max: 10, step: 1, typicalMin: 6, typicalMax: 8 })}
           ${makeCpuField('silent', 'rosterLooseReduction', 'Roster Loose Reduction', { type: 'range', min: 0, max: 0.5, step: 0.01, typicalMin: 0.10, typicalMax: 0.25 })}
           ${makeCpuField('silent', 'emergencyStarterBoost', 'Emergency Starter Boost', { type: 'range', min: 0, max: 0.5, step: 0.01, typicalMin: 0.10, typicalMax: 0.25 })}
           ${makeCpuField('silent', 'finalRoundFillBoost', 'Final Round Fill Boost', { type: 'range', min: 0, max: 0.5, step: 0.01, typicalMin: 0.15, typicalMax: 0.30 })}
-          ${makeCpuField('silent', 'earlyRoundReduction', 'Early Round Reduction', { type: 'range', min: 0, max: 0.5, step: 0.01, typicalMin: 0.00, typicalMax: 0.05 })}
+          ${makeCpuField('silent', 'earlyRoundReduction', 'earlyRoundReduction', { type: 'range', min: 0, max: 0.5, step: 0.01, typicalMin: 0.00, typicalMax: 0.05 })}
           ${makeCpuField('silent', 'richEarlyBoost', 'Rich Early Boost', { type: 'range', min: 0, max: 0.5, step: 0.01, typicalMin: 0.15, typicalMax: 0.30 })}
-          ${makeCpuField('silent', 'lateRoundAggressionBoost', 'Late Round Aggression Boost', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.30, typicalMax: 0.50 })}
-          ${makeCpuField('silent', 'lateRoundBudgetForcingIntensity', 'Late Round Budget Forcing', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.50, typicalMax: 0.90 })}
+          ${makeCpuField('silent', 'lateRoundAggressionBoost', 'lateRoundAggressionBoost', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.30, typicalMax: 0.50 })}
+          ${makeCpuField('silent', 'lateRoundBudgetForcingIntensity', 'lateRoundBudgetForcingIntensity', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.50, typicalMax: 0.90 })}
+          ${makeCpuField('silent', 'lateRoundAggressionDampener', 'lateRoundAggressionDampener', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.40, typicalMax: 0.70 })}
+          ${makeCpuField('silent', 'finalRoundSpreadStart', 'finalRoundSpreadStart', { type: 'range', min: 1, max: 10, step: 1, precision: 0, typicalMin: 10, typicalMax: 10 })}
+          ${makeCpuField('silent', 'mustFillBypassStartRound', 'mustFillBypassStartRound', { type: 'range', min: 1, max: 10, step: 1, precision: 0, typicalMin: 2, typicalMax: 4 })}
+          ${makeCpuField('silent', 'paceGraceRounds', 'paceGraceRounds', { type: 'range', min: 0, max: 5, step: 1, precision: 0, typicalMin: 1, typicalMax: 2 })}
+          
+          ${makeCpuField('silent', 'spreadPaceTriggerVariance', 'spreadPaceTriggerVariance', { type: 'range', min: -3, max: 1, step: 0.1, precision: 1, typicalMin: -1, typicalMax: 0 })}
+          ${makeCpuField('silent', 'spreadBudgetPerSpotTrigger', 'spreadBudgetPerSpotTrigger', { type: 'range', min: 0, max: 80, step: 1, precision: 0, typicalMin: 20, typicalMax: 40 })}
+          ${makeCpuField('silent', 'kickerDefenseTopRankTarget', 'kickerDefenseTopRankTarget', { type: 'range', min: 1, max: 32, step: 1, precision: 0, typicalMin: 8, typicalMax: 16 })}
+          ${makeCpuField('silent', 'kickerDefensePatienceReleaseRound', 'kickerDefensePatienceReleaseRound', { type: 'range', min: 1, max: 10, step: 1, precision: 0, typicalMin: 8, typicalMax: 10 })}
+          ${makeCpuField('silent', 'kickerDefenseUpgradeRankGap', 'kickerDefenseUpgradeRankGap', { type: 'range', min: 1, max: 20, step: 1, precision: 0, typicalMin: 3, typicalMax: 8 })}
+          
+          ${makeCpuField('silent', 'cpuRosterTargetBonus', 'cpuRosterTargetBonus', { type: 'range', min: 0, max: 8, step: 1, precision: 0, typicalMin: 1, typicalMax: 3 })}
+          ${makeCpuField('silent', 'avPriceAccuracyStart', 'avPriceAccuracyStart', { type: 'range', min: 0.5, max: 1.1, step: 0.01, precision: 2, typicalMin: 0.9, typicalMax: 1 })}
+          ${makeCpuField('silent', 'avPriceAccuracyMid', 'avPriceAccuracyMid', { type: 'range', min: 0.5, max: 1.1, step: 0.01, precision: 2, typicalMin: 0.85, typicalMax: 0.92 })}
+          ${makeCpuField('silent', 'avPriceAccuracyEnd', 'avPriceAccuracyEnd', { type: 'range', min: 0.4, max: 1, step: 0.01, precision: 2, typicalMin: 0.7, typicalMax: 0.85 })}
+          ${makeCpuField('silent', 'avPriceAccuracyHoldRounds', 'avPriceAccuracyHoldRounds', { type: 'range', min: 1, max: 10, step: 1, precision: 0, typicalMin: 5, typicalMax: 7 })}
+          ${makeCpuField('silent', 'earlyAvAccuracyStrength', 'earlyAvAccuracyStrength', { type: 'range', min: 0, max: 1, step: 0.01, precision: 2, typicalMin: 0.7, typicalMax: 0.95 })}
+          ${makeCpuField('silent', 'earlyRoundBidCoverageCapMaxRound', 'earlyRoundBidCoverageCapMaxRound', { type: 'range', min: 1, max: 10, step: 1, precision: 0, typicalMin: 6, typicalMax: 10 })}
+          ${makeCpuField('silent', 'roundUndraftedTargetEarly', 'roundUndraftedTargetEarly', { type: 'range', min: 0, max: 20, step: 1, precision: 0, typicalMin: 5, typicalMax: 8 })}
+          ${makeCpuField('silent', 'roundUndraftedTargetLate', 'roundUndraftedTargetLate', { type: 'range', min: 0, max: 20, step: 1, precision: 0, typicalMin: 8, typicalMax: 12 })}
+          ${makeCpuField('silent', 'roundUndraftedFloor', 'roundUndraftedFloor', { type: 'range', min: 0, max: 15, step: 1, precision: 0, typicalMin: 3, typicalMax: 6 })}
+          ${makeCpuField('silent', 'roundUndraftedCeiling', 'roundUndraftedCeiling', { type: 'range', min: 1, max: 24, step: 1, precision: 0, typicalMin: 10, typicalMax: 13 })}
+          ${makeCpuField('silent', 'bidCoverageCapJitter', 'bidCoverageCapJitter', { type: 'range', min: 0, max: 8, step: 1, precision: 0, typicalMin: 2, typicalMax: 4 })}
+          ${makeCpuField('silent', 'avMarketDepthMinCompetitiveBids', 'avMarketDepthMinCompetitiveBids', { type: 'range', min: 1, max: 8, step: 1, precision: 0, typicalMin: 3, typicalMax: 5 })}
+          ${makeCpuField('silent', 'rosterExtraSpots', 'rosterExtraSpots', { type: 'range', min: 0, max: 12, step: 1, precision: 0, typicalMin: 3, typicalMax: 6 })}
+          ${makeCpuField('silent', 'upgradeBudgetFloor', 'upgradeBudgetFloor', { type: 'range', min: 0, max: 60, step: 1, precision: 0, typicalMin: 10, typicalMax: 25 })}
           ${makeCpuField('silent', 'spreadBidCap', 'Spread Bid Cap', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.40, typicalMax: 0.75 })}
           ${makeCpuField('silent', 'avCenteringStrength', 'AV Centering Strength', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.50, typicalMax: 0.95 })}
           ${makeCpuField('silent', 'marketSensitivity', 'Market Sensitivity', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.50, typicalMax: 0.85 })}
           ${makeCpuField('silent', 'paceCatchBidIntensity', 'Pace Catch Bid Intensity', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.40, typicalMax: 0.80 })}
-          ${makeCpuField('silent', 'spreadModeIntensity', 'Spread Mode Intensity', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.50, typicalMax: 0.85 })}
+          ${makeCpuField('silent', 'spreadModeIntensity', 'spreadModeIntensity', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.15, typicalMax: 0.40 })}
           ${makeCpuField('silent', 'starTargetAggressionBoost', 'Star Target Aggression Boost', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.40, typicalMax: 0.75 })}
           ${makeCpuField('silent', 'starTargetLowballReduction', 'Star Target Lowball Reduction', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.30, typicalMax: 0.70 })}
           ${makeCpuField('silent', 'lowballIntensity', 'Lowball Intensity', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.55, typicalMax: 0.80 })}
-          ${makeCpuField('silent', 'cheapFillerBidFrequency', 'Cheap Filler Bid Frequency', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.25, typicalMax: 0.50 })}
+          ${makeCpuField('silent', 'cheapFillerBidFrequency', 'cheapFillerBidFrequency', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.25, typicalMax: 0.50 })}
+          ${makeCpuField('silent', 'earlyRoundMaxBidsCap', 'earlyRoundMaxBidsCap', { type: 'range', min: 3, max: 12, step: 1, precision: 0, typicalMin: 5, typicalMax: 8 })}
+          ${makeCpuField('silent', 'globalBidVolumeMultiplier', 'globalBidVolumeMultiplier', { type: 'range', min: 0.35, max: 1.25, step: 0.01, typicalMin: 0.85, typicalMax: 1.05 })}
+          ${makeCpuField('silent', 'spreadBidVolumeMultiplier', 'spreadBidVolumeMultiplier', { type: 'range', min: 0.35, max: 1.25, step: 0.01, typicalMin: 0.80, typicalMax: 1.00 })}
+          ${makeCpuField('silent', 'spreadDollarBidMultiplier', 'spreadDollarBidMultiplier', { type: 'range', min: 0, max: 1.25, step: 0.01, typicalMin: 0.60, typicalMax: 0.85 })}
           ${makeCpuField('silent', 'starAvailabilityOverride', 'Star Availability Override', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.60, typicalMax: 0.85 })}
           ${makeCpuField('silent', 'round1ThresholdBias', 'Round 1 Threshold Bias', { type: 'range', min: -0.25, max: 0.25, step: 0.01, typicalMin: 0.04, typicalMax: 0.09 })}
           ${makeCpuField('silent', 'round2ThresholdBias', 'Round 2 Threshold Bias', { type: 'range', min: -0.25, max: 0.25, step: 0.01, typicalMin: 0.01, typicalMax: 0.06 })}
@@ -1743,6 +2164,54 @@ document.addEventListener('DOMContentLoaded', () => {
           ${makeCpuField('silent', 'round8ThresholdBias', 'Round 8 Threshold Bias', { type: 'range', min: -0.25, max: 0.25, step: 0.01, typicalMin: -0.09, typicalMax: -0.01 })}
           ${makeCpuField('silent', 'round9ThresholdBias', 'Round 9 Threshold Bias', { type: 'range', min: -0.25, max: 0.25, step: 0.01, typicalMin: -0.10, typicalMax: -0.01 })}
           ${makeCpuField('silent', 'round10ThresholdBias', 'Round 10 Threshold Bias', { type: 'range', min: -0.25, max: 0.25, step: 0.01, typicalMin: -0.10, typicalMax: -0.01 })}
+        </div>
+      </div>
+
+      <div class="admin-cpu-group">
+        <div class="admin-cpu-group-title">Early Round Selectivity</div>
+        <div class="admin-cpu-grid">
+          ${makeCpuField('silent', 'roundThresholdBiasScale', 'Threshold Bias Strength', { type: 'range', min: 1, max: 80, step: 1, typicalMin: 30, typicalMax: 55 })}
+          ${makeCpuField('silent', 'draftChancePriorityWeight', 'draftchancepriorityweight', { type: 'range', min: 0, max: 3, step: 0.05, typicalMin: 1.2, typicalMax: 2.2 })}
+          ${makeCpuField('silent', 'draftChancePriorityThreshold', 'draftChancePriorityThreshold', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.55, typicalMax: 0.70 })}
+          ${makeCpuField('silent', 'draftChancePrimaryBaseFloor', 'draftChancePrimaryBaseFloor', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.45, typicalMax: 0.65 })}
+          ${makeCpuField('silent', 'draftChancePrimaryMinFloor', 'draftChancePrimaryMinFloor', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.20, typicalMax: 0.35 })}
+          ${makeCpuField('silent', 'draftChanceLowBidCapPct', 'draftChanceLowBidCapPct', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.08, typicalMax: 0.20 })}
+          
+          ${makeCpuField('silent', 'draftChancePrimaryEnabled', 'draftChancePrimaryEnabled (0/1)', { type: 'range', min: 0, max: 1, step: 1, precision: 0, typicalMin: 1, typicalMax: 1 })}
+          ${makeCpuField('silent', 'spreadDraftChanceFloor', 'spreadDraftChanceFloor', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.35, typicalMax: 0.55 })}
+          ${makeCpuField('silent', 'midRoundLikelyDraftedOnlyEnabled', 'midRoundLikelyDraftedOnlyEnabled (0/1)', { type: 'range', min: 0, max: 1, step: 1, precision: 0, typicalMin: 0, typicalMax: 1 })}
+          ${makeCpuField('silent', 'earlySelectiveMaxRound', 'Selective Through Round', { type: 'range', min: 0, max: 10, step: 1, typicalMin: 5, typicalMax: 7 })}
+          ${makeCpuField('silent', 'starterFillTargetRound', 'Lineup Filled By Round', { type: 'range', min: 1, max: 10, step: 1, typicalMin: 7, typicalMax: 9 })}
+          ${makeCpuField('silent', 'earlyCheapSkipMaxRound', 'earlyCheapSkipMaxRound', { type: 'range', min: 0, max: 10, step: 1, typicalMin: 4, typicalMax: 6 })}
+          ${makeCpuField('silent', 'earlyCheapAvThreshold', 'earlyCheapAvThreshold', { type: 'range', min: 0, max: 20, step: 1, typicalMin: 5, typicalMax: 10 })}
+          ${makeCpuField('silent', 'earlyCheapSkipRate', 'earlyCheapSkipRate', { type: 'range', min: 0, max: 1, step: 0.05, typicalMin: 0.45, typicalMax: 0.75 })}
+        </div>
+      </div>
+
+      <div class="admin-cpu-group">
+        <div class="admin-cpu-group-title">Spend Pacing &amp; Team Variance</div>
+        <div class="admin-cpu-grid">
+          ${makeCpuField('silent', 'roundCommitR1Pct', 'roundCommitR1Pct (% of remaining)', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.55, typicalMax: 0.70 })}
+          ${makeCpuField('silent', 'roundCommitR2Pct', 'roundCommitR2Pct (% of remaining)', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.58, typicalMax: 0.72 })}
+          ${makeCpuField('silent', 'roundCommitR3Pct', 'roundCommitR3Pct (% of remaining)', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.60, typicalMax: 0.75 })}
+          ${makeCpuField('silent', 'roundCommitR4Pct', 'roundCommitR4Pct (% of remaining)', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.62, typicalMax: 0.78 })}
+          ${makeCpuField('silent', 'roundCommitR5Pct', 'roundCommitR5Pct (% of remaining)', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.66, typicalMax: 0.82 })}
+          ${makeCpuField('silent', 'roundCommitR6Pct', 'roundCommitR6Pct (% of remaining)', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.70, typicalMax: 0.86 })}
+          ${makeCpuField('silent', 'roundCommitR7Pct', 'roundCommitR7Pct (% of remaining)', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.74, typicalMax: 0.90 })}
+          ${makeCpuField('silent', 'roundCommitR8Pct', 'roundCommitR8Pct (% of remaining)', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.82, typicalMax: 0.94 })}
+          ${makeCpuField('silent', 'roundCommitR9Pct', 'roundCommitR9Pct (% of remaining)', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.90, typicalMax: 0.98 })}
+          ${makeCpuField('silent', 'roundCommitR10Pct', 'roundCommitR10Pct (% of remaining)', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.97, typicalMax: 1.0 })}
+          ${makeCpuField('silent', 'commitmentTiltMin', 'Team Spend Tilt Min', { type: 'range', min: 0.5, max: 1, step: 0.01, typicalMin: 0.75, typicalMax: 0.90 })}
+          ${makeCpuField('silent', 'commitmentTiltMax', 'Team Spend Tilt Max', { type: 'range', min: 1, max: 1.5, step: 0.01, typicalMin: 1.10, typicalMax: 1.25 })}
+          ${makeCpuField('silent', 'commitmentRangeBelowTargetPct', 'commitmentRangeBelowTargetPct', { type: 'range', min: 0, max: 0.5, step: 0.01, typicalMin: 0.10, typicalMax: 0.20 })}
+          ${makeCpuField('silent', 'commitmentRangeAboveTargetPct', 'commitmentRangeAboveTargetPct', { type: 'range', min: 0, max: 0.5, step: 0.01, typicalMin: 0.05, typicalMax: 0.15 })}
+          ${makeCpuField('silent', 'commitmentRangeCenterBandPct', 'commitmentRangeCenterBandPct', { type: 'range', min: 0, max: 0.2, step: 0.01, typicalMin: 0.02, typicalMax: 0.05 })}
+          ${makeCpuField('silent', 'commitmentRangeLowTeamPct', 'commitmentRangeLowTeamPct', { type: 'range', min: 0, max: 0.5, step: 0.05, typicalMin: 0.15, typicalMax: 0.25 })}
+          ${makeCpuField('silent', 'commitmentRangeHighTeamPct', 'commitmentRangeHighTeamPct', { type: 'range', min: 0, max: 0.5, step: 0.05, typicalMin: 0.15, typicalMax: 0.25 })}
+          ${makeCpuField('silent', 'commitmentRangeLockFinalRounds', 'commitmentRangeLockFinalRounds', { type: 'range', min: 0, max: 3, step: 1, precision: 0, typicalMin: 2, typicalMax: 2 })}
+          ${makeCpuField('silent', 'paceBandMinMultiplier', 'Pace Band Min Multiplier', { type: 'range', min: 0.3, max: 1.5, step: 0.01, typicalMin: 0.70, typicalMax: 0.90 })}
+          ${makeCpuField('silent', 'paceBandMaxMultiplier', 'Pace Band Max Multiplier', { type: 'range', min: 0.3, max: 2, step: 0.01, typicalMin: 1.05, typicalMax: 1.25 })}
+          ${makeCpuField('silent', 'paceBandTeamJitter', 'Pace Band Team Jitter', { type: 'range', min: 0, max: 2, step: 0.05, typicalMin: 0.5, typicalMax: 0.9 })}
         </div>
       </div>
 
@@ -1780,16 +2249,20 @@ document.addEventListener('DOMContentLoaded', () => {
           ${makeCpuField('silent', 'band1to9NoBidChance', 'AV 1-9 No-Bid Chance', { type: 'range', min: 0, max: 0.95, step: 0.01, typicalMin: 0.35, typicalMax: 0.75 })}
           ${makeCpuField('silent', 'band10to19NoBidChance', 'AV 10-19 No-Bid Chance', { type: 'range', min: 0, max: 0.9, step: 0.01, typicalMin: 0.1, typicalMax: 0.4 })}
           ${makeCpuField('silent', 'bandLowAvNoBidLateRoundRelief', 'Low-AV Late-Round Relief', { type: 'range', min: 0, max: 0.25, step: 0.01, typicalMin: 0.06, typicalMax: 0.16 })}
-          ${makeCpuField('silent', 'lowAvEarlyRoundNoBidBoost', 'Low-AV Early No-Bid Boost (R1-3)', { type: 'range', min: 0, max: 0.4, step: 0.01, typicalMin: 0.06, typicalMax: 0.16 })}
-          ${makeCpuField('silent', 'lowAvLateRoundReliefStartRound', 'Low-AV Relief Start Round', { type: 'range', min: 4, max: 10, step: 1, precision: 0, typicalMin: 6, typicalMax: 8 })}
-          ${makeCpuField('silent', 'lowAvCompletionGuardEnabled', 'Low-AV Completion Guard Enabled (0/1)', { type: 'range', min: 0, max: 1, step: 1, precision: 0, typicalMin: 1, typicalMax: 1 })}
-          ${makeCpuField('silent', 'lowAvCompletionGuardStartRound', 'Completion Guard Start Round', { type: 'range', min: 5, max: 10, step: 1, precision: 0, typicalMin: 7, typicalMax: 9 })}
-          ${makeCpuField('silent', 'lowAvCompletionGuardMinRosterRatio', 'Completion Guard Min Roster Fill Ratio', { type: 'range', min: 0.5, max: 0.95, step: 0.01, typicalMin: 0.72, typicalMax: 0.88 })}
-          ${makeCpuField('silent', 'lowAvCompletionGuardMinBidders', 'Completion Guard Min Low-AV Bidders', { type: 'range', min: 0, max: 4, step: 1, precision: 0, typicalMin: 1, typicalMax: 2 })}
+          ${makeCpuField('silent', 'lowAvEarlyRoundNoBidBoost', 'lowAvEarlyRoundNoBidBoost', { type: 'range', min: 0, max: 0.4, step: 0.01, typicalMin: 0.06, typicalMax: 0.16 })}
+          ${makeCpuField('silent', 'lowAvLateRoundReliefStartRound', 'lowAvLateRoundReliefStartRound', { type: 'range', min: 4, max: 10, step: 1, precision: 0, typicalMin: 6, typicalMax: 8 })}
+          ${makeCpuField('silent', 'lowAvCompletionGuardEnabled', 'lowAvCompletionGuardEnabled (0/1)', { type: 'range', min: 0, max: 1, step: 1, precision: 0, typicalMin: 1, typicalMax: 1 })}
+          ${makeCpuField('silent', 'lowAvCompletionGuardStartRound', 'lowAvCompletionGuardStartRound', { type: 'range', min: 5, max: 10, step: 1, precision: 0, typicalMin: 7, typicalMax: 9 })}
+          ${makeCpuField('silent', 'lowAvCompletionGuardMinRosterRatio', 'lowAvCompletionGuardMinRosterRatio', { type: 'range', min: 0.5, max: 0.95, step: 0.01, typicalMin: 0.72, typicalMax: 0.88 })}
+          ${makeCpuField('silent', 'lowAvCompletionGuardMinBidders', 'lowAvCompletionGuardMinBidders', { type: 'range', min: 0, max: 4, step: 1, precision: 0, typicalMin: 1, typicalMax: 2 })}
           ${makeCpuField('silent', 'band50PlusPullChance', 'AV 50+ Pull Strength', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.8, typicalMax: 1.0 })}
           ${makeCpuField('silent', 'band40to49PullChance', 'AV 40-49 Pull Strength', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.7, typicalMax: 0.95 })}
           ${makeCpuField('silent', 'bandDefaultPullChance', 'AV 1-39 Pull Strength', { type: 'range', min: 0, max: 1, step: 0.01, typicalMin: 0.55, typicalMax: 0.9 })}
           ${makeCpuField('silent', 'topAvHardMaxTeamPct', 'AV 40+ Hard Team % Max', { type: 'range', min: 0.3, max: 1, step: 0.01, typicalMin: 0.7, typicalMax: 0.9 })}
+          ${makeCpuField('silent', 'avMarketDepthMaxPlayersPerRound', 'avMarketDepthMaxPlayersPerRound', { type: 'range', min: 1, max: 12, step: 1, precision: 0, typicalMin: 3, typicalMax: 6 })}
+          ${makeCpuField('silent', 'avMarketDepthMinBidMultiplier', 'avMarketDepthMinBidMultiplier', { type: 'range', min: 0.5, max: 1.2, step: 0.01, typicalMin: 0.85, typicalMax: 1.0 })}
+          ${makeCpuField('silent', 'avMarketDepthBidLowMultiplier', 'avMarketDepthBidLowMultiplier', { type: 'range', min: 0.5, max: 1.2, step: 0.01, typicalMin: 0.85, typicalMax: 1.0 })}
+          ${makeCpuField('silent', 'avMarketDepthBidHighMultiplier', 'avMarketDepthBidHighMultiplier', { type: 'range', min: 0.5, max: 1.3, step: 0.01, typicalMin: 1.0, typicalMax: 1.1 })}
         </div>
         <div id="cpuParticipationCurveGraph" class="admin-cpu-curve-wrap"></div>
         ${participationCurveFields}
@@ -3261,6 +3734,35 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (_error) {
         // ignore
       }
+    });
+  }
+
+  // Dedicated CPU Tuning Lab page: same connect flow as the portal, scoped to just this page's elements.
+  if (isCpuTuningPage) {
+    restoreAdminKey();
+
+    if (!getAdminKey()) {
+      setConnectStatus('Enter the admin key.');
+      if (cpuTuningDebugOutput) cpuTuningDebugOutput.textContent = 'Not connected yet - enter the admin key above and click Connect.';
+      return;
+    }
+
+    setConnectStatus('Checking admin access...');
+    if (cpuTuningDebugOutput) cpuTuningDebugOutput.textContent = 'Checking admin access...';
+
+    void validateAdminKey().then(() => {
+      setConnectApproved(true);
+      promoteTypedAdminKeyToSession();
+      setConnectStatus('');
+      refreshCpuModelSelect('');
+      renderCpuTuningLab();
+      updateCpuLogicSourceMeta();
+      void loadCpuLogicFromServer({ silent: true });
+    }).catch((error) => {
+      setConnectApproved(false);
+      const message = error && error.message ? error.message : 'Invalid admin key.';
+      setConnectStatus(message);
+      if (cpuTuningDebugOutput) cpuTuningDebugOutput.textContent = `Admin key validation failed: ${message}`;
     });
   }
 });

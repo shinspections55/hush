@@ -1012,6 +1012,8 @@ function initSilentDraft() {
     const ROUND_SCHEDULE_POLL_MS = 250;
     const ROUND_START_FALLBACK_MS = 3000;
     let latestMemberReadiness = { lobbyCount: 0, gateLobbyCount: 0, connectedCount: 0, missingMembers: [], currentRound: 0 };
+    let lastReadinessDebugKey = '';
+    let lastReadinessReportKey = '';
     let draftRoomDefaultRankings = [];
     let draftRoomDefaultRankingsLastLoadedAt = 0;
     const DRAFTROOM_POSITION_FILES = {
@@ -2501,14 +2503,35 @@ function initSilentDraft() {
         });
 
         window.draftSocket.on('readinessDebug', (readiness) => {
-            console.warn('[silentdraft] Readiness debug:', readiness);
+            const debugKey = JSON.stringify({
+                round: Number(readiness && readiness.currentRound || 0),
+                connected: Array.isArray(readiness && readiness.connectedMembers) ? readiness.connectedMembers : [],
+                ready: Array.isArray(readiness && readiness.roundReadyMembers) ? readiness.roundReadyMembers : [],
+                missing: Array.isArray(readiness && readiness.missingMembers) ? readiness.missingMembers : [],
+                missingSocket: Array.isArray(readiness && readiness.missingMembersFromSocket) ? readiness.missingMembersFromSocket : [],
+                scheduled: readiness && readiness.roundStartAt ? true : false
+            });
+            if (debugKey !== lastReadinessDebugKey) {
+                console.warn('[silentdraft] Readiness debug:', readiness);
+                lastReadinessDebugKey = debugKey;
+            }
             if (Array.isArray(readiness && readiness.missingMembers)) {
                 latestMemberReadiness.missingMembers = readiness.missingMembers;
             }
         });
 
         window.draftSocket.on('readinessReport', (report) => {
-            console.warn('[silentdraft] Readiness report:', report);
+            const reportKey = JSON.stringify({
+                round: Number(report && report.currentRound || 0),
+                connected: Number(report && report.connectedCount || 0),
+                gate: Number(report && report.gateLobbyCount || 0),
+                missing: Array.isArray(report && report.missingMembers) ? report.missingMembers : [],
+                scheduled: Boolean(report && report.timerScheduled)
+            });
+            if (reportKey !== lastReadinessReportKey) {
+                console.warn('[silentdraft] Readiness report:', report);
+                lastReadinessReportKey = reportKey;
+            }
             latestMemberReadiness = {
                 lobbyCount: Number(report && report.lobbyCount || 0),
                 gateLobbyCount: Number(report && report.gateLobbyCount || 0),
@@ -2516,6 +2539,15 @@ function initSilentDraft() {
                 currentRound: Number(report && report.currentRound || 0),
                 missingMembers: Array.isArray(report && report.missingMembers) ? report.missingMembers : []
             };
+
+            const currentMemberKey = String(username || '').trim().toLowerCase();
+            const missingCurrentMember = latestMemberReadiness.missingMembers.some((member) => (
+                String(member || '').trim().toLowerCase() === currentMemberKey
+            ));
+            if (missingCurrentMember) {
+                console.warn('[silentdraft] This member is missing from the current-round gate; attempting reconnect before starting the round.');
+                scheduleConnectionResync('missing-current-round-member', 0);
+            }
 
             if (report && report.timerScheduled && report.roundStartAt && report.roundEndsAt
                 && Number(report.currentRound) === currentRound && !timerInterval
@@ -3101,7 +3133,7 @@ function initSilentDraft() {
             const missing = Math.max(0, min - currentCount);
             if (missing === 0) return;
 
-            const fallbackPool = availablePlayers
+            const fallbackPool = assignedPlayers
                 .filter(player => !selectedPlayers.includes(player))
                 .sort(comparePlayersForAjSlot);
             const additions = pickPlayersForMinimum(pos, missing, selectedPlayers, assignedPlayers, fallbackPool);
@@ -3125,14 +3157,7 @@ function initSilentDraft() {
             selectedPlayers = selectedPlayers.sort(comparePlayersForAjSlot).slice(0, pageSize);
         });
 
-        if (selectedPlayers.length < pageSize) {
-            const fillers = getBestAvailablePlayers(excludePlayers.concat(selectedPlayers), player => !selectedPlayers.includes(player));
-            for (const player of fillers) {
-                if (selectedPlayers.length >= pageSize) break;
-                selectedPlayers.push(player);
-            }
-        }
-
+        // A short sheet stays short: borrowing from other sheets pulls future players forward.
         return selectedPlayers
             .sort(comparePlayersForAjSlot)
             .slice(0, pageSize)
@@ -4019,6 +4044,20 @@ function initSilentDraft() {
         return { assignedSlots, bench };
     }
 
+    function getUniqueRosterPlayers(roster) {
+        const seen = new Set();
+        return (Array.isArray(roster) ? roster : []).filter((player) => {
+            if (!player || typeof player !== 'object' || !String(player.name || '').trim()) return false;
+            const id = Number(player.id);
+            const key = Number.isFinite(id) && id > 0
+                ? `id:${id}`
+                : `name:${String(player.name).trim().toLowerCase()}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    }
+
     function renderRosterRequirementsSummary() {
         const summary = document.getElementById('roster-requirements');
         if (summary) {
@@ -4368,7 +4407,8 @@ function initSilentDraft() {
         if (headerBar) {
             const measuredHeaderHeight = Math.round(headerBar.getBoundingClientRect().height || 0);
             if (measuredHeaderHeight > 0) {
-                const stableHeaderHeight = Math.max(56, Math.min(120, measuredHeaderHeight));
+                // Ceiling must clear safe-area insets, or content scrolls under the fixed header.
+                const stableHeaderHeight = Math.max(56, Math.min(220, measuredHeaderHeight));
                 if (stableHeaderHeight !== lastAppliedHeaderHeight) {
                     lastAppliedHeaderHeight = stableHeaderHeight;
                     document.body.style.setProperty('--draft-app-header-height', `${stableHeaderHeight}px`);
@@ -4378,7 +4418,7 @@ function initSilentDraft() {
         if (appNav) {
             const measuredNavHeight = Math.round(appNav.getBoundingClientRect().height || 0);
             if (measuredNavHeight > 0) {
-                const stableNavHeight = Math.max(56, Math.min(98, measuredNavHeight));
+                const stableNavHeight = Math.max(56, Math.min(180, measuredNavHeight));
                 if (stableNavHeight !== lastAppliedNavHeight) {
                     lastAppliedNavHeight = stableNavHeight;
                     document.body.style.setProperty('--draft-app-nav-height', `${stableNavHeight}px`);
@@ -6438,7 +6478,8 @@ function initSilentDraft() {
                     : 'display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.5);color:#93c5fd;';
                 const teamName = String(team.name || 'Team');
                 const safeBudget = Number.isFinite(Number(team.budget)) ? Math.max(0, Number(team.budget)) : 0;
-                const draftedCount = Array.isArray(team.roster) ? team.roster.length : 0;
+                const displayedRoster = getUniqueRosterPlayers(team.roster);
+                const draftedCount = displayedRoster.length;
                 const totalSlots = Number.isFinite(Number(rosterSize)) && Number(rosterSize) > 0 ? Number(rosterSize) : draftedCount;
 
                 const headerLeft = document.createElement('div');
@@ -6499,7 +6540,7 @@ function initSilentDraft() {
                         <span style="${compactValueStyle}">${escapeCompactText(player && player.name)}</span>
                     </div>`;
 
-                const assigned = assignRosterToSlots(team.roster);
+                const assigned = assignRosterToSlots(displayedRoster);
                 const starterMarkup = assigned.assignedSlots
                     .map(slot => renderCompactRow(String(slot.label || '').replace(/\d+$/, ''), slot.player))
                     .join('');
@@ -7494,7 +7535,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 }
 
                 console.warn('[silentdraft] startNextRound rejected, requesting fresh draft state:', response);
-                requestFreshDraftState();
+                scheduleConnectionResync('round-advance-rejected', 0);
             });
             return;
         }
@@ -7509,6 +7550,11 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         console.log('[silentdraft] Applying round results:', results);
         const tiedBids = [];
         const maxRosterSize = Math.max(1, Number(rosterSize || 0) + 3);
+        teams.forEach((team) => {
+            if (team && Array.isArray(team.roster)) {
+                team.roster = getUniqueRosterPlayers(team.roster);
+            }
+        });
         
         results.forEach(result => {
             if (result.type === 'won') {
@@ -7517,6 +7563,11 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 const team = teams.find(t => t.name === result.winnerTeam);
                 
                 if (player && team) {
+                    const playerId = Number(player.id);
+                    const alreadyRostered = (team.roster || []).some((rosterPlayer) => Number(rosterPlayer && rosterPlayer.id) === playerId);
+                    if (alreadyRostered || (player.owner && player.owner !== team.name)) {
+                        return;
+                    }
                     if ((team.roster || []).length >= maxRosterSize) {
                         return;
                     }
@@ -8168,6 +8219,23 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     let pauseControlSnapshot = null;
     let wasTimerRunningBeforePause = false;
 
+    function requestResumeDraft() {
+        if (!window.isHost || !isPaused) return;
+        isPaused = false;
+        updatePauseButtonVisibility();
+        clearDraftPauseLock();
+
+        if (!window.draftSocket) return;
+        window.draftSocket.emit('resumeDraft', currentDraftCode, username, (response) => {
+            if (!response || !response.ok) {
+                isPaused = true;
+                updatePauseButtonVisibility();
+                applyDraftPauseLock({ pausedBy: 'Host' });
+                showNotification('Unable to resume draft.');
+            }
+        });
+    }
+
     function getPauseLockTargets() {
         return Array.from(document.querySelectorAll('button, input, select, textarea')).filter(el => {
             if (!el || el.id === 'pause-draft') return false;
@@ -8219,7 +8287,39 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             card.style.color = '#f8fafc';
             card.innerHTML = '<h3 style="margin:0 0 10px 0;font-size:20px;">Draft Paused</h3><p id="draft-pause-overlay-msg" style="margin:0;font-size:14px;color:#cbd5e1;">Waiting for host to resume...</p>';
             pauseLockOverlay.appendChild(card);
+
+            // The header button can be trapped under the overlay by an ancestor stacking context,
+            // so the host gets a resume control inside the overlay itself.
+            const overlayResume = document.createElement('button');
+            overlayResume.id = 'draft-pause-overlay-resume';
+            overlayResume.type = 'button';
+            overlayResume.textContent = '▶ Resume Draft';
+            overlayResume.style.marginTop = '18px';
+            overlayResume.style.padding = '10px 22px';
+            overlayResume.style.fontSize = '15px';
+            overlayResume.style.fontWeight = '600';
+            overlayResume.style.cursor = 'pointer';
+            overlayResume.style.border = '1px solid rgba(148, 163, 184, 0.45)';
+            overlayResume.style.borderRadius = '10px';
+            overlayResume.style.background = '#22c55e';
+            overlayResume.style.color = '#052e16';
+            overlayResume.style.display = window.isHost ? 'inline-block' : 'none';
+            overlayResume.disabled = !window.isHost;
+            if (!window.isHost) overlayResume.classList.add('host-only-control');
+            overlayResume.addEventListener('click', () => {
+                requestResumeDraft();
+            });
+            card.appendChild(overlayResume);
+
             document.body.appendChild(pauseLockOverlay);
+        }
+
+        const overlayResumeBtn = document.getElementById('draft-pause-overlay-resume');
+        if (overlayResumeBtn) {
+            const hostControls = !!window.isHost;
+            overlayResumeBtn.classList.toggle('host-only-control', !hostControls);
+            overlayResumeBtn.style.display = hostControls ? 'inline-block' : 'none';
+            overlayResumeBtn.disabled = !hostControls;
         }
 
         const msg = document.getElementById('draft-pause-overlay-msg');
@@ -8278,21 +8378,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                     });
                 }
             } else {
-                // Optimistically switch host control back to Pause immediately.
-                isPaused = false;
-                updatePauseButtonVisibility();
-
-                // Resume - emit to server to broadcast to all participants
-                if (window.draftSocket) {
-                    window.draftSocket.emit('resumeDraft', currentDraftCode, username, (response) => {
-                        if (!response || !response.ok) {
-                            // Roll back UI if server rejects resume.
-                            isPaused = true;
-                            updatePauseButtonVisibility();
-                            showNotification('Unable to resume draft.');
-                        }
-                    });
-                }
+                requestResumeDraft();
             }
         });
     }
@@ -8644,7 +8730,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             // Everyone is through the gate, so a missing schedule is a dropped broadcast.
             if (elapsedMs >= ROUND_START_FALLBACK_MS) {
                 clearRoundSyncCountdown();
-                console.warn('[silentdraft] No authoritative schedule received; starting round locally.');
+                console.warn('[silentdraft] All members are ready but no authoritative schedule arrived; starting the current round locally.');
                 startLocalRoundTimer();
             }
         }, ROUND_SCHEDULE_POLL_MS);

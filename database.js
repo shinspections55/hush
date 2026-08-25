@@ -468,7 +468,7 @@ function bulkLogIndividualBids(bidDataArray) {
       return;
     }
 
-    const placeholders = bidDataArray.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+    const placeholders = bidDataArray.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
     const values = [];
 
     bidDataArray.forEach(bidData => {
