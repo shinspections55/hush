@@ -156,7 +156,7 @@ module.exports = {
     "starterFillTargetRound": 10,
     "earlyCheapSkipMaxRound": 5,
     "earlyCheapAvThreshold": 6,
-    "earlyCheapSkipRate": 0.6,
+    "earlyCheapSkipRate": 0.4,
     "roundCommitR1Pct": 0.64,
     "roundCommitR2Pct": 0.66,
     "roundCommitR3Pct": 0.68,

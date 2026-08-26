@@ -2738,6 +2738,37 @@ function generateClientCPUBids(teams, roundPlayers, username, rosterSize, curren
     });
     console.log('===============================');
 
+    // Ensure each CPU team places at least one small $1-$3 bid per round
+    for (const team of cpuTeams) {
+      try {
+        if (!team || typeof team.name !== 'string') continue;
+        const bidsForTeam = Array.isArray(cpuBids[team.name]) ? cpuBids[team.name] : [];
+        const hasSmall = bidsForTeam.some(b => Number(b && b.cpuBid) >= 1 && Number(b && b.cpuBid) <= 3);
+        const budget = Number(team.budget) || 0;
+        if (budget < 1) continue; // can't place even a $1 bid
+
+        if (bidsForTeam.length === 0 || !hasSmall) {
+          // pick a candidate player that isn't held back and not already targeted by this team
+          const alreadyTargetedIds = new Set((bidsForTeam || []).map(b => Number(b && b.player && b.player.id)).filter(Boolean));
+          const candidates = (roundPlayers || []).filter(p => {
+            const id = Number(p && p.id);
+            if (!Number.isFinite(id)) return false;
+            if (alreadyTargetedIds.has(id)) return false;
+            if (isHeldBackThisRound(p)) return false;
+            return true;
+          });
+          if (candidates.length > 0) {
+            const pick = candidates[Math.floor(Math.random() * candidates.length)];
+            const smallBid = Math.min(budget, 1 + Math.floor(Math.random() * 3)); // $1-$3
+            if (!cpuBids[team.name]) cpuBids[team.name] = [];
+            cpuBids[team.name].push({ player: pick, cpuBid: Math.max(1, Math.round(smallBid)) });
+          }
+        }
+      } catch (err) {
+        console.warn('[generateServerCPUBids] failed to ensure min small bid for', team && team.name, err);
+      }
+    }
+
     return cpuBids;
 }
 
