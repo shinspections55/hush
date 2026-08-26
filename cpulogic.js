@@ -102,6 +102,8 @@ module.exports = {
     "kickerDefenseTopRankTarget": 12,
     "kickerDefensePatienceReleaseRound": 8,
     "kickerDefenseUpgradeRankGap": 6,
+    "kickerDefenseMaxPatientTeams": 3,
+    "kickerDefenseTakeIfPriceFactor": 0.75,
     "lateRoundPaceThresholdHitEnabled": true,
     "lateRoundPaceThresholdStartRound": 6,
     "lateRoundPaceThresholdPerRoundHit": 0.04,

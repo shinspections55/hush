@@ -2868,6 +2868,22 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       }
     }
 
+    // Determine which teams should be allowed to be "patient" about K/DEF.
+    // Limit to a small number to avoid whole-league stalling on specialists.
+    const maxPatientTeams = Math.max(0, Math.floor(Number(cfg?.silent?.kickerDefenseMaxPatientTeams ?? 3)));
+    let patientTeamsSet = new Set();
+    if (maxPatientTeams > 0) {
+      // sort teams by GM confidence (desc) and pick top N
+      const sortedByConf = cpuTeams.slice().sort((a, b) => {
+        const ca = Number(gmConfidenceMeter[a.name] || 100);
+        const cb = Number(gmConfidenceMeter[b.name] || 100);
+        return cb - ca;
+      });
+      for (let i = 0; i < Math.min(maxPatientTeams, sortedByConf.length); i++) {
+        patientTeamsSet.add(sortedByConf[i].name);
+      }
+    }
+
     // Generate dynamic bidding strategies for each CPU team based on situation
     const teamStrategies = {};
     const leagueAvgRosterSizeGlobal = cpuTeams.reduce((sum, t) => sum + ((t.roster || []).length), 0)
@@ -3941,7 +3957,8 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
           // instead of burning an early slot, and will still trade up for a better one later.
           const specialistPosition = String(entry?.player?.position || '').trim().toUpperCase();
           if ((specialistPosition === 'K' || specialistPosition === 'DEF')
-            && cfg?.silent?.kickerDefensePatienceEnabled !== false) {
+            && cfg?.silent?.kickerDefensePatienceEnabled !== false
+            && patientTeamsSet.has(team.name)) {
             const releaseRound = Math.max(1, Math.floor(Number(cfg?.silent?.kickerDefensePatienceReleaseRound ?? 9)));
             if (Number(roundNumber) < releaseRound) {
               const topRankTarget = Math.max(1, Math.floor(Number(cfg?.silent?.kickerDefenseTopRankTarget ?? 12)));
@@ -3951,7 +3968,17 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
                 .filter(rosterPlayer => String(rosterPlayer?.position || '').trim().toUpperCase() === specialistPosition)
                 .map(rosterPlayer => Number(rosterPlayer?.positionRank || 999));
               if (ownedRanks.length === 0) {
-                if (candidateRank > topRankTarget) return false;
+                // If candidate is worse than desired top rank, normally skip —
+                // but allow if estimated price looks affordable to the team.
+                const estPrice = Math.max(1, Math.round(Number(entry?.player?.avgValue || 1) * Number(cfg?.silent?.avPriceAccuracyMid ?? 0.88)));
+                const spotsLeft = Math.max(1, maxRosterSize - (team.roster ? team.roster.length : 0));
+                const teamSpotBudget = Math.max(1, Math.floor(Number(team.budget || 0) / spotsLeft));
+                const takeIfPriceFactor = Math.max(0, Number(cfg?.silent?.kickerDefenseTakeIfPriceFactor ?? 0.75));
+                if (estPrice <= Math.ceil(teamSpotBudget * takeIfPriceFactor)) {
+                  // team believes they can get this kicker cheaply enough — allow
+                } else {
+                  return false;
+                }
               } else if (candidateRank > (Math.min(...ownedRanks) - upgradeGap)) {
                 return false;
               }
