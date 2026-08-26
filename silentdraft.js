@@ -2759,8 +2759,10 @@ function initSilentDraft() {
                 const reason = response && response.reason ? String(response.reason) : 'unknown';
                 console.warn('[silentdraft] processRound rejected:', response);
 
-                // Ignore this client when another member is already processing the same round.
+                // If another member is already processing the same round, ask server to recover results
                 if (reason === 'already_processing') {
+                    console.warn('[silentdraft] Server reports already_processing; requesting recovery');
+                    requestRoundResultsRecovery('already_processing');
                     return;
                 }
 
