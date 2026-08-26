@@ -9618,10 +9618,52 @@ io.on('connection', (socket) => {
     }
     
     // Prevent duplicate round processing with a flag
-    if(drafts[code].draftState.isProcessingRound) {
-      console.log(`[processRound] Round already processing for ${code}, ignoring duplicate request`);
-      if(cb) cb({ ok: false, reason: 'already_processing' });
-      return;
+    if (drafts[code].draftState.isProcessingRound) {
+      console.log(`[processRound] Round already processing for ${code}; waiting briefly for completion`);
+      // Wait a short time for the in-progress processing to finish and then attempt to replay saved results.
+      const waitForCompletion = (timeoutMs = 3000) => new Promise((resolve) => {
+        const start = Date.now();
+        const check = () => {
+          if (!drafts[code] || !drafts[code].draftState || !drafts[code].draftState.isProcessingRound) return resolve(true);
+          if (Date.now() - start >= timeoutMs) return resolve(false);
+          setTimeout(check, 150);
+        };
+        check();
+      });
+
+      const finished = await waitForCompletion(3000);
+      if (finished) {
+        // If results have been saved, replay them to the caller
+        const safeRoundNumberReplay = normalizeRoundNumberForFile(drafts[code].draftState.currentRound || 1);
+        const saved = await readRoundResultSnapshot(code, safeRoundNumberReplay).catch(() => null);
+        if (saved && Array.isArray(saved.results)) {
+          const replayPayload = {
+            roundNumber: safeRoundNumberReplay,
+            results: saved.results,
+            emittedAt: Number(saved.emittedAt || saved.savedAt || Date.now()),
+            recovered: true
+          };
+          replayPayload.stateVersion = recordDraftStateEvent(drafts[code], 'roundResultsReplay', replayPayload);
+          drafts[code].draftState.lastRoundResults = {
+            results: saved.results,
+            tiedBids: Array.isArray(saved.tiedBids) ? saved.tiedBids : [],
+            participationStats: saved.participationStats || null
+          };
+          drafts[code].draftState.pendingRoundResults = replayPayload;
+          schedulePendingRoundAutoAdvance(code);
+          io.to(`draft_${code}`).emit('roundResults', replayPayload);
+          console.warn(`[processRound] Replayed saved round results for ${code} after waiting for prior processor`);
+          const response = { ok: true, replayed: true };
+          if (cb) cb(response);
+          return;
+        }
+        // If nothing saved, fall through and let this caller attempt processing
+        console.log(`[processRound] Prior processing finished but no snapshot found for ${code}; proceeding to process`);
+      } else {
+        console.log(`[processRound] Prior processing still active for ${code}; rejecting duplicate request`);
+        if (cb) cb({ ok: false, reason: 'already_processing' });
+        return;
+      }
     }
     
     // Ensure all required manual members have submitted bids before processing
