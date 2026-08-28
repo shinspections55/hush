@@ -817,8 +817,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
+                if (!areAllTeamsCutComplete()) {
+                    const blockers = getTeamsCutDebugSnapshot().filter(entry => entry.requiredCuts > 0);
+                    const blockerText = blockers
+                        .map(entry => `${entry.teamName} (needs ${entry.requiredCuts} cut${entry.requiredCuts === 1 ? '' : 's'})`)
+                        .join(', ');
+                    alert(`Finish required roster cuts before starting waivers: ${blockerText || 'a team still needs to cut down its roster'}.`);
+                    return;
+                }
+
                 socket.emit('startWaivers', { draftCode: draftSummary.draftCode, mode }, (response) => {
                     if (!response || !response.ok) {
+                        if (response && response.reason === 'cuts_pending' && Array.isArray(response.blockers)) {
+                            const blockerText = response.blockers
+                                .map(entry => `${entry.teamName} (needs ${entry.requiredCuts} cut${entry.requiredCuts === 1 ? '' : 's'})`)
+                                .join(', ');
+                            alert(`Finish required roster cuts before starting waivers: ${blockerText}.`);
+                            return;
+                        }
                         alert(`Unable to start waivers: ${(response && response.reason) || 'unknown_error'}`);
                         return;
                     }
@@ -1178,6 +1194,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="cut-form-heading">Bench By Default Top Ranking</div>
                         <div class="bench-list">${buildBenchCutRows()}</div>
                     </div>
+                    <button type="button" id="auto-cut-bench-btn" class="account-btn cut-btn" style="margin-right:8px;">Auto-Cut Extra Bench</button>
                     <button type="submit" class="account-btn cut-btn">Confirm Cuts</button>
                 </form>
             </div>
@@ -1185,6 +1202,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const form = document.getElementById('cut-bench-form');
         if (!form) return;
+
+        const autoCutBtn = document.getElementById('auto-cut-bench-btn');
+        if (autoCutBtn) {
+            autoCutBtn.addEventListener('click', () => {
+                const benchCheckboxes = Array.from(form.querySelectorAll('input[name="cut"][data-bench-player="true"]'));
+                if (benchCheckboxes.length < requiredCuts) {
+                    alert(`Only ${benchCheckboxes.length} bench player(s) available. Select ${requiredCuts} player(s) manually (including a starter) to finish your cuts.`);
+                    return;
+                }
+                form.querySelectorAll('input[name="cut"]').forEach((el) => { el.checked = false; });
+                // Bench rows are sorted best-rank first, so the last entries are the worst-ranked extras to cut.
+                benchCheckboxes.slice(-requiredCuts).forEach((el) => { el.checked = true; });
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.dispatchEvent(new Event('submit', { cancelable: true }));
+                }
+            });
+        }
 
         form.addEventListener('submit', (e) => {
             e.preventDefault();

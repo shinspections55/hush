@@ -18,7 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
 
   const sheetSource = document.getElementById('sheetSource');
-  const teamCountInput = document.getElementById('teamCountInput');
   const draftCodeField = document.getElementById('draftCodeField');
   const draftCodeInput = document.getElementById('draftCodeInput');
   const generateSheetsBtn = document.getElementById('generateSheetsBtn');
@@ -37,7 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
   updateExpectedPagesPreview();
   sheetSource.addEventListener('change', toggleDraftCodeVisibility);
   sheetSource.addEventListener('change', updateExpectedPagesPreview);
-  teamCountInput.addEventListener('input', updateExpectedPagesPreview);
   generateSheetsBtn.addEventListener('click', handleGenerate);
   printSheetsBtn.addEventListener('click', () => window.print());
 
@@ -51,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const drafterCount = getDrafterCount();
 
     if (sheetSource.value === 'aj') {
-      setStatus(`Generating A-J structured sheets for ${drafterCount} drafter group(s)...`);
+      setStatus('Generating one A-J structured packet...');
       const players = await loadRankingPlayers();
       if (!players.length) {
         setStatus('No ranking players were found to build A-J sheets.');
@@ -60,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const baseSheets = buildAjSheets(players);
       const packetSheets = buildPacketSheets(baseSheets, drafterCount);
       renderSheets(packetSheets);
-      setStatus(`Generated ${packetSheets.length} sheets (${baseSheets.length} per drafter group) ordered: all A, then B, then C...`);
+      setStatus(`Generated ${packetSheets.length} sheets. Print this packet, then make copies for each team in your league.`);
       return;
     }
 
@@ -70,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    setStatus(`Loading server-randomized players for draft ${code} (${drafterCount} drafter group(s))...`);
+    setStatus(`Loading one server-randomized packet for draft ${code}...`);
     const payload = await loadServerRandomizedSheets(code);
     if (!payload.ok) {
       setStatus(payload.message || 'Unable to load server-randomized sheets.');
@@ -79,21 +77,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const packetSheets = buildPacketSheets(payload.sheets, drafterCount);
     renderSheets(packetSheets);
-    setStatus(`Generated ${packetSheets.length} sheets (${payload.sheets.length} per drafter group) ordered: all A, then B, then C...`);
+    setStatus(`Generated ${packetSheets.length} sheets. Print this packet, then make copies for each team in your league.`);
   }
 
   function getDrafterCount() {
-    const parsed = Number.parseInt(teamCountInput && teamCountInput.value, 10);
-    if (!Number.isFinite(parsed)) return 10;
-    return Math.max(1, Math.min(26, parsed));
+    return 1;
   }
 
   function updateExpectedPagesPreview() {
     if (!expectedPagesPreview) return;
-    const drafterCount = getDrafterCount();
-    const totalSheets = drafterCount * SHEETS_PER_PACKET;
     const sourceLabel = sheetSource && sheetSource.value === 'serverRandom' ? 'Server Randomized' : 'A-J Structured';
-    expectedPagesPreview.textContent = `Expected print volume (${sourceLabel}): ${drafterCount} drafters x ${SHEETS_PER_PACKET} sheets = ${totalSheets} pages.`;
+    expectedPagesPreview.textContent = `Expected print volume (${sourceLabel}): one ${SHEETS_PER_PACKET}-sheet packet.`;
   }
 
   function getDrafterLetter(index) {
@@ -124,6 +118,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function loadRankingPlayers() {
+    const positionPlayers = await loadPositionRankingPlayers();
+    if (positionPlayers.length > 0) {
+      return positionPlayers;
+    }
+
     const urls = ['/top250.generated.json', '/top250.json'];
     for (const url of urls) {
       try {
@@ -132,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await response.json();
         if (!Array.isArray(data)) continue;
 
-        const normalized = data
+        const normalized = assignFallbackPositionRanks(data)
           .map((player, idx) => normalizePlayer(player, idx + 1))
           .filter((player) => Boolean(player.name) && Boolean(player.position));
 
@@ -146,11 +145,62 @@ document.addEventListener('DOMContentLoaded', () => {
     return [];
   }
 
+  async function loadPositionRankingPlayers() {
+    const positions = ['qb', 'rb', 'wr', 'te', 'k', 'def'];
+    const groups = await Promise.all(positions.map(async (pos) => {
+      try {
+        const response = await fetch(`/${pos}.json`, { cache: 'no-store' });
+        if (!response.ok) return [];
+        const data = await response.json();
+        if (!Array.isArray(data)) return [];
+
+        return data
+          .map((player, idx) => normalizePositionPlayer(player, pos.toUpperCase(), idx + 1))
+          .filter((player) => Boolean(player.name) && Boolean(player.position));
+      } catch (_err) {
+        return [];
+      }
+    }));
+
+    return groups.flat();
+  }
+
+  function normalizePositionPlayer(player, position, fallbackRank) {
+    const rankField = `${String(position || '').toLowerCase()}Rank`;
+    const rankRaw = Number.parseInt(player && (player.positionRank || player[rankField] || player.rank || player.prerank), 10);
+    const rank = Number.isFinite(rankRaw) ? rankRaw : fallbackRank;
+    return {
+      name: String(player && (player.name || player.playerName || '')).trim(),
+      position,
+      team: String(player && (player.team || player.nflTeam || '')).toUpperCase().trim(),
+      avgValue: Number(player && player.avgValue || 0),
+      rank
+    };
+  }
+
+  function assignFallbackPositionRanks(players) {
+    const counters = new Map();
+    return (players || [])
+      .slice()
+      .sort((a, b) => {
+        const aRank = Number.parseInt(a && (a.prerank || a.rank || 9999), 10) || 9999;
+        const bRank = Number.parseInt(b && (b.prerank || b.rank || 9999), 10) || 9999;
+        return aRank - bRank;
+      })
+      .map((player) => {
+        const position = String(player && player.position || '').toUpperCase().trim();
+        const nextRank = (counters.get(position) || 0) + 1;
+        counters.set(position, nextRank);
+        return { ...player, positionRank: player && player.positionRank ? player.positionRank : nextRank };
+      });
+  }
+
   function normalizePlayer(player, fallbackRank) {
     const name = String(player && (player.name || player.playerName || '')).trim();
     const position = String(player && player.position || '').toUpperCase().trim();
     const team = String(player && (player.team || player.nflTeam || '')).toUpperCase().trim();
-    const rankRaw = Number.parseInt(player && (player.positionRank || player.prerank || player.rank), 10);
+    const rankField = `${position.toLowerCase()}Rank`;
+    const rankRaw = Number.parseInt(player && (player.positionRank || player[rankField] || player.rank || player.prerank), 10);
     const rank = Number.isFinite(rankRaw) ? rankRaw : fallbackRank;
     return { name, position, team, rank };
   }

@@ -1713,6 +1713,147 @@ function enforceRoundAuctionCoverage(cpuBids, cpuTeams, roundPlayers, teamStrate
   return coverageAdds;
 }
 
+// Per-draft cache so every round of the same draft pulls from one randomized undrafted schedule.
+const roundUndraftedScheduleCache = new Map();
+
+// Builds a shuffled per-round undrafted count list that sums to a random total in [totalMin, totalMax],
+// so counts don't correlate with round number (no more "front-loaded 11s then 7s").
+function buildRoundUndraftedSchedule(cfgSilent, totalRounds) {
+  const floor = Math.max(0, Math.floor(Number(cfgSilent?.roundUndraftedFloor ?? 4)));
+  const ceiling = Math.max(floor, Math.floor(Number(cfgSilent?.roundUndraftedCeiling ?? 11)));
+  const totalMin = Math.max(floor * totalRounds, Math.floor(Number(cfgSilent?.roundUndraftedTotalMin ?? 80)));
+  const totalMax = Math.max(totalMin, Math.min(ceiling * totalRounds, Math.floor(Number(cfgSilent?.roundUndraftedTotalMax ?? 95))));
+  const total = totalMin + Math.floor(Math.random() * (totalMax - totalMin + 1));
+
+  const values = Array.from({ length: totalRounds }, () => floor);
+  let remaining = total - (floor * totalRounds);
+  let guard = 0;
+  const guardLimit = (totalRounds * (ceiling - floor + 1)) + 50;
+  while (remaining > 0 && guard < guardLimit) {
+    guard += 1;
+    const openIdx = [];
+    values.forEach((value, idx) => { if (value < ceiling) openIdx.push(idx); });
+    if (openIdx.length === 0) break;
+    const pick = openIdx[Math.floor(Math.random() * openIdx.length)];
+    values[pick] += 1;
+    remaining -= 1;
+  }
+
+  // Shuffle so the randomly-built values aren't left in ascending round order.
+  for (let i = values.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [values[i], values[j]] = [values[j], values[i]];
+  }
+
+  return values;
+}
+
+function getRoundUndraftedScheduleTarget(cfgSilent, draftKey, roundNumber, totalRounds) {
+  const safeTotalRounds = Math.max(1, Math.floor(Number(totalRounds || draftRoundCount)));
+  const cacheKey = `${draftKey || 'default'}::${safeTotalRounds}`;
+  let schedule = roundUndraftedScheduleCache.get(cacheKey);
+  if (!schedule) {
+    schedule = buildRoundUndraftedSchedule(cfgSilent, safeTotalRounds);
+    roundUndraftedScheduleCache.set(cacheKey, schedule);
+  }
+  const idx = Math.max(0, Math.min(safeTotalRounds - 1, Math.floor(Number(roundNumber || 1)) - 1));
+  const target = schedule[idx];
+  if (Math.floor(Number(roundNumber || 1)) >= safeTotalRounds) {
+    roundUndraftedScheduleCache.delete(cacheKey);
+  }
+  return target;
+}
+
+// Absolute backstop run last: pushes the round's actual no-bid count to match its randomized schedule target,
+// adding cheap bids when there are too many undrafted and pulling single-bid players when there are too few.
+function enforceRoundUndraftedSchedule(cpuBids, cpuTeams, roundPlayers, teamStrategies, rosterLimits, maxRosterSize, roundNumber, draftKey) {
+  const cfg = loadCpuLogicConfig();
+  const target = getRoundUndraftedScheduleTarget(cfg?.silent, draftKey, roundNumber, draftRoundCount);
+  const safeBids = cpuBids && typeof cpuBids === 'object' ? cpuBids : {};
+  const safeTeams = Array.isArray(cpuTeams) ? cpuTeams : [];
+  const availablePlayers = (roundPlayers || []).filter(player => player && !player.owner);
+  if (availablePlayers.length === 0 || safeTeams.length === 0) return { added: 0, removed: 0, target };
+
+  const bidsByPlayerId = new Map();
+  Object.entries(safeBids).forEach(([teamName, teamBidList]) => {
+    (teamBidList || []).forEach((bid) => {
+      const playerId = Number(bid?.player?.id);
+      if (!playerId) return;
+      const list = bidsByPlayerId.get(playerId) || [];
+      list.push({ teamName });
+      bidsByPlayerId.set(playerId, list);
+    });
+  });
+
+  const uncoveredPlayers = availablePlayers.filter(player => !bidsByPlayerId.has(Number(player.id)));
+  let added = 0;
+  let removed = 0;
+
+  const overflow = uncoveredPlayers.length - target;
+  if (overflow > 0) {
+    // Too many undrafted: cover the highest-AV overflow names first so the leftovers aren't just the best players.
+    const prioritized = uncoveredPlayers.slice().sort((a, b) => Number(b.avgValue || 0) - Number(a.avgValue || 0));
+    for (const player of prioritized) {
+      if (added >= overflow) break;
+
+      const candidates = safeTeams
+        .map((team) => {
+          const teamName = String(team?.name || '');
+          const strategy = teamStrategies?.[teamName] || {};
+          const teamBidList = safeBids[teamName] || [];
+          if (!teamName || teamBidList.some(entry => Number(entry?.player?.id) === Number(player.id))) return null;
+
+          const targetRoster = Number(strategy.targetRosterSize || maxRosterSize);
+          const rosterCount = Array.isArray(team?.roster) ? team.roster.length : 0;
+          if (rosterCount >= targetRoster) return null;
+          if (!isValidRosterAddition(team, player, rosterLimits, maxRosterSize)) return null;
+
+          const committed = teamBidList.reduce((sum, bid) => sum + Math.max(0, Number(bid?.cpuBid || 0)), 0);
+          // The schedule is a hard rule, so it can dip into budget that normal reserve/commitment rules would otherwise hold back.
+          const budgetNow = getBidBudgetForTeam(team, committed, maxRosterSize, true);
+          if (budgetNow < 1) return null;
+
+          return { team, teamName, bidCount: teamBidList.length, rosterCount, budgetNow };
+        })
+        .filter(Boolean)
+        .sort((a, b) => {
+          if (a.bidCount !== b.bidCount) return a.bidCount - b.bidCount;
+          if (a.rosterCount !== b.rosterCount) return a.rosterCount - b.rosterCount;
+          return b.budgetNow - a.budgetNow;
+        });
+
+      const pick = candidates[0];
+      if (!pick) continue;
+
+      const safeBid = Math.max(1, Math.min(3, pick.budgetNow));
+      safeBids[pick.teamName] = safeBids[pick.teamName] || [];
+      safeBids[pick.teamName].push({ player, cpuBid: safeBid });
+      added += 1;
+    }
+    return { added, removed, target };
+  }
+
+  const shortfall = target - uncoveredPlayers.length;
+  if (shortfall > 0) {
+    // Too few undrafted: open the round up by pulling the sole bid off the lowest-AV single-bid players.
+    const removableCandidates = availablePlayers
+      .filter((player) => (bidsByPlayerId.get(Number(player.id)) || []).length === 1)
+      .sort((a, b) => Number(a.avgValue || 0) - Number(b.avgValue || 0));
+
+    for (const player of removableCandidates) {
+      if (removed >= shortfall) break;
+      const entries = bidsByPlayerId.get(Number(player.id)) || [];
+      const entry = entries[0];
+      if (!entry) continue;
+      const list = safeBids[entry.teamName] || [];
+      safeBids[entry.teamName] = list.filter((bid) => Number(bid?.player?.id) !== Number(player.id));
+      removed += 1;
+    }
+  }
+
+  return { added, removed, target };
+}
+
 function applyEarlyRoundBidCoverageCap(cpuBids, roundPlayers, roundNumber) {
   const cfg = loadCpuLogicConfig();
   const enabled = cfg?.silent?.earlyRoundBidCoverageCapEnabled !== false;
@@ -1839,7 +1980,8 @@ function enforceAvMarketDepth(cpuBids, cpuTeams, roundPlayers, teamStrategies, r
   targets.forEach((player) => {
     const playerId = Number(player.id || 0);
     if (!playerId) return;
-    const av = getCpuEffectiveAv(player);
+    const rawAv = getCpuEffectiveAv(player);
+    const av = getRoundAdjustedAv(player, roundNumber);
     const trueZeroAv = isTrueZeroAv(player);
     const minCompetitiveBid = Math.max(1, Math.round(av * minBidMultiplier));
 
@@ -1855,7 +1997,7 @@ function enforceAvMarketDepth(cpuBids, cpuTeams, roundPlayers, teamStrategies, r
     const competitiveCount = existingBids.filter((entry) => entry.amount >= minCompetitiveBid).length;
     const participationTarget = pickParticipationTargetCountFromCurve(
       cfg?.silent || {},
-      av,
+      rawAv,
       roundNumber,
       Array.isArray(cpuTeams) ? cpuTeams.length : 0,
       { isTrueZeroAv: trueZeroAv }
@@ -1895,12 +2037,16 @@ function enforceAvMarketDepth(cpuBids, cpuTeams, roundPlayers, teamStrategies, r
           || Number(strategy.needRatio || 0) >= 0.75
           || Number(strategy.playersNeededForMinimum || 0) >= Number(strategy.roundsIncludingCurrent || draftRoundCount);
         const budgetNow = getBidBudgetForTeam(team, committed, maxRosterSize, reserveBypass);
-        if (budgetNow < minCompetitiveBid) return null;
+        const fallbackMinBid = Math.max(1, Math.round(av * Math.max(0.3, Math.min(0.95, Number(cfg?.silent?.lateHighAvDepthFallbackPct ?? 0.62)))));
+        const lateHighAvFallback = Number(roundNumber) >= 7 && rawAv >= Math.max(30, Number(cfg?.silent?.lateHighAvDepthFallbackMinAv ?? 40));
+        const requiredMinBid = lateHighAvFallback ? Math.min(minCompetitiveBid, fallbackMinBid) : minCompetitiveBid;
+        if (budgetNow < requiredMinBid) return null;
 
         return {
           team,
           teamName,
           budgetNow,
+          requiredMinBid,
           aggr: Number(strategy.aggressiveness || 0.8),
           need: Number(strategy.needRatio || 0)
         };
@@ -1917,7 +2063,7 @@ function enforceAvMarketDepth(cpuBids, cpuTeams, roundPlayers, teamStrategies, r
       const targetBid = Math.round(av * (bidLowMultiplier + Math.random() * (bidHighMultiplier - bidLowMultiplier)));
       const competitiveBid = Math.max(minCompetitiveBid, targetBid);
       const amount = Math.min(c.budgetNow, competitiveBid);
-      if (amount < minCompetitiveBid) continue;
+      if (amount < c.requiredMinBid) continue;
       cpuBids[c.teamName] = cpuBids[c.teamName] || [];
       cpuBids[c.teamName].push({ player, cpuBid: amount });
       added += 1;
@@ -2508,8 +2654,16 @@ function getDynamicBidBand(avgValue, roundNumber, strategy) {
   return { minPct: 0.52, maxPct: 1.22, rareMaxPct: 1.34, rareChance: 0.09 };
 }
 
+// The competitive price target decays each round (see getAvPriceAccuracyForRound); this is the
+// dollar anchor every bid-range/cap/pull-toward-AV calculation below should use instead of raw AV.
+function getRoundAdjustedAv(player, roundNumber) {
+  const cfg = loadCpuLogicConfig();
+  const ratio = getAvPriceAccuracyForRound(cfg?.silent, roundNumber);
+  return Math.max(1, getCpuEffectiveAv(player) * ratio);
+}
+
 function clampBidToDynamicBand(player, bidAmount, roundNumber, strategy, bidRemainingBudget) {
-  const effectiveAv = getCpuEffectiveAv(player);
+  const effectiveAv = getRoundAdjustedAv(player, roundNumber);
   const band = getDynamicBidBand(effectiveAv, roundNumber, strategy);
   const expansionPct = 0.02 + (Math.random() * 0.04);
   const expandedMinPct = Math.max(0.25, band.minPct * (1 - expansionPct));
@@ -2526,7 +2680,7 @@ function clampBidToDynamicBand(player, bidAmount, roundNumber, strategy, bidRema
 }
 
 function getPlayerAvSoftBidCap(player, roundNumber, budgetCap, cfgSilent = {}, options = {}) {
-  const av = getCpuEffectiveAv(player);
+  const av = getRoundAdjustedAv(player, roundNumber);
   const safeBudgetCap = Math.max(1, Number(budgetCap || 1));
   const round = Math.max(1, Number(roundNumber || 1));
   const isStarredTarget = !!options.isStarredTarget;
@@ -2578,7 +2732,7 @@ function getHardPlayerBidCap(player, roundNumber, budgetCap, cfgSilent = {}, opt
 }
 
 function pullBidTowardAV(player, bidAmount, roundNumber) {
-  const effectiveAv = getCpuEffectiveAv(player);
+  const effectiveAv = getRoundAdjustedAv(player, roundNumber);
   if (effectiveAv < 20) {
     return bidAmount;
   }
@@ -2778,6 +2932,7 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
     const cfg = loadCpuLogicConfig();
     const presetName = cfg && cfg.presetName ? String(cfg.presetName).trim() : 'Unknown';
     const commitmentMode = normalizeCommitmentMode(options?.commitmentMode || cfg?.silent?.commitmentMode || 'B');
+    const draftKey = String(options?.draftKey || options?.draftId || options?.roomCode || 'default');
     console.log(`[CPU SILENT AUCTION] Using CPU tuning lab preset: "${presetName}" | round ${Number(roundNumber) || 1} | commitment mode ${commitmentMode}`);
     
     // Filter to CPU teams. Team X names are always treated as CPU even if present in member lists.
@@ -5524,11 +5679,41 @@ async function generateServerCPUBids(teams, roundPlayers, allPlayers, rosterSize
       }
     }
 
+    // The commitment pass can flatten late star bids back down; restore market-depth pricing after it.
+    if (cfg?.silent?.avMarketDepthPostCommitPass !== false) {
+      const postCommitDepthAdds = enforceAvMarketDepth(
+        cpuBids,
+        cpuTeams,
+        roundPlayers,
+        teamStrategies,
+        rosterLimits,
+        maxRosterSize,
+        roundNumber
+      );
+      if (postCommitDepthAdds > 0) {
+        console.log(`[generateCPUBids] Post-commit AV market-depth pass restored ${postCommitDepthAdds} competitive bids`);
+      }
+    }
+
     // The commitment pass distributes remainders by +1, which manufactures ties, so clean up after it.
     enforceCpuTieRates(cpuBids, cpuTeams, roundPlayers, roundNumber, rosterLimits, maxRosterSize);
     const tiesBroken = capCpuTiesPerRound(cpuBids, cpuTeams, roundPlayers, roundNumber, rosterLimits, maxRosterSize);
     if (tiesBroken > 0) {
       console.log(`[generateCPUBids] Tie cap broke ${tiesBroken} excess ties`);
+    }
+
+    const ceilingAdds = enforceRoundUndraftedSchedule(
+      cpuBids,
+      cpuTeams,
+      roundPlayers,
+      teamStrategies,
+      rosterLimits,
+      maxRosterSize,
+      roundNumber,
+      draftKey
+    );
+    if (ceilingAdds.added > 0 || ceilingAdds.removed > 0) {
+      console.log(`[generateCPUBids] Undrafted-schedule pass added ${ceilingAdds.added} / removed ${ceilingAdds.removed} bids to hit round target of ${ceilingAdds.target} undrafted`);
     }
 
     console.log(`[generateCPUBids] Completed - generated bids for ${Object.keys(cpuBids).length} CPU teams`);

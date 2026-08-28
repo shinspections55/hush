@@ -202,6 +202,8 @@ async function migrateLegacyPositionRankingsFiles() {
       } catch (_legacyError) {
         // try next candidate
       }
+
+      
     }
   }
 }
@@ -692,15 +694,7 @@ function enqueueRankingsSave(task) {
 function buildRankingsHash(players) {
   return crypto.createHash('sha256').update(JSON.stringify(Array.isArray(players) ? players : [])).digest('hex');
 }
-
-function createRankingsStaleError(currentVersion, expectedVersion) {
-  const error = new Error(`Stale rankings payload. Current version is ${currentVersion}, payload expected ${expectedVersion}. Reload and try again.`);
-  error.code = 'RANKINGS_STALE_VERSION';
-  error.currentVersion = currentVersion;
-  error.expectedVersion = expectedVersion;
-  return error;
-}
-
+ 
 async function readDefaultRankingsMeta() {
   try {
     const raw = await fs.readFile(DEFAULT_RANKINGS_META_FILE, 'utf8');
@@ -4921,7 +4915,8 @@ async function runAdminDraftSimulations({ draftCount, teamCount, rounds, players
           commitmentMode,
           forceSpread,
           thresholdDebug,
-          thresholdDebugCollector: shouldCollectThresholdDebugForDraft ? thresholdDebugExamples : null
+          thresholdDebugCollector: shouldCollectThresholdDebugForDraft ? thresholdDebugExamples : null,
+          draftKey: `sim-${draftNumber}`
         }
       );
       const gatedCpuBids = gateCpuBidsForRound(
@@ -6414,6 +6409,41 @@ function applyWaiverAddDropForTeam(draft, team, teamName, addPlayerId, dropPlaye
     addPlayerPosition: String(addPlayer && addPlayer.position || '').trim().toUpperCase(),
     dropPlayerName: String(dropPlayer && dropPlayer.name || '').trim(),
     dropPlayerPosition: String(dropPlayer && dropPlayer.position || '').trim().toUpperCase()
+  };
+}
+
+// No drop is required when the roster still has an open spot below its cut-down capacity.
+function applyWaiverAddForTeam(draft, team, teamName, addPlayerId) {
+  const allPlayers = draft && draft.draftState && Array.isArray(draft.draftState.allPlayers)
+    ? draft.draftState.allPlayers
+    : [];
+  const addPlayer = allPlayers.find(player => Number(player && player.id) === Number(addPlayerId));
+
+  if (!addPlayer) {
+    return { ok: false, reason: 'player_not_found' };
+  }
+
+  const addPlayerCurrentOwner = String(addPlayer.owner || '').trim();
+  if (addPlayerCurrentOwner && addPlayerCurrentOwner !== String(teamName || '').trim()) {
+    return { ok: false, reason: 'add_player_not_available' };
+  }
+
+  const { requiredCuts, maxTotalPlayers } = getRequiredCutsForTeamSummary(team, draft);
+  const rosterCount = Array.isArray(team && team.roster) ? team.roster.length : 0;
+  if (requiredCuts > 0 || rosterCount >= maxTotalPlayers) {
+    return { ok: false, reason: 'roster_full' };
+  }
+
+  team.roster.push(buildWaiverRosterPlayer(addPlayer));
+  addPlayer.owner = String(teamName || '').trim();
+  addPlayer.shown = true;
+  addPlayer.bid = 0;
+
+  return {
+    ok: true,
+    addPlayer,
+    addPlayerName: String(addPlayer && addPlayer.name || '').trim(),
+    addPlayerPosition: String(addPlayer && addPlayer.position || '').trim().toUpperCase()
   };
 }
 
@@ -9832,7 +9862,7 @@ io.on('connection', (socket) => {
       rosterLimits,
       humanMembers,
       draftState.currentRound,
-      { autoDraftStarPlayerIdsByTeam }
+      { autoDraftStarPlayerIdsByTeam, draftKey: code }
     );
     
     // Add timeout to prevent hanging
@@ -11502,6 +11532,20 @@ io.on('connection', (socket) => {
 
     logDraftCutDebug(draft, draftCode, 'startWaivers.afterAutoCut');
 
+    const pendingCutBlockers = teams
+      .map(team => ({ teamName: String(team && team.name || '').trim(), ...getRequiredCutsForTeamSummary(team, draft) }))
+      .filter(entry => entry.requiredCuts > 0);
+    if (pendingCutBlockers.length > 0) {
+      if (cb) {
+        cb({
+          ok: false,
+          reason: 'cuts_pending',
+          blockers: pendingCutBlockers.map(entry => ({ teamName: entry.teamName, requiredCuts: entry.requiredCuts }))
+        });
+      }
+      return;
+    }
+
     let order = teams.map(team => String(team && team.name || '').trim()).filter(Boolean);
     if (mode === 'skill') {
       order = teams
@@ -11616,6 +11660,36 @@ io.on('connection', (socket) => {
       };
       recordWaiverTeamActivity(waiverState, expectedTeamName, {
         type: 'pass',
+        at: Date.now()
+      });
+      advanceWaiverTurn(waiverState, draft);
+    } else if (action === 'add') {
+      const addPlayerId = Number(data && data.addPlayerId);
+      if (!Number.isFinite(addPlayerId)) {
+        if (cb) cb({ ok: false, reason: 'invalid_player_selection' });
+        return;
+      }
+
+      const applied = applyWaiverAddForTeam(draft, team, expectedTeamName, addPlayerId);
+      if (!applied.ok) {
+        if (cb) cb({ ok: false, reason: applied.reason || 'unable_to_apply_move' });
+        return;
+      }
+
+      markWaiverTeamActed(waiverState, expectedTeamName);
+      waiverState.passesInRow = 0;
+      waiverState.lastAction = {
+        type: 'add',
+        by: expectedTeamName,
+        addPlayerId,
+        addPlayerName: String(applied.addPlayerName || '').trim(),
+        addPlayerPosition: String(applied.addPlayerPosition || '').trim().toUpperCase(),
+        at: Date.now()
+      };
+      recordWaiverTeamActivity(waiverState, expectedTeamName, {
+        type: 'add',
+        addPlayerName: String(applied.addPlayerName || '').trim(),
+        addPlayerPosition: String(applied.addPlayerPosition || '').trim().toUpperCase(),
         at: Date.now()
       });
       advanceWaiverTurn(waiverState, draft);

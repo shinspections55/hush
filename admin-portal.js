@@ -2136,6 +2136,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ${makeCpuField('silent', 'roundUndraftedTargetLate', 'roundUndraftedTargetLate', { type: 'range', min: 0, max: 20, step: 1, precision: 0, typicalMin: 8, typicalMax: 12 })}
           ${makeCpuField('silent', 'roundUndraftedFloor', 'roundUndraftedFloor', { type: 'range', min: 0, max: 15, step: 1, precision: 0, typicalMin: 3, typicalMax: 6 })}
           ${makeCpuField('silent', 'roundUndraftedCeiling', 'roundUndraftedCeiling', { type: 'range', min: 1, max: 24, step: 1, precision: 0, typicalMin: 10, typicalMax: 13 })}
+          ${makeCpuField('silent', 'simulationReserveEnabled', 'simulationReserveEnabled (0/1)', { type: 'range', min: 0, max: 1, step: 1, typicalMin: 0, typicalMax: 1 })}
           ${makeCpuField('silent', 'bidCoverageCapJitter', 'bidCoverageCapJitter', { type: 'range', min: 0, max: 8, step: 1, precision: 0, typicalMin: 2, typicalMax: 4 })}
           ${makeCpuField('silent', 'avMarketDepthMinCompetitiveBids', 'avMarketDepthMinCompetitiveBids', { type: 'range', min: 1, max: 8, step: 1, precision: 0, typicalMin: 3, typicalMax: 5 })}
           ${makeCpuField('silent', 'rosterExtraSpots', 'rosterExtraSpots', { type: 'range', min: 0, max: 12, step: 1, precision: 0, typicalMin: 3, typicalMax: 6 })}

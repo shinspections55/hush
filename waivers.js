@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const waiverInlineDropSelect = document.getElementById('waiverInlineDropSelect');
     const waiverOnClockTitle = document.getElementById('waiverOnClockTitle');
     const waiverOnClockMeta = document.getElementById('waiverOnClockMeta');
+    const waiverClockStrip = document.getElementById('waiverClockStrip');
     const waiverClockTeam = document.getElementById('waiverClockTeam');
     const waiverClockTimer = document.getElementById('waiverClockTimer');
     const waiverTeamSelect = document.getElementById('waiverTeamSelect');
@@ -28,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let onClockRosterCount = 0;
     let waiverCompletionHandled = false;
     let waiverCompletionRedirectTimer = null;
+    let lastIsUsersWaiverTurn = false;
     const WAIVER_APP_SECTION_VIEW_KEY = 'waiverAppSectionViewMode';
     let waiverAppSectionViewMode = 'players';
 
@@ -311,6 +313,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.max(overTotal, overBench);
     }
 
+    function getMaxRosterCapacity() {
+        return getSlotBlueprint(getSummaryRosterSettings()).length + getBenchCutTarget();
+    }
+
+    function hasOpenRosterSpot(team) {
+        const rosterCount = Array.isArray(team && team.roster) ? team.roster.length : 0;
+        return rosterCount < getMaxRosterCapacity();
+    }
+
     function areAllTeamsCutComplete() {
         return (draftSummary.teams || []).every(team => {
             const split = splitRoster(team.roster || [], getSummaryRosterSettings());
@@ -382,8 +393,87 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.max(0, Math.ceil((endTs - Date.now()) / 1000));
     }
 
+    let waiverAudioContext = null;
+
+    function getWaiverAudioContext() {
+        try {
+            if (!waiverAudioContext) {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return null;
+                waiverAudioContext = new Ctx();
+            }
+            return waiverAudioContext;
+        } catch (_error) {
+            return null;
+        }
+    }
+
+    function unlockWaiverAudio() {
+        const ctx = getWaiverAudioContext();
+        if (ctx && ctx.state === 'suspended') {
+            ctx.resume().catch(() => {});
+        }
+    }
+
+    function setupWaiverAudioUnlock() {
+        const unlockOnce = () => {
+            unlockWaiverAudio();
+        };
+        document.addEventListener('pointerdown', unlockOnce, true);
+        document.addEventListener('touchstart', unlockOnce, true);
+        document.addEventListener('keydown', unlockOnce, true);
+    }
+
+    function playWaiverTone(frequency, durationSeconds, volume, startOffset = 0) {
+        const ctx = getWaiverAudioContext();
+        if (!ctx) return;
+
+        const scheduleTone = () => {
+            try {
+                const oscillator = ctx.createOscillator();
+                const gainNode = ctx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(ctx.destination);
+
+                oscillator.type = 'sine';
+                oscillator.frequency.value = frequency;
+
+                const startAt = ctx.currentTime + startOffset;
+                gainNode.gain.setValueAtTime(volume, startAt);
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, startAt + durationSeconds);
+
+                oscillator.start(startAt);
+                oscillator.stop(startAt + durationSeconds);
+            } catch (_error) {
+                // ignore audio playback errors
+            }
+        };
+
+        if (ctx.state === 'suspended') {
+            ctx.resume().then(scheduleTone).catch(() => {});
+            return;
+        }
+        scheduleTone();
+    }
+
+    function playWaiversStartSound() {
+        // Rising three-note chime to announce the waiver period has begun.
+        playWaiverTone(560, 0.18, 0.18, 0);
+        playWaiverTone(700, 0.18, 0.18, 0.18);
+        playWaiverTone(880, 0.28, 0.2, 0.36);
+    }
+
+    function playOnClockAlertSound() {
+        // Double-beep alert for "you're on the clock".
+        playWaiverTone(980, 0.14, 0.2, 0);
+        playWaiverTone(980, 0.14, 0.2, 0.2);
+    }
+
     function forceHideTurnAlert() {
-        return;
+        if (waiverClockStrip) {
+            waiverClockStrip.classList.remove('waiver-your-turn', 'waiver-shake');
+        }
+        lastIsUsersWaiverTurn = false;
     }
 
     function getUserTeam() {
@@ -595,29 +685,31 @@ document.addEventListener('DOMContentLoaded', () => {
         waiverOrderList.innerHTML = order.length
             ? order.map((teamName, index) => {
                 const activity = getTeamWaiverActivity(teamName);
-                const activityMarkup = activity && activity.type === 'addDrop'
+                const isAddActivity = !!(activity && (activity.type === 'addDrop' || activity.type === 'add'));
+                const activityMarkup = isAddActivity
                     ? `
                         <div class="waiver-activity">
                             <div class="waiver-activity-line waiver-activity-add">
                                 <span class="waiver-activity-team">${escapeHtml(teamName)}</span>
                                 <span class="waiver-activity-move">+ ${escapeHtml(activity.addPlayerPosition || 'UNK')} ${escapeHtml(activity.addPlayerName || 'Player')}</span>
                             </div>
+                            ${activity.type === 'addDrop' ? `
                             <div class="waiver-activity-line waiver-activity-drop">
                                 - ${escapeHtml(activity.dropPlayerPosition || 'UNK')} ${escapeHtml(activity.dropPlayerName || 'Player')}
-                            </div>
+                            </div>` : ''}
                         </div>
                     `
                     : '';
                 const badgeText = waiverState && waiverState.active && currentTurn === teamName
                     ? 'On clock'
                     : activity
-                        ? (activity.type === 'addDrop' ? '' : 'Passed')
+                        ? (isAddActivity ? '' : 'Passed')
                         : '';
                 return `
                     <div class="waiver-order-item ${waiverState && waiverState.active && currentTurn === teamName ? 'active' : ''}">
                         <span class="waiver-order-rank">${index + 1}</span>
                         <div class="waiver-order-main">
-                            ${activity && activity.type === 'addDrop' ? '' : `<span class="waiver-order-team">${escapeHtml(teamName)}</span>`}
+                            ${isAddActivity ? '' : `<span class="waiver-order-team">${escapeHtml(teamName)}</span>`}
                             ${activityMarkup}
                         </div>
                         <span class="bench-rank">${badgeText}</span>
@@ -754,6 +846,62 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(modal);
     }
 
+    function showWaiverAddOnlyConfirmationModal(addPlayer) {
+        closeWaiverModal();
+        const userTeam = getUserTeam();
+        const addPosition = String(addPlayer && addPlayer.position || 'UNK').trim().toUpperCase();
+        const addName = String(addPlayer && addPlayer.name || 'player').trim();
+
+        const modal = document.createElement('div');
+        modal.id = 'waiver-flow-modal';
+        modal.style.position = 'fixed';
+        modal.style.inset = '0';
+        modal.style.background = 'rgba(0, 0, 0, 0.7)';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.zIndex = '99999';
+        modal.style.padding = '16px';
+
+        modal.innerHTML = `
+            <div style="width:min(96vw, 480px); background:#111827; border:1px solid #4b5563; border-radius:14px; box-shadow:0 20px 50px rgba(0,0,0,0.4); color:#f9fafb; padding:18px;">
+                <div style="font-size:18px; font-weight:700; margin-bottom:8px;">Confirm waiver add</div>
+                <div style="font-size:14px; color:#d1d5db; margin-bottom:12px;">Your roster has an open spot, so ${escapeHtml(userTeam && userTeam.name ? userTeam.name : 'your team')} can add this player with no drop needed.</div>
+                <div style="border:1px solid #374151; border-radius:10px; padding:12px; margin-bottom:12px; background:#1f2937;">
+                    <div style="font-size:13px; color:#93c5fd; margin-bottom:6px;">Add</div>
+                    <div style="font-weight:700;">+ ${escapeHtml(addPosition)} ${escapeHtml(addName)}</div>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
+                    <button type="button" data-action="cancel" style="background:#4b5563; color:#fff; border:none; border-radius:8px; padding:10px 14px; cursor:pointer;">Cancel</button>
+                    <button type="button" data-action="confirm" style="background:#2563eb; color:#fff; border:none; border-radius:8px; padding:10px 14px; cursor:pointer;">Confirm</button>
+                </div>
+            </div>
+        `;
+
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                closeWaiverModal();
+            }
+        });
+
+        modal.querySelector('[data-action="cancel"]').addEventListener('click', closeWaiverModal);
+        modal.querySelector('[data-action="confirm"]').addEventListener('click', () => {
+            closeWaiverModal();
+            socket.emit('submitWaiverMove', {
+                draftCode: draftSummary.draftCode,
+                teamName: username,
+                action: 'add',
+                addPlayerId: Number(addPlayer.id)
+            }, (response) => {
+                if (!response || !response.ok) {
+                    alert(`Waiver add failed: ${(response && response.reason) || 'unknown_error'}`);
+                }
+            });
+        });
+
+        document.body.appendChild(modal);
+    }
+
     function buildWaiverDropRosterMarkup(roster, selectedDropPlayerId) {
         const rosterView = splitRoster(roster, getSummaryRosterSettings());
         const starterRows = Array.isArray(rosterView.slots) ? rosterView.slots : [];
@@ -794,6 +942,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const canAct = !!(isUsersWaiverTurn() && userTeam && (userTeam.roster || []).length > 0);
         if (!canAct) {
             alert('It is not your turn to make a waiver move.');
+            return;
+        }
+
+        if (hasOpenRosterSpot(userTeam)) {
+            showWaiverAddOnlyConfirmationModal(player);
             return;
         }
 
@@ -943,7 +1096,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function maybeNotifyTurnChange() {
-        return;
+        const isUsersTurn = isUsersWaiverTurn();
+
+        if (waiverClockStrip) {
+            waiverClockStrip.classList.toggle('waiver-your-turn', isUsersTurn);
+        }
+
+        if (isUsersTurn && !lastIsUsersWaiverTurn) {
+            if (waiverClockStrip) {
+                waiverClockStrip.classList.remove('waiver-shake');
+                void waiverClockStrip.offsetWidth; // restart the shake animation if it already played once
+                waiverClockStrip.classList.add('waiver-shake');
+            }
+            playOnClockAlertSound();
+        } else if (!isUsersTurn && waiverClockStrip) {
+            waiverClockStrip.classList.remove('waiver-shake');
+        }
+
+        lastIsUsersWaiverTurn = isUsersTurn;
     }
 
     function isWaiverAppNavSupported() {
@@ -1087,6 +1257,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const mode = normalizeWaiverMode(draftSummary && draftSummary.waiverMode);
         socket.emit('startWaivers', { draftCode: draftSummary.draftCode, mode }, (response) => {
             if (!response || !response.ok) {
+                if (response && response.reason === 'cuts_pending' && Array.isArray(response.blockers)) {
+                    const blockerText = response.blockers
+                        .map(entry => `${entry.teamName} (needs ${entry.requiredCuts} cut${entry.requiredCuts === 1 ? '' : 's'})`)
+                        .join(', ');
+                    alert(`Finish required roster cuts before starting waivers: ${blockerText}.`);
+                    return;
+                }
                 alert(`Unable to start waivers: ${(response && response.reason) || 'unknown_error'}`);
                 return;
             }
@@ -1137,6 +1314,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (Array.isArray(data.teams)) draftSummary.teams = data.teams.map(normalizeSummaryTeam);
             if (Array.isArray(data.allPlayersSnapshot)) draftSummary.allPlayersSnapshot = data.allPlayersSnapshot;
             persistSummary();
+            playWaiversStartSound();
             render();
         });
 
@@ -1151,5 +1329,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setupWaiverAppNav();
+    setupWaiverAudioUnlock();
     syncFromServer();
 });

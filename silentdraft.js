@@ -8600,6 +8600,8 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete, meta = {
         const modalRoundNumber = Number.isFinite(requestedRound) && requestedRound > 0
             ? requestedRound
             : currentRound;
+        const hasTiedResults = Array.isArray(serverResults)
+            && serverResults.some((result) => String(result && result.type || '').trim().toLowerCase() === 'tied');
         activeRoundResultsModalRound = modalRoundNumber;
 
         let resultsDiv = document.createElement('div');
@@ -8951,7 +8953,7 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete, meta = {
                 console.log('[silentdraft] Ignoring allMembersAccepted while draft ending');
                 return;
             }
-            const shouldCompleteDraft = Number.parseInt(String(modalRoundNumber || 0), 10) >= totalRounds;
+            const shouldCompleteDraft = Number.parseInt(String(modalRoundNumber || 0), 10) >= totalRounds && !hasTiedResults;
             console.log('[silentdraft] All members accepted results, advancing round');
             const statusEl = document.getElementById('waiting-status');
             if (statusEl) {
@@ -9027,7 +9029,7 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete, meta = {
 
             activeRoundResultsModalRound = null;
 
-            if (Number.parseInt(String(modalRoundNumber || 0), 10) >= totalRounds) {
+            if (Number.parseInt(String(modalRoundNumber || 0), 10) >= totalRounds && !hasTiedResults) {
                 endDraft();
                 return;
             }
