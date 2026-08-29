@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const AJ_ROUND_CODES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
   const AJ_REVERSED_START_POSITIONS = new Set(['WR', 'TE', 'K']);
+  const AJ_RANK_LIMIT_BY_POSITION = { QB: 25, RB: 70, WR: 80, TE: 25, K: 20, DEF: 20 };
   const PAGE_SIZE = 12;
   const PAGE1_REQUIREMENTS = [
     { pos: 'QB', min: 2 },
@@ -225,11 +226,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function getAjSlotAssignment(positionRank, position) {
-    const normalizedRank = Math.max(1, Number.parseInt(positionRank, 10) || 1);
+    const normalizedPosition = String(position || '').toUpperCase();
+    const normalizedRank = Number.parseInt(positionRank, 10);
+    const rankLimit = AJ_RANK_LIMIT_BY_POSITION[normalizedPosition] || 0;
+    if (!Number.isFinite(normalizedRank) || normalizedRank < 1 || normalizedRank > rankLimit) return null;
+
     const zeroBasedRank = normalizedRank - 1;
     const blockIndex = Math.floor(zeroBasedRank / 10);
     const offset = zeroBasedRank % 10;
-    const normalizedPosition = String(position || '').toUpperCase();
     const startsReversed = AJ_REVERSED_START_POSITIONS.has(normalizedPosition);
     const isPageOneBlock = startsReversed ? (blockIndex % 2 === 1) : (blockIndex % 2 === 0);
     const roundIndex = isPageOneBlock ? offset : (AJ_ROUND_CODES.length - 1 - offset);
@@ -257,47 +261,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const assigned = available
       .filter((player) => {
         const slot = getAjSlotAssignment(player.rank, player.position);
-        return slot.roundCode === roundCode && slot.page === pageNumber;
+        return slot && slot.roundCode === roundCode && slot.page === pageNumber;
       })
       .sort(comparePlayers);
 
-    let selected = assigned.slice(0, PAGE_SIZE);
-    const requirementMap = new Map((requirements || []).map((req) => [req.pos, Math.max(0, Number.parseInt(req.min, 10) || 0)]));
-
-    (requirements || []).forEach((req) => {
-      const neededPosition = req.pos;
-      const minRequired = Math.max(0, Number.parseInt(req.min, 10) || 0);
-
-      while (countByPosition(selected, neededPosition) < minRequired) {
-        const candidate = available.find((player) => player.position === neededPosition && !selected.some((p) => playerKey(p) === playerKey(player)));
-        if (!candidate) break;
-
-        if (selected.length < PAGE_SIZE) {
-          selected.push(candidate);
-        } else {
-          const replaceIndex = selected
-            .map((player, index) => ({ player, index }))
-            .filter(({ player }) => countByPosition(selected, player.position) > (requirementMap.get(player.position) || 0))
-            .sort((a, b) => comparePlayers(b.player, a.player))[0];
-
-          if (!replaceIndex) break;
-          selected[replaceIndex.index] = candidate;
-        }
-      }
-    });
-
-    if (selected.length < PAGE_SIZE) {
-      const fillers = available
-        .filter((player) => !selected.some((p) => playerKey(p) === playerKey(player)))
-        .sort(comparePlayers);
-
-      for (const candidate of fillers) {
-        if (selected.length >= PAGE_SIZE) break;
-        selected.push(candidate);
-      }
-    }
-
-    return selected.sort(comparePlayers).slice(0, PAGE_SIZE);
+    return assigned.slice(0, PAGE_SIZE);
   }
 
   function buildAjSheets(players) {

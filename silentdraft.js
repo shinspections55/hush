@@ -2918,11 +2918,15 @@ function initSilentDraft() {
     }
 
     function getAjSlotAssignment(positionRank, position = '') {
-        const normalizedRank = Math.max(1, Number.parseInt(positionRank, 10) || 1);
+        const normalizedPosition = String(position || '').toUpperCase();
+        const rankLimitByPosition = { QB: 25, RB: 70, WR: 80, TE: 25, K: 20, DEF: 20 };
+        const normalizedRank = Number.parseInt(positionRank, 10);
+        const rankLimit = rankLimitByPosition[normalizedPosition] || 0;
+        if (!Number.isFinite(normalizedRank) || normalizedRank < 1 || normalizedRank > rankLimit) return null;
+
         const zeroBasedRank = normalizedRank - 1;
         const blockIndex = Math.floor(zeroBasedRank / 10);
         const offset = zeroBasedRank % 10;
-        const normalizedPosition = String(position || '').toUpperCase();
         const startsReversed = AJ_REVERSED_START_POSITIONS.has(normalizedPosition);
         const isPageOneBlock = startsReversed ? (blockIndex % 2 === 1) : (blockIndex % 2 === 0);
         const roundIndex = isPageOneBlock ? offset : (AJ_ROUND_CODES.length - 1 - offset);
@@ -2937,6 +2941,7 @@ function initSilentDraft() {
     function annotateAjSlot(player) {
         if (!player) return player;
         const assignment = getAjSlotAssignment(player.positionRank, player.position);
+        if (!assignment) return player;
         player.ajSlotCode = assignment.code;
         player.ajRoundNumber = assignment.round;
         player.ajPageNumber = assignment.page;
@@ -2978,43 +2983,12 @@ function initSilentDraft() {
         const assignedPlayers = availablePlayers
             .filter(player => {
                 const assignment = getAjSlotAssignment(player.positionRank, player.position);
-                return assignment.code === `${roundCode}${pageNumber}`;
+                return assignment && assignment.code === `${roundCode}${pageNumber}`;
             })
             .sort(comparePlayersForAjSlot);
 
-        let selectedPlayers = assignedPlayers.slice(0, pageSize);
-
-        requirements.forEach(({ pos, min }) => {
-            const currentCount = countPlayersByPosition(selectedPlayers, pos);
-            const missing = Math.max(0, min - currentCount);
-            if (missing === 0) return;
-
-            const fallbackPool = assignedPlayers
-                .filter(player => !selectedPlayers.includes(player))
-                .sort(comparePlayersForAjSlot);
-            const additions = pickPlayersForMinimum(pos, missing, selectedPlayers, assignedPlayers, fallbackPool);
-
-            additions.forEach(player => {
-                if (selectedPlayers.length < pageSize) {
-                    selectedPlayers.push(player);
-                    return;
-                }
-
-                const replacement = selectedPlayers
-                    .map((selectedPlayer, index) => ({ selectedPlayer, index }))
-                    .filter(entry => countPlayersByPosition(selectedPlayers, entry.selectedPlayer.position) > ((requirements.find(req => req.pos === entry.selectedPlayer.position) || {}).min || 0))
-                    .sort((a, b) => comparePlayersForAjSlot(b.selectedPlayer, a.selectedPlayer))[0];
-
-                if (replacement) {
-                    selectedPlayers[replacement.index] = player;
-                }
-            });
-
-            selectedPlayers = selectedPlayers.sort(comparePlayersForAjSlot).slice(0, pageSize);
-        });
-
         // A short sheet stays short: borrowing from other sheets pulls future players forward.
-        return selectedPlayers
+        return assignedPlayers
             .sort(comparePlayersForAjSlot)
             .slice(0, pageSize)
             .map(annotateAjSlot);

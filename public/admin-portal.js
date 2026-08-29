@@ -598,7 +598,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getAjSlotCode(position, rankNumber) {
     const normalizedPosition = String(position || '').trim().toUpperCase();
-    const normalizedRank = Math.max(1, Number.parseInt(rankNumber, 10) || 1);
+    const normalizedRank = Number.parseInt(rankNumber, 10);
+    const rankLimitByPosition = { QB: 25, RB: 70, WR: 80, TE: 25, K: 20, DEF: 20 };
+    const rankLimit = rankLimitByPosition[normalizedPosition] || 0;
+    if (!Number.isFinite(normalizedRank) || normalizedRank < 1 || normalizedRank > rankLimit) return '';
+
     const zeroBasedRank = normalizedRank - 1;
     const blockIndex = Math.floor(zeroBasedRank / 10);
     const offset = zeroBasedRank % 10;
