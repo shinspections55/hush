@@ -561,6 +561,9 @@ function renderPrintLayoutSheet() {
   // and rely on print scaling/layout density instead of removing players.
 
   const { rbPrimary, rbOverflowCenter, wrPrimary, wrOverflow } = splitState;
+  const printableRosterTitle = activeBoardType === 'personal'
+    ? `${escapeHtml(getPrintableOwnerName())}'s Roster`
+    : '_____________________ Roster';
 
   const rosterMarkup = rosterSlots.map(slot => `
     <div class="print-roster-row">
@@ -599,7 +602,7 @@ function renderPrintLayoutSheet() {
       <div class="print-layout-column print-layout-column-right">
         ${rightColumnSections}
         <aside class="print-roster-card">
-          <h3 class="print-roster-title">${escapeHtml(getPrintableOwnerName())}'s Roster</h3>
+          <h3 class="print-roster-title">${printableRosterTitle}</h3>
           <div class="print-roster-list">
             ${rosterMarkup}
           </div>

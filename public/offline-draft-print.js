@@ -417,8 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="print-sheet-top-row">
             <div class="print-sheet-name-block">
               <div class="print-sheet-name-row">
-                <span class="name-line" aria-hidden="true"></span>
-                <span class="name-label">NAME</span>
+                <span class="name-label">_____________________</span>
               </div>
               <div class="sheet-code-under">${escapeHtml(sheet.title)}</div>
             </div>
