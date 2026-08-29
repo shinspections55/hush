@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hush-20260821-c9c656a0';
+const CACHE_NAME = 'hush-20260828-write-in-roster';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
