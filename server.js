@@ -9081,10 +9081,8 @@ io.on('connection', (socket) => {
       draft.draftState.roundTimerMinutes = roundTimerMinutes;
     }
 
-    // Default each joining user to OFF until they explicitly toggle ON.
-    if (typeof draft.draftState.autoDraftStatus[resolvedUsername] === 'undefined') {
-      draft.draftState.autoDraftStatus[resolvedUsername] = false;
-    }
+    // Start each session with auto-draft OFF until the user explicitly toggles it ON.
+    draft.draftState.autoDraftStatus[resolvedUsername] = false;
 
     if (!options.suppressInitialSync) {
       // Send current draft state to the joining player
