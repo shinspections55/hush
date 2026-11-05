@@ -255,7 +255,7 @@
 
 .mock-player-slot.is-empty { justify-content: center; color: #84979b; font-size: 11px; }
 .mock-player-info { min-width: 0; flex: 1; display: grid; gap: 3px; }
-.mock-player-name { overflow: hidden; color: #f4f6f3; font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.mock-player-name { min-width: 0; flex: 1; overflow: hidden; color: #f4f6f3; font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .mock-player-meta { min-width: 0; display: flex; align-items: center; gap: 5px; overflow: hidden; color: #9cadad; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .mock-player-position { color: #82d7c0; font-size: 10px; font-weight: 800; }
 .mock-player-headshot { flex: 0 0 36px; width: 36px; height: 42px; border-radius: 4px; object-fit: cover; background: #23363a; }
@@ -321,7 +321,7 @@
 .mock-prospect-row.is-drafted { opacity: 0.42; }
 .mock-prospect-rank { color: #7f9398; font-size: 10px; font-variant-numeric: tabular-nums; text-align: right; }
 .mock-prospect-identity { min-width: 0; display: grid; gap: 3px; }
-.mock-prospect-name { overflow: hidden; color: #eaf0ee; font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.mock-prospect-name { min-width: 0; flex: 1; overflow: hidden; color: #eaf0ee; font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .mock-player-name-row,
 .mock-prospect-name-row { min-width: 0; display: flex; align-items: center; gap: 6px; }
 .mock-profile-button {
