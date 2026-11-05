@@ -20,6 +20,10 @@ data/**/*.json
 .env
 .env.*
 
+# Prospect images stay local until redistribution rights are confirmed.
+/college prospects 2027/assets/headshots/
+/college prospects 2027/assets/schools/
+
 # Build/test artifacts
 *.log
 bench_result.txt

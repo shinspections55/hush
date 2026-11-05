@@ -177,7 +177,11 @@ function makeProspectImage(source, className, alt) {
   image.loading = 'eager';
   image.decoding = 'async';
   image.src = source;
-  image.addEventListener('error', () => image.remove(), { once: true });
+  image.addEventListener('error', () => {
+    const row = image.parentElement;
+    image.remove();
+    if (row && row.classList.contains('mock-prospect-row')) row.classList.add('has-no-headshot');
+  }, { once: true });
   return image;
 }
 
@@ -467,7 +471,7 @@ function renderProspects() {
   filtered.forEach(prospect => {
     const drafted = draftedIds.has(prospect.id);
     const row = document.createElement('div');
-    row.className = `mock-prospect-row${drafted ? ' is-drafted' : ''}`;
+    row.className = `mock-prospect-row${drafted ? ' is-drafted' : ''}${prospect.imageUrl ? '' : ' has-no-headshot'}`;
     row.draggable = !drafted;
     row.addEventListener('dragstart', event => {
       event.dataTransfer.setData('text/plain', prospect.id);

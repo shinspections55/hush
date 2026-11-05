@@ -64,6 +64,7 @@
 .mock-admin-hint { margin: 0; padding: 8px 14px; color: var(--prospect-muted); font-size: 10px; }
 .mock-prospect-roster { max-height: calc(100vh - 390px); min-height: 240px; overflow: auto; overscroll-behavior: contain; }
 .mock-roster-row { display: grid; grid-template-columns: 34px 38px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-height: 52px; padding: 5px 10px; border-top: 1px solid rgba(150, 177, 177, 0.11); color: var(--prospect-text); cursor: grab; }
+.mock-roster-row.has-no-headshot { grid-template-columns: 34px minmax(0, 1fr) auto; }
 .mock-roster-row:hover { background: rgba(255,255,255,0.035); }
 .mock-roster-row.active { background: rgba(99, 186, 159, 0.11); box-shadow: inset 3px 0 var(--prospect-teal); }
 .mock-roster-row.drop-target { box-shadow: inset 0 2px var(--prospect-teal); }
@@ -157,6 +158,7 @@
   .mock-field:nth-child(2), .mock-field:nth-child(3) { grid-column: span 2; }
   .mock-team-order-roster { grid-template-columns: minmax(0, 1fr); }
   .mock-roster-row { grid-template-columns: 30px 34px minmax(0, 1fr) auto; gap: 6px; padding-right: 7px; padding-left: 7px; }
+  .mock-roster-row.has-no-headshot { grid-template-columns: 30px minmax(0, 1fr) auto; }
   .mock-admin-headshot { width: 32px; height: 36px; }
   .mock-overall-row { grid-template-columns: 32px 34px minmax(0, 1fr) 58px; }
 }

@@ -141,6 +141,12 @@ with the existing admin key. The **Actual Results & Scoring** tab maintains a
 - **Create Contest** establishes separate entries/results for another year.
 	The current 2027 prospect catalog remains available in the embedded builder;
 	other draft classes require historical JSON imports unless a catalog is supplied.
+	Prospect headshots and school marks are kept locally in
+	`college prospects 2027/assets/headshots/` and `college prospects 2027/assets/schools/`
+	and ignored by Git until redistribution rights are confirmed. Rows expand into
+	the freed image column when images are absent or fail to load. After licensing,
+	add the image folders with
+	`git add -f "college prospects 2027/assets/headshots" "college prospects 2027/assets/schools"`.
 - **Load 2025 Scoring Test** is available only in the admin scoring tab. It creates
 	an isolated calibration contest with the supplied 32 first-round selections,
 	an admin-only 2025 builder catalog, and a locked historical reference dataset.

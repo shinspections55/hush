@@ -57,7 +57,11 @@
     image.loading = 'eager';
     image.decoding = 'async';
     image.src = source;
-    image.addEventListener('error', () => image.remove(), { once: true });
+    image.addEventListener('error', () => {
+      const row = image.parentElement;
+      image.remove();
+      if (row && row.classList.contains('mock-roster-row')) row.classList.add('has-no-headshot');
+    }, { once: true });
     return image;
   }
 
@@ -231,7 +235,7 @@
     rosterCount.textContent = `${players.length} players`;
     visible.forEach(({ player, index }) => {
       const row = document.createElement('div');
-      row.className = `mock-roster-row${index === selectedIndex ? ' active' : ''}`;
+      row.className = `mock-roster-row${index === selectedIndex ? ' active' : ''}${player.imageUrl ? '' : ' has-no-headshot'}`;
       row.setAttribute('role', 'listitem');
       row.draggable = true;
       row.addEventListener('click', () => {
@@ -317,7 +321,7 @@
       const entry = unique.get(key);
       if (!entry) return;
       const row = document.createElement('div');
-      row.className = 'mock-roster-row mock-overall-row';
+      row.className = `mock-roster-row mock-overall-row${player.imageUrl ? '' : ' has-no-headshot'}`;
       row.setAttribute('role', 'listitem');
       row.draggable = true;
       row.addEventListener('dragstart', event => {
