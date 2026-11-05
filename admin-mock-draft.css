@@ -1,0 +1,162 @@
+.admin-mock-draft-page {
+  --prospect-line: rgba(170, 196, 197, 0.2);
+  --prospect-text: #eaf1ef;
+  --prospect-muted: #9badaf;
+  --prospect-teal: #77d0b9;
+  min-height: 100vh;
+}
+
+.mock-admin-header {
+  display: grid;
+  grid-template-columns: minmax(125px, 1fr) auto minmax(240px, 1fr);
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 15px clamp(14px, 3vw, 34px);
+  box-sizing: border-box;
+}
+
+.mock-admin-header > *, .mock-admin-title, .mock-admin-access { min-width: 0; }
+.mock-admin-title { text-align: center; }
+.mock-admin-title > span,
+.mock-admin-eyebrow { color: var(--prospect-teal); font-size: 10px; font-weight: 800; letter-spacing: 1.2px; }
+.mock-admin-title h1 { margin: 3px 0 0; color: #f4f7f5; font-size: 20px; }
+.mock-admin-access { justify-self: end; width: min(100%, 330px); }
+.mock-admin-access form { display: flex; gap: 7px; }
+.mock-admin-access input { min-width: 0; flex: 1; }
+.mock-admin-access .form-status { min-height: 14px; margin: 4px 0 0; font-size: 11px; }
+
+.mock-admin-main { width: min(1560px, 100%); margin: 0 auto; padding: 16px clamp(12px, 2vw, 26px) 36px; box-sizing: border-box; }
+.mock-admin-workspace[hidden], .mock-special-view[hidden] { display: none; }
+.mock-admin-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 14px; }
+.mock-admin-toolbar h2 { margin: 2px 0 0; color: var(--prospect-text); font-size: 22px; }
+.mock-admin-status { margin: 0; color: var(--prospect-muted); font-size: 12px; text-align: right; }
+.mock-admin-status.is-error { color: #ffb39e; }
+.mock-admin-status.is-saving { color: #f0d38b; }
+
+.mock-admin-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--prospect-line); }
+.mock-admin-tab { min-height: 34px; padding: 0 13px; border: 1px solid var(--prospect-line); border-radius: 5px; background: rgba(16, 34, 44, 0.84); color: #c3d0cf; font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; }
+.mock-admin-tab:hover { border-color: rgba(119, 208, 185, 0.65); color: #fff; }
+.mock-admin-tab.active { border-color: var(--prospect-teal); background: rgba(65, 138, 123, 0.24); color: #c5f0e3; }
+.mock-admin-tab-special { color: #e1c989; }
+.mock-admin-tab-divider { width: 1px; margin: 3px 4px; background: var(--prospect-line); }
+
+.mock-editor-toolbar { display: flex; justify-content: space-between; align-items: end; gap: 14px; margin: 12px 0; }
+.mock-admin-search { width: min(100%, 320px); display: grid; gap: 5px; color: var(--prospect-muted); font-size: 11px; font-weight: 700; }
+.mock-admin-search input, .mock-field input, .mock-field textarea { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid rgba(173, 197, 197, 0.25); border-radius: 5px; background: #11252e; color: #edf4f1; padding: 9px 10px; font: inherit; font-size: 12px; }
+.mock-field textarea { min-height: 112px; resize: vertical; line-height: 1.45; }
+.mock-field input:focus, .mock-field textarea:focus, .mock-admin-search input:focus { border-color: var(--prospect-teal); outline: 2px solid rgba(119, 208, 185, 0.15); }
+.mock-admin-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.mock-admin-button { min-height: 36px; padding: 0 12px; border: 1px solid rgba(165, 191, 190, 0.28); border-radius: 5px; background: rgba(34, 64, 71, 0.85); color: #eff5f2; font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; }
+.mock-admin-button:hover:not(:disabled) { border-color: var(--prospect-teal); background: rgba(48, 93, 94, 0.95); }
+.mock-admin-button:disabled { opacity: 0.42; cursor: default; }
+.mock-admin-button-quiet { background: transparent; }
+.mock-admin-button-save { border-color: rgba(104, 202, 171, 0.5); background: rgba(51, 119, 99, 0.84); color: #e6fff5; }
+.mock-admin-button-danger { border-color: rgba(232, 160, 140, 0.35); background: rgba(117, 55, 50, 0.56); color: #ffd8ca; }
+
+.mock-position-editor-grid { display: grid; grid-template-columns: minmax(290px, 0.8fr) minmax(0, 1.2fr); align-items: start; gap: 12px; }
+.mock-admin-pane { min-width: 0; overflow: hidden; border: 1px solid var(--prospect-line); border-radius: 7px; background: rgba(11, 25, 34, 0.96); }
+.mock-pane-heading { min-height: 48px; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--prospect-line); }
+.mock-pane-heading h3 { margin: 0; color: var(--prospect-text); font-size: 14px; }
+.mock-pane-heading > span { color: var(--prospect-muted); font-size: 11px; font-weight: 700; }
+.mock-admin-hint { margin: 0; padding: 8px 14px; color: var(--prospect-muted); font-size: 10px; }
+.mock-prospect-roster { max-height: calc(100vh - 390px); min-height: 240px; overflow: auto; overscroll-behavior: contain; }
+.mock-roster-row { display: grid; grid-template-columns: 34px 38px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-height: 52px; padding: 5px 10px; border-top: 1px solid rgba(150, 177, 177, 0.11); color: var(--prospect-text); cursor: grab; }
+.mock-roster-row:hover { background: rgba(255,255,255,0.035); }
+.mock-roster-row.active { background: rgba(99, 186, 159, 0.11); box-shadow: inset 3px 0 var(--prospect-teal); }
+.mock-roster-row.drop-target { box-shadow: inset 0 2px var(--prospect-teal); }
+.mock-row-rank { color: #9db1b2; font-size: 11px; font-variant-numeric: tabular-nums; text-align: right; }
+.mock-row-copy { min-width: 0; display: grid; gap: 3px; }
+.mock-row-name { overflow: hidden; font-size: 12px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.mock-row-meta { min-width: 0; display: flex; align-items: center; gap: 5px; overflow: hidden; color: var(--prospect-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.mock-row-grip { color: #7d9496; font-size: 15px; }
+.mock-admin-headshot { width: 36px; height: 40px; border-radius: 4px; object-fit: cover; background: #23363a; }
+.mock-admin-school-mark { flex: 0 0 15px; width: 15px; height: 15px; object-fit: contain; }
+
+.mock-detail-pane { padding-bottom: 14px; }
+.mock-prospect-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 11px; padding: 14px; }
+.mock-field { min-width: 0; display: grid; align-content: start; gap: 5px; color: #afc0bf; font-size: 10px; font-weight: 700; }
+.mock-field-small { grid-column: span 1; }
+.mock-field:nth-child(2), .mock-field:nth-child(3) { grid-column: span 1.5; }
+.mock-field-wide { grid-column: 1 / -1; }
+.mock-field input:disabled, .mock-field textarea:disabled { opacity: 0.48; }
+
+.mock-special-view { padding-top: 1px; }
+.mock-special-copy h3 { margin: 0 0 4px; color: var(--prospect-text); font-size: 16px; }
+.mock-special-copy p { margin: 0; color: var(--prospect-muted); font-size: 11px; }
+.mock-overall-columns { display: grid; grid-template-columns: minmax(0, 1fr); }
+.mock-overall-roster { max-height: calc(100vh - 330px); }
+.mock-overall-row { grid-template-columns: 42px 40px minmax(0, 1fr) 70px; }
+.mock-overall-rank-input { width: 58px; height: 30px; box-sizing: border-box; border: 1px solid var(--prospect-line); border-radius: 4px; background: #10232c; color: #eff5f2; text-align: center; }
+.mock-team-order-pane { max-width: 760px; }
+.mock-team-order-roster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mock-team-order-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) 32px; align-items: center; gap: 8px; min-height: 45px; padding: 4px 11px; border-top: 1px solid rgba(150, 177, 177, 0.11); color: var(--prospect-text); cursor: grab; }
+.mock-team-order-row.drop-target { box-shadow: inset 0 2px var(--prospect-teal); }
+.mock-team-order-code { color: #8ed9c5; font-size: 11px; font-weight: 800; }
+.mock-team-order-city { font-size: 12px; }
+.mock-team-order-copy { min-width: 0; display: grid; gap: 4px; }
+.mock-team-order-needs { color: #e4f2ed; font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
+.mock-team-order-index { color: var(--prospect-muted); font-size: 10px; text-align: right; }
+
+.mock-scoring-controls { display: flex; gap: 12px; flex-wrap: wrap; }
+.mock-scoring-controls input { width: 100px; }
+.mock-scoring-rules { padding: 12px 0; border-block: 1px solid var(--prospect-line); color: #fff; }
+.mock-scoring-rules-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 12px; }
+.mock-scoring-table-wrap { overflow: auto; margin-top: 16px; }
+.mock-scoring-table { width: 100%; border-collapse: collapse; color: #fff; text-align: left; }
+.mock-scoring-table caption { text-align: left; font-weight: 700; padding: 10px 0; }
+.mock-scoring-table th, .mock-scoring-table td { border-bottom: 1px solid var(--prospect-line); padding: 9px 7px; font-size: 12px; vertical-align: top; }
+.mock-scoring-table th { color: #d4e8e3; }
+.mock-scoring-table td > input:not([type="checkbox"]) { min-width: 120px; }
+.mock-scoring-table td:nth-child(4) { min-width: 220px; }
+.mock-scoring-table td:nth-child(4) input { width: 100%; box-sizing: border-box; }
+.mock-scoring-table select, .mock-scoring-table input:not([type="checkbox"]), .mock-scoring-controls select {
+  padding: 8px; border: 1px solid var(--prospect-line); border-radius: 4px; background: #11252e; color: #fff; font: inherit;
+}
+.mock-scoring-table select { max-width: 260px; }
+.mock-score-entries { padding-top: 20px; color: #fff; }
+.mock-score-entries .mock-admin-actions { justify-content: flex-start; align-items: end; }
+.mock-score-breakdown { padding: 12px 0; border-top: 1px solid var(--prospect-line); }
+.mock-score-breakdown summary { cursor: pointer; font-size: 14px; }
+.mock-score-breakdown .mock-admin-button { margin: 8px 0; }
+#scoringFeedback { min-height: 20px; color: #fff; font-size: 13px; }
+#scoringFeedback.is-error { color: #ffc8b9; }
+#scoringPublishedStatus { color: #d5e8e3; font-size: 12px; }
+.mock-contest-selectors { align-items: center; margin-bottom: 12px; }
+.mock-contest-selectors select, .mock-admin-builder select, .mock-score-entries select {
+  max-width: 100%; padding: 8px; border: 1px solid var(--prospect-line); border-radius: 4px; background: #11252e; color: #fff;
+}
+.mock-contest-selectors .mock-field, .mock-admin-builder .mock-field { grid-column: auto; }
+.mock-test-actions { justify-content: flex-start; align-items: end; margin: 12px 0; }
+#scoringDatasetBadge { padding: 8px 12px; color: #fff; background: #276745; border-radius: 4px; font-size: 12px; }
+#scoringDatasetBadge.is-real { background: #8c3834; }
+.mock-admin-builder { margin: 16px 0; color: #fff; border-block: 1px solid var(--prospect-line); padding: 12px 0; }
+.mock-admin-builder summary { font-weight: 700; cursor: pointer; }
+#mockAdminBuilderFrame { display: block; width: 100%; height: 780px; border: 1px solid var(--prospect-line); border-radius: 6px; box-sizing: border-box; }
+#mockBuilderStatus { color: #e4f2ed; font-size: 12px; }
+.mock-scoring-rules-grid .mock-field { grid-column: auto; }
+
+@media (max-width: 1000px) {
+  .mock-position-editor-grid { grid-template-columns: minmax(0, 1fr); }
+  .mock-prospect-roster { max-height: 420px; }
+  .mock-field:nth-child(2), .mock-field:nth-child(3) { grid-column: span 2; }
+}
+
+@media (max-width: 650px) {
+  .mock-admin-header { grid-template-columns: minmax(0, 1fr); justify-items: stretch; gap: 10px; padding: 12px; }
+  .mock-admin-header > a { justify-self: start; }
+  .mock-admin-title { grid-row: 1; }
+  .mock-admin-access { justify-self: stretch; width: 100%; box-sizing: border-box; }
+  .mock-admin-title h1 { font-size: 18px; }
+  .mock-admin-toolbar, .mock-editor-toolbar { align-items: stretch; flex-direction: column; }
+  .mock-admin-status { text-align: left; }
+  .mock-admin-actions { justify-content: flex-start; }
+  .mock-prospect-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mock-field:nth-child(2), .mock-field:nth-child(3) { grid-column: span 2; }
+  .mock-team-order-roster { grid-template-columns: minmax(0, 1fr); }
+  .mock-roster-row { grid-template-columns: 30px 34px minmax(0, 1fr) auto; gap: 6px; padding-right: 7px; padding-left: 7px; }
+  .mock-admin-headshot { width: 32px; height: 36px; }
+  .mock-overall-row { grid-template-columns: 32px 34px minmax(0, 1fr) 58px; }
+}

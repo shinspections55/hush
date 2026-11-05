@@ -43,7 +43,7 @@ app.use((req, res, next) => {
     "object-src 'none'",
     "frame-ancestors 'self'",
     "form-action 'self'",
-    "script-src 'self' https://cdn.socket.io https://www.gstatic.com https://static.cloudflareinsights.com",
+    "script-src 'self' https://cdn.socket.io https://www.gstatic.com https://static.cloudflareinsights.com https://pagead2.googlesyndication.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' data: blob: https://media.giphy.com https://i.giphy.com https://*.giphy.com",
@@ -1961,6 +1961,8 @@ app.get('/top250.meta.json', async (_req, res) => {
     res.status(404).json({ ok: false, error: 'Rankings metadata not found' });
   }
 });
+
+app.use(['/mock-draft-calibration.js', '/tools/test-mock-draft-calibration.js'], (_req, res) => res.sendStatus(404));
 
 app.use(express.static(root, {
   extensions: ['html'],
@@ -5711,6 +5713,218 @@ app.post('/api/admin/rankings/default/sync-position-order', requireAdminDebugKey
     return res.status(500).json({ ok: false, error: 'Unable to sync TOP position order' });
   }
 });
+
+const MOCK_DRAFT_DATA_DIRECTORY = path.join(__dirname, 'college prospects 2027');
+const MOCK_DRAFT_PROSPECT_FILE_MAP = Object.freeze({
+  QB: path.join(MOCK_DRAFT_DATA_DIRECTORY, 'QB', 'qb-prospects-2027.json'),
+  RB: path.join(MOCK_DRAFT_DATA_DIRECTORY, 'RB', 'rb-prospects-2027.json'),
+  WR: path.join(MOCK_DRAFT_DATA_DIRECTORY, 'WR', 'wr-prospects-2027.json'),
+  TE: path.join(MOCK_DRAFT_DATA_DIRECTORY, 'TE', 'te-prospects-2027.json'),
+  OL: path.join(MOCK_DRAFT_DATA_DIRECTORY, 'OL', 'ol-prospects-2027.json'),
+  DL: path.join(MOCK_DRAFT_DATA_DIRECTORY, 'DL', 'dl-prospects-2027.json'),
+  EDGE: path.join(MOCK_DRAFT_DATA_DIRECTORY, 'EDGE', 'edge-prospects-2027.json'),
+  LB: path.join(MOCK_DRAFT_DATA_DIRECTORY, 'LB', 'lb-prospects-2027.json'),
+  DB: path.join(MOCK_DRAFT_DATA_DIRECTORY, 'DB', 'db-prospects-2027.json')
+});
+const MOCK_DRAFT_OVERALL_ORDER_FILE = path.join(MOCK_DRAFT_DATA_DIRECTORY, 'overall-rankings-2027.json');
+const MOCK_DRAFT_TEAM_ORDER_FILE = path.join(MOCK_DRAFT_DATA_DIRECTORY, 'default-team-draft-order-2027.json');
+const MOCK_DRAFT_TEAM_CODES = Object.freeze([
+  'ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN', 'DET', 'GB',
+  'HOU', 'IND', 'JAC', 'KC', 'LAC', 'LAR', 'LV', 'MIA', 'MIN', 'NE', 'NO', 'NYG',
+  'NYJ', 'PHI', 'PIT', 'SEA', 'SF', 'TB', 'TEN', 'WAS'
+]);
+
+function mockDraftProspectKey(player) {
+  const slug = (value) => String(value || '').trim().toLowerCase().normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return `${slug(player && player.name)}::${slug(player && player.school)}`;
+}
+
+async function readMockDraftProspectBoards() {
+  const boards = {};
+  for (const [position, filePath] of Object.entries(MOCK_DRAFT_PROSPECT_FILE_MAP)) {
+    const payload = JSON.parse(await fs.readFile(filePath, 'utf8'));
+    if (!Array.isArray(payload)) throw new Error(`Invalid ${position} prospects file`);
+    boards[position] = payload;
+  }
+  return boards;
+}
+
+function getUniqueMockDraftProspectKeys(boards) {
+  const keys = new Set();
+  Object.values(boards).forEach((players) => {
+    players.forEach((player) => {
+      if (String(player && player.name || '').trim()) keys.add(mockDraftProspectKey(player));
+    });
+  });
+  return keys;
+}
+
+async function readMockDraftTeamOrder() {
+  try {
+    const payload = JSON.parse(await fs.readFile(MOCK_DRAFT_TEAM_ORDER_FILE, 'utf8'));
+    const order = Array.isArray(payload) ? payload : payload.order;
+    if (Array.isArray(order) && order.length === MOCK_DRAFT_TEAM_CODES.length && new Set(order).size === MOCK_DRAFT_TEAM_CODES.length && order.every((code) => MOCK_DRAFT_TEAM_CODES.includes(code))) {
+      return order;
+    }
+  } catch (_error) {
+    // Fall back to the standard code order until an admin saves a custom order.
+  }
+  return [...MOCK_DRAFT_TEAM_CODES];
+}
+
+app.get('/api/admin/mock-draft/prospects', requireAdminDebugKey, async (_req, res) => {
+  try {
+    const boards = await readMockDraftProspectBoards();
+    const validKeys = getUniqueMockDraftProspectKeys(boards);
+    let overallOrder = [];
+    try {
+      const saved = JSON.parse(await fs.readFile(MOCK_DRAFT_OVERALL_ORDER_FILE, 'utf8'));
+      overallOrder = Array.isArray(saved) ? saved : saved.order;
+    } catch (_error) {
+      overallOrder = [];
+    }
+    const seen = new Set();
+    overallOrder = (Array.isArray(overallOrder) ? overallOrder : []).filter((key) => validKeys.has(key) && !seen.has(key) && seen.add(key));
+    validKeys.forEach((key) => {
+      if (!seen.has(key)) {
+        overallOrder.push(key);
+        seen.add(key);
+      }
+    });
+    return res.json({ ok: true, boards, overallOrder, teamOrder: await readMockDraftTeamOrder() });
+  } catch (error) {
+    console.error('[ADMIN] Read mock draft prospect boards error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to read mock draft prospect files' });
+  }
+});
+
+app.post('/api/admin/mock-draft/prospects/:position/save', requireAdminDebugKey, async (req, res) => {
+  try {
+    const position = String(req.params.position || '').toUpperCase();
+    const filePath = MOCK_DRAFT_PROSPECT_FILE_MAP[position];
+    const inputPlayers = req.body && req.body.players;
+    if (!filePath || !Array.isArray(inputPlayers) || inputPlayers.length > 1000) {
+      return res.status(400).json({ ok: false, error: 'A valid position and players array are required' });
+    }
+
+    const players = inputPlayers.map((player, index) => {
+      if (!player || typeof player !== 'object' || Array.isArray(player)) throw new Error(`Invalid prospect at rank ${index + 1}`);
+      const name = String(player.name || '').trim();
+      if (!name || name.length > 160) throw new Error(`A valid name is required at rank ${index + 1}`);
+      const school = String(player.school || '').trim();
+      const height = String(player.height || '').trim();
+      const subPosition = String(player.subPosition || position).trim();
+      const listingMetrics = String(player.listingMetrics || '');
+      const summary = String(player.summary || '');
+      const imageUrl = String(player.imageUrl || '').trim();
+      const profileUrl = String(player.profileUrl || '').trim();
+      const schoolLogoUrl = String(player.schoolLogoUrl || '').trim();
+      const weightLbs = player.weightLbs === '' || player.weightLbs == null ? '' : Number(player.weightLbs);
+      if (school.length > 120 || height.length > 20 || subPosition.length > 40 || listingMetrics.length > 120 || summary.length > 4000) {
+        throw new Error(`Prospect fields exceed the allowed length at rank ${index + 1}`);
+      }
+      if (weightLbs !== '' && (!Number.isFinite(weightLbs) || weightLbs < 0 || weightLbs > 500)) {
+        throw new Error(`Invalid weight for ${name}`);
+      }
+      for (const url of [imageUrl, profileUrl, schoolLogoUrl]) {
+        if (url.length > 2000 || (url && !/^https?:\/\//i.test(url))) throw new Error(`Invalid URL for ${name}`);
+      }
+      return {
+        rank: index + 1,
+        name,
+        position,
+        subPosition,
+        school,
+        height,
+        weightLbs,
+        listingMetrics,
+        imageUrl,
+        profileUrl,
+        schoolLogoUrl,
+        summary
+      };
+    });
+
+    await writeJsonFileAtomically(filePath, JSON.stringify(players, null, 2));
+    return res.json({ ok: true, position, count: players.length });
+  } catch (error) {
+    console.error('[ADMIN] Save mock draft prospect board error:', error);
+    return res.status(400).json({ ok: false, error: error.message || 'Unable to save mock draft prospect board' });
+  }
+});
+
+app.post('/api/admin/mock-draft/overall/save', requireAdminDebugKey, async (req, res) => {
+  try {
+    const order = req.body && req.body.order;
+    if (!Array.isArray(order) || order.length > 1000 || order.some((key) => typeof key !== 'string')) {
+      return res.status(400).json({ ok: false, error: 'A valid overall ranking order is required' });
+    }
+    const boards = await readMockDraftProspectBoards();
+    const validKeys = getUniqueMockDraftProspectKeys(boards);
+    if (order.length !== validKeys.size || new Set(order).size !== order.length || order.some((key) => !validKeys.has(key))) {
+      return res.status(400).json({ ok: false, error: 'Overall ranking must include every unique prospect exactly once' });
+    }
+    await writeJsonFileAtomically(MOCK_DRAFT_OVERALL_ORDER_FILE, JSON.stringify({ order }, null, 2));
+    return res.json({ ok: true, count: order.length });
+  } catch (error) {
+    console.error('[ADMIN] Save mock draft overall order error:', error);
+    return res.status(400).json({ ok: false, error: error.message || 'Unable to save overall prospect ranking' });
+  }
+});
+
+app.get('/api/public/mock-draft/overall-order', async (_req, res) => {
+  try {
+    const boards = await readMockDraftProspectBoards();
+    const validKeys = getUniqueMockDraftProspectKeys(boards);
+    let savedOrder = [];
+    try {
+      const saved = JSON.parse(await fs.readFile(MOCK_DRAFT_OVERALL_ORDER_FILE, 'utf8'));
+      savedOrder = Array.isArray(saved) ? saved : saved.order;
+    } catch (_error) {
+      savedOrder = [];
+    }
+
+    const seen = new Set();
+    const order = (Array.isArray(savedOrder) ? savedOrder : [])
+      .filter((key) => validKeys.has(key) && !seen.has(key) && seen.add(key));
+    validKeys.forEach((key) => {
+      if (!seen.has(key)) {
+        order.push(key);
+        seen.add(key);
+      }
+    });
+
+    return res.json({ ok: true, order });
+  } catch (error) {
+    console.error('[PUBLIC] Read mock draft overall order error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to read overall mock draft order' });
+  }
+});
+
+app.post('/api/admin/mock-draft/team-order/save', requireAdminDebugKey, async (req, res) => {
+  try {
+    const order = req.body && req.body.order;
+    if (!Array.isArray(order) || order.length !== MOCK_DRAFT_TEAM_CODES.length || new Set(order).size !== MOCK_DRAFT_TEAM_CODES.length || order.some((code) => !MOCK_DRAFT_TEAM_CODES.includes(code))) {
+      return res.status(400).json({ ok: false, error: 'Team order must contain every NFL team exactly once' });
+    }
+    await writeJsonFileAtomically(MOCK_DRAFT_TEAM_ORDER_FILE, JSON.stringify({ order }, null, 2));
+    return res.json({ ok: true, order });
+  } catch (error) {
+    console.error('[ADMIN] Save default team order error:', error);
+    return res.status(400).json({ ok: false, error: 'Unable to save default team order' });
+  }
+});
+
+app.get('/api/public/mock-draft/default-team-order', async (_req, res) => {
+  try {
+    return res.json({ ok: true, order: await readMockDraftTeamOrder() });
+  } catch (_error) {
+    return res.json({ ok: true, order: [...MOCK_DRAFT_TEAM_CODES] });
+  }
+});
+
+require('./mock-draft-scoring-store').registerScoringRoutes(app, requireAdminDebugKey, writeJsonFileAtomically, readMockDraftTeamOrder);
 
 app.get('/api/admin/rankings/position/:position', requireAdminDebugKey, async (req, res) => {
   try {

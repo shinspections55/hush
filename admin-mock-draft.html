@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0F2F44">
+  <title>Admin - Mock Draft Prospects</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="admin-mock-draft.css">
+  <script src="theme-utils.js?v=20260821-c9c656a0"></script>
+</head>
+<body class="bg-overlay admin-mock-draft-page">
+  <header class="site-header mock-admin-header">
+    <a href="admin-portal.html" class="account-btn">&larr; Admin Portal</a>
+    <div class="mock-admin-title">
+      <span>HUSH ADMIN</span>
+      <h1>2027 Mock Draft Prospects</h1>
+    </div>
+    <div class="admin-header-access mock-admin-access">
+      <form id="mockAdminConnectForm">
+        <input id="mockAdminKeyInput" type="password" placeholder="Admin key" autocomplete="current-password">
+        <button id="mockAdminConnectBtn" type="submit" class="btn btn-login">Unlock</button>
+      </form>
+      <p id="mockAdminConnectStatus" class="form-status" role="status" aria-live="polite">Unlock to edit prospect boards.</p>
+    </div>
+  </header>
+
+  <main class="mock-admin-main">
+    <section id="mockAdminWorkspace" class="mock-admin-workspace" hidden>
+      <div class="mock-admin-toolbar">
+        <div>
+          <span class="mock-admin-eyebrow">DRAFT DATA</span>
+          <h2 id="mockAdminViewTitle">Quarterbacks</h2>
+        </div>
+        <p id="mockAdminStatus" class="mock-admin-status" role="status" aria-live="polite">Boards not loaded</p>
+      </div>
+
+      <nav class="mock-admin-tabs" aria-label="Mock draft data views">
+        <button type="button" class="mock-admin-tab active" data-position="QB" aria-pressed="true">QB</button>
+        <button type="button" class="mock-admin-tab" data-position="RB" aria-pressed="false">RB</button>
+        <button type="button" class="mock-admin-tab" data-position="WR" aria-pressed="false">WR</button>
+        <button type="button" class="mock-admin-tab" data-position="TE" aria-pressed="false">TE</button>
+        <button type="button" class="mock-admin-tab" data-position="OL" aria-pressed="false">OL</button>
+        <button type="button" class="mock-admin-tab" data-position="DL" aria-pressed="false">DL</button>
+        <button type="button" class="mock-admin-tab" data-position="EDGE" aria-pressed="false">EDGE</button>
+        <button type="button" class="mock-admin-tab" data-position="LB" aria-pressed="false">LB</button>
+        <button type="button" class="mock-admin-tab" data-position="DB" aria-pressed="false">DB</button>
+        <span class="mock-admin-tab-divider" aria-hidden="true"></span>
+        <button type="button" class="mock-admin-tab mock-admin-tab-special" data-view="overall" aria-pressed="false">Overall Board</button>
+        <button type="button" class="mock-admin-tab mock-admin-tab-special" data-view="teams" aria-pressed="false">Team Draft Order</button>
+        <button type="button" class="mock-admin-tab mock-admin-tab-special" data-view="scoring" aria-pressed="false">Actual Results &amp; Scoring</button>
+      </nav>
+
+      <section id="positionEditorView" class="mock-position-editor-view" aria-label="Position prospects">
+        <div class="mock-editor-toolbar">
+          <label class="mock-admin-search">
+            <span>Find a prospect</span>
+            <input id="mockProspectSearch" type="search" placeholder="Name or school" autocomplete="off">
+          </label>
+          <div class="mock-admin-actions">
+            <button id="mockAddProspectBtn" type="button" class="mock-admin-button">Add Prospect</button>
+            <button id="mockReloadBoardBtn" type="button" class="mock-admin-button mock-admin-button-quiet">Reload Board</button>
+            <button id="mockSaveBoardBtn" type="button" class="mock-admin-button mock-admin-button-save" disabled>Save Position File</button>
+          </div>
+        </div>
+
+        <div class="mock-position-editor-grid">
+          <section class="mock-admin-pane mock-roster-pane" aria-labelledby="mockRosterTitle">
+            <div class="mock-pane-heading">
+              <h3 id="mockRosterTitle">Position Board</h3>
+              <span id="mockRosterCount">0</span>
+            </div>
+            <p class="mock-admin-hint">Drag rows to change the position ranking.</p>
+            <div id="mockProspectRoster" class="mock-prospect-roster" role="list" aria-label="Ranked prospects"></div>
+          </section>
+
+          <section class="mock-admin-pane mock-detail-pane" aria-labelledby="mockDetailTitle">
+            <div class="mock-pane-heading">
+              <div>
+                <span class="mock-admin-eyebrow">PLAYER DETAILS</span>
+                <h3 id="mockDetailTitle">Select a prospect</h3>
+              </div>
+              <button id="mockDeleteProspectBtn" type="button" class="mock-admin-button mock-admin-button-danger" disabled>Remove</button>
+            </div>
+            <form id="mockProspectForm" class="mock-prospect-form" autocomplete="off">
+              <label class="mock-field mock-field-small"><span>Position rank</span><input name="rank" type="number" min="1" step="1" disabled></label>
+              <label class="mock-field"><span>Name</span><input name="name" type="text" maxlength="160" disabled></label>
+              <label class="mock-field"><span>School</span><input name="school" type="text" maxlength="120" disabled></label>
+              <label class="mock-field mock-field-small"><span>Listed position</span><input name="subPosition" type="text" maxlength="40" placeholder="e.g. OT, CB, LB/ED" disabled></label>
+              <label class="mock-field mock-field-small"><span>Height</span><input name="height" type="text" maxlength="20" placeholder="6-2" disabled></label>
+              <label class="mock-field mock-field-small"><span>Weight (lb)</span><input name="weightLbs" type="number" min="0" max="500" step="1" disabled></label>
+              <label class="mock-field"><span>Listing metrics</span><input name="listingMetrics" type="text" maxlength="120" disabled></label>
+              <label class="mock-field mock-field-wide"><span>Prospect summary (shown in popup)</span><textarea name="summary" rows="5" maxlength="4000" disabled></textarea></label>
+              <label class="mock-field mock-field-wide"><span>Player image URL</span><input name="imageUrl" type="url" maxlength="2000" disabled></label>
+              <label class="mock-field mock-field-wide"><span>Profile URL</span><input name="profileUrl" type="url" maxlength="2000" disabled></label>
+              <label class="mock-field mock-field-wide"><span>School logo URL</span><input name="schoolLogoUrl" type="url" maxlength="2000" disabled></label>
+            </form>
+          </section>
+        </div>
+      </section>
+
+      <section id="overallEditorView" class="mock-special-view" aria-label="Overall prospect ranking" hidden>
+        <div class="mock-editor-toolbar">
+          <div class="mock-special-copy">
+            <h3>Overall Prospect Ranking</h3>
+            <p>Drag prospects from every position board into one combined ranking. Cross-listed players appear once.</p>
+          </div>
+          <div class="mock-admin-actions">
+            <button id="mockSaveOverallBtn" type="button" class="mock-admin-button mock-admin-button-save" disabled>Save Overall Order</button>
+          </div>
+        </div>
+        <div class="mock-overall-columns">
+          <section class="mock-admin-pane">
+            <div class="mock-pane-heading"><h3>Overall board</h3><span id="mockOverallCount">0</span></div>
+            <div id="mockOverallRoster" class="mock-prospect-roster mock-overall-roster" role="list" aria-label="Overall prospect ranking"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="teamOrderEditorView" class="mock-special-view" aria-label="Default team draft order" hidden>
+        <div class="mock-editor-toolbar">
+          <div class="mock-special-copy">
+            <h3>Default Team Draft Order</h3>
+            <p>This order fills picks 1–32 on new mock drafts. Existing saved mock picks are left unchanged.</p>
+          </div>
+          <div class="mock-admin-actions">
+            <button id="mockResetTeamOrderBtn" type="button" class="mock-admin-button mock-admin-button-quiet">Reset to NFL Order</button>
+            <button id="mockSaveTeamOrderBtn" type="button" class="mock-admin-button mock-admin-button-save" disabled>Save Default Order</button>
+          </div>
+        </div>
+        <section class="mock-admin-pane mock-team-order-pane">
+          <div class="mock-pane-heading"><h3>Pick slots</h3><span>32 TEAMS</span></div>
+          <div id="mockTeamOrderRoster" class="mock-team-order-roster" role="list" aria-label="Default team pick order"></div>
+        </section>
+      </section>
+      <section id="scoringEditorView" class="mock-special-view" aria-label="Actual results and scoring" hidden>
+        <div class="mock-scoring-controls mock-contest-selectors">
+          <label class="mock-field">Contest<select id="scoringContestSelect"></select></label>
+          <label class="mock-field">Results dataset<select id="scoringDatasetSelect"></select></label>
+          <strong id="scoringDatasetBadge"></strong>
+        </div>
+        <div class="mock-admin-actions mock-test-actions">
+          <label class="mock-field">New contest year<input id="newScoringContestYear" type="number" value="2027" min="2020" max="2100"></label>
+          <label class="mock-field">Contest / test name<input id="newScoringDatasetName" type="text" maxlength="160"></label>
+          <button id="createScoringContestBtn" class="mock-admin-button" type="button">Create Contest</button>
+          <button id="load2025CalibrationBtn" class="mock-admin-button" type="button">Load 2025 Scoring Test</button>
+          <button id="createScoringTestBtn" class="mock-admin-button" type="button">Create Test</button>
+          <button id="cloneScoringTestBtn" class="mock-admin-button" type="button">Clone Test</button>
+          <button id="resetScoringTestBtn" class="mock-admin-button mock-admin-button-danger" type="button">Reset Test Results</button>
+          <button id="toggleScoringSubmissionsBtn" class="mock-admin-button" type="button">Close Submissions</button>
+        </div>
+        <details class="mock-admin-builder" id="mockAdminBuilderPanel">
+          <summary>Create / Edit Mock</summary>
+          <div class="mock-editor-toolbar">
+            <div class="mock-scoring-controls">
+              <label class="mock-field">Saved entry<select id="mockBuilderEntrySelect"></select></label>
+              <label class="mock-field">Entry name<input id="mockBuilderName" type="text" maxlength="160" placeholder="My 2027 Mock"></label>
+              <label class="mock-field">Participant type<select id="mockBuilderRole"><option value="participant">Participant</option><option value="expert">Expert</option></select></label>
+            </div>
+            <div class="mock-admin-actions">
+              <button id="newAdminMockBtn" class="mock-admin-button" type="button">New Mock</button>
+              <button id="cloneAdminMockBtn" class="mock-admin-button" type="button">Clone Entry</button>
+              <button id="saveAdminMockBtn" class="mock-admin-button mock-admin-button-save" type="button">Save Mock Draft</button>
+              <button id="submitAdminMockBtn" class="mock-admin-button" type="button">Submit Saved Mock</button>
+            </div>
+          </div>
+          <p id="mockBuilderStatus" role="status"></p>
+          <iframe id="mockAdminBuilderFrame" title="Admin mock draft builder" src="mock-draft-contest.html?adminBuilder=1" loading="lazy"></iframe>
+        </details>
+        <div class="mock-editor-toolbar">
+          <div class="mock-scoring-controls">
+            <label class="mock-field">Draft year<input id="scoringYear" type="number" min="2020" max="2100" value="2027" readonly></label>
+            <label class="mock-field">Draft status<select id="scoringStatus"><option value="paused">Paused</option><option value="live">Live - Scoring</option><option value="final">Final</option></select></label>
+          </div>
+          <div class="mock-admin-actions">
+            <button id="reloadScoringBtn" class="mock-admin-button" type="button">Reload</button>
+            <button id="saveActualResultsBtn" class="mock-admin-button mock-admin-button-save" type="button">Save Results + Rules</button>
+            <button id="scoreAllMocksBtn" class="mock-admin-button" type="button">Score All Mocks</button>
+          </div>
+        </div>
+        <p id="scoringFeedback" role="status" aria-live="polite"></p>
+        <details class="mock-scoring-rules" open><summary>Scoring Rules</summary><div id="scoringRulesFields" class="mock-scoring-rules-grid"></div></details>
+        <div class="mock-scoring-table-wrap">
+          <table class="mock-scoring-table"><caption>Actual Draft Results</caption>
+            <thead><tr><th>Pick</th><th>Original owner</th><th>Selecting team</th><th>Player</th><th>Position</th><th>Traded</th><th>Trade history</th><th>Confirmed</th><th>Notes</th></tr></thead>
+            <tbody id="actualResultsRows"></tbody>
+          </table>
+        </div>
+        <section class="mock-score-entries" aria-labelledby="mockScoreEntriesTitle">
+          <h3 id="mockScoreEntriesTitle">Mock Entries</h3>
+          <div class="mock-scoring-controls">
+            <label class="mock-field">Leaderboard<select id="scoringLeaderboardFilter"><option value="combined">Combined</option><option value="participant">Participants</option><option value="expert">Experts</option></select></label>
+            <label class="mock-field">Import entry type<select id="scoringImportRole"><option value="participant">Participant</option><option value="expert">Expert</option></select></label>
+          </div>
+          <div class="mock-admin-actions">
+            <label class="mock-field">Entry name<input id="scoringImportName" type="text" maxlength="160" placeholder="Expert or test entry name"></label>
+            <label class="mock-field">Import mock JSON<input id="scoringMockFiles" type="file" accept=".json,application/json" multiple></label>
+            <label class="mock-field">Import actual results JSON<input id="scoringResultsFile" type="file" accept=".json,application/json"></label>
+            <button id="importLocalMockBtn" class="mock-admin-button" type="button">Import This Browser's Mock</button>
+          </div>
+          <p id="scoringPublishedStatus"></p>
+          <div id="scoringLeaderboard" class="mock-scoring-table-wrap"></div>
+          <div id="scoringMockBreakdowns"></div>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script src="admin-mock-draft.js"></script>
+  <script src="admin-mock-draft-scoring.js"></script>
+  <script src="preferences.js"></script>
+</body>
+</html>

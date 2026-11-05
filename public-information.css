@@ -1,0 +1,24 @@
+.site-public-links { display: flex; flex-wrap: wrap; gap: 12px 20px; margin-top: 20px; font-size: 13px; }
+.site-public-links a { color: inherit; text-decoration: underline; text-underline-offset: 4px; }
+.info-page { margin: 0; min-height: 100vh; background: #f3f5f2; color: #1d312c; font: 16px/1.7 'Trebuchet MS', sans-serif; }
+.info-page * { box-sizing: border-box; }
+.info-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; max-width: 1080px; margin: auto; padding: 20px 24px; border-bottom: 1px solid #c8d3cd; }
+.info-brand { display: flex; align-items: center; gap: 12px; color: #1d312c; font-weight: 800; text-decoration: none; }
+.info-brand img { width: 48px; height: 48px; object-fit: contain; background: #18392e; border-radius: 4px; }
+.info-nav { display: flex; flex-wrap: wrap; gap: 10px 20px; font-size: 13px; }
+.info-page a { color: #235b4c; text-underline-offset: 4px; }
+.info-main { width: min(100%, 860px); margin: auto; padding: 36px 24px 48px; }
+.info-eyebrow { color: #506b60; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0; }
+.info-main h1, .info-main h2 { font-family: Georgia, serif; line-height: 1.2; letter-spacing: 0; }
+.info-main h1 { margin: 10px 0 22px; font-size: 36px; }
+.info-main h2 { margin: 32px 0 12px; font-size: 24px; }
+.info-main p, .info-main li { overflow-wrap: anywhere; }
+.info-status { padding: 16px 0; border-top: 2px solid #537d65; border-bottom: 1px solid #c8d3cd; }
+.info-table-scroll { width: 100%; overflow-x: auto; }
+.info-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.info-table caption { text-align: left; font-weight: 700; padding: 10px 0; }
+.info-table th, .info-table td { text-align: left; vertical-align: top; border-bottom: 1px solid #c8d3cd; padding: 12px 8px; }
+.info-table th:last-child, .info-table td:last-child { white-space: nowrap; text-align: right; }
+.info-footer { max-width: 1080px; margin: auto; padding: 24px; border-top: 1px solid #c8d3cd; font-size: 13px; }
+.info-footer nav { display: flex; flex-wrap: wrap; gap: 12px 20px; }
+@media (max-width: 500px) { .info-main { padding: 24px 18px 36px; } .info-header, .info-footer { padding: 18px; } .info-main h1 { font-size: 30px; } }

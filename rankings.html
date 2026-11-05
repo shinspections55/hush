@@ -13,7 +13,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="rankings.css">
+  <link rel="stylesheet" href="rankings.css?v=20261104-row-stars">
+  <link rel="stylesheet" href="ad-placements.css">
+  <script src="ad-placements.js" defer></script>
   <script src="theme-utils.js?v=20260821-c9c656a0"></script>
 </head>
 <body class="bg-overlay">
@@ -23,21 +25,22 @@
       <img src="printablehushrank.PNG" alt="" class="rankings-header-banner-image rankings-header-banner-image-dark">
       <img src="printablehushrank.PNG" alt="" class="rankings-header-banner-image rankings-header-banner-image-light">
     </div>
-    <div class="header-left">
-      <a href="dashboard.html" class="account-btn">← Dashboard</a>
-    </div>
     <div class="header-right">
       <span id="draftStatusBadge" class="draft-status-badge hidden"></span>
-      <button id="themeToggleBtn" class="account-btn theme-toggle-btn theme-icon-btn" type="button" aria-label="Switch to light mode" title="Switch to light mode" aria-pressed="false">Mode: 🌙</button>
+      <button id="themeToggleBtn" class="account-btn theme-toggle-btn theme-icon-btn" type="button" aria-label="Switch to light mode" title="Switch to light mode" aria-pressed="false">🌙</button>
     </div>
   </header>
 
-  <div class="rankings-page">
+  <nav class="rankings-mobile-tabs" aria-label="Rankings workspace">
+    <button type="button" data-mobile-view="rankings" aria-pressed="true" aria-controls="rankingsPanel">My Rankings</button>
+    <button type="button" data-mobile-view="pool" aria-pressed="false" aria-controls="playerPoolPanel">Player Pool</button>
+  </nav>
+  <div class="rankings-page" data-mobile-view="rankings">
 
     <!-- ------------------------------------------------------------------ -->
     <!-- LEFT PANEL: My Rankings                                          -->
     <!-- ------------------------------------------------------------------ -->
-    <div class="rankings-panel">
+    <div class="rankings-panel" id="rankingsPanel">
 
       <div class="rankings-panel-header">
         <div class="rankings-panel-title">
@@ -45,6 +48,17 @@
           <span id="totalCount" class="total-count">0 players</span>
         </div>
         <div class="rankings-panel-actions">
+          <label class="print-metric-control" for="printMetricSelect">
+            <span>Print:</span>
+            <select id="printMetricSelect" aria-label="Printable ranking metric">
+              <option value="av">AV</option>
+              <option value="adp">ADP</option>
+            </select>
+          </label>
+          <label class="print-teams-control" for="printTeamCount">
+            <span>Teams:</span>
+            <input id="printTeamCount" type="number" min="2" max="32" step="1" value="12" aria-label="Number of teams for snake draft ADP">
+          </label>
           <button id="tierInsertModeBtn" class="action-btn" type="button">Easy Tier Breaks: Off</button>
           <button id="printRankingsBtn" class="action-btn" type="button">Print</button>
           <button id="saveRankingsBtn" class="action-btn saved">Saved ✓</button>
@@ -84,7 +98,8 @@
         <div class="rankings-empty" id="rankingsEmpty">
           <div class="empty-icon">ðŸ“‹</div>
           <p>Your rankings board is empty</p>
-          <p class="empty-hint">Click players on the right to add them, or drag &amp; drop</p>
+          <p class="empty-hint rankings-desktop-hint">Click players on the right to add them, or drag &amp; drop</p>
+          <button type="button" class="rankings-open-pool" data-open-player-pool>Add players</button>
         </div>
       </div>
 
@@ -95,7 +110,7 @@
     <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <!-- RIGHT PANEL: Player Pool                          -->
     <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
-    <div class="pool-panel">
+    <div class="pool-panel" id="playerPoolPanel">
 
       <div class="pool-panel-header">
         <h2>Player Pool</h2>
@@ -126,8 +141,23 @@
 
   </div>
 
+  <dialog id="movePlayerDialog" class="rankings-move-dialog" aria-labelledby="movePlayerTitle">
+    <form id="movePlayerForm">
+      <h2 id="movePlayerTitle">Move player</h2>
+      <label>Destination<select id="movePlayerMode"><option value="rank">Rank number</option><option value="tier">Top of tier</option></select></label>
+      <label id="moveRankField">Rank<input id="movePlayerRank" type="number" min="1" step="1" inputmode="numeric" required></label>
+      <label id="moveTierField" hidden>Tier<select id="movePlayerTier" disabled></select></label>
+      <p id="movePlayerError" role="alert"></p>
+      <div class="rankings-move-actions">
+        <button id="movePlayerCancel" type="button">Cancel</button>
+        <button type="submit">Move</button>
+      </div>
+    </form>
+  </dialog>
+  <p id="rankingsMobileStatus" class="rankings-mobile-status" role="status" aria-live="polite"></p>
+  <aside class="hush-ad-placement" data-ad-placement="rankings-bottom" aria-label="Advertisement" hidden></aside>
   <script src="preferences.js"></script>
-  <script src="rankings.js?v=20260828-write-in-roster"></script>
+  <script src="rankings.js?v=20261104-row-stars"></script>
   <script src="sw-register.js?v=20260828-write-in-roster"></script>
 </body>
 </html>

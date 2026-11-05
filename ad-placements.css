@@ -1,0 +1,60 @@
+.hush-ad-placement[hidden] { display: none !important; }
+.hush-ad-marker { display: block; width: 1px; height: 1px; margin-bottom: -1px; pointer-events: none; }
+.hush-ad-google .adsbygoogle { min-height: 100px; }
+.hush-ad-google .adsbygoogle[data-ad-status="unfilled"] { display: none !important; }
+.hush-ad-placement {
+  width: min(100%, 1100px);
+  min-width: 0;
+  margin: 24px auto;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+.hush-ad-disclosure {
+  display: block;
+  margin-bottom: 5px;
+  color: inherit;
+  opacity: .7;
+  font: 10px/1.4 sans-serif;
+  letter-spacing: 0;
+}
+.hush-ad-placement a { display: block; }
+.hush-ad-compact { padding: 0; margin: 24px auto 0; flex-shrink: 0; }
+.dashboard-main-centered { width: 100%; box-sizing: border-box; flex-direction: column; align-items: center; justify-content: flex-start; }
+.dashboard-three-column { max-width: 100%; min-width: 0; }
+.dashboard-three-column > .dashboard-column-card { min-width: 0; }
+.dashboard-main-centered > .hush-ad-placement { width: min(1200px, 96vw); max-width: 100%; padding: 0; flex-shrink: 0; }
+.dashboard-main-centered > .hush-ad-placement .hush-ad-preview-banner { min-height: 180px; }
+.dashboard-column-middle > .hush-ad-compact { margin: 0 auto 20px; }
+.hush-ad-compact .hush-ad-preview-banner { min-height: 150px; padding: 18px; }
+.hush-ad-compact .hush-ad-preview-banner strong { font-size: 18px; }
+.hush-ad-placement a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+.hush-ad-placement img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 220px;
+  object-fit: contain;
+  border: 0;
+}
+.hush-ad-preview-banner {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+  padding: 22px 28px;
+  box-sizing: border-box;
+  border: 1px solid #78ad94;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(13, 36, 31, .96), rgba(13, 36, 31, .72)), url('/assets/mock-draft-stadium.jpg') center 55% / cover;
+  color: #fff;
+  font: 12px/1.5 sans-serif;
+  overflow-wrap: anywhere;
+}
+.hush-ad-preview-brand { color: #b6e6c6; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+.hush-ad-preview-banner strong { font-size: 22px; line-height: 1.2; }
+@media (max-width: 600px) {
+  .hush-ad-preview-banner { min-height: 150px; padding: 18px; }
+  .hush-ad-preview-banner strong { font-size: 19px; }
+}
+@media print { .hush-ad-placement { display: none !important; } }

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#111d20">
+  <meta name="description" content="Build a 32-pick first-round mock draft and see how your predictions score.">
+  <title>Hush Mock Draft Challenge</title>
+  <link rel="stylesheet" href="mock-draft-contest-intro.css">
+  <link rel="stylesheet" href="ad-placements.css">
+  <script src="ad-placements.js" defer></script>
+  <script src="theme-utils.js?v=20260821-c9c656a0"></script>
+</head>
+<body class="mock-intro-page">
+  <header class="intro-nav">
+    <a class="intro-back" href="dashboard.html">&larr; Dashboard</a>
+    <a class="intro-brand" href="dashboard.html" aria-label="Hush home">HUSH <span>FOOTBALL</span></a>
+    <a class="intro-nav-cta" href="mock-draft-contest.html">Build your mock <span aria-hidden="true">&rarr;</span></a>
+  </header>
+
+  <main>
+    <section class="intro-hero" aria-labelledby="introTitle">
+      <img class="intro-hero-image" src="assets/mock-draft-stadium.jpg" alt="A football resting on a marked field" fetchpriority="high">
+      <div class="intro-hero-shade" aria-hidden="true"></div>
+      <div class="intro-hero-content">
+        <p class="intro-kicker"><span></span> HUSH MOCK DRAFT CHALLENGE · FIRST ROUND</p>
+        <h1 id="introTitle">Call the picks.<br><em>Own the board.</em></h1>
+        <p class="intro-lede">32 selections. Your read on the class. Build a first-round mock, then follow every prediction as the points come in.</p>
+        <div class="intro-hero-actions">
+          <a class="intro-primary-cta" href="mock-draft-contest.html">Build your 32-pick mock <span aria-hidden="true">&rarr;</span></a>
+          <a class="intro-text-link" href="#scoring">See the scoring rules <span aria-hidden="true">&darr;</span></a>
+        </div>
+        <p class="intro-note">Score previews and standings appear when official results are published.</p>
+      </div>
+      <div class="intro-hero-index" aria-hidden="true"><span>01</span><i></i><span>32</span></div>
+      <a class="intro-scroll-cue" href="#scoring"><span>THE POINT SYSTEM</span><b aria-hidden="true">&#8595;</b></a>
+    </section>
+
+    <aside class="hush-ad-placement" data-ad-placement="mock-intro-between" aria-label="Advertisement" hidden></aside>
+    <section class="intro-scoring" id="scoring" aria-labelledby="scoringTitle">
+      <div class="intro-section-heading">
+        <div>
+          <p class="intro-kicker"><span></span> THE POINT SYSTEM</p>
+          <h2 id="scoringTitle">Make every pick count.</h2>
+        </div>
+        <p class="intro-section-note">Each selection receives one score: the highest applicable result. Points do not stack.</p>
+      </div>
+
+      <div class="intro-points-grid" aria-label="Standard scoring values">
+        <article class="intro-point"><span class="intro-point-value">+15</span><span class="intro-point-title">Exact player</span><span class="intro-point-detail">Right player at the right pick.</span></article>
+        <article class="intro-point"><span class="intro-point-value">+5</span><span class="intro-point-title">Right position</span><span class="intro-point-detail">Player differs; position matches.</span></article>
+        <article class="intro-point"><span class="intro-point-value">+3</span><span class="intro-point-title">One pick away</span><span class="intro-point-detail">Your player goes one slot earlier or later.</span></article>
+        <article class="intro-point intro-point-negative"><span class="intro-point-value">−3</span><span class="intro-point-title">Miss</span><span class="intro-point-detail">No exact, position, or range match.</span></article>
+      </div>
+
+      <div class="intro-trades">
+        <div class="intro-trades-heading"><span class="intro-trades-mark" aria-hidden="true">↗</span><div><p class="intro-kicker">TRADE CALLS</p><h3>Read the move, not just the name.</h3></div></div>
+        <div class="intro-trade-list">
+          <div><span class="intro-trade-points">+30</span><span>Correct trade partner <b>and</b> exact player</span></div>
+          <div><span class="intro-trade-points">+18</span><span>Correct trade partner <b>and</b> position</span></div>
+          <div><span class="intro-trade-points">+12</span><span>Correct trade partner</span></div>
+          <div><span class="intro-trade-points">+10</span><span>Correct team trade call, partner not named</span></div>
+          <div><span class="intro-trade-points negative">−5</span><span>Team-only trade call is wrong</span></div>
+          <div><span class="intro-trade-points negative">−8</span><span>Named trade partner is wrong</span></div>
+        </div>
+        <p class="intro-trade-footnote">Trade scoring replaces the standard pick score; it does not add to it. A blank pick earns 0.</p>
+      </div>
+
+      <div class="intro-bottom-line">
+        <p>Pick all 32. Review your scorecard. Prize contests have not launched; creating a practice mock is not a prize entry. <a href="contest-rules.html">Practice rules and responsible play</a>.</p>
+        <a class="intro-primary-cta" href="mock-draft-contest.html">Enter the mock draft <span aria-hidden="true">&rarr;</span></a>
+      </div>
+    </section>
+  </main>
+  <footer class="intro-footer"><a href="about.html">About Hush</a><a href="contest-rules.html">Practice rules</a><a href="mock-draft-contest.html">Open draft board &rarr;</a></footer>
+</body>
+</html>

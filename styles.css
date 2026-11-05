@@ -2170,14 +2170,9 @@ body.color-blind.bg-overlay::before {
 .submenu button{background:transparent;border:none;color:var(--hush-ice);padding:8px 12px;text-align:left;cursor:pointer;width:100%;font-size:14px}
 .submenu button:hover{background:var(--hush-steel);color:var(--hush-bg)}
 
-/* a subtle overlay when you want to dim the background image behind content */
-.bg-overlay::before{
-    content:'';
-    position:fixed;
-    inset:0;
-    background:rgba(3,5,9,0.55);
-    pointer-events:none;
-    z-index:0;
+/* Keep the shared background treatment from dimming page content. */
+.bg-overlay::before {
+    display: none !important;
 }
 .page{width:100%;max-width:980px;padding:30px;position:relative;z-index:1;box-sizing:border-box}
 .container{display:flex;gap:20px;flex-wrap:wrap;justify-content:center}

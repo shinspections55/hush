@@ -27,6 +27,8 @@
   </style>
   <title>Dashboard</title>
   <link rel="stylesheet" href="styles.css?v=20260821-c9c656a0">
+  <link rel="stylesheet" href="ad-placements.css">
+  <script src="ad-placements.js" defer></script>
 </head>
 <body class="bg-overlay dashboard-page">
 
@@ -86,6 +88,7 @@
       </article>
 
       <article class="dashboard-column-card dashboard-column-middle">
+        <aside class="hush-ad-placement hush-ad-compact" data-ad-placement="dashboard-news-footer" aria-label="Advertisement" hidden></aside>
         <p id="newsFeedStatus" class="hidden"></p>
         <ul id="newsFeedList" class="dashboard-placeholder-list">
           <li>Fetching live RSS feed...</li>
@@ -98,9 +101,11 @@
           <a href="learn-hush.html" id="learnHush" class="cta cta-primary">Learn Hush</a>
           <a href="offline-draft-print.html" id="offlineDraftPrint" class="cta cta-secondary">Offline Draft Print</a>
           <a href="av-trends.html" id="avMarketReport" class="cta cta-secondary">AV Market Report</a>
+          <a href="mock-draft-contest-intro.html" id="mockDraftContest" class="cta cta-secondary">Mock Draft Contest</a>
         </div>
       </article>
     </section>
+    <aside class="hush-ad-placement" data-ad-placement="dashboard-bottom" aria-label="Advertisement" hidden></aside>
   </main>
   <script src="/socket.io/socket.io.js"></script>
   <script src="theme-utils.js?v=20260821-c9c656a0"></script>

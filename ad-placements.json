@@ -1,0 +1,17 @@
+{
+  "adsense": {
+    "enabled": false,
+    "publisherId": "",
+    "productionHosts": [],
+    "launchApproved": false
+  },
+  "placements": {
+    "dashboard-bottom": null,
+    "dashboard-news-footer": null,
+    "mock-intro-between": null,
+    "mock-builder-bottom": null,
+    "mock-summary-between": null,
+    "rankings-bottom": null,
+    "draft-summary-bottom": null
+  }
+}

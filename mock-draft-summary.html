@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#12242a">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="Mock draft score summary and contest standings">
+  <title>Mock Draft Summary</title>
+  <link rel="stylesheet" href="mock-draft-summary.css">
+  <script src="theme-utils.js?v=20260821-c9c656a0"></script>
+</head>
+<body class="mock-summary-page">
+  <header class="summary-header">
+    <a class="summary-back" href="mock-draft-contest.html">&larr; Edit mock</a>
+    <a class="summary-wordmark" href="dashboard.html">HUSH <span>MOCK DRAFT</span></a>
+    <span id="reportMode" class="summary-mode">SHARED REPORT</span>
+  </header>
+  <main class="summary-main">
+    <section class="summary-heading">
+      <div>
+        <p class="summary-eyebrow">2027 NFL DRAFT · ROUND 1</p>
+        <h1>Your mock, scored.</h1>
+        <p id="reportStatus" class="summary-status" role="status" aria-live="polite">Scoring your board against published results.</p>
+      </div>
+      <div class="summary-actions" aria-label="Report actions">
+        <button id="shareReportBtn" type="button" title="Share report link">Share</button>
+        <button id="downloadReportBtn" type="button" title="Download score report as JSON">Download</button>
+        <button id="printReportBtn" type="button" title="Print report">Print</button>
+      </div>
+    </section>
+
+    <section class="summary-scoreline" aria-label="Score overview">
+      <div class="summary-score-primary">
+        <span class="summary-label">YOUR SCORE</span>
+        <strong id="summaryTotal">--</strong>
+        <span id="summaryPending">Waiting for results</span>
+      </div>
+      <div class="summary-score-stat"><span class="summary-label">OVERALL</span><strong id="overallRank">--</strong><span id="overallRankMeta">Contest standing</span></div>
+      <div class="summary-score-stat"><span class="summary-label">VS EXPERTS</span><strong id="expertRank">--</strong><span id="expertRankMeta">Expert standing</span></div>
+      <div class="summary-score-stat"><span class="summary-label">VS PARTICIPANTS</span><strong id="participantRank">--</strong><span id="participantRankMeta">Participant standing</span></div>
+    </section>
+
+    <section class="summary-section" aria-labelledby="standingsTitle">
+      <div class="summary-section-heading">
+        <div><p class="summary-eyebrow">CONTEST FIELD</p><h2 id="standingsTitle">Where you stack up</h2></div>
+        <div class="summary-tabs" role="group" aria-label="Choose standings">
+          <button type="button" data-standings="combined" aria-pressed="true">Overall</button>
+          <button type="button" data-standings="expert" aria-pressed="false">Experts</button>
+          <button type="button" data-standings="participant" aria-pressed="false">Participants</button>
+        </div>
+      </div>
+      <div id="standingsStatus" class="summary-inline-status"></div>
+      <div class="summary-table-scroll">
+        <table class="summary-table summary-standings-table">
+          <thead><tr><th>Rank</th><th>Entry</th><th>Group</th><th>Points</th><th>Pending</th></tr></thead>
+          <tbody id="standingsRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="summary-section" aria-labelledby="picksTitle">
+      <div class="summary-section-heading">
+        <div><p class="summary-eyebrow">32-PICK CARD</p><h2 id="picksTitle">Pick-by-pick breakdown</h2></div>
+        <span id="picksFilled" class="summary-count">0 / 32 FILLED</span>
+      </div>
+      <div class="summary-table-scroll">
+        <table class="summary-table summary-picks-table">
+          <thead><tr><th>Pick</th><th>Team</th><th>Your prediction</th><th>Actual selection</th><th>Result</th><th>Points</th></tr></thead>
+          <tbody id="pickBreakdownRows"></tbody>
+        </table>
+      </div>
+    </section>
+    <p class="summary-footnote">Shared reports include this mock's picks in the page link. Contest standings show totals only; other entries' picks remain private.</p>
+  </main>
+  <script src="mock-draft-summary.js"></script>
+</body>
+</html>

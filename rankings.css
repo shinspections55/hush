@@ -2,11 +2,26 @@
    rankings.css  –  My Rankings page
    ───────────────────────────────────────────────── */
 
+.rankings-mobile-tabs, .rank-mobile-move-btn, .rankings-open-pool { display: none; }
+.rankings-open-pool { pointer-events: auto; }
+.rankings-mobile-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.rankings-move-dialog { width: min(420px, calc(100% - 24px)); max-height: 85dvh; overflow: auto; padding: 22px; border: 1px solid #6b8880; border-radius: 8px; background: #192d31; color: #fff; }
+.rankings-move-dialog::backdrop { background: rgba(0,0,0,.7); }
+.rankings-move-dialog h2 { margin: 0 0 18px; font-size: 19px; overflow-wrap: anywhere; }
+.rankings-move-dialog label { display: grid; gap: 7px; margin-bottom: 15px; font-size: 13px; }
+.rankings-move-dialog [hidden] { display: none !important; }
+.rankings-move-dialog select, .rankings-move-dialog input { width: 100%; min-height: 44px; padding: 8px; box-sizing: border-box; border: 1px solid #607c74; border-radius: 4px; background: #102125; color: #fff; font: inherit; font-size: 16px; }
+.rankings-move-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.rankings-move-actions button { min-height: 44px; padding: 0 18px; border: 1px solid #89c4af; border-radius: 4px; background: #234e43; color: #fff; font: inherit; cursor: pointer; }
+#movePlayerError { color: #ffb59b; font-size: 12px; }
+
 /* ── Layout ─────────────────────────────────────── */
 .rankings-page {
+  --rankings-extra-height: 380px;
   display: flex;
+  flex-shrink: 0;
   gap: 0;
-  height: calc(100vh - 120px);
+  height: calc(100vh - 120px + var(--rankings-extra-height));
   width: 100%;
   max-width: 1500px;
   margin: 0 auto;
@@ -87,10 +102,48 @@ body:not(.rankings-light-mode) .rankings-header-banner-image-light {
   display: none;
 }
 
-.site-header .header-left,
 .site-header .header-right {
-  position: relative;
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
   z-index: 1;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: 4px;
+  margin-left: auto;
+  max-width: 100px;
+}
+body.pwa-installed .site-header .rankings-header-banner {
+  left: 16px;
+  width: min(980px, calc(100% - 132px));
+  transform: none;
+}
+.site-header #themeToggleBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 0;
+  max-width: 32px;
+  min-height: 32px;
+  height: 32px;
+  padding: 0;
+  position: relative;
+  isolation: isolate;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  box-sizing: border-box;
+  font-size: 20px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.site-header #themeToggleBtn::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
 }
 
 /* Keep core panel titles readable in dark mode even when shared theme scripts
@@ -141,7 +194,32 @@ body:not(.rankings-light-mode) .pool-panel-header h2 {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+  align-items: center;
 }
+
+.print-metric-control,
+.print-teams-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.print-metric-control select,
+.print-teams-control input {
+  height: 27px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.18);
+  color: #d1d5db;
+  font-size: 11px;
+  font-weight: 700;
+}
+.print-metric-control select { padding: 0 5px; }
+.print-teams-control input { width: 42px; padding: 0 5px; }
 
 .board-tabs {
   display: flex;
@@ -890,29 +968,75 @@ body.rankings-tier-insert-mode .add-tier-here-btn:hover {
 }
 
 /* ── Responsive ──────────────────────────────────── */
-@media (max-width: 900px) {
+@media screen and (max-width: 900px) {
+  .rankings-desktop-hint { display: none; }
+  .rankings-open-pool { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 12px; padding: 0 18px; border: 1px solid #89c4af; border-radius: 4px; background: #234e43; color: #fff; font: inherit; cursor: pointer; }
+  .rankings-mobile-tabs { display: flex; flex: 0 0 auto; gap: 5px; padding: 6px 12px 10px; }
+  .rankings-mobile-tabs button { flex: 1; min-height: 44px; border: 1px solid #607c74; border-radius: 5px; background: #172a30; color: #fff; font: inherit; font-size: 13px; font-weight: 700; }
+  .rankings-mobile-tabs button[aria-pressed="true"] { background: #a7d6b7; color: #152b24; }
   .rankings-page {
     flex-direction: column;
-    height: auto;
-    min-height: calc(100vh - 120px);
+    height: calc(100dvh - 146px);
+    min-height: 420px;
+    padding: 0 10px 12px;
+  }
+  .rankings-page[data-mobile-view="rankings"] .pool-panel,
+  .rankings-page[data-mobile-view="pool"] .rankings-panel { display: none; }
+  .rankings-page .rankings-list, .rankings-page .pool-list { min-height: 0; overscroll-behavior: contain; }
+  .rankings-panel-header { flex-wrap: wrap; }
+  .rankings-panel-actions { flex-wrap: wrap; gap: 6px; }
+  .rankings-panel-actions .action-btn { min-height: 36px; }
+  .rankings-page .pos-filter-bar, .rankings-page .pos-tabs { flex-shrink: 0; }
+  .rankings-page .ranking-player-row { display: grid; grid-template-columns: 20px 32px minmax(0, 1fr) 26px 30px 28px 32px 24px; align-items: center; gap: 4px; min-height: 52px; margin: 0; padding: 6px 8px; border-top: 0; border-right: 0; border-bottom: 0; border-left-width: 3px; border-radius: 0; cursor: default; }
+  .ranking-player-row .drag-handle { display: none; }
+  .ranking-player-row > .rank-num { grid-column: 1; grid-row: 1; font-size: 10px; }
+  .ranking-player-row > .pos-badge { grid-column: 2; grid-row: 1; width: 32px; min-width: 0; max-width: 32px; padding: 2px; box-sizing: border-box; letter-spacing: 0; }
+  .ranking-player-row > .rank-player-name { grid-column: 3; grid-row: 1; font-size: 13px; font-weight: 500; }
+  .ranking-player-row > .rank-player-team { grid-column: 4; grid-row: 1; width: auto; font-size: 11px; }
+  .ranking-player-row > .rank-player-val { grid-column: 5; grid-row: 1; font-size: 11px; }
+  .ranking-player-row > .rank-star-btn { grid-column: 6; grid-row: 1; display: inline-flex; align-items: center; justify-content: center; width: 28px; min-height: 40px; padding: 0; }
+  .ranking-player-row .rank-mobile-move-btn { display: inline-flex; align-items: center; justify-content: center; grid-column: 7; grid-row: 1; min-height: 36px; width: 32px; padding: 0; border: 1px solid #607c74; border-radius: 4px; background: transparent; color: inherit; font-size: 22px; }
+  .rank-mobile-more-btn { grid-column: 8; grid-row: 1; width: 24px; min-height: 40px; padding: 0; border: 0; background: transparent; color: inherit; font-size: 23px; cursor: pointer; }
+  .rank-mobile-options { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; padding: 8px 0 2px; border-top: 1px solid rgba(150,170,170,.2); }
+  .rank-mobile-options[hidden] { display: none !important; }
+  .rank-mobile-options .rank-remove-btn { opacity: 1; min-height: 40px; width: 30px; }
+  .ranking-player-row .rank-bid-input { min-height: 36px; font-size: 16px; }
+  .rankings-page .pool-player-row { min-height: 52px; }
+  .rankings-page .pool-add-btn { width: 40px; height: 40px; flex-shrink: 0; }
+  .rankings-page .pool-player-name { min-width: 0; }
+  .rankings-page .rankings-panel, .rankings-page .pool-panel { min-height: 0; }
+  .rankings-page .tier-header { flex-shrink: 0; }
+  .rankings-page .board-tabs { flex-shrink: 0; }
+  .rankings-page .pool-search { font-size: 16px; }
+  .rankings-page .pool-meta { flex-shrink: 0; }
+  .rankings-page .rankings-panel-actions select, .rankings-page .rankings-panel-actions input { font-size: 16px; }
+  .rankings-page .rankings-panel { margin-bottom: 0; }
+  .rankings-page .pool-panel { width: 100%; }
+  .rankings-page .rankings-panel, .rankings-page .pool-panel {
+    max-height: none;
+  }
+  .rankings-panel,
+  .pool-panel {
+    flex: 0 0 auto;
+    height: 100%;
   }
   .rankings-panel {
     width: 100%;
     min-width: 0;
     margin-right: 0;
-    margin-bottom: 14px;
-    max-height: 55vh;
+    margin-bottom: 0;
+    max-height: none;
   }
   .pool-panel {
-    max-height: 55vh;
+    max-height: none;
   }
 }
 
 .theme-toggle-btn {
-  min-width: 108px;
-  width: auto;
-  height: 40px;
-  padding: 0 12px;
+  min-width: 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   text-align: center;
 }
 
@@ -1485,6 +1609,8 @@ body.rankings-print-preview #themeToggleBtn,
 body.rankings-print-preview .header-left,
 body.rankings-print-preview .header-right,
 body.rankings-print-preview #tierInsertModeBtn,
+body.rankings-print-preview .print-metric-control,
+body.rankings-print-preview .print-teams-control,
 body.rankings-print-preview #saveRankingsBtn,
 body.rankings-print-preview #clearFilteredRankingsBtn,
 body.rankings-print-preview .rank-remove-btn,
@@ -1601,6 +1727,8 @@ body.rankings-print-preview .rank-star-btn.active .rank-star-icon polygon {
   .header-left,
   .header-right,
   #tierInsertModeBtn,
+  .print-metric-control,
+  .print-teams-control,
   #saveRankingsBtn,
   #printPreviewBtn,
   #printRankingsBtn,

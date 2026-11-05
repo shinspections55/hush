@@ -85,9 +85,100 @@ let rankingsTheme    = 'dark';
 let easyTierInsertMode = false;
 let showDraftContext = true;
 let isPrintPreview = false;
+let printMetric = 'av';
+let printTeamCount = 12;
 
 // Drag state
 let dragSource = null;  // { type: 'pool'|'ranking', player, tierIdx, playerIdx }
+let mobileMoveTarget = null;
+
+function setMobileRankingsView(view) {
+  document.querySelector('.rankings-page').dataset.mobileView = view;
+  document.querySelectorAll('[data-mobile-view][aria-controls]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.mobileView === view));
+  });
+}
+
+function openMobileMove(tierIdx, playerIdx) {
+  if (!isEditableRankingsView()) return;
+  const player = rankings[tierIdx]?.players[playerIdx];
+  if (!player) return;
+  mobileMoveTarget = { player, board: rankings, position: activeFilterPos };
+  const allPlayers = rankings.flatMap(tier => tier.players);
+  const rank = document.getElementById('movePlayerRank');
+  rank.max = String(allPlayers.length);
+  rank.value = String(allPlayers.indexOf(player) + 1);
+  document.getElementById('movePlayerTitle').textContent = `Move ${player.name}`;
+  document.getElementById('movePlayerMode').value = 'rank';
+  document.getElementById('moveRankField').hidden = false;
+  document.getElementById('moveTierField').hidden = true;
+  rank.disabled = false;
+  const tiers = document.getElementById('movePlayerTier');
+  tiers.disabled = true;
+  tiers.replaceChildren();
+  rankings.forEach((tier, index) => {
+    const option = document.createElement('option');
+    option.value = String(index);
+    option.textContent = tier.name || `Tier ${index + 1}`;
+    tiers.append(option);
+  });
+  tiers.value = String(tierIdx);
+  document.getElementById('movePlayerError').textContent = '';
+  document.getElementById('movePlayerDialog').showModal();
+}
+
+document.querySelectorAll('[data-mobile-view][aria-controls]').forEach(button => {
+  button.addEventListener('click', () => setMobileRankingsView(button.dataset.mobileView));
+});
+document.getElementById('rankingsList').addEventListener('click', event => {
+  if (event.target.closest('[data-open-player-pool]')) setMobileRankingsView('pool');
+});
+document.getElementById('movePlayerCancel').addEventListener('click', () => document.getElementById('movePlayerDialog').close());
+document.getElementById('movePlayerMode').addEventListener('change', event => {
+  const byRank = event.target.value === 'rank';
+  document.getElementById('moveRankField').hidden = !byRank;
+  document.getElementById('moveTierField').hidden = byRank;
+  document.getElementById('movePlayerRank').disabled = !byRank;
+  document.getElementById('movePlayerTier').disabled = byRank;
+});
+document.getElementById('movePlayerForm').addEventListener('submit', event => {
+  event.preventDefault();
+  const selection = mobileMoveTarget;
+  if (!selection || !isEditableRankingsView() || selection.board !== rankings || selection.position !== activeFilterPos) {
+    document.getElementById('movePlayerError').textContent = 'The board changed. Close this window and select the player again.';
+    return;
+  }
+  const sourceTier = rankings.findIndex(tier => tier.players.includes(selection.player));
+  if (sourceTier < 0) return;
+  const sourceIndex = rankings[sourceTier].players.indexOf(selection.player);
+  let targetTier = Number(document.getElementById('movePlayerTier').value);
+  let insertIndex = 0;
+  if (document.getElementById('movePlayerMode').value === 'rank') {
+    const ordered = rankings.flatMap((tier, tierIdx) => tier.players.map((player, playerIdx) => ({ player, tierIdx, playerIdx })));
+    const targetRank = Number(document.getElementById('movePlayerRank').value);
+    if (!Number.isInteger(targetRank) || targetRank < 1 || targetRank > ordered.length) return;
+    const sourceRank = ordered.findIndex(entry => entry.player === selection.player) + 1;
+    const destination = ordered[targetRank - 1];
+    targetTier = destination.tierIdx;
+    insertIndex = destination.playerIdx + (sourceRank < targetRank ? 1 : 0);
+    if (sourceRank === targetRank) { document.getElementById('movePlayerDialog').close(); return; }
+  }
+  if (!rankings[targetTier]) return;
+  if (sourceTier === targetTier && sourceIndex === 0 && insertIndex === 0) {
+    document.getElementById('movePlayerDialog').close();
+    return;
+  }
+  dragSource = { type: 'ranking', tierIdx: sourceTier, playerIdx: sourceIndex };
+  performDrop(targetTier, insertIndex);
+  saveRankings();
+  document.getElementById('movePlayerDialog').close();
+  document.getElementById('rankingsMobileStatus').textContent = `${selection.player.name} moved.`;
+});
+window.matchMedia('(max-width: 900px)').addEventListener('change', () => {
+  if (!elRankingsList) return;
+  renderRankings();
+  renderPool(activePoolTab);
+});
 
 function getAllFilterButton() {
   return document.querySelector('.pos-filter-btn[data-pos="ALL"]');
@@ -432,6 +523,7 @@ function buildPrintSectionMarkup(label, players, startRank = 1) {
   const rows = players.length
     ? players.map((player, idx) => {
         const av = Number.isFinite(Number(player.avgValue)) ? Number(player.avgValue) : 0;
+        const metricValue = printMetric === 'adp' ? getPlayerAdpLabel(player) : `$${av}`;
         const byeWeekLabel = getPlayerByeWeekLabel(player);
         const byeWeekValue = byeWeekLabel || '-';
         const tierBreakRow = player._printTierBreakBefore
@@ -443,7 +535,7 @@ function buildPrintSectionMarkup(label, players, startRank = 1) {
             <td class="print-col-rank">${startRank + idx}.</td>
             <td class="print-col-name">${escapeHtml(player.name)}</td>
             <td class="print-col-bye">${escapeHtml(byeWeekValue)}</td>
-            <td class="print-col-av">$${av}</td>
+            <td class="print-col-av">${metricValue}</td>
           </tr>`;
       }).join('')
     : '<tr><td class="print-col-empty" colspan="4">No ranked players</td></tr>';
@@ -452,12 +544,27 @@ function buildPrintSectionMarkup(label, players, startRank = 1) {
     <section class="print-pos-section">
       <div class="print-pos-header">
         <span class="print-pos-title">${escapeHtml(label)}</span>
-        <span class="print-pos-metrics"><span class="print-pos-bye">BYE</span><span class="print-pos-av">AV</span></span>
+        <span class="print-pos-metrics"><span class="print-pos-bye">BYE</span><span class="print-pos-av">${printMetric === 'adp' ? 'ADP' : 'AV'}</span></span>
       </div>
       <table class="print-pos-table" role="presentation">
         <tbody>${rows}</tbody>
       </table>
     </section>`;
+}
+
+function getPrintableAdpRankings() {
+  if (activeBoardType === 'default') return defaultRankings;
+  if (activeBoardType === 'database') return getDatabaseRankingsList();
+  return getPlayersFromBoard(getRankingsBoardForPosition(ALL_POSITIONS_KEY));
+}
+
+function getPlayerAdpLabel(player) {
+  const overallRank = getPrintableAdpRankings().findIndex(entry => entry && entry.name === player.name) + 1;
+  if (!overallRank) return '-';
+
+  const round = Math.floor((overallRank - 1) / printTeamCount) + 1;
+  const pick = ((overallRank - 1) % printTeamCount) + 1;
+  return `${round}.${String(pick).padStart(2, '0')}`;
 }
 
 function renderPrintLayoutSheet() {
@@ -680,6 +787,24 @@ document.addEventListener('DOMContentLoaded', () => {
   elPrintRankingsBtn = document.getElementById('printRankingsBtn');
   elPrintMetaBar = document.getElementById('printMetaBar');
   elPrintLayoutSheet = document.getElementById('printLayoutSheet');
+  const printMetricSelect = document.getElementById('printMetricSelect');
+  const printTeamCountInput = document.getElementById('printTeamCount');
+  if (printMetricSelect) {
+    printMetricSelect.addEventListener('change', event => {
+      printMetric = event.target.value === 'adp' ? 'adp' : 'av';
+      renderPrintLayoutSheet();
+      updatePrintScale();
+    });
+  }
+  if (printTeamCountInput) {
+    printTeamCountInput.addEventListener('change', event => {
+      const value = Number.parseInt(event.target.value, 10);
+      printTeamCount = Number.isFinite(value) ? Math.min(32, Math.max(2, value)) : 12;
+      event.target.value = String(printTeamCount);
+      renderPrintLayoutSheet();
+      updatePrintScale();
+    });
+  }
   showDraftContext = shouldShowDraftContext();
   updatePersonalRankingsLabel();
 
@@ -815,7 +940,7 @@ function toggleTierInsertMode() {
 function setThemeToggleIcon(button, theme) {
   if (!button) return;
   const isLight = theme === 'light';
-  button.innerHTML = isLight ? 'Mode: &#9728;' : 'Mode: &#127769;';
+  button.innerHTML = isLight ? '&#9728;' : '&#127769;';
   button.setAttribute('aria-label', isLight ? 'Switch to dark mode' : 'Switch to light mode');
   button.setAttribute('title', isLight ? 'Switch to dark mode' : 'Switch to light mode');
 }
@@ -1071,7 +1196,7 @@ function renderPool(pos) {
     if (alreadyAdded) row.classList.add('already-added');
     if (status !== 'available') row.classList.add(`status-${status}`);
 
-    row.draggable = !alreadyAdded && isEditableRankingsView() && (activeFilterPos === ALL_POSITIONS_KEY || activeFilterPos === pos);
+    row.draggable = !window.matchMedia('(max-width: 900px)').matches && !alreadyAdded && isEditableRankingsView() && (activeFilterPos === ALL_POSITIONS_KEY || activeFilterPos === pos);
     row.dataset.playerName = player.name;
     row.dataset.pos        = pos;
 
@@ -1153,7 +1278,8 @@ function renderRankings() {
         <div class="rankings-empty" id="rankingsEmpty">
           <div class="empty-icon">📋</div>
           <p>Your rankings board is empty</p>
-          <p class="empty-hint">Click players on the right to add them, or drag &amp; drop</p>
+          <p class="empty-hint rankings-desktop-hint">Click players on the right to add them, or drag &amp; drop</p>
+          <button type="button" class="rankings-open-pool" data-open-player-pool>Add players</button>
         </div>`;
     }
     return;
@@ -1464,7 +1590,7 @@ function buildPlayerRow(player, tierIdx, playerIdx, globalRank, status) {
   const row = document.createElement('div');
   row.className = 'ranking-player-row';
   if (status !== 'available') row.classList.add(`status-${status}`);
-  row.draggable = editable;
+  row.draggable = editable && !window.matchMedia('(max-width: 900px)').matches;
   row.dataset.tierIdx   = tierIdx;
   row.dataset.playerIdx = playerIdx;
 
@@ -1503,6 +1629,18 @@ function buildPlayerRow(player, tierIdx, playerIdx, globalRank, status) {
   `;
 
   const starBtn = row.querySelector('.rank-star-btn');
+  const moveButton = document.createElement('button');
+  moveButton.type = 'button';
+  moveButton.className = 'rank-mobile-move-btn';
+  moveButton.textContent = '↕';
+  moveButton.title = `Move ${player.name}`;
+  moveButton.setAttribute('aria-label', `Move ${player.name}`);
+  moveButton.disabled = !editable;
+  moveButton.addEventListener('click', event => {
+    event.stopPropagation();
+    openMobileMove(tierIdx, playerIdx);
+  });
+  row.append(moveButton);
   if (starBtn) {
     starBtn.disabled = !editable;
     starBtn.addEventListener('click', e => {
@@ -1533,6 +1671,29 @@ function buildPlayerRow(player, tierIdx, playerIdx, globalRank, status) {
 
   row.addEventListener('dragstart', e => handleRankingDragStart(e, tierIdx, playerIdx));
   row.addEventListener('dragend',   () => clearDragIndicators());
+
+  if (window.matchMedia('(max-width: 900px)').matches) {
+    const options = document.createElement('div');
+    options.className = 'rank-mobile-options';
+    options.hidden = true;
+    const moreButton = document.createElement('button');
+    moreButton.type = 'button';
+    moreButton.className = 'rank-mobile-more-btn';
+    moreButton.textContent = '⋯';
+    moreButton.title = `Player options for ${player.name}`;
+    moreButton.setAttribute('aria-label', `Player options for ${player.name}`);
+    moreButton.setAttribute('aria-expanded', 'false');
+    moreButton.addEventListener('click', event => {
+      event.stopPropagation();
+      options.hidden = !options.hidden;
+      moreButton.setAttribute('aria-expanded', String(!options.hidden));
+    });
+    ['.rank-player-bye', '.rank-bid-wrap', '.rank-remove-btn'].forEach(selector => {
+      const control = row.querySelector(selector);
+      if (control) options.append(control);
+    });
+    row.append(moreButton, options);
+  }
 
   return row;
 }
@@ -1719,6 +1880,10 @@ function addPlayerToRankings(player) {
   markDirty();
   renderRankings();
   renderPool(activePoolTab);
+  if (window.matchMedia('(max-width: 900px)').matches) {
+    saveRankings();
+    document.getElementById('rankingsMobileStatus').textContent = `${player.name} added to rankings.`;
+  }
 }
 
 function removePlayerFromRankings(tierIdx, playerIdx) {

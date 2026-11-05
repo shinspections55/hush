@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hush-20260828-write-in-roster';
+const CACHE_NAME = 'hush-20261104-row-stars';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -9,6 +9,7 @@ const STATIC_ASSETS = [
   '/styles.css',
   '/silentdraft.css',
   '/rankings.css',
+  '/rankings.js?v=20261104-row-stars',
   '/HUSHBKGD.png',
   '/hushGifs.js',
   '/Poweredby_100px-White_VertLogo.png',

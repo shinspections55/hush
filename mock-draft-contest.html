@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0F2F44">
+  <meta name="description" content="Hush Mock Draft Contest">
+  <title>Mock Draft Contest</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="mock-draft-contest.css">
+  <script src="theme-utils.js?v=20260821-c9c656a0"></script>
+</head>
+<body class="bg-overlay dashboard-page mock-contest-page">
+  <header class="dashboard-header hush-silver-bg">
+    <div class="dashboard-header-left">
+      <a href="dashboard.html" class="account-btn hush-header-contrast">&larr; Dashboard</a>
+    </div>
+    <div class="dashboard-header-center">
+      <div class="mock-contest-brand">
+        <span class="mock-contest-kicker">HUSH EXPERT CHALLENGE</span>
+        <span class="dashboard-header-title hush-header-contrast">Mock Draft Contest</span>
+      </div>
+    </div>
+    <div class="dashboard-header-right">
+      <span id="mockSaveStatus" class="mock-save-status" role="status" aria-live="polite">Saved locally</span>
+    </div>
+  </header>
+
+  <main class="mock-contest-main">
+    <div class="mock-contest-toolbar">
+      <div class="mock-contest-summary">
+        <strong id="mockPickProgress">0 <span>/ 32</span></strong>
+        <span>picks filled</span>
+      </div>
+      <div class="mock-contest-actions">
+        <label class="mock-import-btn" for="prospectFileInput" title="Import a prospect JSON file">
+          <span aria-hidden="true">&#8593;</span> Import prospects
+        </label>
+        <input id="prospectFileInput" class="mock-file-input" type="file" accept=".json,application/json">
+        <button id="downloadMockBtn" class="mock-tool-btn" type="button" title="Download your mock draft as JSON" aria-label="Download mock draft">&#8595;</button>
+        <a id="reviewMockBtn" class="mock-import-btn" href="mock-draft-summary.html" title="Review your mock draft summary">Review mock</a>
+        <button id="clearMockBtn" class="mock-tool-btn mock-tool-btn-danger" type="button" title="Clear all picks" aria-label="Clear all picks">&#8634;</button>
+      </div>
+    </div>
+
+    <section class="mock-draft-workspace" aria-label="Mock draft builder">
+      <section class="mock-board-panel" aria-labelledby="mockBoardTitle">
+        <div class="mock-panel-heading">
+          <div>
+            <span class="mock-panel-eyebrow">YOUR PREDICTION</span>
+            <h1 id="mockBoardTitle">Round 1 board</h1>
+          </div>
+          <span class="mock-board-count">32 PICKS</span>
+        </div>
+        <div id="mockPickList" class="mock-pick-list" aria-live="polite"></div>
+      </section>
+
+      <aside class="mock-pool-panel" aria-labelledby="prospectPoolTitle">
+        <div class="mock-panel-heading mock-pool-heading">
+          <div>
+            <span class="mock-panel-eyebrow">AVAILABLE PLAYERS</span>
+            <h2 id="prospectPoolTitle">Prospect pool</h2>
+          </div>
+          <span id="prospectCount" class="mock-board-count">0 PLAYERS</span>
+        </div>
+        <label class="mock-search-wrap" for="prospectSearch">
+          <span aria-hidden="true">&#9906;</span>
+          <input id="prospectSearch" type="search" placeholder="Search prospects or schools" autocomplete="off">
+        </label>
+        <div class="mock-position-tabs" role="group" aria-label="Filter prospects by position">
+          <button class="mock-position-btn active" type="button" data-position="ALL" aria-pressed="true">All</button>
+          <button class="mock-position-btn" type="button" data-position="QB" aria-pressed="false">QB</button>
+          <button class="mock-position-btn" type="button" data-position="RB" aria-pressed="false">RB</button>
+          <button class="mock-position-btn" type="button" data-position="WR" aria-pressed="false">WR</button>
+          <button class="mock-position-btn" type="button" data-position="TE" aria-pressed="false">TE</button>
+          <button class="mock-position-btn" type="button" data-position="OL" aria-pressed="false">OL</button>
+          <button class="mock-position-btn" type="button" data-position="DL" aria-pressed="false">DL</button>
+          <button class="mock-position-btn" type="button" data-position="EDGE" aria-pressed="false">EDGE</button>
+          <button class="mock-position-btn" type="button" data-position="LB" aria-pressed="false">LB</button>
+          <button class="mock-position-btn" type="button" data-position="DB" aria-pressed="false">DB</button>
+        </div>
+        <div id="prospectPoolStatus" class="mock-pool-status" role="status"></div>
+        <div id="prospectPool" class="mock-prospect-list"></div>
+      </aside>
+    </section>
+  </main>
+
+  <dialog id="prospectProfileDialog" class="prospect-profile-dialog" aria-labelledby="prospectProfileTitle">
+    <div class="prospect-profile-shell">
+      <div class="prospect-profile-topbar">
+        <span class="mock-panel-eyebrow">PROSPECT PROFILE</span>
+        <button id="closeProspectProfileBtn" class="prospect-profile-close" type="button" aria-label="Close prospect profile">&times;</button>
+      </div>
+      <div id="prospectProfileContent" class="prospect-profile-content"></div>
+    </div>
+  </dialog>
+
+  <script src="preferences.js"></script>
+  <script src="mock-draft-contest.js"></script>
+</body>
+</html>

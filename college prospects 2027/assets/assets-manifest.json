@@ -1,0 +1,2592 @@
+{
+  "version": 1,
+  "assets": {
+    "/college%20prospects%202027/assets/schools/oregon-ducks-92460015.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/oregon-ducks.png",
+      "kind": "school-mark",
+      "bytes": 6002,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Julian-Sayin-QB-OhioState-b966ecce.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Julian-Sayin-QB-OhioState.png",
+      "kind": "headshot",
+      "bytes": 16086,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Arch-Manning-QB-Texas-a6c00553.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Arch-Manning-QB-Texas.png",
+      "kind": "headshot",
+      "bytes": 13606,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Dante-Moore-QB-UCLA-b7127a0d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Dante-Moore-QB-UCLA.png",
+      "kind": "headshot",
+      "bytes": 12315,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/ohio-state-buckeyes-b632180a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/ohio-state-buckeyes.png",
+      "kind": "school-mark",
+      "bytes": 11375,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/oklahoma-state-cowboys-04189945.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/oklahoma-state-cowboys.png",
+      "kind": "school-mark",
+      "bytes": 6428,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Drew-Mestemaker-QB-NorthTexas-73f38720.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Drew-Mestemaker-QB-NorthTexas.png",
+      "kind": "headshot",
+      "bytes": 13043,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/notre-dame-fighting-irish-6a81f39d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/notre-dame-fighting-irish.png",
+      "kind": "school-mark",
+      "bytes": 4758,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Darian-Mensah-QB-Tulane-23fdb1d9.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Darian-Mensah-QB-Tulane.png",
+      "kind": "headshot",
+      "bytes": 15605,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/CJ-Carr-QB-NotreDame-2c28feff.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/CJ-Carr-QB-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 11512,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/texas-longhorns-c64c46ee.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/texas-longhorns.png",
+      "kind": "school-mark",
+      "bytes": 3101,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Trinidad-Chambliss-QB-OleMiss-05da3bf8.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Trinidad-Chambliss-QB-OleMiss.png",
+      "kind": "headshot",
+      "bytes": 15827,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/miami-hurricanes-45281030.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/miami-hurricanes.png",
+      "kind": "school-mark",
+      "bytes": 3538,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/ole-miss-rebels-e886f666.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/ole-miss-rebels.png",
+      "kind": "school-mark",
+      "bytes": 12813,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/LaNorris-Sellers-QB-SouthCarolina-71ebfecf.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/LaNorris-Sellers-QB-SouthCarolina.png",
+      "kind": "headshot",
+      "bytes": 11306,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/south-carolina-gamecocks-3a22b419.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/south-carolina-gamecocks.png",
+      "kind": "school-mark",
+      "bytes": 12377,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/lsu-tigers-7045b0b1.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/lsu-tigers.png",
+      "kind": "school-mark",
+      "bytes": 3489,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jayden-Maiava-QB-UNLV-2d764b06.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jayden-Maiava-QB-UNLV.png",
+      "kind": "headshot",
+      "bytes": 12266,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/usc-trojans-f4cf916a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/usc-trojans.png",
+      "kind": "school-mark",
+      "bytes": 5754,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/texas-tech-red-raiders-e2c7735d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/texas-tech-red-raiders.png",
+      "kind": "school-mark",
+      "bytes": 5870,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Brendan-Sorsby-QB-Indiana-0ba2d01f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Brendan-Sorsby-QB-Indiana.png",
+      "kind": "headshot",
+      "bytes": 11702,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/ucla-bruins-25b30b23.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/ucla-bruins.png",
+      "kind": "school-mark",
+      "bytes": 9597,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Josh-Hoover-QB-TCU-7964d54e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Josh-Hoover-QB-TCU.png",
+      "kind": "headshot",
+      "bytes": 12844,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Nico-Iamaleava-QB-Tennessee-5ddd0051.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Nico-Iamaleava-QB-Tennessee.png",
+      "kind": "headshot",
+      "bytes": 11726,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/DJ-Lagway-QB-Florida-2d573257.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/DJ-Lagway-QB-Florida.png",
+      "kind": "headshot",
+      "bytes": 14989,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/indiana-hoosiers-aaee11eb.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/indiana-hoosiers.png",
+      "kind": "school-mark",
+      "bytes": 2197,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Sam-Leavitt-QB-MichiganState-53e29cd3.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Sam-Leavitt-QB-MichiganState.png",
+      "kind": "headshot",
+      "bytes": 13003,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/baylor-bears-09605b9f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/baylor-bears.png",
+      "kind": "school-mark",
+      "bytes": 7124,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Demond-WilliamsJr-QB-Washington-b849f67e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Demond-WilliamsJr-QB-Washington.png",
+      "kind": "headshot",
+      "bytes": 17449,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Dylan-Raiola-QB-Nebraska-3a6976d4.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Dylan-Raiola-QB-Nebraska.png",
+      "kind": "headshot",
+      "bytes": 13811,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/washington-huskies-0c93bf8a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/washington-huskies.png",
+      "kind": "school-mark",
+      "bytes": 6738,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/CJ-Bailey-QB-NCState-e6e57992.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/CJ-Bailey-QB-NCState.png",
+      "kind": "headshot",
+      "bytes": 10479,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Drake-Lindsey-QB-Minnesota-84c97bde.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Drake-Lindsey-QB-Minnesota.png",
+      "kind": "headshot",
+      "bytes": 12202,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/nc-state-wolfpack-45e17116.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/nc-state-wolfpack.png",
+      "kind": "school-mark",
+      "bytes": 12125,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Dylan-Lonergan-QB-Alabama-ede23adc.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Dylan-Lonergan-QB-Alabama.png",
+      "kind": "headshot",
+      "bytes": 12666,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/rutgers-scarlet-knights-0e285d2c.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/rutgers-scarlet-knights.png",
+      "kind": "school-mark",
+      "bytes": 5085,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/minnesota-golden-gophers-4ec1142e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/minnesota-golden-gophers.png",
+      "kind": "school-mark",
+      "bytes": 7831,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/georgia-bulldogs-8692ec01.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/georgia-bulldogs.png",
+      "kind": "school-mark",
+      "bytes": 5368,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Avery-Johnson-QB-KansasState-dc447584.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Avery-Johnson-QB-KansasState.png",
+      "kind": "headshot",
+      "bytes": 18151,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/kansas-state-wildcats-d128fe62.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/kansas-state-wildcats.png",
+      "kind": "school-mark",
+      "bytes": 5804,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Gunner-Stockton-QB-Georgia-611dbae6.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Gunner-Stockton-QB-Georgia.png",
+      "kind": "headshot",
+      "bytes": 13366,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Anthony-Colandrea-QB-Virginia-31f7ab5e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Anthony-Colandrea-QB-Virginia.png",
+      "kind": "headshot",
+      "bytes": 13770,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Noah-Fifita-QB-Arizona-62577506.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Noah-Fifita-QB-Arizona.png",
+      "kind": "headshot",
+      "bytes": 15266,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/arizona-wildcats-95ba6780.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/arizona-wildcats.png",
+      "kind": "school-mark",
+      "bytes": 6576,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jackson-Arnold-QB-Oklahoma-40564d2d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jackson-Arnold-QB-Oklahoma.png",
+      "kind": "headshot",
+      "bytes": 12425,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/John-Mateer-QB-WashingtonState-c3daf0b6.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/John-Mateer-QB-WashingtonState.png",
+      "kind": "headshot",
+      "bytes": 15092,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/unlv-rebels-492fdbd4.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/unlv-rebels.png",
+      "kind": "school-mark",
+      "bytes": 10933,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/oklahoma-sooners-0eb20bbb.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/oklahoma-sooners.png",
+      "kind": "school-mark",
+      "bytes": 3087,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Conner-Weigman-QB-TexasAANDM-a357ff8d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Conner-Weigman-QB-TexasAANDM.png",
+      "kind": "headshot",
+      "bytes": 13258,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/houston-cougars-f64c47db.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/houston-cougars.png",
+      "kind": "school-mark",
+      "bytes": 5878,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Byrum-Brown-QB-SouthFlorida-8d9f7c06.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Byrum-Brown-QB-SouthFlorida.png",
+      "kind": "headshot",
+      "bytes": 13788,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/auburn-tigers-3961e90a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/auburn-tigers.png",
+      "kind": "school-mark",
+      "bytes": 6731,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/nebraska-cornhuskers-0a9dc216.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/nebraska-cornhuskers.png",
+      "kind": "school-mark",
+      "bytes": 6041,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Malachi-Nelson-QB-USC-73bbebac.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Malachi-Nelson-QB-USC.png",
+      "kind": "headshot",
+      "bytes": 10380,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/syracuse-orange-d248ad44.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/syracuse-orange.png",
+      "kind": "school-mark",
+      "bytes": 4015,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Aidan-Chiles-QB-OregonState-0516a12b.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Aidan-Chiles-QB-OregonState.png",
+      "kind": "headshot",
+      "bytes": 15655,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/northwestern-wildcats-28495bbb.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/northwestern-wildcats.png",
+      "kind": "school-mark",
+      "bytes": 3461,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jake-Garcia-QB-Miami-0ad668f5.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jake-Garcia-QB-Miami.png",
+      "kind": "headshot",
+      "bytes": 11090,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Kevin-Jennings-QB-SMU-66c410c8.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Kevin-Jennings-QB-SMU.png",
+      "kind": "headshot",
+      "bytes": 14966,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/smu-mustangs-91014589.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/smu-mustangs.png",
+      "kind": "school-mark",
+      "bytes": 4149,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/mississippi-state-bulldogs-3f6ab48d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/mississippi-state-bulldogs.png",
+      "kind": "school-mark",
+      "bytes": 8296,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/bowling-green-falcons-98103f61.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/bowling-green-falcons.png",
+      "kind": "school-mark",
+      "bytes": 11032,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Austin-Novosad-QB-Oregon-6f8f5492.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Austin-Novosad-QB-Oregon.png",
+      "kind": "headshot",
+      "bytes": 11462,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Max-Johnson-QB-LSU-f0418303.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Max-Johnson-QB-LSU.png",
+      "kind": "headshot",
+      "bytes": 10828,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/michigan-wolverines-672e2d12.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/michigan-wolverines.png",
+      "kind": "school-mark",
+      "bytes": 4943,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/georgia-southern-eagles-c0eaff77.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/georgia-southern-eagles.png",
+      "kind": "school-mark",
+      "bytes": 12439,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jaden-Rashada-QB-ArizonaState-4d536af7.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jaden-Rashada-QB-ArizonaState.png",
+      "kind": "headshot",
+      "bytes": 15077,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/iowa-hawkeyes-1bae7b8d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/iowa-hawkeyes.png",
+      "kind": "school-mark",
+      "bytes": 7800,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/missouri-tigers-d0f833b1.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/missouri-tigers.png",
+      "kind": "school-mark",
+      "bytes": 11095,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Ahmad-Hardy-RB-ULMonroe-b5f51683.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Ahmad-Hardy-RB-ULMonroe.png",
+      "kind": "headshot",
+      "bytes": 11978,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Sam-Huard-QB-Washington-4ca9460e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Sam-Huard-QB-Washington.png",
+      "kind": "headshot",
+      "bytes": 12127,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jadan-Baugh-RB-Florida-07b5ea01.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jadan-Baugh-RB-Florida.png",
+      "kind": "headshot",
+      "bytes": 12005,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/florida-gators-9cc516bd.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/florida-gators.png",
+      "kind": "school-mark",
+      "bytes": 13002,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Hank-Brown-QB-Auburn-654346cd.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Hank-Brown-QB-Auburn.png",
+      "kind": "headshot",
+      "bytes": 13905,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Kewan-Lacy-RB-Missouri-088e67e6.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Kewan-Lacy-RB-Missouri.png",
+      "kind": "headshot",
+      "bytes": 19653,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Nate-Frazier-RB-Georgia-8bde708c.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Nate-Frazier-RB-Georgia.png",
+      "kind": "headshot",
+      "bytes": 14994,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/byu-cougars-53e787e4.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/byu-cougars.png",
+      "kind": "school-mark",
+      "bytes": 5361,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Cam-Cook-RB-TCU-72a8fab8.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Cam-Cook-RB-TCU.png",
+      "kind": "headshot",
+      "bytes": 15371,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/LJ-Martin-RB-BYU-3e874d8e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/LJ-Martin-RB-BYU.png",
+      "kind": "headshot",
+      "bytes": 16018,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Mark-FletcherJr-RB-MiamiFL-ce9e16c1.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Mark-FletcherJr-RB-MiamiFL.png",
+      "kind": "headshot",
+      "bytes": 13532,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/west-virginia-mountaineers-cf994c6a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/west-virginia-mountaineers.png",
+      "kind": "school-mark",
+      "bytes": 5474,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Antwan-Raymond-RB-Rutgers-3982a21f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Antwan-Raymond-RB-Rutgers.png",
+      "kind": "headshot",
+      "bytes": 16332,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Isaac-Brown-RB-Louisville-6b68c74e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Isaac-Brown-RB-Louisville.png",
+      "kind": "headshot",
+      "bytes": 17089,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/louisville-cardinals-42bfc1b9.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/louisville-cardinals.png",
+      "kind": "school-mark",
+      "bytes": 8348,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jordan-Marshall-RB-Michigan-cb5e7b4f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jordan-Marshall-RB-Michigan.png",
+      "kind": "headshot",
+      "bytes": 13790,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Raleek-Brown-RB-USC-b0af09f5.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Raleek-Brown-RB-USC.png",
+      "kind": "headshot",
+      "bytes": 16265,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/JKoby-Williams-RB-TexasTech-657e8517.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/JKoby-Williams-RB-TexasTech.png",
+      "kind": "headshot",
+      "bytes": 14984,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Hollywood-Smothers-RB-NCState-5d31b2db.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Hollywood-Smothers-RB-NCState.png",
+      "kind": "headshot",
+      "bytes": 12272,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Justice-Haynes-RB-Alabama-672d1b68.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Justice-Haynes-RB-Alabama.png",
+      "kind": "headshot",
+      "bytes": 11255,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/georgia-tech-yellow-jackets-b8a4c251.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/georgia-tech-yellow-jackets.png",
+      "kind": "school-mark",
+      "bytes": 6263,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/DeSean-Bishop-RB-Tennessee-700b0bf1.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/DeSean-Bishop-RB-Tennessee.png",
+      "kind": "headshot",
+      "bytes": 14145,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jeremiah-Cobb-RB-Auburn-a507f897.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jeremiah-Cobb-RB-Auburn.png",
+      "kind": "headshot",
+      "bytes": 11844,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/texas-aandm-aggies-674168c7.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/texas-aandm-aggies.png",
+      "kind": "school-mark",
+      "bytes": 4362,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Rueben-Owens-RB-TexasAM-fb10ba0e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Rueben-Owens-RB-TexasAM.png",
+      "kind": "headshot",
+      "bytes": 13086,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Darius-Taylor-RB-Minnesota-0f89a0e5.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Darius-Taylor-RB-Minnesota.png",
+      "kind": "headshot",
+      "bytes": 11861,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Keyjuan-Brown-RB-Louisville-ca09cc72.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Keyjuan-Brown-RB-Louisville.png",
+      "kind": "headshot",
+      "bytes": 15022,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Derrick-DavisJr-DB-LSU-25f30ce6.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Derrick-DavisJr-DB-LSU.png",
+      "kind": "headshot",
+      "bytes": 10697,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Quintrevion-Wisner-RB-Texas-a85f4dde.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Quintrevion-Wisner-RB-Texas.png",
+      "kind": "headshot",
+      "bytes": 12013,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/pittsburgh-panthers-7c82e47f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/pittsburgh-panthers.png",
+      "kind": "school-mark",
+      "bytes": 8467,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/florida-state-seminoles-47738b8d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/florida-state-seminoles.png",
+      "kind": "school-mark",
+      "bytes": 15740,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/penn-state-nittany-lions-520af9d1.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/penn-state-nittany-lions.png",
+      "kind": "school-mark",
+      "bytes": 9176,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Quinten-Joyner-RB-USC-69a106a8.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Quinten-Joyner-RB-USC.png",
+      "kind": "headshot",
+      "bytes": 13945,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/James-Peoples-RB-OhioState-75405f64.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/James-Peoples-RB-OhioState.png",
+      "kind": "headshot",
+      "bytes": 15659,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/tennessee-volunteers-9bb3960b.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/tennessee-volunteers.png",
+      "kind": "school-mark",
+      "bytes": 3675,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Dante-Dowdell-RB-Oregon-1f64ce8e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Dante-Dowdell-RB-Oregon.png",
+      "kind": "headshot",
+      "bytes": 15007,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Gavin-Sawchuk-RB-Oklahoma-18dd444c.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Gavin-Sawchuk-RB-Oklahoma.png",
+      "kind": "headshot",
+      "bytes": 13287,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Montravius-Lloyd-RB-Pittsburgh-15e92415.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Montravius-Lloyd-RB-Pittsburgh.png",
+      "kind": "headshot",
+      "bytes": 13061,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/bethune-cookman-wildcats-948414fd.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/bethune-cookman-wildcats.png",
+      "kind": "school-mark",
+      "bytes": 5652,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jayden-Limar-RB-Oregon-17d06109.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jayden-Limar-RB-Oregon.png",
+      "kind": "headshot",
+      "bytes": 12534,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/kentucky-wildcats-e43be4f8.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/kentucky-wildcats.png",
+      "kind": "school-mark",
+      "bytes": 4858,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Roderick-RobinsonII-RB-Georgia-f7d410a7.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Roderick-RobinsonII-RB-Georgia.png",
+      "kind": "headshot",
+      "bytes": 14400,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Datrell-Jones-RB-BostonCollege-fff70746.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Datrell-Jones-RB-BostonCollege.png",
+      "kind": "headshot",
+      "bytes": 11874,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/uab-blazers-d2b3b6ea.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/uab-blazers.png",
+      "kind": "school-mark",
+      "bytes": 11611,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/holy-cross-crusaders-e5f5be5d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/holy-cross-crusaders.png",
+      "kind": "school-mark",
+      "bytes": 11745,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Kaleb-Jackson-RB-LSU-702f4cba.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Kaleb-Jackson-RB-LSU.png",
+      "kind": "headshot",
+      "bytes": 12133,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/north-carolina-tar-heels-8cf471c5.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/north-carolina-tar-heels.png",
+      "kind": "school-mark",
+      "bytes": 6835,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/kansas-jayhawks-ff57fe6a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/kansas-jayhawks.png",
+      "kind": "school-mark",
+      "bytes": 15165,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/CJ-Baxter-RB-Texas-1c8de4ab.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/CJ-Baxter-RB-Texas.png",
+      "kind": "headshot",
+      "bytes": 14716,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Dylan-Edwards-RB-Colorado-8c887ec2.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Dylan-Edwards-RB-Colorado.png",
+      "kind": "headshot",
+      "bytes": 17911,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/clemson-tigers-d0ea174d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/clemson-tigers.png",
+      "kind": "school-mark",
+      "bytes": 10745,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Evan-Pryor-RB-OhioState-72dab418.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Evan-Pryor-RB-OhioState.png",
+      "kind": "headshot",
+      "bytes": 11633,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/utsa-roadrunners-b74913f3.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/utsa-roadrunners.png",
+      "kind": "school-mark",
+      "bytes": 6798,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Chris-JohnsonJr-RB-MiamiFL-01cf151f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Chris-JohnsonJr-RB-MiamiFL.png",
+      "kind": "headshot",
+      "bytes": 10805,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jambres-Dubar-RB-BoiseState-8750b046.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jambres-Dubar-RB-BoiseState.png",
+      "kind": "headshot",
+      "bytes": 13036,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jahiem-White-RB-WestVirginia-e38dffb2.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jahiem-White-RB-WestVirginia.png",
+      "kind": "headshot",
+      "bytes": 13789,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/boise-state-broncos-2f072aa1.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/boise-state-broncos.png",
+      "kind": "school-mark",
+      "bytes": 12202,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Isaiah-Augustave-RB-Arkansas-93bc19c0.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Isaiah-Augustave-RB-Arkansas.png",
+      "kind": "headshot",
+      "bytes": 10106,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/AMarion-Peterson-RB-USC-23f8077d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/AMarion-Peterson-RB-USC.png",
+      "kind": "headshot",
+      "bytes": 15900,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Makhi-Hughes-RB-Tulane-7c5b577d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Makhi-Hughes-RB-Tulane.png",
+      "kind": "headshot",
+      "bytes": 15075,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Braydon-Bennett-RB-CoastalCarolina-aec40557.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Braydon-Bennett-RB-CoastalCarolina.png",
+      "kind": "headshot",
+      "bytes": 7298,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jeremiah-Smith-WR-OhioState-0911f9b6.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jeremiah-Smith-WR-OhioState.png",
+      "kind": "headshot",
+      "bytes": 16902,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Cam-Coleman-WR-Auburn-a430786a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Cam-Coleman-WR-Auburn.png",
+      "kind": "headshot",
+      "bytes": 15484,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Charlie-Becker-WR-Indiana-2f6affca.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Charlie-Becker-WR-Indiana.png",
+      "kind": "headshot",
+      "bytes": 13021,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/north-texas-mean-green-e3c24103.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/north-texas-mean-green.png",
+      "kind": "school-mark",
+      "bytes": 5472,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/KJ-Duff-WR-Rutgers-b40ed356.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/KJ-Duff-WR-Rutgers.png",
+      "kind": "headshot",
+      "bytes": 14744,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Duce-Robinson-WR-USC-fac6d73e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Duce-Robinson-WR-USC.png",
+      "kind": "headshot",
+      "bytes": 11824,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Ryan-Williams-WR-Alabama-8a4991e0.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Ryan-Williams-WR-Alabama.png",
+      "kind": "headshot",
+      "bytes": 11679,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/eastern-michigan-eagles-07ef2c58.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/eastern-michigan-eagles.png",
+      "kind": "school-mark",
+      "bytes": 1911,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Bryant-WescoJr-WR-Clemson-e0e2943f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Bryant-WescoJr-WR-Clemson.png",
+      "kind": "headshot",
+      "bytes": 13287,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/alabama-crimson-tide-3e617627.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/alabama-crimson-tide.png",
+      "kind": "school-mark",
+      "bytes": 11838,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Ryan-Wingo-WR-Texas-e90202bf.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Ryan-Wingo-WR-Texas.png",
+      "kind": "headshot",
+      "bytes": 15808,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Nick-Marsh-WR-MichiganState-6f044aca.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Nick-Marsh-WR-MichiganState.png",
+      "kind": "headshot",
+      "bytes": 17627,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/arizona-state-sun-devils-495843ac.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/arizona-state-sun-devils.png",
+      "kind": "school-mark",
+      "bytes": 7619,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/TJ-Moore-WR-Clemson-89a9d129.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/TJ-Moore-WR-Clemson.png",
+      "kind": "headshot",
+      "bytes": 14383,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Omarion-Miller-WR-Colorado-fb105822.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Omarion-Miller-WR-Colorado.png",
+      "kind": "headshot",
+      "bytes": 11930,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Wyatt-Young-WR-NorthTexas-33b803f4.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Wyatt-Young-WR-NorthTexas.png",
+      "kind": "headshot",
+      "bytes": 12423,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Braylon-Staley-WR-Tennessee-f2e7bbc5.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Braylon-Staley-WR-Tennessee.png",
+      "kind": "headshot",
+      "bytes": 13447,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Mike-Matthews-WR-Tennessee-dfcf928e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Mike-Matthews-WR-Tennessee.png",
+      "kind": "headshot",
+      "bytes": 14350,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Nyck-Harbor-WR-SouthCarolina-43548e6a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Nyck-Harbor-WR-SouthCarolina.png",
+      "kind": "headshot",
+      "bytes": 11205,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Ian-Strong-WR-Rutgers-fbb48cea.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Ian-Strong-WR-Rutgers.png",
+      "kind": "headshot",
+      "bytes": 16294,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/california-golden-bears-df801b67.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/california-golden-bears.png",
+      "kind": "school-mark",
+      "bytes": 8973,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Cooper-Barkate-WR-Harvard-2afba532.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Cooper-Barkate-WR-Harvard.png",
+      "kind": "headshot",
+      "bytes": 13236,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Devin-McCuin-WR-UTSA-be9f1355.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Devin-McCuin-WR-UTSA.png",
+      "kind": "headshot",
+      "bytes": 10671,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Mario-Craver-WR-MississippiState-3a00cf71.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Mario-Craver-WR-MississippiState.png",
+      "kind": "headshot",
+      "bytes": 14190,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Brandon-Inniss-WR-OhioState-299db6e3.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Brandon-Inniss-WR-OhioState.png",
+      "kind": "headshot",
+      "bytes": 14611,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Cayden-Lee-WR-Mississippi-9f703d1f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Cayden-Lee-WR-Mississippi.png",
+      "kind": "headshot",
+      "bytes": 15729,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jayce-Brown-WR-KansasState-952e6a75.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jayce-Brown-WR-KansasState.png",
+      "kind": "headshot",
+      "bytes": 16540,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Amare-Thomas-WR-UAB-b0329393.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Amare-Thomas-WR-UAB.png",
+      "kind": "headshot",
+      "bytes": 14969,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Eric-SingletonJr-WR-GeorgiaTech-26713c80.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Eric-SingletonJr-WR-GeorgiaTech.png",
+      "kind": "headshot",
+      "bytes": 14934,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Eugene-WilsonIII-WR-Florida-253b2611.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Eugene-WilsonIII-WR-Florida.png",
+      "kind": "headshot",
+      "bytes": 12356,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jordan-Faison-WR-NotreDame-a01d0d62.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jordan-Faison-WR-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 13738,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Junior-Sherrill-WR-Vanderbilt-102fbf07.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Junior-Sherrill-WR-Vanderbilt.png",
+      "kind": "headshot",
+      "bytes": 11278,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/vanderbilt-commodores-c323595e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/vanderbilt-commodores.png",
+      "kind": "school-mark",
+      "bytes": 6782,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/DeAndre-MooreJr-WR-Texas-7b20b309.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/DeAndre-MooreJr-WR-Texas.png",
+      "kind": "headshot",
+      "bytes": 12931,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Cody-Jackson-WR-Oklahoma-ce504fd0.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Cody-Jackson-WR-Oklahoma.png",
+      "kind": "headshot",
+      "bytes": 14426,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Johntay-CookII-WR-Texas-8c05d9ff.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Johntay-CookII-WR-Texas.png",
+      "kind": "headshot",
+      "bytes": 14677,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Nyziah-Hunter-WR-California-74b32f70.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Nyziah-Hunter-WR-California.png",
+      "kind": "headshot",
+      "bytes": 14382,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Chris-Marshall-WR-TexasAANDM-39a47c41.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Chris-Marshall-WR-TexasAANDM.png",
+      "kind": "headshot",
+      "bytes": 12173,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/arkansas-razorbacks-b351524d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/arkansas-razorbacks.png",
+      "kind": "school-mark",
+      "bytes": 7794,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Anthony-EvansIII-WR-Georgia-ba3a4b86.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Anthony-EvansIII-WR-Georgia.png",
+      "kind": "headshot",
+      "bytes": 17439,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/colorado-buffaloes-af70ba6c.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/colorado-buffaloes.png",
+      "kind": "school-mark",
+      "bytes": 8253,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/iowa-state-cyclones-4a93cdfc.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/iowa-state-cyclones.png",
+      "kind": "school-mark",
+      "bytes": 12167,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Evan-Stewart-WR-TexasAANDM-1712df19.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Evan-Stewart-WR-TexasAANDM.png",
+      "kind": "headshot",
+      "bytes": 12871,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Marquis-Johnson-WR-Missouri-0ea1d0b3.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Marquis-Johnson-WR-Missouri.png",
+      "kind": "headshot",
+      "bytes": 16136,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/wake-forest-demon-deacons-59500537.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/wake-forest-demon-deacons.png",
+      "kind": "school-mark",
+      "bytes": 9232,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Shamar-Porter-WR-Kentucky-a5d8f439.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Shamar-Porter-WR-Kentucky.png",
+      "kind": "headshot",
+      "bytes": 11845,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Rico-FloresJr-WR-NotreDame-1e629d76.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Rico-FloresJr-WR-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 12168,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Malachi-Coleman-WR-Nebraska-a59e87af.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Malachi-Coleman-WR-Nebraska.png",
+      "kind": "headshot",
+      "bytes": 12569,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Semaj-Morgan-WR-Michigan-170144a0.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Semaj-Morgan-WR-Michigan.png",
+      "kind": "headshot",
+      "bytes": 12793,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Micah-MaysJr-WR-WakeForest-bf1b1e5b.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Micah-MaysJr-WR-WakeForest.png",
+      "kind": "headshot",
+      "bytes": 12187,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/wisconsin-badgers-d77c5d63.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/wisconsin-badgers.png",
+      "kind": "school-mark",
+      "bytes": 8907,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/uconn-huskies-be638827.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/uconn-huskies.png",
+      "kind": "school-mark",
+      "bytes": 9510,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/virginia-cavaliers-cf04e2f6.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/virginia-cavaliers.png",
+      "kind": "school-mark",
+      "bytes": 9298,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jaquaize-Pettaway-WR-Oklahoma-54e5b95d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jaquaize-Pettaway-WR-Oklahoma.png",
+      "kind": "headshot",
+      "bytes": 15557,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/London-Humphreys-WR-Vanderbilt-c560052b.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/London-Humphreys-WR-Vanderbilt.png",
+      "kind": "headshot",
+      "bytes": 13698,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Troy-Omeire-WR-Texas-0ff071bb.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Troy-Omeire-WR-Texas.png",
+      "kind": "headshot",
+      "bytes": 15438,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/east-carolina-pirates-bbcce740.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/east-carolina-pirates.png",
+      "kind": "school-mark",
+      "bytes": 17127,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Dylan-Braithwaite-WR-Rutgers-10941edf.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Dylan-Braithwaite-WR-Rutgers.png",
+      "kind": "headshot",
+      "bytes": 13564,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/new-mexico-lobos-8693659a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/new-mexico-lobos.png",
+      "kind": "school-mark",
+      "bytes": 14096,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Nic-Anderson-WR-Oklahoma-e7046170.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Nic-Anderson-WR-Oklahoma.png",
+      "kind": "headshot",
+      "bytes": 12172,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jaden-Greathouse-WR-NotreDame-efc56612.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jaden-Greathouse-WR-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 15304,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jaden-Bray-WR-OklahomaState-efb717b0.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jaden-Bray-WR-OklahomaState.png",
+      "kind": "headshot",
+      "bytes": 18755,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/TreyDez-Green-TE-LSU-1eb7a2a4.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/TreyDez-Green-TE-LSU.png",
+      "kind": "headshot",
+      "bytes": 16897,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jamari-Johnson-TE-Louisville-d5b8ea47.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jamari-Johnson-TE-Louisville.png",
+      "kind": "headshot",
+      "bytes": 14347,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Terrance-Carter-TE-Louisiana-dae9844b.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Terrance-Carter-TE-Louisiana.png",
+      "kind": "headshot",
+      "bytes": 14746,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/temple-owls-8470969e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/temple-owls.png",
+      "kind": "school-mark",
+      "bytes": 2427,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Luke-Reynolds-TE-PennState-5fd7bd44.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Luke-Reynolds-TE-PennState.png",
+      "kind": "headshot",
+      "bytes": 13799,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Peter-Clarke-TE-Temple-924fefd9.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Peter-Clarke-TE-Temple.png",
+      "kind": "headshot",
+      "bytes": 15420,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/virginia-tech-hokies-db531e9b.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/virginia-tech-hokies.png",
+      "kind": "school-mark",
+      "bytes": 5247,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jalen-Hale-WR-Alabama-3f17d618.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jalen-Hale-WR-Alabama.png",
+      "kind": "headshot",
+      "bytes": 14134,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Brody-Foley-TE-Indiana-625aafe2.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Brody-Foley-TE-Indiana.png",
+      "kind": "headshot",
+      "bytes": 12382,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Walker-Lyons-TE-USC-1fceed5d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Walker-Lyons-TE-USC.png",
+      "kind": "headshot",
+      "bytes": 13288,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Lawson-Luckie-TE-Georgia-024ec263.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Lawson-Luckie-TE-Georgia.png",
+      "kind": "headshot",
+      "bytes": 11582,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Benjamin-Brahmer-TE-IowaState-81cbe136.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Benjamin-Brahmer-TE-IowaState.png",
+      "kind": "headshot",
+      "bytes": 14108,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jaden-Platt-TE-TexasAM-3d633faa.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jaden-Platt-TE-TexasAM.png",
+      "kind": "headshot",
+      "bytes": 13351,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Brett-Norfleet-TE-Missouri-4812094a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Brett-Norfleet-TE-Missouri.png",
+      "kind": "headshot",
+      "bytes": 13803,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/DJ-Vonnahme-TE-Iowa-b7b3c5a2.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/DJ-Vonnahme-TE-Iowa.png",
+      "kind": "headshot",
+      "bytes": 12271,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Trey-Leckner-TE-WashingtonState-83b7c2d9.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Trey-Leckner-TE-WashingtonState.png",
+      "kind": "headshot",
+      "bytes": 16026,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Dorian-Thomas-TE-NewMexico-3507d9f2.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Dorian-Thomas-TE-NewMexico.png",
+      "kind": "headshot",
+      "bytes": 15672,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jake-Johnson-TE-TexasAANDM-4d68a086.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jake-Johnson-TE-TexasAANDM.png",
+      "kind": "headshot",
+      "bytes": 10874,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jelani-Thurman-TE-OhioState-ed60f737.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jelani-Thurman-TE-OhioState.png",
+      "kind": "headshot",
+      "bytes": 13517,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Riley-Williams-TE-Miami-06ed7422.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Riley-Williams-TE-Miami.png",
+      "kind": "headshot",
+      "bytes": 10269,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Carter-Smith-OL-Indiana-2c218b4c.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Carter-Smith-OL-Indiana.png",
+      "kind": "headshot",
+      "bytes": 11771,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Andrew-Rappleyea-TE-PennState-227a3d82.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Andrew-Rappleyea-TE-PennState.png",
+      "kind": "headshot",
+      "bytes": 11391,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Cayden-Green-OL-Oklahoma-680e02a2.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Cayden-Green-OL-Oklahoma.png",
+      "kind": "headshot",
+      "bytes": 13129,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/washington-state-cougars-73f415ce.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/washington-state-cougars.png",
+      "kind": "school-mark",
+      "bytes": 8461,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Trevor-Goosby-OL-Texas-89d59bb0.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Trevor-Goosby-OL-Texas.png",
+      "kind": "headshot",
+      "bytes": 15645,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jordan-Seaton-OT-Colorado-2ccb9c9f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jordan-Seaton-OT-Colorado.png",
+      "kind": "headshot",
+      "bytes": 11880,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Trevor-Lauck-OT-Iowa-8327d91f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Trevor-Lauck-OT-Iowa.png",
+      "kind": "headshot",
+      "bytes": 13313,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Kade-Pieper-OG-Iowa-2badf869.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Kade-Pieper-OG-Iowa.png",
+      "kind": "headshot",
+      "bytes": 14805,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jacarrius-Peak-OL-NCState-433681c5.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jacarrius-Peak-OL-NCState.png",
+      "kind": "headshot",
+      "bytes": 11397,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/PJ-Williams-OL-SMU-6c5e4de7.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/PJ-Williams-OL-SMU.png",
+      "kind": "headshot",
+      "bytes": 16156,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Lance-Heard-OL-LSU-b3769a69.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Lance-Heard-OL-LSU.png",
+      "kind": "headshot",
+      "bytes": 12671,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Greg-Johnson-OL-Minnesota-a9d34d78.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Greg-Johnson-OL-Minnesota.png",
+      "kind": "headshot",
+      "bytes": 15129,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Samson-Okunlola-OL-MiamiFL-5a4b0fc3.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Samson-Okunlola-OL-MiamiFL.png",
+      "kind": "headshot",
+      "bytes": 12079,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Andrew-Sprague-OT-Michigan-2a431907.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Andrew-Sprague-OT-Michigan.png",
+      "kind": "headshot",
+      "bytes": 11599,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Anthonie-Knapp-OT-NotreDame-e27e6347.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Anthonie-Knapp-OT-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 13967,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Iapani-Laloulu-OL-Oregon-7c3659a8.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Iapani-Laloulu-OL-Oregon.png",
+      "kind": "headshot",
+      "bytes": 12351,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/cincinnati-bearcats-367ecf6f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/cincinnati-bearcats.png",
+      "kind": "school-mark",
+      "bytes": 4727,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Austin-Siereveld-OL-OhioState-2c914acb.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Austin-Siereveld-OL-OhioState.png",
+      "kind": "headshot",
+      "bytes": 13794,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Evan-Tengesdahl-OL-Cincinnati-82332779.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Evan-Tengesdahl-OL-Cincinnati.png",
+      "kind": "headshot",
+      "bytes": 13627,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Justin-Evans-Jenkins-OL-Nebraska-3a770c1b.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Justin-Evans-Jenkins-OL-Nebraska.png",
+      "kind": "headshot",
+      "bytes": 12506,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Shadre-Hurst-OL-Tulane-d103f872.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Shadre-Hurst-OL-Tulane.png",
+      "kind": "headshot",
+      "bytes": 10859,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Brandon-Baker-OT-Texas-e252b5af.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Brandon-Baker-OT-Texas.png",
+      "kind": "headshot",
+      "bytes": 13114,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Drew-Bobo-OL-Georgia-696cfab7.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Drew-Bobo-OL-Georgia.png",
+      "kind": "headshot",
+      "bytes": 11802,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Luke-Montgomery-OL-OhioState-e5f2a1ab.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Luke-Montgomery-OL-OhioState.png",
+      "kind": "headshot",
+      "bytes": 13183,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Braelin-Moore-OL-VirginiaTech-dd668147.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Braelin-Moore-OL-VirginiaTech.png",
+      "kind": "headshot",
+      "bytes": 13749,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Blake-Frazier-OL-Michigan-97ed90bc.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Blake-Frazier-OL-Michigan.png",
+      "kind": "headshot",
+      "bytes": 11586,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Elijah-Paige-OL-USC-0f64f676.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Elijah-Paige-OL-USC.png",
+      "kind": "headshot",
+      "bytes": 19123,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jacob-Ponton-OT-TexasTech-d448ee7e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jacob-Ponton-OT-TexasTech.png",
+      "kind": "headshot",
+      "bytes": 12750,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Coen-Echols-OG-LSU-ec33fd37.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Coen-Echols-OG-LSU.png",
+      "kind": "headshot",
+      "bytes": 13817,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/stanford-cardinal-085327b0.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/stanford-cardinal.png",
+      "kind": "school-mark",
+      "bytes": 6567,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Drew-Azzopardi-OL-SanDiegoState-b4c81dd6.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Drew-Azzopardi-OL-SanDiegoState.png",
+      "kind": "headshot",
+      "bytes": 12586,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Malachi-Breland-OL-Memphis-90aee305.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Malachi-Breland-OL-Memphis.png",
+      "kind": "headshot",
+      "bytes": 14614,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Earnest-GreeneIII-OL-Georgia-5a3e2e39.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Earnest-GreeneIII-OL-Georgia.png",
+      "kind": "headshot",
+      "bytes": 14363,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Mark-Nabou-C-TexasAM-bea9ba37.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Mark-Nabou-C-TexasAM.png",
+      "kind": "headshot",
+      "bytes": 14798,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Sheridan-Wilson-OL-TexasTech-138ef16b.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Sheridan-Wilson-OL-TexasTech.png",
+      "kind": "headshot",
+      "bytes": 13233,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jake-Guarnera-OG-Michigan-da7a6946.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jake-Guarnera-OG-Michigan.png",
+      "kind": "headshot",
+      "bytes": 13472,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Niki-Prongos-OL-UCLA-25812c98.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Niki-Prongos-OL-UCLA.png",
+      "kind": "headshot",
+      "bytes": 14574,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Charles-Jagusah-OL-NotreDame-8c277d0a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Charles-Jagusah-OL-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 12776,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Addison-Nichols-OL-Tennessee-788f307d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Addison-Nichols-OL-Tennessee.png",
+      "kind": "headshot",
+      "bytes": 18015,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Landen-Hatchett-C-Washington-68dfa200.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Landen-Hatchett-C-Washington.png",
+      "kind": "headshot",
+      "bytes": 19207,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Emerson-Mandell-OT-Wisconsin-69dae637.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Emerson-Mandell-OT-Wisconsin.png",
+      "kind": "headshot",
+      "bytes": 12008,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Sullivan-Absher-OG-NotreDame-e1bd4dd0.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Sullivan-Absher-OG-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 15148,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Xavier-Chaplin-OL-VirginiaTech-287f6ab1.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Xavier-Chaplin-OL-VirginiaTech.png",
+      "kind": "headshot",
+      "bytes": 12763,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/purdue-boilermakers-f16d1dc9.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/purdue-boilermakers.png",
+      "kind": "school-mark",
+      "bytes": 4928,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Kyle-Altuner-C-WestVirginia-80e3e521.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Kyle-Altuner-C-WestVirginia.png",
+      "kind": "headshot",
+      "bytes": 12580,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Monroe-Mills-OL-OklahomaState-02e96fc9.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Monroe-Mills-OL-OklahomaState.png",
+      "kind": "headshot",
+      "bytes": 15377,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Joe-Otting-C-NotreDame-d4a62a1f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Joe-Otting-C-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 14582,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Tree-Babalade-OL-SouthCarolina-13873273.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Tree-Babalade-OL-SouthCarolina.png",
+      "kind": "headshot",
+      "bytes": 11306,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Bradyn-Joiner-OL-Auburn-d491a4ee.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Bradyn-Joiner-OL-Auburn.png",
+      "kind": "headshot",
+      "bytes": 16624,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Michael-Hershey-C-Maryland-f66c7657.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Michael-Hershey-C-Maryland.png",
+      "kind": "headshot",
+      "bytes": 14690,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Alex-Birchmeier-OL-PennState-98e515b1.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Alex-Birchmeier-OL-PennState.png",
+      "kind": "headshot",
+      "bytes": 12017,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Matayo-Uiagalelei-DE-Oregon-9a687206.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Matayo-Uiagalelei-DE-Oregon.png",
+      "kind": "headshot",
+      "bytes": 12740,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/maryland-terrapins-17fc4777.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/maryland-terrapins.png",
+      "kind": "school-mark",
+      "bytes": 8818,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Justin-Scott-DT-Miami-4bb3f7da.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Justin-Scott-DT-Miami.png",
+      "kind": "headshot",
+      "bytes": 12196,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/David-Stone-DL-Oklahoma-3d111a84.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/David-Stone-DL-Oklahoma.png",
+      "kind": "headshot",
+      "bytes": 13389,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Laurence-Seymore-OL-Miami-c3bed8db.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Laurence-Seymore-OL-Miami.png",
+      "kind": "headshot",
+      "bytes": 15353,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/liberty-flames-ba7a6d1f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/liberty-flames.png",
+      "kind": "school-mark",
+      "bytes": 12686,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/JohnHenry-Daley-DE-BYU-1c09cc29.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/JohnHenry-Daley-DE-BYU.png",
+      "kind": "headshot",
+      "bytes": 11590,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Anthony-HolmesJr-DL-Houston-0ca6801d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Anthony-HolmesJr-DL-Houston.png",
+      "kind": "headshot",
+      "bytes": 14892,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Will-Heldt-LB-Purdue-bf1c37ee.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Will-Heldt-LB-Purdue.png",
+      "kind": "headshot",
+      "bytes": 15164,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/AMauri-Washington-DL-Oregon-fa7471f9.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/AMauri-Washington-DL-Oregon.png",
+      "kind": "headshot",
+      "bytes": 11544,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/William-Echoles-DT-OleMiss-b35e742c.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/William-Echoles-DT-OleMiss.png",
+      "kind": "headshot",
+      "bytes": 17367,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Boubacar-Traore-DL-NotreDame-e0425fc1.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Boubacar-Traore-DL-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 12335,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jordan-Ross-DE-Tennessee-6372cf4f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jordan-Ross-DE-Tennessee.png",
+      "kind": "headshot",
+      "bytes": 14351,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Ahmad-Moten-DL-Miami-8e4f5cf4.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Ahmad-Moten-DL-Miami.png",
+      "kind": "headshot",
+      "bytes": 14381,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Kenyatta-Jackson-DE-OhioState-2c674ded.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Kenyatta-Jackson-DE-OhioState.png",
+      "kind": "headshot",
+      "bytes": 13173,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Quincy-RhodesJr-DL-Arkansas-b58412a1.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Quincy-RhodesJr-DL-Arkansas.png",
+      "kind": "headshot",
+      "bytes": 14599,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Anto-Saka-DL-Northwestern-d7dd1aa6.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Anto-Saka-DL-Northwestern.png",
+      "kind": "headshot",
+      "bytes": 15798,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Anthony-Smith-DL-Minnesota-be2faa78.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Anthony-Smith-DL-Minnesota.png",
+      "kind": "headshot",
+      "bytes": 14699,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Williams-Nwaneri-DE-Missouri-e92a146e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Williams-Nwaneri-DE-Missouri.png",
+      "kind": "headshot",
+      "bytes": 14743,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Tyrique-Tucker-DL-JamesMadison-c0b097e3.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Tyrique-Tucker-DL-JamesMadison.png",
+      "kind": "headshot",
+      "bytes": 11908,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jayden-Jackson-DT-Oklahoma-a01b8a79.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jayden-Jackson-DT-Oklahoma.png",
+      "kind": "headshot",
+      "bytes": 14075,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Taylor-Wein-DL-Oklahoma-c7eda61e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Taylor-Wein-DL-Oklahoma.png",
+      "kind": "headshot",
+      "bytes": 13898,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Kameryn-Crawford-DE-USC-6e1ed4be.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Kameryn-Crawford-DE-USC.png",
+      "kind": "headshot",
+      "bytes": 12954,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Mateen-Ibirogba-DL-Georgetown-2b8e7859.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Mateen-Ibirogba-DL-Georgetown.png",
+      "kind": "headshot",
+      "bytes": 13224,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Bear-Alexander-DL-Georgia-0e82d6db.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Bear-Alexander-DL-Georgia.png",
+      "kind": "headshot",
+      "bytes": 16471,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Solomon-Tuliaupupu-LB-USC-d78266e8.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Solomon-Tuliaupupu-LB-USC.png",
+      "kind": "headshot",
+      "bytes": 13707,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Adonijah-Green-DL-Louisville-15c7dc8a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Adonijah-Green-DL-Louisville.png",
+      "kind": "headshot",
+      "bytes": 12996,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Ezra-Christensen-DL-FresnoState-d2eca392.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Ezra-Christensen-DL-FresnoState.png",
+      "kind": "headshot",
+      "bytes": 10518,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/montana-grizzlies-71d71191.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/montana-grizzlies.png",
+      "kind": "school-mark",
+      "bytes": 7316,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/DaShawn-Womack-DE-LSU-707b3450.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/DaShawn-Womack-DE-LSU.png",
+      "kind": "headshot",
+      "bytes": 11854,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/James-Smith-DL-Alabama-b22a2172.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/James-Smith-DL-Alabama.png",
+      "kind": "headshot",
+      "bytes": 12134,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Kemari-Copeland-DL-Army-0b57825a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Kemari-Copeland-DL-Army.png",
+      "kind": "headshot",
+      "bytes": 12941,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jalen-Thompson-DL-MichiganState-59ee138e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jalen-Thompson-DL-MichiganState.png",
+      "kind": "headshot",
+      "bytes": 13606,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Francis-Brewu-DL-Pittsburgh-76c67669.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Francis-Brewu-DL-Pittsburgh.png",
+      "kind": "headshot",
+      "bytes": 14141,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Kam-Franklin-DE-OleMiss-d41ab983.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Kam-Franklin-DE-OleMiss.png",
+      "kind": "headshot",
+      "bytes": 19594,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Amaris-Williams-DE-Auburn-f8eceace.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Amaris-Williams-DE-Auburn.png",
+      "kind": "headshot",
+      "bytes": 16053,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/LJ-McCray-DE-Florida-2b2ad63c.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/LJ-McCray-DE-Florida.png",
+      "kind": "headshot",
+      "bytes": 12583,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jaheim-Oatis-DL-Alabama-1dde3526.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jaheim-Oatis-DL-Alabama.png",
+      "kind": "headshot",
+      "bytes": 13853,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Stephiylan-Green-DT-Clemson-163eb29b.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Stephiylan-Green-DT-Clemson.png",
+      "kind": "headshot",
+      "bytes": 15675,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/CJ-Fite-DL-ArizonaState-b54e84d2.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/CJ-Fite-DL-ArizonaState.png",
+      "kind": "headshot",
+      "bytes": 16561,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Adepoju-Adebawore-DL-Oklahoma-326249c4.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Adepoju-Adebawore-DL-Oklahoma.png",
+      "kind": "headshot",
+      "bytes": 11869,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Maraad-Watson-DT-Syracuse-eb53c21f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Maraad-Watson-DT-Syracuse.png",
+      "kind": "headshot",
+      "bytes": 16286,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Elinneus-Davis-DT-Washington-71d53009.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Elinneus-Davis-DT-Washington.png",
+      "kind": "headshot",
+      "bytes": 15373,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jaleel-Johnson-DE-OklahomaState-db562ed8.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jaleel-Johnson-DE-OklahomaState.png",
+      "kind": "headshot",
+      "bytes": 16982,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Tavion-Gadson-DL-Kentucky-a436809a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Tavion-Gadson-DL-Kentucky.png",
+      "kind": "headshot",
+      "bytes": 19960,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Tunmise-Adeleye-DL-TexasAANDM-216940d9.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Tunmise-Adeleye-DL-TexasAANDM.png",
+      "kind": "headshot",
+      "bytes": 14511,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Braylan-Shelby-DE-USC-24bb1aaf.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Braylan-Shelby-DE-USC.png",
+      "kind": "headshot",
+      "bytes": 12384,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Daevin-Hobbs-DL-Tennessee-13e8f439.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Daevin-Hobbs-DL-Tennessee.png",
+      "kind": "headshot",
+      "bytes": 15437,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/DAntre-Robinson-DT-Florida-32a70b5a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/DAntre-Robinson-DT-Florida.png",
+      "kind": "headshot",
+      "bytes": 14119,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Thomas-Collins-DL-OregonState-ac828d66.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Thomas-Collins-DL-OregonState.png",
+      "kind": "headshot",
+      "bytes": 13369,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/David-Oke-DL-AbileneChristian-0ab2c978.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/David-Oke-DL-AbileneChristian.png",
+      "kind": "headshot",
+      "bytes": 16740,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Mario-Landino-DL-Indiana-9d7bdcad.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Mario-Landino-DL-Indiana.png",
+      "kind": "headshot",
+      "bytes": 12424,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Colin-Simmons-LB-Texas-3b6b3918.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Colin-Simmons-LB-Texas.png",
+      "kind": "headshot",
+      "bytes": 15633,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Dylan-Stewart-LB-SouthCarolina-e02b3f15.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Dylan-Stewart-LB-SouthCarolina.png",
+      "kind": "headshot",
+      "bytes": 13882,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Yhonzae-Pierre-LB-Alabama-cda6a86d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Yhonzae-Pierre-LB-Alabama.png",
+      "kind": "headshot",
+      "bytes": 12021,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Damon-WilsonII-LB-Georgia-9169ed40.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Damon-WilsonII-LB-Georgia.png",
+      "kind": "headshot",
+      "bytes": 10436,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/oregon-state-beavers-7f599bc4.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/oregon-state-beavers.png",
+      "kind": "school-mark",
+      "bytes": 7695,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Clev-Lubin-LB-Army-ed8996fe.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Clev-Lubin-LB-Army.png",
+      "kind": "headshot",
+      "bytes": 13666,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Suntarine-Perkins-LB-Mississippi-c6d5e6a9.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Suntarine-Perkins-LB-Mississippi.png",
+      "kind": "headshot",
+      "bytes": 14947,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Teitum-Tuioti-LB-Oregon-283b817e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Teitum-Tuioti-LB-Oregon.png",
+      "kind": "headshot",
+      "bytes": 12699,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Kelby-Collins-DE-Florida-a82d6150.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Kelby-Collins-DE-Florida.png",
+      "kind": "headshot",
+      "bytes": 12461,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Princewill-Umanmielen-LB-Nebraska-9eb64fca.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Princewill-Umanmielen-LB-Nebraska.png",
+      "kind": "headshot",
+      "bytes": 13661,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Adam-Trick-LB-MiamiOH-acaff7e7.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Adam-Trick-LB-MiamiOH.png",
+      "kind": "headshot",
+      "bytes": 10132,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Trey-White-DE-SanDiegoState-2b1b0c96.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Trey-White-DE-SanDiegoState.png",
+      "kind": "headshot",
+      "bytes": 13558,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Wendell-Gregory-LB-SouthCarolina-f42edc07.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Wendell-Gregory-LB-SouthCarolina.png",
+      "kind": "headshot",
+      "bytes": 16659,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Elijah-Rushing-LB-Oregon-8036143b.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Elijah-Rushing-LB-Oregon.png",
+      "kind": "headshot",
+      "bytes": 15249,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Desmond-Umeozulu-LB-SouthCarolina-1c7671ac.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Desmond-Umeozulu-LB-SouthCarolina.png",
+      "kind": "headshot",
+      "bytes": 12146,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Kyngstonn-ViliamuAsa-LB-NotreDame-e2a22621.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Kyngstonn-ViliamuAsa-LB-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 14163,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Noah-Carter-LB-Alabama-e2a521be.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Noah-Carter-LB-Alabama.png",
+      "kind": "headshot",
+      "bytes": 11451,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Chris-Cole-LB-Georgia-2078c2c3.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Chris-Cole-LB-Georgia.png",
+      "kind": "headshot",
+      "bytes": 15191,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Sammy-Brown-LB-Clemson-249cb412.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Sammy-Brown-LB-Clemson.png",
+      "kind": "headshot",
+      "bytes": 15307,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Rasheem-Biles-LB-Pittsburgh-54632be4.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Rasheem-Biles-LB-Pittsburgh.png",
+      "kind": "headshot",
+      "bytes": 12761,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Ben-Roberts-LB-TexasTech-d5b05f26.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Ben-Roberts-LB-TexasTech.png",
+      "kind": "headshot",
+      "bytes": 14168,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Xavier-Atkins-LB-LSU-b598948a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Xavier-Atkins-LB-LSU.png",
+      "kind": "headshot",
+      "bytes": 12478,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Tony-Rojas-LB-PennState-7e641ef1.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Tony-Rojas-LB-PennState.png",
+      "kind": "headshot",
+      "bytes": 11514,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Myles-Graham-LB-Florida-74af9c31.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Myles-Graham-LB-Florida.png",
+      "kind": "headshot",
+      "bytes": 15766,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Kamren-Robinson-LB-Virginia-22af3b3f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Kamren-Robinson-LB-Virginia.png",
+      "kind": "headshot",
+      "bytes": 12649,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Whit-Weeks-LB-LSU-a8b53229.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Whit-Weeks-LB-LSU.png",
+      "kind": "headshot",
+      "bytes": 12671,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Nicholas-Rodriguez-LB-Missouri-857b1a4b.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Nicholas-Rodriguez-LB-Missouri.png",
+      "kind": "headshot",
+      "bytes": 15288,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Drayk-Bowen-LB-NotreDame-8402ea85.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Drayk-Bowen-LB-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 13589,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jayden-Virgin-LB-BoiseState-a5c4f1f7.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jayden-Virgin-LB-BoiseState.png",
+      "kind": "headshot",
+      "bytes": 12538,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Payton-Pierce-LB-OhioState-e8816b74.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Payton-Pierce-LB-OhioState.png",
+      "kind": "headshot",
+      "bytes": 15655,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Raylen-Wilson-LB-Georgia-e4f78c6c.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Raylen-Wilson-LB-Georgia.png",
+      "kind": "headshot",
+      "bytes": 13742,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Edwin-Spillman-LB-Tennessee-23ecb8a0.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Edwin-Spillman-LB-Tennessee.png",
+      "kind": "headshot",
+      "bytes": 14625,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Christian-Alliegro-LB-Wisconsin-f9fb03cc.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Christian-Alliegro-LB-Wisconsin.png",
+      "kind": "headshot",
+      "bytes": 12752,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Samuel-Omosigho-LB-Oklahoma-f2ddb5f5.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Samuel-Omosigho-LB-Oklahoma.png",
+      "kind": "headshot",
+      "bytes": 12899,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Cole-Sullivan-LB-Michigan-23045396.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Cole-Sullivan-LB-Michigan.png",
+      "kind": "headshot",
+      "bytes": 11394,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Austin-Romaine-LB-KansasState-ae02b49c.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Austin-Romaine-LB-KansasState.png",
+      "kind": "headshot",
+      "bytes": 16728,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Leonard-Moore-CB-NotreDame-b41bba7f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Leonard-Moore-CB-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 15261,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Ellis-RobinsonIV-CB-Georgia-7c992356.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Ellis-RobinsonIV-CB-Georgia.png",
+      "kind": "headshot",
+      "bytes": 13704,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Keon-Wylie-LB-PennState-b51e3f3b.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Keon-Wylie-LB-PennState.png",
+      "kind": "headshot",
+      "bytes": 12303,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Amare-Campbell-LB-NorthCarolina-4a782d50.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Amare-Campbell-LB-NorthCarolina.png",
+      "kind": "headshot",
+      "bytes": 12291,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/KJ-Bolden-S-Georgia-5d8bbaea.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/KJ-Bolden-S-Georgia.png",
+      "kind": "headshot",
+      "bytes": 15012,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Tae-Johnson-S-NotreDame-507dc1c2.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Tae-Johnson-S-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 13531,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jelani-McDonald-DB-Texas-7a9dde88.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jelani-McDonald-DB-Texas.png",
+      "kind": "headshot",
+      "bytes": 13929,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Zabien-Brown-CB-Alabama-45982f02.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Zabien-Brown-CB-Alabama.png",
+      "kind": "headshot",
+      "bytes": 12976,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Dashawn-Spears-S-LSU-17adf2bc.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Dashawn-Spears-S-LSU.png",
+      "kind": "headshot",
+      "bytes": 14931,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Ashton-Hampton-CB-Clemson-e4c479c1.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Ashton-Hampton-CB-Clemson.png",
+      "kind": "headshot",
+      "bytes": 13970,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Keon-Sabb-S-Alabama-50a935ef.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Keon-Sabb-S-Alabama.png",
+      "kind": "headshot",
+      "bytes": 10644,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Vicari-Swain-DB-SouthCarolina-f4227a08.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Vicari-Swain-DB-SouthCarolina.png",
+      "kind": "headshot",
+      "bytes": 10564,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Brice-Pollock-CB-MississippiState-31105fb5.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Brice-Pollock-CB-MississippiState.png",
+      "kind": "headshot",
+      "bytes": 13792,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Zach-Lutmer-CB-Iowa-d6f1770b.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Zach-Lutmer-CB-Iowa.png",
+      "kind": "headshot",
+      "bytes": 13669,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Bray-Hubbard-DB-Alabama-5318df84.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Bray-Hubbard-DB-Alabama.png",
+      "kind": "headshot",
+      "bytes": 11776,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Peyton-Bowen-DB-Oklahoma-143af996.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Peyton-Bowen-DB-Oklahoma.png",
+      "kind": "headshot",
+      "bytes": 14019,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Ty-Benefield-S-BoiseState-727d6191.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Ty-Benefield-S-BoiseState.png",
+      "kind": "headshot",
+      "bytes": 11525,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Chris-Peal-DB-Georgia-d2dd79d0.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Chris-Peal-DB-Georgia.png",
+      "kind": "headshot",
+      "bytes": 12293,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Terry-Moore-RB-Duke-574ccefa.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Terry-Moore-RB-Duke.png",
+      "kind": "headshot",
+      "bytes": 13921,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Kelley-Jones-CB-MississippiState-c712b56e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Kelley-Jones-CB-MississippiState.png",
+      "kind": "headshot",
+      "bytes": 14036,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jamari-Sharpe-DB-Indiana-f996ac15.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jamari-Sharpe-DB-Indiana.png",
+      "kind": "headshot",
+      "bytes": 11484,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jyaire-Hill-DB-Michigan-c1909efd.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jyaire-Hill-DB-Michigan.png",
+      "kind": "headshot",
+      "bytes": 14652,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jaylen-McClain-S-OhioState-0db7c6cf.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jaylen-McClain-S-OhioState.png",
+      "kind": "headshot",
+      "bytes": 14963,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Zeke-Berry-DB-Michigan-93c39395.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Zeke-Berry-DB-Michigan.png",
+      "kind": "headshot",
+      "bytes": 12926,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Faletau-Satuala-S-BYU-860ff356.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Faletau-Satuala-S-BYU.png",
+      "kind": "headshot",
+      "bytes": 15903,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Amare-Ferrell-DB-Indiana-a11fa796.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Amare-Ferrell-DB-Indiana.png",
+      "kind": "headshot",
+      "bytes": 12379,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jackson-Bennee-S-Utah-d901d68b.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jackson-Bennee-S-Utah.png",
+      "kind": "headshot",
+      "bytes": 12022,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Marcus-Neal-S-IowaState-7b6c4ff5.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Marcus-Neal-S-IowaState.png",
+      "kind": "headshot",
+      "bytes": 15834,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Earl-LittleII-DB-Alabama-b0cc336a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Earl-LittleII-DB-Alabama.png",
+      "kind": "headshot",
+      "bytes": 14104,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Corey-Myrick-S-Marshall-3de8858c.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Corey-Myrick-S-Marshall.png",
+      "kind": "headshot",
+      "bytes": 13081,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/utah-utes-93c37860.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/utah-utes.png",
+      "kind": "school-mark",
+      "bytes": 10355,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Adon-Shuler-S-NotreDame-bceb093f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Adon-Shuler-S-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 13774,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Koi-Perich-DB-Minnesota-44577c8c.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Koi-Perich-DB-Minnesota.png",
+      "kind": "headshot",
+      "bytes": 12548,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Christian-Gray-CB-NotreDame-78c124f7.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Christian-Gray-CB-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 15248,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Robert-Fitzgerald-DB-Northwestern-df8ecffb.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Robert-Fitzgerald-DB-Northwestern.png",
+      "kind": "headshot",
+      "bytes": 14935,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/AJ-Harris-DB-Georgia-6852b51d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/AJ-Harris-DB-Georgia.png",
+      "kind": "headshot",
+      "bytes": 11286,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Xavier-Lucas-CB-Wisconsin-45adde61.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Xavier-Lucas-CB-Wisconsin.png",
+      "kind": "headshot",
+      "bytes": 11184,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/John-Curry-LB-TexasTech-5001d1c2.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/John-Curry-LB-TexasTech.png",
+      "kind": "headshot",
+      "bytes": 12841,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Eli-Bowen-CB-Oklahoma-37e5d0ce.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Eli-Bowen-CB-Oklahoma.png",
+      "kind": "headshot",
+      "bytes": 16659,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jermaine-MathewsJr-CB-OhioState-14093b7a.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jermaine-MathewsJr-CB-OhioState.png",
+      "kind": "headshot",
+      "bytes": 14242,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/King-Mack-S-PennState-582a0394.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/King-Mack-S-PennState.png",
+      "kind": "headshot",
+      "bytes": 11801,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Dylahn-McKinney-CB-OklahomaState-53db265d.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Dylahn-McKinney-CB-OklahomaState.png",
+      "kind": "headshot",
+      "bytes": 10062,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jayden-Bellamy-CB-NotreDame-28a5cb40.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jayden-Bellamy-CB-NotreDame.png",
+      "kind": "headshot",
+      "bytes": 12329,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Quaysheed-Scott-CB-Kentucky-304d2b29.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Quaysheed-Scott-CB-Kentucky.png",
+      "kind": "headshot",
+      "bytes": 13396,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Kayin-Lee-CB-Auburn-986f7366.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Kayin-Lee-CB-Auburn.png",
+      "kind": "headshot",
+      "bytes": 11973,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Tao-Johnson-WR-Utah-9d724696.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Tao-Johnson-WR-Utah.png",
+      "kind": "headshot",
+      "bytes": 12667,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Zavier-Mincey-S-Alabama-192b3f31.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Zavier-Mincey-S-Alabama.png",
+      "kind": "headshot",
+      "bytes": 11058,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Dezz-Ricks-DB-Alabama-164e0bef.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Dezz-Ricks-DB-Alabama.png",
+      "kind": "headshot",
+      "bytes": 13196,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Aaron-Flowers-S-Oregon-c7f6cb5f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Aaron-Flowers-S-Oregon.png",
+      "kind": "headshot",
+      "bytes": 14521,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Mason-Curtis-S-Michigan-de493601.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Mason-Curtis-S-Michigan.png",
+      "kind": "headshot",
+      "bytes": 14190,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Emmanuel-Karnley-CB-Arizona-06310d46.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Emmanuel-Karnley-CB-Arizona.png",
+      "kind": "headshot",
+      "bytes": 14342,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/ucf-knights-625673d7.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/ucf-knights.png",
+      "kind": "school-mark",
+      "bytes": 8818,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Edrees-Farooq-S-Tennessee-013ae8a9.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Edrees-Farooq-S-Tennessee.png",
+      "kind": "headshot",
+      "bytes": 14844,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Joenel-Aguero-DB-Georgia-16da1054.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Joenel-Aguero-DB-Georgia.png",
+      "kind": "headshot",
+      "bytes": 16118,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Boo-Carter-CB-Tennessee-9b15fb32.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Boo-Carter-CB-Tennessee.png",
+      "kind": "headshot",
+      "bytes": 15343,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Kamari-Wilson-DB-ArizonaState-6544c3d6.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Kamari-Wilson-DB-ArizonaState.png",
+      "kind": "headshot",
+      "bytes": 13899,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/LaKhi-Roland-CB-Maryland-4640caba.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/LaKhi-Roland-CB-Maryland.png",
+      "kind": "headshot",
+      "bytes": 13028,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Donovan-Jones-CB-Nebraska-88249252.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Donovan-Jones-CB-Nebraska.png",
+      "kind": "headshot",
+      "bytes": 15241,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/TJ-Metcalf-DB-Arkansas-31c2126e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/TJ-Metcalf-DB-Arkansas.png",
+      "kind": "headshot",
+      "bytes": 12203,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Antonio-Kite-DB-Alabama-dfdd36fa.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Antonio-Kite-DB-Alabama.png",
+      "kind": "headshot",
+      "bytes": 12421,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jordan-Castell-S-Florida-2839bf60.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jordan-Castell-S-Florida.png",
+      "kind": "headshot",
+      "bytes": 11613,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Jay-Vion-Cole-DB-CalPoly-823a4baa.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Jay'Vion-Cole-DB-CalPoly.png",
+      "kind": "headshot",
+      "bytes": 13604,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Randon-Fontenette-S-TCU-c3dac118.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Randon-Fontenette-S-TCU.png",
+      "kind": "headshot",
+      "bytes": 14132,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/OJ-FrederiqueJr-DB-Miami-fde928d0.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/OJ-FrederiqueJr-DB-Miami.png",
+      "kind": "headshot",
+      "bytes": 12037,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Aaron-ScottJr-CB-OhioState-c7d1b485.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Aaron-ScottJr-CB-OhioState.png",
+      "kind": "headshot",
+      "bytes": 13824,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Xavier-Scott-DB-Illinois-785d239c.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Xavier-Scott-DB-Illinois.png",
+      "kind": "headshot",
+      "bytes": 12990,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Elliot-WashingtonII-CB-PennState-b6c5f86f.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Elliot-WashingtonII-CB-PennState.png",
+      "kind": "headshot",
+      "bytes": 12297,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Smith-Snowden-CB-Utah-68980db6.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Smith-Snowden-CB-Utah.png",
+      "kind": "headshot",
+      "bytes": 11527,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Khalil-Barnes-S-Clemson-d4d4298e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Khalil-Barnes-S-Clemson.png",
+      "kind": "headshot",
+      "bytes": 11471,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Derek-WilliamsJr-DB-Texas-10c40706.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Derek-WilliamsJr-DB-Texas.png",
+      "kind": "headshot",
+      "bytes": 11601,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Gentry-Williams-CB-Oklahoma-95c6ba39.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Gentry-Williams-CB-Oklahoma.png",
+      "kind": "headshot",
+      "bytes": 14091,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/illinois-fighting-illini-9173b8c7.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/illinois-fighting-illini.png",
+      "kind": "school-mark",
+      "bytes": 1801,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/JK-Johnson-CB-OhioState-a0cb51c8.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/JK-Johnson-CB-OhioState.png",
+      "kind": "headshot",
+      "bytes": 11638,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Javien-Toviano-S-LSU-ac4bb50e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Javien-Toviano-S-LSU.png",
+      "kind": "headshot",
+      "bytes": 12601,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Malik-Hartford-S-OhioState-f63dbeef.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Malik-Hartford-S-OhioState.png",
+      "kind": "headshot",
+      "bytes": 14079,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Cameron-Calhoun-DB-Michigan-50296628.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Cameron-Calhoun-DB-Michigan.png",
+      "kind": "headshot",
+      "bytes": 12140,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/schools/florida-atlantic-owls-422af271.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/collmascotsSmall/florida-atlantic-owls.png",
+      "kind": "school-mark",
+      "bytes": 8849,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Dante-Lovett-CB-VirginiaTech-177bd913.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Dante-Lovett-CB-VirginiaTech.png",
+      "kind": "headshot",
+      "bytes": 11342,
+      "contentType": "image/png"
+    },
+    "/college%20prospects%202027/assets/headshots/Rod-Moore-DB-Michigan-01e1c45e.png": {
+      "sourceUrl": "https://www.nfldraftbuzz.com/Content/PlayerHeadShotsSmall/Rod-Moore-DB-Michigan.png",
+      "kind": "headshot",
+      "bytes": 11334,
+      "contentType": "image/png"
+    }
+  },
+  "updatedAt": "2026-10-05T21:33:18.716Z",
+  "lastRun": {
+    "requested": 430,
+    "downloaded": 430,
+    "skipped": 0,
+    "failed": 0
+  }
+}
