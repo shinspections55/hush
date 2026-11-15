@@ -27,39 +27,22 @@
   border-color: #63c8ae;
 }
 
-.mock-contest-page .dashboard-header .dashboard-header-title,
-.mock-contest-page .dashboard-header .mock-contest-kicker,
-.mock-contest-page .dashboard-header .mock-save-status,
-.mock-contest-page .dashboard-header-left .account-btn {
-  color: #ffffff !important;
-}
-
-.mock-contest-page .mock-save-status.is-saving { color: #ffffff !important; }
-.mock-contest-page .mock-save-status.is-error { color: #ffffff !important; }
-
 .mock-contest-page .dashboard-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  width: 100%;
-  min-height: 88px;
-  padding: 10px clamp(14px, 3vw, 34px);
-  box-sizing: border-box;
+  display: flex;
 }
 
 .mock-contest-page .dashboard-header-left,
-.mock-contest-page .dashboard-header-center,
 .mock-contest-page .dashboard-header-right { min-width: 0; }
-.mock-contest-page .dashboard-header-center { flex: none; }
-.mock-contest-page .dashboard-header-right { justify-self: end; }
 
-.mock-contest-brand {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-  text-align: center;
+.mock-header-back {
+  color: #0f2f44;
+  font: 700 13px Arial, sans-serif;
+  text-decoration: none;
 }
 
-.mock-contest-kicker,
+.mock-header-back:hover { text-decoration: underline; }
+.mock-header-back:focus-visible { outline: 2px solid #205b80; outline-offset: 5px; }
+
 .mock-panel-eyebrow {
   color: #95d8c8;
   font-size: 10px;
@@ -67,18 +50,14 @@
   letter-spacing: 1.3px;
 }
 
-.mock-contest-page .dashboard-header-title {
-  font-size: 20px;
-}
-
 .mock-save-status {
-  color: #dce9e6;
+  color: #0f2f44;
   font-size: 12px;
   font-weight: 700;
 }
 
-.mock-save-status.is-saving { color: #f3cf83; }
-.mock-save-status.is-error { color: #ffad91; }
+.mock-save-status.is-saving { color: #614600; }
+.mock-save-status.is-error { color: #94251c; }
 
 .mock-contest-main {
   width: min(1540px, 100%);
@@ -404,18 +383,19 @@
   .mock-board-panel { min-height: 650px; }
 }
 
-@media (max-width: 560px) {
-  .mock-contest-page .dashboard-header {
-    grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(55px, auto);
-    gap: 7px;
-    min-height: 70px;
-    padding: 8px 10px;
+@media (min-width: 701px) {
+  .mock-admin-embedded .mock-draft-workspace {
+    grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+    height: calc(100vh - 80px);
+    min-height: 480px;
   }
-  .mock-contest-page .dashboard-header-left .account-btn { padding: 7px 8px; font-size: 10px; white-space: nowrap; }
-  .mock-contest-page .dashboard-header-center { justify-content: center; }
-  .mock-contest-page .dashboard-header-title { font-size: 12px; line-height: 1.2; }
-  .mock-contest-kicker { font-size: 7px; letter-spacing: 0.4px; }
-  .mock-save-status { max-width: 68px; font-size: 10px; text-align: right; }
+  .mock-admin-embedded .mock-board-panel { min-height: 0; }
+  .mock-admin-embedded .mock-pool-panel { order: 0; min-height: 0; max-height: none; }
+}
+
+@media (max-width: 560px) {
+  .mock-contest-page .dashboard-header-right { flex-wrap: wrap; gap: 12px; }
+  .mock-save-status { font-size: 11px; }
   .mock-contest-main { padding-top: 8px; }
   .mock-contest-toolbar { min-height: 42px; }
   .mock-import-btn { min-height: 34px; padding: 0 9px; font-size: 11px; }

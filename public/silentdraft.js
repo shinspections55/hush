@@ -995,6 +995,9 @@ function initSilentDraft() {
     
     // Global teams array
     let teams = [];
+    let tradeBidRevision = 0;
+    let appliedTradeRevision = 0;
+    let tradeController = null;
     let autoDraftStatusByTeam = {};
     let teamProfiles = {}; // Store profile types for each team (CPU or user)
     
@@ -1295,15 +1298,9 @@ function initSilentDraft() {
     
     // Build a dedicated DATABASE rankings set without mutating Default rankings.
     // This set is only updated when there are enough completed drafts.
-    function calculatePlayerAVsFromCompletedDrafts() {
+    async function calculatePlayerAVsFromCompletedDrafts() {
         try {
-            const completedDraftsRaw = localStorage.getItem('completedDrafts');
-            if (!completedDraftsRaw) {
-                console.log('[DATABASE] No completed drafts found yet');
-                return null;
-            }
-
-            const completedDrafts = JSON.parse(completedDraftsRaw);
+            const completedDrafts = await window.HushDraftHistory.list();
             if (!Array.isArray(completedDrafts) || completedDrafts.length === 0) {
                 console.log('[DATABASE] No completed drafts available');
                 return null;
@@ -1395,9 +1392,9 @@ function initSilentDraft() {
         }
     }
 
-    function syncPlayerAVsWithRankings() {
+    async function syncPlayerAVsWithRankings() {
         try {
-            const rankingsPayload = calculatePlayerAVsFromCompletedDrafts();
+            const rankingsPayload = await calculatePlayerAVsFromCompletedDrafts();
             if (!rankingsPayload || !Array.isArray(rankingsPayload.rankings) || rankingsPayload.rankings.length === 0) {
                 console.log('[DATABASE] No DATABASE rankings updates available yet');
                 return 0;
@@ -1415,14 +1412,18 @@ function initSilentDraft() {
     // Connect to server to get authoritative draft state
     function initializeDraft() {
         // Clean up old/excess drafts before accessing localStorage
-        cleanupOldDrafts();
-        limitStoredDrafts(25);
-        
-        // Check storage usage and aggressively clear if near capacity
-        const usagePercent = estimateStorageUsage();
-        if (usagePercent > 70) {
-            console.log(`[silentdraft] Storage at ${usagePercent}% - triggering emergency cleanup`);
-            emergencyClearOldestDrafts(2);
+        if (window.HushDevStorage) {
+            window.HushDevStorage.cleanup();
+        } else {
+            cleanupOldDrafts();
+            limitStoredDrafts(25);
+
+            // Check storage usage and aggressively clear if near capacity
+            const usagePercent = estimateStorageUsage();
+            if (usagePercent > 70) {
+                console.log(`[silentdraft] Storage at ${usagePercent}% - triggering emergency cleanup`);
+                emergencyClearOldestDrafts(2);
+            }
         }
         
         // Sync player AV values from completed drafts (DATABASE mode)
@@ -1728,6 +1729,49 @@ function initSilentDraft() {
         }
     }
     
+    if (window.HushTrades && !tradeController) {
+        tradeController = window.HushTrades.create({
+            socket: window.draftSocket, code: currentDraftCode, username, mode: 'draft',
+            mount: document.getElementById('teams-list') && document.getElementById('teams-list').parentElement,
+            showLauncher: false,
+            onState(state) {
+                const resetBids = Number(state.bidRevision) > tradeBidRevision;
+                if (Number(state.revision) <= appliedTradeRevision && !resetBids) return;
+                appliedTradeRevision = Number(state.revision);
+                tradeBidRevision = Number(state.bidRevision);
+                teams = state.teams;
+                for (const team of teams) {
+                    for (const owned of team.roster || []) {
+                        const player = players.find(item => Number(item.id) === Number(owned.id));
+                        if (player) { player.owner = team.name; player.bid = owned.bid; player.acquisitionCost = owned.acquisitionCost; }
+                    }
+                }
+                const submit = document.getElementById('submit-bids');
+                const wasLocked = submit && submit.disabled;
+                const label = submit && submit.textContent;
+                if (resetBids) {
+                    storedBids = {};
+                    if (currentRoundBidSyncTimer) clearTimeout(currentRoundBidSyncTimer);
+                    currentRoundBidSyncTimer = null;
+                    showNotification('Trade completed. Your current bids were cleared; enter bids and submit again.');
+                }
+                updateUI(getRoundPlayers());
+                if (wasLocked && !resetBids) lockRoundBidsUI(label);
+                saveDraftStateForRankings();
+            }
+        });
+    }
+
+    let scheduleConnectionResync = null;
+
+    function requestConnectionRecovery(reason) {
+        if (scheduleConnectionResync) {
+            scheduleConnectionResync(reason, 0);
+        } else {
+            console.warn('[silentdraft] Connection recovery unavailable:', reason);
+        }
+    }
+
     if (window.draftSocket && currentDraftCode) {
         setupVoiceLobby();
 
@@ -1908,6 +1952,8 @@ function initSilentDraft() {
 
             const tiedBids = [{
                 playerId: auctionState.playerId,
+                playerName: auctionState.playerName,
+                position: auctionState.playerPosition,
                 bidAmount: Number(auctionState.startBid || auctionState.currentBid || 0),
                 tiedTeams: Array.isArray(auctionState.tiedTeams) ? auctionState.tiedTeams.slice() : []
             }];
@@ -1915,7 +1961,10 @@ function initSilentDraft() {
             console.warn('[silentdraft] Recovering active live auction from sync payload:', auctionState.auctionId, 'source=', sourceLabel);
             try {
                 liveAuctionRecoveryNeeded = false;
-                handleLiveAuction(tiedBids, () => {});
+                if (!activeLiveAuctionBatch) {
+                    handleLiveAuction(tiedBids, () => finalizeRoundProgression());
+                }
+                activeLiveAuctionBatch.recover(auctionState);
             } catch (error) {
                 console.error('[silentdraft] Failed to recover live auction UI from sync payload:', error);
             }
@@ -2204,6 +2253,14 @@ function initSilentDraft() {
 
                 if (response.activeAuction) {
                     handleLiveAuctionSyncPayload(response.activeAuction, `resume-live-auction:${reason}`);
+                } else if (!activeLiveAuctionBatch && Array.isArray(response.pendingAuctions) && response.pendingAuctions.length > 0) {
+                    handleLiveAuction(response.pendingAuctions, () => finalizeRoundProgression());
+                }
+
+                if (response.completedAuctions) {
+                    handleLiveAuctionsCompleted(response.completedAuctions);
+                } else if (response.completedFinalRound) {
+                    handleLiveAuctionsCompleted(response.completedFinalRound);
                 }
 
                 console.log('[silentdraft] Resume state applied:', response.mode, 'version=', response.currentVersion, 'reason=', reason);
@@ -2241,7 +2298,7 @@ function initSilentDraft() {
             }
         };
 
-        const scheduleConnectionResync = (reason = 'unknown', delayMs = 0) => {
+        scheduleConnectionResync = (reason = 'unknown', delayMs = 0) => {
             clearPendingConnectionResync();
 
             pendingConnectionResyncTimer = setTimeout(() => {
@@ -2250,6 +2307,7 @@ function initSilentDraft() {
                 const now = Date.now();
                 // Prevent reconnect storms when multiple foreground events fire together.
                 if (now - lastConnectionResyncAt < 1200) {
+                    scheduleConnectionResync(reason, 1200 - (now - lastConnectionResyncAt));
                     return;
                 }
                 lastConnectionResyncAt = now;
@@ -2269,7 +2327,9 @@ function initSilentDraft() {
                 }
 
                 console.log('[silentdraft] Foreground recovery resync:', reason);
-                resyncDraftConnection(reason);
+                resyncDraftConnection(reason).catch((error) => {
+                    console.warn('[silentdraft] Connection recovery resync failed:', reason, error);
+                });
 
                 // Best effort: push any local bid edits after returning to foreground.
                 if (typeof syncCurrentRoundBidsToServer === 'function') {
@@ -2456,6 +2516,8 @@ function initSilentDraft() {
         window.draftSocket.on('liveAuctionSync', (auctionState) => {
             handleLiveAuctionSyncPayload(auctionState, 'liveAuctionSync');
         });
+
+        window.draftSocket.on('liveAuctionsCompleted', handleLiveAuctionsCompleted);
 
         window.draftSocket.on('liveAuctionTransition', (payload) => {
             if (!payload) return;
@@ -2740,7 +2802,8 @@ function initSilentDraft() {
             };
         });
 
-        return emitSocketAckWithRetry('syncRoundBids', [currentDraftCode, bidEntries], {
+        const bidRevision = tradeBidRevision;
+        return emitSocketAckWithRetry('syncRoundBids', [currentDraftCode, bidEntries, { tradeBidRevision: bidRevision }], {
             timeoutMs: 7000,
             overallTimeoutMs: 12000,
             maxRetries: 1,
@@ -2749,13 +2812,17 @@ function initSilentDraft() {
             if (response && response.ok) {
                 return true;
             }
+            if (response && response.reason === 'trade_bids_reset') {
+                if (tradeController) tradeController.refresh();
+                return false;
+            }
 
             // Backward-compatible fallback for servers that do not yet support syncRoundBids.
             const bidPromises = roundPlayers.map(player => {
                 let bidAmount = storedBids[player.id] ? parseInt(storedBids[player.id], 10) : 0;
                 if (Number.isNaN(bidAmount) || bidAmount < 0) bidAmount = 0;
 
-                return emitSocketAckWithRetry('placeBid', [currentDraftCode, player.id, bidAmount], { timeoutMs: 5000, overallTimeoutMs: 12000, maxRetries: 1 }).then((placeResponse) => {
+                return emitSocketAckWithRetry('placeBid', [currentDraftCode, player.id, bidAmount, { tradeBidRevision: bidRevision }], { timeoutMs: 5000, overallTimeoutMs: 12000, maxRetries: 1 }).then((placeResponse) => {
                     if (placeResponse && placeResponse.ok) {
                         console.log(`[silentdraft] Bid sent: ${player.name} = $${bidAmount}`);
                     }
@@ -2763,7 +2830,7 @@ function initSilentDraft() {
                 });
             });
 
-            return Promise.all(bidPromises).then(() => true);
+            return Promise.all(bidPromises).then(results => results.every(Boolean));
         });
     }
 
@@ -2793,6 +2860,7 @@ function initSilentDraft() {
     });
 
     function submitCurrentRoundBidsToServer(options = {}) {
+        const bidRevision = tradeBidRevision;
         const lockUI = options.lockUI !== false;
         const lockLabel = options.lockLabel || 'Bids Submitted';
         const forceWhenRosterFull = !!options.forceWhenRosterFull;
@@ -2808,9 +2876,11 @@ function initSilentDraft() {
             return Promise.resolve(false);
         }
 
-        return syncCurrentRoundBidsToServer().then(() => (
-            emitSocketAckWithRetry('submitBids', [currentDraftCode, username, autoDraftEnabled], { timeoutMs: 7000, overallTimeoutMs: 15000, maxRetries: 1 }).then((response) => {
+        return syncCurrentRoundBidsToServer().then((synced) => {
+            if (!synced || bidRevision !== tradeBidRevision) return false;
+            return emitSocketAckWithRetry('submitBids', [currentDraftCode, username, autoDraftEnabled, { tradeBidRevision: bidRevision }], { timeoutMs: 7000, overallTimeoutMs: 15000, maxRetries: 1 }).then((response) => {
                 if (response && response.ok) {
+                    if (bidRevision !== tradeBidRevision) return false;
                     console.log('[silentdraft] All bids submitted and recorded');
                     if (lockUI) {
                         lockRoundBidsUI(lockLabel);
@@ -2823,8 +2893,9 @@ function initSilentDraft() {
                     console.warn('[silentdraft] submitBids transiently rejected; retrying once after state sync:', response);
                     return new Promise((resolve) => {
                         window.setTimeout(() => {
-                            emitSocketAckWithRetry('submitBids', [currentDraftCode, username, autoDraftEnabled], { timeoutMs: 7000, overallTimeoutMs: 15000, maxRetries: 0 }).then((retryResponse) => {
+                            emitSocketAckWithRetry('submitBids', [currentDraftCode, username, autoDraftEnabled, { tradeBidRevision: bidRevision }], { timeoutMs: 7000, overallTimeoutMs: 15000, maxRetries: 0 }).then((retryResponse) => {
                                 if (retryResponse && retryResponse.ok) {
+                                    if (bidRevision !== tradeBidRevision) { resolve(false); return; }
                                     console.log('[silentdraft] Retry succeeded for bid submission');
                                     if (lockUI) {
                                         lockRoundBidsUI(lockLabel);
@@ -2841,8 +2912,8 @@ function initSilentDraft() {
 
                 console.warn('[silentdraft] submitBids rejected:', response);
                 return false;
-            })
-        ));
+            });
+        });
     }
 
     // Expose helper explicitly for nested UI callbacks that may execute
@@ -3756,7 +3827,8 @@ function initSilentDraft() {
 
     function formatFinalPrice(player) {
         const raw = Number(player && (
-            player.bid
+            player.acquisitionCost
+            ?? player.bid
             ?? player.bidAmount
             ?? player.pricePaid
             ?? player.finalBid
@@ -6448,7 +6520,7 @@ function initSilentDraft() {
                 
                 // Header with arrow
                 const header = document.createElement('div');
-                header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
+                header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:6px;';
                 const autoBadgeStyle = draftLightMode
                     ? 'display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:700;background:var(--hush-steel)22;border:1px solid var(--hush-steel)66;color:var(--hush-ice);'
                     : 'display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.5);color:#93c5fd;';
@@ -6459,7 +6531,7 @@ function initSilentDraft() {
                 const totalSlots = Number.isFinite(Number(rosterSize)) && Number(rosterSize) > 0 ? Number(rosterSize) : draftedCount;
 
                 const headerLeft = document.createElement('div');
-                headerLeft.style.cssText = 'display:flex;align-items:center;gap:8px;min-width:0;';
+                headerLeft.style.cssText = 'display:flex;align-items:center;gap:8px;min-width:0;flex:1;flex-wrap:wrap;';
 
                 const headerMain = document.createElement('span');
                 headerMain.style.cssText = 'font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
@@ -6489,6 +6561,9 @@ function initSilentDraft() {
                     : 'font-size:12px;color:#94a3b8;transition:transform 0.2s ease;flex:0 0 auto;';
 
                 header.appendChild(headerLeft);
+                if (tradeController && !isCurrentUserTeamName(team.name)) {
+                    header.appendChild(tradeController.createTeamButton(team.name));
+                }
                 header.appendChild(arrow);
                 teamItem.appendChild(header);
                 
@@ -6503,18 +6578,22 @@ function initSilentDraft() {
                     ? 'display:flex;align-items:center;gap:4px;margin:1px 0;font-size:12px;line-height:1.05;color:var(--hush-ice);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
                     : 'display:flex;align-items:center;gap:4px;margin:1px 0;font-size:12px;line-height:1.05;color:#e5e7eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
                 const compactLabelStyle = 'font-weight:700;min-width:34px;flex:0 0 auto;';
-                const compactValueStyle = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                const compactValueStyle = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
                 const escapeCompactText = (value) => String(value ?? '')
                     .replace(/&/g, '&amp;')
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;')
                     .replace(/"/g, '&quot;')
                     .replace(/'/g, '&#39;');
-                const renderCompactRow = (label, player) => `
+                const renderCompactRow = (label, player) => {
+                    const price = player ? resolveDraftRoomFinalPrice(player) : null;
+                    return `
                     <div style="${compactRowStyle}">
                         <span style="${compactLabelStyle}">${escapeCompactText(label)}:</span>
                         <span style="${compactValueStyle}">${escapeCompactText(player && player.name)}</span>
+                        ${player ? `<span class="team-roster-price" style="flex:0 0 auto;font-weight:700;" title="Player acquisition cost">${price !== null ? `$${price}` : '--'}</span>` : ''}
                     </div>`;
+                };
 
                 const assigned = assignRosterToSlots(displayedRoster);
                 const starterMarkup = assigned.assignedSlots
@@ -7148,14 +7227,14 @@ function initSilentDraft() {
                 
                 // Emit bid to server for synchronization
                 if (window.draftSocket && currentDraftCode) {
-                    window.draftSocket.emit('placeBid', currentDraftCode, player.id, userBid, (response) => {
+                    window.draftSocket.emit('placeBid', currentDraftCode, player.id, userBid, { tradeBidRevision }, (response) => {
                         if (response && response.ok) {
                             console.log('[silentdraft] Bid synchronized:', player.name, userBid);
                         }
                     });
                 }
             } else if (window.draftSocket && currentDraftCode) {
-                window.draftSocket.emit('placeBid', currentDraftCode, player.id, 0, () => {});
+                window.draftSocket.emit('placeBid', currentDraftCode, player.id, 0, { tradeBidRevision }, () => {});
             }
 // Simulate CPU bidding
 const otherTeams = teams.filter(t => t.name !== username && isValidRosterAddition(t, player));
@@ -7511,14 +7590,14 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 }
 
                 console.warn('[silentdraft] startNextRound rejected, requesting fresh draft state:', response);
-                scheduleConnectionResync('round-advance-rejected', 0);
+                requestConnectionRecovery('round-advance-rejected');
             });
             return;
         }
 
         console.warn('[silentdraft] Cannot advance round without an active server connection.');
         setRoundSubmitEnabled(false, 'Reconnecting to draft...');
-        scheduleConnectionResync();
+        requestConnectionRecovery('round-advance-disconnected');
     }
 
     // Apply authoritative round results from server
@@ -7565,15 +7644,12 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                     team.budget = Math.max(0, Number(team.budget || 0) - Number(result.pricePaid || 0));
                 }
             } else if (result.type === 'tied') {
-                const player = players.find(p => p.id === result.playerId);
-                if (player) {
-                    tiedBids.push({
-                        playerId: result.playerId,
-                        playerName: result.playerName,
-                        tiedTeams: result.tiedTeams,
-                        bidAmount: result.bidAmount
-                    });
-                }
+                tiedBids.push({
+                    playerId: result.playerId,
+                    playerName: result.playerName,
+                    tiedTeams: result.tiedTeams,
+                    bidAmount: result.bidAmount
+                });
             }
             // Undrafted players don't need special handling
         });
@@ -7619,7 +7695,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         // Kept for backward compatibility
     }
 
-    function showDraftSummary() {
+    async function showDraftSummary() {
         isDraftEnding = true;
         logDraftEndDebug('showDraftSummary:start', {
             currentDraftCode,
@@ -7655,6 +7731,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                     byeWeek: resolveDraftRoomByeWeek(player),
                     avgValue: Number(player && (player.avgValue || player.value) || 0),
                     bid: player.bid,
+                    acquisitionCost: player.acquisitionCost,
                     prerank: player.prerank
                 }))
             }))
@@ -7665,21 +7742,30 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         console.log('[DEBUG] draftResults.teamProfiles:', draftResults.teamProfiles);
         console.log('[DEBUG] draftResults.teams profiles:', draftResults.teams.map(t => ({ name: t.name, profile: t.profile })));
 
-        const completedDraftsRaw = localStorage.getItem('completedDrafts');
-        const completedDrafts = completedDraftsRaw ? JSON.parse(completedDraftsRaw) : [];
-
-        const existingIndex = completedDrafts.findIndex(d => d.draftCode === currentDraftCode);
-        if (existingIndex >= 0) {
-            completedDrafts[existingIndex] = draftResults;
-        } else {
-            completedDrafts.push(draftResults);
+        try {
+            await window.HushDraftHistory.save(draftResults);
+            sessionStorage.removeItem('latestDraftSummary');
+            logDraftEndDebug('showDraftSummary:redirect', { destination: 'draft-summary.html', storage: 'IndexedDB' });
+            window.location.href = '/draft-summary.html';
+            return;
+        } catch (error) {
+            console.error('[silentdraft] IndexedDB summary save failed; attempting session recovery:', error);
         }
-
-        localStorage.setItem('completedDrafts', JSON.stringify(completedDrafts));
-        sessionStorage.setItem('latestDraftSummary', JSON.stringify(draftResults));
+        let summarySaved = false;
+        try {
+            sessionStorage.setItem('latestDraftSummary', JSON.stringify(draftResults));
+            summarySaved = true;
+        } catch (error) {
+            console.error('[silentdraft] Could not save current summary in session storage:', error);
+        }
+        if (!summarySaved) {
+            showNotification('Could not save your draft summary. Free browser storage and refresh to recover the completed draft.');
+            logDraftEndDebug('showDraftSummary:storageFailed');
+            return;
+        }
         logDraftEndDebug('showDraftSummary:redirect', {
             destination: 'draft-summary.html',
-            completedDraftsCount: completedDrafts.length
+            storage: 'session recovery'
         });
         window.location.href = '/draft-summary.html';
     }
@@ -8149,12 +8235,13 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     }
 
     function scheduleAutoDraftSoloGraceWindow() {
-        clearAutoDraftSoloGraceWindow();
-
         // Solo draft + auto draft ON: 10-second grace period to disable auto draft.
-        if (!autoDraftEnabled || !Array.isArray(allDraftMembers) || allDraftMembers.length !== 1) {
+        if (!autoDraftEnabled || isDraftEnding || isPaused || !Array.isArray(allDraftMembers) || allDraftMembers.length !== 1) {
+            clearAutoDraftSoloGraceWindow();
             return;
         }
+
+        if (autoDraftSoloGraceTimeoutId) return;
 
         const submitBtn = document.getElementById('submit-bids');
         if (!submitBtn || submitBtn.disabled || typeof submitBtn.onclick !== 'function') {
@@ -8535,17 +8622,7 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
                 : `Waiting for host to start the round... syncing (${roundPlayerWaitAttempts})`;
             renderRoundPlayerWaitState(waitLabel);
 
-            if (socketDisconnected && window.draftSocket) {
-                try {
-                    window.draftSocket.connect();
-                } catch (error) {
-                    console.warn('[silentdraft] Waiting recovery socket connect() failed:', error);
-                }
-            }
-
-            Promise.resolve(resyncDraftConnection('round-player-wait-recovery')).catch((error) => {
-                console.warn('[silentdraft] Waiting recovery resync failed:', error);
-            });
+            requestConnectionRecovery('round-player-wait-recovery');
         };
 
         runRecoveryTick();
@@ -8618,13 +8695,13 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             clearInterval(timerInterval);
             timerInterval = setInterval(renderAuthoritativeTimer, 250);
             renderAuthoritativeTimer();
+            if (Date.now() < scheduledEndAt) {
+                scheduleAutoDraftSoloGraceWindow();
+            }
         };
 
         timerInterval = setInterval(waitForScheduledStart, 100);
         waitForScheduledStart();
-
-        // In solo auto-draft mode, give a short window to disable auto before final auto-submit.
-        scheduleAutoDraftSoloGraceWindow();
     }
 
     function startLocalRoundTimer() {
@@ -8893,6 +8970,27 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
     }
 
     let activeLiveAuctionUi = null;
+    let activeLiveAuctionBatch = null;
+    let lastHandledAuctionCompletionRound = null;
+
+    function handleLiveAuctionsCompleted(payload) {
+        const roundNumber = Number(payload && payload.roundNumber);
+        if (isDraftEnding || !Number.isFinite(roundNumber) || roundNumber !== currentRound
+            || roundNumber === lastHandledAuctionCompletionRound || !Array.isArray(payload.teams)) {
+            return;
+        }
+        lastHandledAuctionCompletionRound = roundNumber;
+        teams = payload.teams.map(team => ({
+            ...team,
+            roster: getUniqueRosterPlayers(team.roster || [])
+        }));
+        saveDraftStateForRankings();
+        if (activeLiveAuctionBatch) {
+            activeLiveAuctionBatch.complete();
+        } else {
+            finalizeRoundProgression(roundNumber);
+        }
+    }
 
     // Handle live auctions for tied bids
     function handleLiveAuction(tiedBids, onComplete) {
@@ -8918,23 +9016,21 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             return;
         }
 
-        let hasSeenAuctionStart = false;
         let batchCompleted = false;
+        let serverBatchCompleted = false;
         const completedPlayerIds = new Set();
         const presentationCompletePlayerIds = new Set();
         const tiedPlayerIds = new Set(tiedBids.map(t => Number.parseInt(t.playerId, 10)));
         const auctionResults = []; // Collect auction results
-        let allAuctionsCompleteListener = null;
         let winnerAnnouncementListener = null;
 
         const maybeFinishAuctionBatch = () => {
             if (batchCompleted) return;
-            if (completedPlayerIds.size < tiedPlayerIds.size) return;
-            if (presentationCompletePlayerIds.size < tiedPlayerIds.size) return;
-            if (batchCompleted) return;
+            if (!serverBatchCompleted || liveAuctionPresentationActive) return;
             batchCompleted = true;
             console.log('[handleLiveAuction] Finishing auction batch');
             window.currentAuctionCleanup();
+            activeLiveAuctionBatch = null;
             onComplete(auctionResults);
         };
 
@@ -9015,9 +9111,18 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         const globalAuctionListener = (data) => {
             console.log('[globalAuctionListener] Received auction start:', data);
             // Check if this auction is one of our tied bids
-            const matchingTie = tiedBids.find(t => t.playerId === data.playerId);
+            let matchingTie = tiedBids.find(t => String(t.playerId) === String(data.playerId));
+            if (!matchingTie && data.playerId && Array.isArray(data.tiedTeams)) {
+                matchingTie = {
+                    playerId: data.playerId,
+                    playerName: data.playerName,
+                    tiedTeams: data.tiedTeams,
+                    bidAmount: Number(data.startBid || 0)
+                };
+                tiedBids.push(matchingTie);
+                tiedPlayerIds.add(Number.parseInt(data.playerId, 10));
+            }
             if (matchingTie) {
-                hasSeenAuctionStart = true;
                 console.log('[globalAuctionListener] This is one of our tied bids, setting up UI');
                 startLiveAuction(matchingTie, data.auctionId, () => {
                     markAuctionPresentationComplete(matchingTie.playerId);
@@ -9042,8 +9147,35 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             if (winnerAnnouncementListener) {
                 window.draftSocket.off('liveAuctionWinnerAnnouncement', winnerAnnouncementListener);
             }
-            if (allAuctionsCompleteListener) {
-                window.draftSocket.off('allMembersAccepted', allAuctionsCompleteListener);
+        };
+
+        activeLiveAuctionBatch = {
+            recover(auctionState) {
+                let tied = tiedBids.find(item => String(item.playerId) === String(auctionState.playerId));
+                if (!tied) {
+                    tied = {
+                        playerId: auctionState.playerId,
+                        playerName: auctionState.playerName,
+                        position: auctionState.playerPosition,
+                        tiedTeams: Array.isArray(auctionState.tiedTeams) ? auctionState.tiedTeams.slice() : [],
+                        bidAmount: Number(auctionState.currentBid || auctionState.startBid || 0)
+                    };
+                    tiedBids.push(tied);
+                    tiedPlayerIds.add(Number.parseInt(tied.playerId, 10));
+                }
+                startLiveAuction(tied, auctionState.auctionId, () => markAuctionPresentationComplete(tied.playerId), auctionState);
+            },
+            complete() {
+                serverBatchCompleted = true;
+                if (activeLiveAuctionUi && !liveAuctionPresentationActive) {
+                    activeLiveAuctionUi.detach('auction_batch_completed');
+                    activeLiveAuctionUi = null;
+                    ['live-auction-modal', 'live-auction-backdrop'].forEach(id => {
+                        const element = document.getElementById(id);
+                        if (element) element.remove();
+                    });
+                }
+                maybeFinishAuctionBatch();
             }
         };
         
@@ -9056,23 +9188,11 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         };
         window.draftSocket.on('liveAuctionWinnerAnnouncement', winnerAnnouncementListener);
         
-        // Wait for all auctions to complete (server will emit allMembersAccepted when done)
-        allAuctionsCompleteListener = () => {
-            if (batchCompleted) return;
-            if (!hasSeenAuctionStart) {
-                console.log('[handleLiveAuction] Ignoring pre-auction allMembersAccepted event');
-                return;
-            }
-            console.log('[handleLiveAuction] All auctions complete, cleaning up');
-            maybeFinishAuctionBatch();
-        };
-        window.draftSocket.on('allMembersAccepted', allAuctionsCompleteListener);
-        
         console.log('[handleLiveAuction] Global listener set up, waiting for server to start auctions...');
     }
 
     // Start a single live auction for one tied player
-    function startLiveAuction(tied, auctionId, onPresentationComplete) {
+    function startLiveAuction(tied, auctionId, onPresentationComplete, recoveredState = null) {
         const theme = getLiveAuctionTheme();
         console.log('[startLiveAuction] Starting auction for:', tied, 'with auctionId:', auctionId);
         setLiveAuctionPresentationActive(false);
@@ -9087,9 +9207,11 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
             activeLiveAuctionUi = null;
         }
 
-        const player = players.find(p => p.id === tied.playerId);
+        const player = players.find(p => String(p.id) === String(tied.playerId))
+            || (window.syncedRoundPlayers || []).find(p => String(p.id) === String(tied.playerId))
+            || (tied.playerName ? { id: tied.playerId, name: tied.playerName, position: tied.position || 'UNK' } : null);
         if (!player) {
-            console.log('[startLiveAuction] Player not found:', tied.playerId);
+            console.error('[startLiveAuction] Player not found:', tied.playerId);
             return;
         }
         console.log('[startLiveAuction] Found player:', player);
@@ -9100,10 +9222,12 @@ const otherTeams = teams.filter(t => t.name !== username && isValidRosterAdditio
         const userInTie = tied.tiedTeams.some((teamName) => isCurrentUserTeamName(teamName));
         console.log('[startLiveAuction] userInTie:', userInTie);
         
-        let currentBid = tied.bidAmount;
-        let currentWinner = null;
-        let backedOut = false;
-        const backedOutTeams = [];
+        let currentBid = recoveredState ? Number(recoveredState.currentBid || tied.bidAmount) : tied.bidAmount;
+        let currentWinner = recoveredState && recoveredState.currentWinner || null;
+        const backedOutTeams = recoveredState && Array.isArray(recoveredState.backedOutTeams)
+            ? recoveredState.backedOutTeams.slice()
+            : [];
+        let backedOut = backedOutTeams.some(teamName => isCurrentUserTeamName(teamName));
         let bidUpdateHandler = null;
         let timerUpdateHandler = null;
         let completeHandler = null;
@@ -9871,6 +9995,7 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete, meta = {
         let acceptRequestInFlight = false;
         let acceptRequestAcked = false;
         let acceptRetryCount = 0;
+        let allResultsAccepted = false;
 
         const clearAcceptAckTimeout = () => {
             if (acceptAckTimeoutId) {
@@ -9945,10 +10070,12 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete, meta = {
         
         // Handler for all members accepted
         const allAcceptedHandler = () => {
+            if (allResultsAccepted) return;
             if (isDraftEnding) {
                 console.log('[silentdraft] Ignoring allMembersAccepted while draft ending');
                 return;
             }
+            allResultsAccepted = true;
             const shouldCompleteDraft = Number.parseInt(String(modalRoundNumber || 0), 10) >= totalRounds && !hasTiedResults;
             console.log('[silentdraft] All members accepted results, advancing round');
             const statusEl = document.getElementById('waiting-status');
@@ -9969,6 +10096,7 @@ function showRoundResultsModal(serverResults, roundPlayers, onComplete, meta = {
             acceptRetryCount = 0;
 
             window.draftSocket.off('memberAcceptedResults', memberAcceptedHandler);
+            window.draftSocket.off('allMembersAccepted', allAcceptedHandler);
             window.draftSocket.off('connect', handleRoundResultsReconnect);
             window.draftSocket.off('disconnect', handleRoundResultsDisconnect);
 

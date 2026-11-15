@@ -7,6 +7,7 @@ import {
   signInWithEmailAndPassword,
   syncSessionFromUser
 } from './firebase-auth.js';
+import { isStorageQuotaError, retryAfterStorageCleanup } from '/public/login-storage-recovery.js';
 
 const HUSH_CRITICAL_BACKUP_KEY = 'hushCriticalBackupV1';
 const HUSH_CRITICAL_KEYS = Object.freeze([
@@ -19,8 +20,7 @@ const HUSH_CRITICAL_KEYS = Object.freeze([
   'userRankings',
   'rankingsDraftState',
   'rankingsStarredPlayers',
-  'defaultRankingsStarred',
-  'completedDrafts'
+  'defaultRankingsStarred'
 ]);
 
 function readCriticalBackupStore() {
@@ -265,9 +265,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
       try{
         const auth = requireFirebaseAuth();
         const resolvedEmail = await resolveLoginEmail(identifier);
-        await setPersistence(auth, rememberPassword ? browserLocalPersistence : browserSessionPersistence);
-        const credential = await signInWithEmailAndPassword(auth, resolvedEmail, password);
-        const profile = syncSessionFromUser(credential.user);
+        const credential = await retryAfterStorageCleanup(async () => {
+          await setPersistence(auth, rememberPassword ? browserLocalPersistence : browserSessionPersistence);
+          return signInWithEmailAndPassword(auth, resolvedEmail, password);
+        });
+        const profile = await retryAfterStorageCleanup(() => syncSessionFromUser(credential.user));
 
         if (rememberPassword) {
           localStorage.setItem('rememberedEmail', identifier);
@@ -281,6 +283,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
         window.location.href = 'dashboard.html';
       }catch(err){
         console.error(err);
+        if (isStorageQuotaError(err)) {
+          alert('Browser storage is full. The app could not free enough space without removing saved data. Free some site storage, then try signing in again.');
+          return;
+        }
         try {
           await loginWithServerFallback(identifier, password);
 

@@ -55,24 +55,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function filterCompletedDrafts(targetUsername) {
-    try {
-      const raw = localStorage.getItem('completedDrafts');
-      const drafts = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(drafts)) return;
-      const filtered = drafts.filter((draft) => {
-        const teams = Array.isArray(draft && draft.teams) ? draft.teams : [];
-        return !teams.some((team) => String(team && team.name || '').trim() === targetUsername);
-      });
-      localStorage.setItem('completedDrafts', JSON.stringify(filtered));
-    } catch (_error) {
-      // ignore
-    }
-  }
-
-  function clearLocalAccountData(targetUsername) {
+  async function clearLocalAccountData(targetUsername) {
     removeUserFromPreferenceStore(targetUsername);
-    filterCompletedDrafts(targetUsername);
+    await window.HushDraftHistory.removeForUser(targetUsername);
 
     if (localStorage.getItem('rememberedUsername') === targetUsername) {
       localStorage.removeItem('rememberedUsername');
@@ -206,7 +191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           },
           localData: {
             preferences: localStorage.getItem('users'),
-            completedDrafts: localStorage.getItem('completedDrafts'),
+            completedDrafts: JSON.stringify(await window.HushDraftHistory.list()),
             rankings: localStorage.getItem('userRankings')
           }
         };
@@ -244,7 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       deleteStoredProfile(currentUser.uid);
       await currentUser.delete();
 
-      clearLocalAccountData(username);
+      await clearLocalAccountData(username);
       window.location.href = 'index.html';
     } catch (error) {
       console.error('[account] delete failed:', error);

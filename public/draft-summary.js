@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const DEFAULT_ROSTER_SETTINGS = { QB: 1, WR: 2, RB: 2, TE: 1, FLEX: 1, K: 1, DEF: 1, BN: 13 };
     const DEFAULT_BENCH_CUT_TARGET = 5;
     const MAX_DRAFT_BENCH = 13;
@@ -31,7 +31,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const username = sessionStorage.getItem('username') || 'Your Team';
     let selectedTeamName = null;
-    let draftSummary = loadSummary();
+    let draftSummary;
+    try {
+        draftSummary = await loadSummary();
+    } catch (error) {
+        console.error('[draft-summary] Could not load draft history:', error);
+        summaryMeta.textContent = 'Unable to load saved draft data. Please retry or check browser storage permissions.';
+        return;
+    }
     let waiverState = null;
     let waiverReadyPromptShown = false;
     let delayedCpuCutSyncTimer = null;
@@ -53,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let socket = window.draftSocket || null;
     if (!socket && window.io) {
-        socket = window.io({ reconnection: false });
+        socket = window.io({ reconnection: true });
         window.draftSocket = socket;
     }
 
@@ -342,6 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     name: player.name,
                     position: player.position,
                     bid: player.bid,
+                    acquisitionCost: player.acquisitionCost,
                     prerank: player.prerank,
                     avgValue: Number(player.avgValue || player.value || 0)
                 }))
@@ -684,6 +692,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 waiverStatus.textContent = `Waivers are enabled (${configuredMode.toUpperCase()}). Waiting for the host to start them.`;
                 waiverOrderList.innerHTML = '<div class="bench-empty">The host will start waivers when ready.</div>';
             }
+            if (Array.isArray(draftSummary.tradeWaiverPicks) && draftSummary.tradeWaiverPicks.length) {
+                waiverOrderList.innerHTML = draftSummary.tradeWaiverPicks.map(pick =>
+                    `<div class="waiver-order-item"><span class="waiver-order-rank">${Number(pick.id)}</span><span>${escapeHtml(pick.owner)}</span></div>`
+                ).join('');
+            }
 
             if (waiverAddPlayerSelect) waiverAddPlayerSelect.innerHTML = '<option value="">No players available</option>';
             if (waiverDropPlayerSelect) waiverDropPlayerSelect.innerHTML = '<option value="">No roster selected</option>';
@@ -735,7 +748,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (socket && draftSummary.draftCode) {
+        socket.on('connect', () => socket.emit('joinDraftRoom', draftSummary.draftCode, username));
         socket.emit('joinDraftRoom', draftSummary.draftCode, username);
+
+        if (window.HushTrades) {
+            let tradeRevision = -1;
+            window.HushTrades.create({
+                socket, code: draftSummary.draftCode, username, mode: 'summary',
+                mount: teamList.parentElement,
+                onState(state) {
+                    if (state.revision === tradeRevision) return;
+                    tradeRevision = state.revision;
+                    draftSummary.teams = state.teams.map(normalizeSummaryTeam);
+                    draftSummary.tradeWaiverPicks = state.waiverPicks;
+                    persistSummary();
+                    renderTeamButtons();
+                    renderTeamSelect();
+                    renderSelectedTeam();
+                }
+            });
+        }
 
         socket.on('benchUpdated', (data) => {
             const team = draftSummary.teams.find(t => t.name === data.teamName);
@@ -798,10 +830,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Always re-read waiver mode from server right before start to avoid stale local cache.
-            socket.emit('getDraftState', draftSummary.draftCode, (stateResp) => {
+            socket.emit('getDraftState', draftSummary.draftCode, async (stateResp) => {
                 if (stateResp && stateResp.ok && stateResp.draft) {
                     draftSummary.waiverMode = normalizeWaiverMode(stateResp.draft.waiverMode);
-                    persistSummary();
+                    if (!await persistSummary()) return;
                     renderWaiverSection();
                 }
 
@@ -814,13 +846,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                socket.emit('startWaivers', { draftCode: draftSummary.draftCode, mode }, (response) => {
+                socket.emit('startWaivers', { draftCode: draftSummary.draftCode, mode }, async (response) => {
                     if (!response || !response.ok) {
                         alert(`Unable to start waivers: ${(response && response.reason) || 'unknown_error'}`);
                         return;
                     }
                     waiverState = normalizeWaiverState(response.waiverState || null);
                     renderWaiverSection();
+                    if (!await persistSummary()) return;
                     window.location.href = 'waivers.html';
                 });
             });
@@ -893,67 +926,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function loadSummary() {
-        const currentDraft = sessionStorage.getItem('currentDraft');
-        const completedRaw = localStorage.getItem('completedDrafts');
-        const latestRaw = sessionStorage.getItem('latestDraftSummary');
-
-        const isCompletedDraft = (draft) => {
-            if (!draft || typeof draft !== 'object') return false;
-            return draft.completed === true;
-        };
-
-        if (completedRaw) {
-            try {
-                const completed = JSON.parse(completedRaw);
-                const completedOnly = Array.isArray(completed) ? completed.filter(isCompletedDraft) : [];
-                if (completedOnly.length > 0) {
-                    if (currentDraft) {
-                        const byCode = completedOnly.find(d => d.draftCode === currentDraft);
-                        if (byCode) return byCode;
-                    }
-
-                    // Fallback to newest completed draft by timestamp.
-                    const sorted = [...completedOnly].sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-                    if (sorted[0]) return sorted[0];
-                }
-            } catch (err) {
-                console.warn('[draft-summary] Invalid completedDrafts payload', err);
-            }
-        }
-
-        if (latestRaw) {
-            try {
-                const latest = JSON.parse(latestRaw);
-                return isCompletedDraft(latest) ? latest : null;
-            } catch (err) {
-                console.warn('[draft-summary] Invalid latestDraftSummary payload', err);
-            }
-        }
-
-        return null;
+    async function loadSummary() {
+        return window.HushDraftHistory.loadSummary();
     }
 
     function persistSummary() {
-        if (!draftSummary) return;
-
-        sessionStorage.setItem('latestDraftSummary', JSON.stringify(draftSummary));
-
-        const completedRaw = localStorage.getItem('completedDrafts');
-        if (!completedRaw) return;
-
-        try {
-            const completed = JSON.parse(completedRaw);
-            if (!Array.isArray(completed)) return;
-
-            const idx = completed.findIndex(d => d.draftCode === draftSummary.draftCode);
-            if (idx >= 0) {
-                completed[idx] = draftSummary;
-                localStorage.setItem('completedDrafts', JSON.stringify(completed));
-            }
-        } catch (err) {
-            console.warn('[draft-summary] Failed to persist completed summary', err);
-        }
+        if (!draftSummary) return Promise.resolve(false);
+        return window.HushDraftHistory.save(draftSummary).then(() => true).catch(error => {
+            console.error('[draft-summary] Failed to save draft changes:', error);
+            summaryMeta.textContent = 'Draft changes could not be saved. Please check browser storage and retry.';
+            return false;
+        });
     }
 
     function updateSummaryMeta() {
@@ -1095,7 +1078,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${bench.map(player => `
                     <div class="bench-item">
                         <span class="bench-pos">${escapeHtml(player.position || 'N/A')}</span>
-                        <span class="bench-player">${escapeHtml(player.name || 'Unknown')} - $${Number(player.bid || 0)}</span>
+                        <span class="bench-player">${escapeHtml(player.name || 'Unknown')} - $${Number(player.acquisitionCost ?? player.bid ?? 0)}</span>
                         <span class="bench-rank">Rank ${Number(player.prerank || 999)}</span>
                     </div>
                 `).join('')}
@@ -1122,7 +1105,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <label class="bench-item bench-item-cut">
                     <span class="bench-main">
                         <span class="bench-pos">${escapeHtml(slotLabel || player.position || 'N/A')}</span>
-                        <span class="bench-player">${escapeHtml(player.name || 'Unknown')} - $${Number(player.bid || 0)}</span>
+                        <span class="bench-player">${escapeHtml(player.name || 'Unknown')} - $${Number(player.acquisitionCost ?? player.bid ?? 0)}</span>
                         <span class="bench-rank">Rank ${Number(player.prerank || 999)}</span>
                         ${warningText}
                     </span>
@@ -1363,7 +1346,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return `
             <div class="lineup-row">
                 <span class="lineup-pos">${label}</span>
-                <span class="lineup-player">${escapeHtml(player.name || 'Unknown')} - $${Number(player.bid || 0)}</span>
+                <span class="lineup-player">${escapeHtml(player.name || 'Unknown')} - $${Number(player.acquisitionCost ?? player.bid ?? 0)}</span>
             </div>
         `;
     }

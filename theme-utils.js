@@ -21,8 +21,7 @@ const HUSH_CRITICAL_KEYS = Object.freeze([
     'userRankings',
     'rankingsDraftState',
     'rankingsStarredPlayers',
-    'defaultRankingsStarred',
-    'completedDrafts'
+    'defaultRankingsStarred'
 ]);
 
 function readCriticalBackupStore() {

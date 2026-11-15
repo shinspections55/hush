@@ -3,19 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#111d20">
+  <meta name="theme-color" content="#0F2F44">
   <meta name="description" content="Build a 32-pick first-round mock draft and see how your predictions score.">
   <title>Hush Mock Draft Challenge</title>
-  <link rel="stylesheet" href="mock-draft-contest-intro.css">
+  <link rel="icon" type="image/png" href="icon-192x192.png">
+  <link rel="stylesheet" href="mock-draft-contest-intro.css?v=20261113-hush-theme">
   <link rel="stylesheet" href="ad-placements.css">
   <script src="ad-placements.js" defer></script>
   <script src="theme-utils.js?v=20260821-c9c656a0"></script>
 </head>
 <body class="mock-intro-page">
   <header class="intro-nav">
-    <a class="intro-back" href="dashboard.html">&larr; Dashboard</a>
-    <a class="intro-brand" href="dashboard.html" aria-label="Hush home">HUSH <span>FOOTBALL</span></a>
-    <a class="intro-nav-cta" href="mock-draft-contest.html">Build your mock <span aria-hidden="true">&rarr;</span></a>
+    <a class="intro-brand" href="dashboard.html" aria-label="Hush dashboard"><img src="HUSHLOGO.png" alt=""><span>HUSH <small>FANTASY DRAFTS</small></span></a>
+    <nav aria-label="Main navigation">
+      <a class="intro-back" href="dashboard.html">&larr; Dashboard</a>
+      <a class="intro-nav-cta" href="mock-draft-contest.html">Build your mock <span aria-hidden="true">&rarr;</span></a>
+    </nav>
   </header>
 
   <main>
@@ -23,17 +26,21 @@
       <img class="intro-hero-image" src="assets/mock-draft-stadium.jpg" alt="A football resting on a marked field" fetchpriority="high">
       <div class="intro-hero-shade" aria-hidden="true"></div>
       <div class="intro-hero-content">
-        <p class="intro-kicker"><span></span> HUSH MOCK DRAFT CHALLENGE · FIRST ROUND</p>
+        <p class="intro-kicker">NFL MOCK DRAFT CHALLENGE</p>
         <h1 id="introTitle">Call the picks.<br><em>Own the board.</em></h1>
         <p class="intro-lede">32 selections. Your read on the class. Build a first-round mock, then follow every prediction as the points come in.</p>
         <div class="intro-hero-actions">
           <a class="intro-primary-cta" href="mock-draft-contest.html">Build your 32-pick mock <span aria-hidden="true">&rarr;</span></a>
           <a class="intro-text-link" href="#scoring">See the scoring rules <span aria-hidden="true">&darr;</span></a>
         </div>
-        <p class="intro-note">Score previews and standings appear when official results are published.</p>
+        <p class="intro-note">Submit under your account username. Update your mock until <time data-mock-deadline datetime="2027-04-29T23:30:00.000Z">April 29, 2027 at 7:30 PM Eastern</time>, 30 minutes before the scheduled start, unless submissions close earlier. No prize contest is offered. <a href="mock-draft-scoreboard.html">Live scoreboard</a></p>
       </div>
-      <div class="intro-hero-index" aria-hidden="true"><span>01</span><i></i><span>32</span></div>
-      <a class="intro-scroll-cue" href="#scoring"><span>THE POINT SYSTEM</span><b aria-hidden="true">&#8595;</b></a>
+      <aside class="intro-board-preview" aria-label="Challenge overview">
+        <p class="intro-kicker">YOUR DRAFT. YOUR CALL.</p>
+        <h2>One round.<br>Every decision matters.</h2>
+        <dl class="intro-stats"><div><dt>Selections</dt><dd>32</dd></div><div><dt>For an exact pick</dt><dd>+15</dd></div><div><dt>Top trade score</dt><dd>+30</dd></div></dl>
+        <ol class="intro-steps"><li>Build your first-round board.</li><li>Predict the picks and trade moves.</li><li>Review your score when results arrive.</li></ol>
+      </aside>
     </section>
 
     <aside class="hush-ad-placement" data-ad-placement="mock-intro-between" aria-label="Advertisement" hidden></aside>
@@ -67,11 +74,12 @@
       </div>
 
       <div class="intro-bottom-line">
-        <p>Pick all 32. Review your scorecard. Prize contests have not launched; creating a practice mock is not a prize entry. <a href="contest-rules.html">Practice rules and responsible play</a>.</p>
+        <p>Pick all 32, submit your mock, and follow your score against the experts as real results are confirmed. Prize contests have not launched; submitting a mock is not a prize entry. <a href="contest-rules.html">Rules and responsible play</a>.</p>
         <a class="intro-primary-cta" href="mock-draft-contest.html">Enter the mock draft <span aria-hidden="true">&rarr;</span></a>
       </div>
     </section>
   </main>
   <footer class="intro-footer"><a href="about.html">About Hush</a><a href="contest-rules.html">Practice rules</a><a href="mock-draft-contest.html">Open draft board &rarr;</a></footer>
+  <script src="mock-draft-contest-policy.js?v=20261115-real-contest"></script>
 </body>
 </html>

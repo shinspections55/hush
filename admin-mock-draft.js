@@ -27,6 +27,9 @@
   const rosterCount = document.getElementById('mockRosterCount');
   const prospectForm = document.getElementById('mockProspectForm');
   const searchInput = document.getElementById('mockProspectSearch');
+  document.getElementById('mockWorkspaceNotice').textContent = '2027 contest and prospect manager. The main website uses the main 2027 NFL Mock Draft contest and its REAL NFL results. Add named experts here; contestants submit on the website under their signed-in usernames.';
+  document.getElementById('officialAnswerKeyEditor').append(
+    document.getElementById('resultsAnswerKeyToolbar'), document.getElementById('resultsAnswerKeyWorkspace'));
 
   let adminKey = '';
   let boards = Object.fromEntries(POSITIONS.map(position => [position, []]));
@@ -42,6 +45,7 @@
   let dirtyBoards = new Set();
   let overallDirty = false;
   let teamOrderDirty = false;
+  let teamNeedsDirty = false;
 
   function setStatus(message, state = '') {
     statusOutput.textContent = message;
@@ -123,20 +127,19 @@
     ]));
     overallOrder = Array.isArray(payload.overallOrder) ? payload.overallOrder.map(String) : [];
     teamOrder = Array.isArray(payload.teamOrder) ? payload.teamOrder.map(String) : NFL_TEAMS.map(([code]) => code);
-    try {
-      const response = await fetch(`/college%20prospects%202027/team-needs-2027.json?v=${Date.now()}`, { cache: 'no-store' });
-      if (response.ok) teamNeeds = await response.json();
-    } catch (_error) {
-      teamNeeds = {};
-    }
+    const needsPayload = await requestJson('/api/admin/mock-draft/team-needs', { headers: headers() });
+    teamNeeds = needsPayload.teamNeeds;
     dirtyBoards.clear();
     overallDirty = false;
     teamOrderDirty = false;
+    teamNeedsDirty = false;
     selectedIndex = boards[activePosition].length ? 0 : -1;
     reconcileOverallOrder();
     renderActiveView();
+    const requestedView = location.hash.slice(1);
+    if (['teams', 'needs', 'overall', 'position', 'scoring'].includes(requestedView)) setActiveView(requestedView);
     setStatus(`Loaded ${POSITIONS.reduce((count, position) => count + boards[position].length, 0)} position-board entries`);
-    document.dispatchEvent(new CustomEvent('mock-admin-boards-loaded', { detail: { boards, teamOrder } }));
+    document.dispatchEvent(new CustomEvent('mock-admin-boards-loaded', { detail: { boards, teamOrder, overallOrder } }));
   }
 
   function slug(value) {
@@ -206,8 +209,9 @@
     document.getElementById('positionEditorView').hidden = view !== 'position';
     document.getElementById('overallEditorView').hidden = view !== 'overall';
     document.getElementById('teamOrderEditorView').hidden = view !== 'teams';
+    document.getElementById('teamNeedsEditorView').hidden = view !== 'needs';
     document.getElementById('scoringEditorView').hidden = view !== 'scoring';
-    titleOutput.textContent = view === 'position' ? POSITION_LABELS[position] : view === 'overall' ? 'Overall Prospect Ranking' : view === 'scoring' ? 'Actual Results & Scoring' : 'Default Team Draft Order';
+    titleOutput.textContent = view === 'position' ? POSITION_LABELS[position] : view === 'overall' ? 'Overall Prospect Ranking' : view === 'scoring' ? 'Actual Results & Scoring' : view === 'needs' ? 'Team Needs' : 'Default Pick Owners';
     renderActiveView();
   }
 
@@ -409,9 +413,22 @@
       const codeLabel = document.createElement('span');
       codeLabel.className = 'mock-team-order-code';
       codeLabel.textContent = code;
-      const cityLabel = document.createElement('span');
+      const cityLabel = document.createElement('select');
       cityLabel.className = 'mock-team-order-city';
-      cityLabel.textContent = (NFL_TEAMS.find(([teamCode]) => teamCode === code) || [code, code])[1];
+      cityLabel.setAttribute('aria-label', `Pick ${index + 1} owner`);
+      NFL_TEAMS.forEach(([teamCode, city]) => {
+        const option = document.createElement('option');
+        option.value = teamCode;
+        option.textContent = `${teamCode} - ${city}`;
+        cityLabel.append(option);
+      });
+      cityLabel.value = code;
+      cityLabel.addEventListener('change', () => {
+        teamOrder[index] = cityLabel.value;
+        teamOrderDirty = true;
+        renderTeamOrder();
+        updateDirtyButtons();
+      });
       const teamCopy = document.createElement('span');
       teamCopy.className = 'mock-team-order-copy';
       teamCopy.append(cityLabel);
@@ -432,6 +449,29 @@
     target.replaceChildren(fragment);
   }
 
+  function renderTeamNeeds() {
+    const fragment = document.createDocumentFragment();
+    NFL_TEAMS.forEach(([code, city]) => {
+      const label = document.createElement('label');
+      label.className = 'mock-team-needs-field';
+      const title = document.createElement('span');
+      title.textContent = `${code} - ${teamNeeds[code].name || city}`;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.maxLength = 218;
+      input.value = teamNeeds[code].needs.join(', ');
+      input.placeholder = 'QB, OT, EDGE';
+      input.addEventListener('input', () => {
+        teamNeeds[code].needs = input.value.split(',').map(value => value.trim()).filter(Boolean);
+        teamNeedsDirty = true;
+        updateDirtyButtons();
+      });
+      label.append(title, input);
+      fragment.append(label);
+    });
+    document.getElementById('mockTeamNeedsRoster').replaceChildren(fragment);
+  }
+
   function renderActiveView() {
     if (activeView === 'position') {
       renderPositionRoster();
@@ -440,6 +480,8 @@
       renderOverallRoster();
     } else if (activeView === 'teams') {
       renderTeamOrder();
+    } else if (activeView === 'needs') {
+      renderTeamNeeds();
     }
     updateDirtyButtons();
   }
@@ -448,6 +490,7 @@
     document.getElementById('mockSaveBoardBtn').disabled = !dirtyBoards.has(activePosition);
     document.getElementById('mockSaveOverallBtn').disabled = !overallDirty;
     document.getElementById('mockSaveTeamOrderBtn').disabled = !teamOrderDirty;
+    document.getElementById('mockSaveTeamNeedsBtn').disabled = !teamNeedsDirty;
   }
 
   async function savePositionBoard() {
@@ -485,6 +528,25 @@
     setStatus('Default team draft order saved');
   }
 
+  async function saveTeamNeeds() {
+    setStatus('Saving team needs...', 'saving');
+    const needs = Object.fromEntries(NFL_TEAMS.map(([code]) => [code, teamNeeds[code].needs.slice()]));
+    const payload = await requestJson('/api/admin/mock-draft/team-needs/save', {
+      method: 'POST', headers: headers(), body: JSON.stringify({ needs })
+    });
+    if (JSON.stringify(needs) === JSON.stringify(Object.fromEntries(NFL_TEAMS.map(([code]) => [code, teamNeeds[code].needs])))) {
+      teamNeeds = payload.teamNeeds;
+      teamNeedsDirty = false;
+      if (activeView === 'teams') {
+        renderTeamOrder();
+      } else if (activeView === 'needs') {
+        renderTeamNeeds();
+      }
+    }
+    updateDirtyButtons();
+    setStatus(teamNeedsDirty ? 'Team needs saved; newer edits still need saving.' : 'Team needs saved');
+  }
+
   connectForm.addEventListener('submit', async event => {
     event.preventDefault();
     connectStatus.textContent = 'Checking admin access...';
@@ -510,7 +572,7 @@
 
   searchInput.addEventListener('input', renderPositionRoster);
   document.getElementById('mockReloadBoardBtn').addEventListener('click', async () => {
-    if ((dirtyBoards.size || overallDirty || teamOrderDirty) && !window.confirm('Reload from saved files and discard all unsaved edits?')) return;
+    if ((dirtyBoards.size || overallDirty || teamOrderDirty || teamNeedsDirty) && !window.confirm('Reload from saved files and discard all unsaved edits?')) return;
     try { await loadAllBoards(); } catch (error) { setStatus(error.message, 'error'); }
   });
   document.getElementById('mockSaveBoardBtn').addEventListener('click', async () => {
@@ -521,6 +583,9 @@
   });
   document.getElementById('mockSaveTeamOrderBtn').addEventListener('click', async () => {
     try { await saveDefaultTeamOrder(); } catch (error) { setStatus(error.message, 'error'); }
+  });
+  document.getElementById('mockSaveTeamNeedsBtn').addEventListener('click', async () => {
+    try { await saveTeamNeeds(); } catch (error) { setStatus(error.message, 'error'); }
   });
 
   prospectForm.addEventListener('input', event => {

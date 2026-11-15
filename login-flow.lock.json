@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-13T01:46:31.555Z",
+  "generatedAt": "2026-11-13T20:44:00.299Z",
   "files": {
-    "scripts.js": "374cb8b6c288e50593a5cee5a55f4db06802c5a3d11508d1894886f94eb70655",
+    "scripts.js": "31cdc475f4cd57aa6ea39cb333ff39d19bbbd83ac4da82bb1ed1bb87f41dc385",
     "dashboard.js": "1db3f323f3c0287936f9eaf7fe1b81efe6f42dd8ee45bf995e0e7bad76b4ee99",
-    "public/scripts.js": "c1b9418c8f1aa1de42d2fad820004e3658aec4dfcc372ec32f161bf90fc941d9",
+    "public/scripts.js": "dac5ee97ea0b73d165a8f2a41e683b2dfe0c4995768e4d4258350430fae0c761",
     "public/dashboard.js": "cea09cbeb8c806da74958c90cc73cb5578d5fbb3a47a1113554b9ca9c49f66a0",
     "HushV4.0/scripts.js": "374cb8b6c288e50593a5cee5a55f4db06802c5a3d11508d1894886f94eb70655",
     "HushV4.0/dashboard.js": "1db3f323f3c0287936f9eaf7fe1b81efe6f42dd8ee45bf995e0e7bad76b4ee99"

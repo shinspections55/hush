@@ -6,22 +6,21 @@
   <meta name="theme-color" content="#0F2F44">
   <meta name="description" content="Hush Mock Draft Contest">
   <title>Mock Draft Contest</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="mock-draft-contest.css?v=20261105-readable-prospect-names">
+  <link rel="stylesheet" href="styles.css?v=20261113-dashboard-header">
+  <link rel="stylesheet" href="mock-draft-contest.css?v=20261114-prospect-pool">
   <script src="theme-utils.js?v=20260821-c9c656a0"></script>
+  <script src="firebase-config.js"></script>
 </head>
 <body class="bg-overlay dashboard-page mock-contest-page">
-  <header class="dashboard-header hush-silver-bg">
+  <header class="dashboard-header hush-silver-bg dashboard-contest-header">
     <div class="dashboard-header-left">
-      <a href="dashboard.html" class="account-btn hush-header-contrast">&larr; Dashboard</a>
-    </div>
-    <div class="dashboard-header-center">
-      <div class="mock-contest-brand">
-        <span class="mock-contest-kicker">HUSH EXPERT CHALLENGE</span>
-        <span class="dashboard-header-title hush-header-contrast">Mock Draft Contest</span>
-      </div>
+      <a href="dashboard.html" class="dashboard-home-link" aria-label="Hush dashboard">
+        <img src="HUSHLOGO.png" alt="" class="dashboard-header-logo">
+        <span class="dashboard-contest-brand">HUSH <small>FANTASY DRAFTS</small></span>
+      </a>
     </div>
     <div class="dashboard-header-right">
+      <a href="dashboard.html" class="mock-header-back">&larr; Dashboard</a>
       <span id="mockSaveStatus" class="mock-save-status" role="status" aria-live="polite">Saved locally</span>
     </div>
   </header>
@@ -38,9 +37,12 @@
         </label>
         <input id="prospectFileInput" class="mock-file-input" type="file" accept=".json,application/json">
         <button id="downloadMockBtn" class="mock-tool-btn" type="button" title="Download your mock draft as JSON" aria-label="Download mock draft">&#8595;</button>
-        <a id="reviewMockBtn" class="mock-import-btn" href="mock-draft-summary.html" title="Review your mock draft summary">Review mock</a>
+        <a id="reviewMockBtn" class="mock-import-btn" href="mock-draft-summary.html" title="Submit your mock and see your results">Submit Mock &amp; See Results</a>
+        <a id="viewSubmittedMockBtn" class="mock-import-btn" href="mock-draft-summary.html?submitted=1">My submitted mock</a>
+        <a class="mock-import-btn mock-scoreboard-link" href="mock-draft-scoreboard.html">Live scoreboard</a>
         <button id="clearMockBtn" class="mock-tool-btn mock-tool-btn-danger" type="button" title="Clear all picks" aria-label="Clear all picks">&#8634;</button>
       </div>
+      <p id="publicSubmissionStatus" role="status" aria-live="polite"></p>
     </div>
 
     <section class="mock-draft-workspace" aria-label="Mock draft builder">
@@ -96,6 +98,7 @@
   </dialog>
 
   <script src="preferences.js"></script>
-  <script src="mock-draft-contest.js"></script>
+  <script src="mock-draft-contest-policy.js?v=20261115-real-contest"></script>
+  <script src="mock-draft-contest.js?v=20261115-real-contest"></script>
 </body>
 </html>

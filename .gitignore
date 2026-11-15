@@ -8,7 +8,10 @@ __pycache__/
 
 # Local data and secrets
 auth-users.json
+**/admin-key.txt
 auction_data.db
+auction_data.db-*
+*.sqlite-backup
 .hush-data/
 data/**/*.json
 !data/hush-gifs.json
@@ -28,6 +31,7 @@ data/**/*.json
 *.log
 bench_result.txt
 output.json
+/tools/sim_output*.json
 
 # OS/editor files
 .DS_Store

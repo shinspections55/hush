@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const summaryMeta = document.getElementById('summaryMeta');
   const draftList = document.getElementById('draftList');
   const teamHeader = document.getElementById('teamHeader');
@@ -10,8 +10,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const MAX_TOTAL_PLAYERS = 14;
   const MAX_BENCH_PLAYERS = 5;
 
-  const completedDraftsRaw = localStorage.getItem('completedDrafts');
-  const parsedDrafts = completedDraftsRaw ? JSON.parse(completedDraftsRaw) : [];
+  let parsedDrafts;
+  try {
+    parsedDrafts = await window.HushDraftHistory.list();
+  } catch (error) {
+    console.error('[recent-drafts] Could not load history:', error);
+    summaryMeta.textContent = 'Unable to load draft history. Check browser storage permissions and retry.';
+    return;
+  }
   const isCompletedDraft = (draft) => {
     if (!draft || typeof draft !== 'object') return false;
     return draft.completed === true;

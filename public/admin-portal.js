@@ -549,7 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return Number.isNaN(date.getTime()) ? 'Unknown' : date.toLocaleString();
   }
 
-  function updateDatabaseProgressCard() {
+  async function updateDatabaseProgressCard() {
     if (!metricDatabaseProgress || !metricDatabaseProgressDetail) return;
 
     let completedDraftCount = 0;
@@ -558,11 +558,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let generatedAt = 0;
 
     try {
-      const completedDraftsRaw = localStorage.getItem('completedDrafts');
-      const completedDrafts = completedDraftsRaw ? JSON.parse(completedDraftsRaw) : [];
+      const completedDrafts = await window.HushDraftHistory.list();
       completedDraftCount = Array.isArray(completedDrafts) ? completedDrafts.length : 0;
-    } catch (_error) {
-      completedDraftCount = 0;
+    } catch (error) {
+      console.error('[admin] Could not load completed draft count:', error);
+      metricDatabaseProgressDetail.textContent = 'Unable to load browser draft history.';
+      return;
     }
 
     try {

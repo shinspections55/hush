@@ -1,7 +1,9 @@
 'use strict';
 
 const ADMIN_BUILDER_MODE = new URLSearchParams(location.search).get('adminBuilder') === '1';
+let adminContextReady = !ADMIN_BUILDER_MODE;
 const MOCK_STORAGE_KEY = ADMIN_BUILDER_MODE ? 'hushAdminMockDraftBuilderV1' : 'hushMockDraftContestV1';
+let draftStorageKey = MOCK_STORAGE_KEY;
 const PROSPECTS_STORAGE_KEY = 'hushMockDraftProspectsV1';
 const POSITION_PROSPECT_FILES = {
   QB: '/college%20prospects%202027/QB/qb-prospects-2027.json?v=prospect-assets-2027',
@@ -107,12 +109,13 @@ function setSaveStatus(text, state = '') {
 }
 
 function saveMock() {
+  if (!adminContextReady && window.parent !== window) return;
   if (ADMIN_BUILDER_MODE && window.parent !== window) window.parent.postMessage({ type: 'hush-mock-builder-changed' }, location.origin);
   setSaveStatus('Saving...', 'saving');
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => {
     try {
-      localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify({ version: 1, picks }));
+      localStorage.setItem(draftStorageKey, JSON.stringify({ version: 1, picks }));
       setSaveStatus('Saved locally');
     } catch (_error) {
       setSaveStatus('Save unavailable', 'error');
@@ -122,7 +125,7 @@ function saveMock() {
 
 function restoreMock() {
   try {
-    const saved = JSON.parse(localStorage.getItem(MOCK_STORAGE_KEY) || 'null');
+    const saved = JSON.parse(localStorage.getItem(draftStorageKey) || 'null');
     if (!saved || !Array.isArray(saved.picks)) return;
     picks = Array.from({ length: 32 }, (_, index) => {
       const pick = saved.picks[index] || {};
@@ -134,7 +137,7 @@ function restoreMock() {
       };
     });
   } catch (_error) {
-    localStorage.removeItem(MOCK_STORAGE_KEY);
+    localStorage.removeItem(draftStorageKey);
   }
 }
 
@@ -442,11 +445,16 @@ function renderProspects() {
   const draftedIds = getDraftedIds();
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const sourceProspects = getProspectsForActiveFilter();
-  const filtered = sourceProspects.filter(prospect =>
+  const availableProspects = ADMIN_BUILDER_MODE
+    ? sourceProspects.filter(prospect => !draftedIds.has(prospect.id))
+    : sourceProspects;
+  const filtered = availableProspects.filter(prospect =>
     !normalizedQuery || `${prospect.name} ${prospect.school} ${prospect.position} ${prospect.subPosition}`.toLowerCase().includes(normalizedQuery)
   );
 
-  prospectCount.textContent = `${sourceProspects.length} PLAYERS`;
+  prospectCount.textContent = ADMIN_BUILDER_MODE
+    ? `${availableProspects.length} AVAILABLE`
+    : `${sourceProspects.length} PLAYERS`;
   if (!prospects.length) {
     prospectPool.replaceChildren();
     const empty = document.createElement('div');
@@ -462,8 +470,13 @@ function renderProspects() {
   }
 
   if (!filtered.length) {
-    prospectPool.innerHTML = '<div class="mock-pool-empty">No prospects match this filter.</div>';
-    prospectPoolStatus.textContent = '0 matching prospects';
+    const empty = document.createElement('div');
+    empty.className = 'mock-pool-empty';
+    empty.textContent = ADMIN_BUILDER_MODE && !normalizedQuery && !availableProspects.length
+      ? 'No available prospects in this position filter. Clear a pick to return its player to the pool.'
+      : 'No prospects match this filter.';
+    prospectPool.replaceChildren(empty);
+    prospectPoolStatus.textContent = `0 matching prospects · ${draftedIds.size} selected`;
     return;
   }
 
@@ -573,7 +586,7 @@ async function loadDefaultProspects() {
     const validIds = new Set(prospects.map(prospect => prospect.id));
     let removedStaleSelection = false;
     picks.forEach(pick => {
-      if (pick.playerId && !validIds.has(pick.playerId)) {
+      if (!ADMIN_BUILDER_MODE && pick.playerId && !validIds.has(pick.playerId)) {
         pick.playerId = '';
         removedStaleSelection = true;
       }
@@ -621,11 +634,14 @@ async function loadDefaultTeamOrder() {
     });
     const teamCodes = new Set(NFL_TEAMS.map(([code]) => code));
     const order = Array.isArray(payload && payload.order) ? payload.order : [];
-    if (order.length === NFL_TEAMS.length && new Set(order).size === NFL_TEAMS.length && order.every(code => teamCodes.has(code))) {
-      defaultTeamOrder = order;
+    if (order.length !== NFL_TEAMS.length || !order.every(code => teamCodes.has(code))) {
+      throw new Error('Default pick owners must contain 32 valid NFL team codes');
     }
-  } catch (_error) {
+    defaultTeamOrder = order;
+  } catch (error) {
+    console.error('[mock-draft] Unable to load default pick owners:', error);
     defaultTeamOrder = NFL_TEAMS.map(([code]) => code);
+    prospectPoolStatus.textContent = 'Default pick owners unavailable. Verify team selections before using this mock.';
   }
   applyDefaultTeamOrder();
   renderPicks();
@@ -723,10 +739,36 @@ function encodeShareMock(value) {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-document.getElementById('reviewMockBtn').addEventListener('click', event => {
+async function publicContestRequest(url, body) {
+  const { contestRequest } = await import('./mock-draft-account.js?v=20261115-real-contest');
+  return contestRequest(url, body);
+}
+
+document.getElementById('reviewMockBtn').addEventListener('click', async event => {
   event.preventDefault();
-  const token = encodeShareMock(exportMockDraft());
-  location.href = `mock-draft-summary.html?mock=${token}`;
+  if (ADMIN_BUILDER_MODE) {
+    if (window.parent === window) {
+      location.href = 'admin-mock-draft.html#scoring';
+      return;
+    }
+    window.parent.postMessage({ type: 'hush-mock-review' }, location.origin);
+    return;
+  }
+  if (publicSubmitting) return;
+  try {
+    if (!publicEntryReady) throw new Error('Wait for your account entry to load, or sign in and reload. Your local picks are unchanged.');
+    if (!window.confirm(`Submit these 32 predictions under your signed-in username? You can update your 2027 submission until ${HushMockDeadline.formatDeadline()}, unless submissions close earlier.`)) return;
+    publicSubmitting = true;
+    document.getElementById('reviewMockBtn').setAttribute('aria-disabled', 'true');
+    await publicContestRequest('/api/mock-draft/entry', { year: 2027, picks: exportMockDraft().picks });
+    location.href = 'mock-draft-summary.html?submitted=1';
+  } catch (error) {
+    setSaveStatus(error.message || 'Sign in to review your mock. Your picks remain saved in this browser.', 'error');
+    document.getElementById('publicSubmissionStatus').textContent = error.message;
+  } finally {
+    publicSubmitting = false;
+    document.getElementById('reviewMockBtn').removeAttribute('aria-disabled');
+  }
 });
 
 document.getElementById('downloadMockBtn').addEventListener('click', () => {
@@ -743,9 +785,58 @@ document.getElementById('downloadMockBtn').addEventListener('click', () => {
 restoreMock();
 render();
 if (ADMIN_BUILDER_MODE) document.body.classList.add('mock-admin-embedded');
+if (ADMIN_BUILDER_MODE) {
+  const review = document.getElementById('reviewMockBtn');
+  review.textContent = window.parent === window ? 'Open Admin Editor' : 'Submit / View Results';
+  review.title = 'Submit or view results through the Admin Editor';
+}
 let builderLocked = false;
 let loadingEntry = false;
 let adminDefaultContext = null;
+let publicEntryReady = false;
+let publicSubmitting = false;
+async function loadPublicEntry() {
+  const status = document.getElementById('publicSubmissionStatus');
+  try {
+    const payload = await publicContestRequest('/api/mock-draft/entry?year=2027');
+    const { requireCurrentUser } = await import('./firebase-auth.js');
+    const user = await requireCurrentUser();
+    window.clearTimeout(saveTimer);
+    draftStorageKey = `hushMockDraftContestV1:2027:${user.uid}`;
+    const local = localStorage.getItem(draftStorageKey);
+    const localDraftLoaded = Boolean(local && payload.submissionPolicy.open);
+    if (localDraftLoaded) {
+      restoreMock();
+    } else if (payload.entry) {
+      picks = payload.entry.picks.map(pick => ({ ...pick }));
+    } else {
+      const previous = picks;
+      picks = Array.from({ length: 32 }, (_, index) => ({ playerId: '', team: defaultTeamOrder[index], tradeTo: '' }));
+      if (previous.some(pick => pick.playerId) && window.confirm('Load the previous browser draft into your account board? It has not been submitted.')) picks = previous;
+    }
+    builderLocked = !payload.submissionPolicy.open;
+    document.body.classList.toggle('mock-builder-locked', builderLocked);
+    document.getElementById('reviewMockBtn').textContent = payload.entry ? 'Update Mock & See Results' : 'Submit Mock & See Results';
+    document.getElementById('reviewMockBtn').hidden = builderLocked;
+    status.textContent = `${payload.username} - ${payload.entry ? 'Server submission saved.' : 'Not submitted yet.'} ${localDraftLoaded ? 'Showing this browser draft; submit any changes to update your server entry. ' : ''}${builderLocked
+      ? 'Submissions are locked. Open My submitted mock for results.'
+      : `Editable until ${HushMockDeadline.formatDeadline(payload.submissionPolicy.deadline)} (or earlier admin closure). Local changes must be submitted to count.`}`;
+    publicEntryReady = true;
+    if (payload.submissionPolicy.open && payload.submissionPolicy.deadline) {
+      const delay = Date.parse(payload.submissionPolicy.deadline) - Date.now();
+      if (delay > 0 && delay < 2147483647) window.setTimeout(() => {
+        builderLocked = true;
+        document.body.classList.add('mock-builder-locked');
+        document.getElementById('reviewMockBtn').hidden = true;
+        status.textContent = `Submissions locked at ${HushMockDeadline.formatDeadline(payload.submissionPolicy.deadline)}. View your submitted mock or live scoreboard.`;
+      }, delay);
+    }
+    render();
+  } catch (error) {
+    status.textContent = `Your mock was not loaded from the server: ${error.message} Sign in from the dashboard, then reload.`;
+    setSaveStatus('Sign in to submit; browser picks are not a contest entry', 'error');
+  }
+}
 window.addEventListener('message', event => {
   if (!ADMIN_BUILDER_MODE || event.origin !== location.origin || event.source !== window.parent) return;
   const message = event.data;
@@ -754,6 +845,11 @@ window.addEventListener('message', event => {
     window.parent.postMessage({ type: 'hush-mock-exported', requestId: message.requestId, mock: exportMockDraft() }, location.origin);
   }
   if (message.type === 'hush-mock-load' && Array.isArray(message.picks)) {
+    window.clearTimeout(saveTimer);
+    if (typeof message.storageKey === 'string' && message.storageKey.startsWith('hushAdminMockDraftBuilderV1:')) {
+      draftStorageKey = message.storageKey;
+    }
+    adminContextReady = true;
     loadingEntry = true;
     if (Object.prototype.hasOwnProperty.call(message, 'catalog') && adminDefaultContext) {
       if (Array.isArray(message.catalog)) {
@@ -780,9 +876,9 @@ window.addEventListener('message', event => {
     loadingEntry = false;
   }
 });
-if (ADMIN_BUILDER_MODE) {
+{
   document.addEventListener('click', event => {
-    if (builderLocked && !event.target.closest('.mock-profile-button, #prospectProfileDialog, .mock-position-btn')) {
+    if (builderLocked && !event.target.closest('.mock-profile-button, #prospectProfileDialog, .mock-position-btn, #reviewMockBtn, #viewSubmittedMockBtn, .mock-scoreboard-link, .dashboard-home-link, .mock-header-back')) {
       event.preventDefault(); event.stopImmediatePropagation();
     }
   }, true);
@@ -796,4 +892,10 @@ if (ADMIN_BUILDER_MODE) {
 Promise.all([loadDefaultProspects(), loadDefaultTeamOrder(), loadTeamNeeds()]).then(() => {
   if (ADMIN_BUILDER_MODE) adminDefaultContext = { prospects, positionProspects, overallOrder, defaultTeamOrder, teamNeeds };
   if (ADMIN_BUILDER_MODE && !loadingEntry) window.parent.postMessage({ type: 'hush-mock-builder-ready' }, location.origin);
+  if (!ADMIN_BUILDER_MODE) loadPublicEntry();
 });
+if (!ADMIN_BUILDER_MODE) document.getElementById('reviewMockBtn').textContent = 'Submit Mock & See Results';
+if (ADMIN_BUILDER_MODE) {
+  document.getElementById('viewSubmittedMockBtn').hidden = true;
+  document.querySelector('.mock-scoreboard-link').hidden = true;
+}

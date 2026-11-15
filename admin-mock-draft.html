@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0F2F44">
-  <title>Admin - Mock Draft Prospects</title>
+  <title>Admin - Mock Draft Challenge Editor</title>
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="admin-mock-draft.css">
+  <link rel="stylesheet" href="admin-mock-draft.css?v=20261115-results-positions">
   <script src="theme-utils.js?v=20260821-c9c656a0"></script>
 </head>
 <body class="bg-overlay admin-mock-draft-page">
@@ -14,7 +14,7 @@
     <a href="admin-portal.html" class="account-btn">&larr; Admin Portal</a>
     <div class="mock-admin-title">
       <span>HUSH ADMIN</span>
-      <h1>2027 Mock Draft Prospects</h1>
+      <h1>2027 Mock Draft Challenge Editor</h1>
     </div>
     <div class="admin-header-access mock-admin-access">
       <form id="mockAdminConnectForm">
@@ -26,6 +26,10 @@
   </header>
 
   <main class="mock-admin-main">
+    <nav aria-label="Mock draft contest">
+      <a href="admin-mock-draft.html#scoring">2027 Contest Manager</a>
+    </nav>
+    <p id="mockWorkspaceNotice" class="mock-admin-hint"></p>
     <section id="mockAdminWorkspace" class="mock-admin-workspace" hidden>
       <div class="mock-admin-toolbar">
         <div>
@@ -47,7 +51,8 @@
         <button type="button" class="mock-admin-tab" data-position="DB" aria-pressed="false">DB</button>
         <span class="mock-admin-tab-divider" aria-hidden="true"></span>
         <button type="button" class="mock-admin-tab mock-admin-tab-special" data-view="overall" aria-pressed="false">Overall Board</button>
-        <button type="button" class="mock-admin-tab mock-admin-tab-special" data-view="teams" aria-pressed="false">Team Draft Order</button>
+        <button type="button" class="mock-admin-tab mock-admin-tab-special" data-view="teams" aria-pressed="false">Default Pick Owners</button>
+        <button type="button" class="mock-admin-tab mock-admin-tab-special" data-view="needs" aria-pressed="false">Team Needs</button>
         <button type="button" class="mock-admin-tab mock-admin-tab-special" data-view="scoring" aria-pressed="false">Actual Results &amp; Scoring</button>
       </nav>
 
@@ -120,8 +125,8 @@
       <section id="teamOrderEditorView" class="mock-special-view" aria-label="Default team draft order" hidden>
         <div class="mock-editor-toolbar">
           <div class="mock-special-copy">
-            <h3>Default Team Draft Order</h3>
-            <p>This order fills picks 1–32 on new mock drafts. Existing saved mock picks are left unchanged.</p>
+            <h3>Default Pick Owners</h3>
+            <p>Choose the NFL team that owns each of the 32 picks. A team may own multiple picks or none after trades. Drag rows to reorder picks. Save to apply to new mocks; existing saved mocks are left unchanged.</p>
           </div>
           <div class="mock-admin-actions">
             <button id="mockResetTeamOrderBtn" type="button" class="mock-admin-button mock-admin-button-quiet">Reset to NFL Order</button>
@@ -129,62 +134,121 @@
           </div>
         </div>
         <section class="mock-admin-pane mock-team-order-pane">
-          <div class="mock-pane-heading"><h3>Pick slots</h3><span>32 TEAMS</span></div>
+          <div class="mock-pane-heading"><h3>Pick slots</h3><span>32 PICKS</span></div>
           <div id="mockTeamOrderRoster" class="mock-team-order-roster" role="list" aria-label="Default team pick order"></div>
+        </section>
+      </section>
+      <section id="teamNeedsEditorView" class="mock-special-view" aria-label="Team needs" hidden>
+        <section class="mock-admin-pane mock-team-order-pane" aria-labelledby="mockTeamNeedsTitle">
+          <div class="mock-pane-heading">
+            <h3 id="mockTeamNeedsTitle">Team Needs</h3>
+            <button id="mockSaveTeamNeedsBtn" type="button" class="mock-admin-button mock-admin-button-save" disabled>Save Team Needs</button>
+          </div>
+          <p class="mock-admin-hint">Enter positions in priority order, separated by commas (for example: QB, OT, EDGE). Leave blank for no listed needs. Up to 10 needs per team, 20 characters each. These needs appear on the mock draft board after reloading.</p>
+          <div id="mockTeamNeedsRoster" class="mock-team-needs-roster"></div>
         </section>
       </section>
       <section id="scoringEditorView" class="mock-special-view" aria-label="Actual results and scoring" hidden>
         <div class="mock-scoring-controls mock-contest-selectors">
           <label class="mock-field">Contest<select id="scoringContestSelect"></select></label>
-          <label class="mock-field">Results dataset<select id="scoringDatasetSelect"></select></label>
-          <strong id="scoringDatasetBadge"></strong>
         </div>
+        <p id="scoringFeedback" role="status" aria-live="polite"></p>
+        <section class="mock-admin-pane">
+          <h3>2027 NFL Mock Draft Contest</h3>
+          <p id="contestEntryCount" role="status" aria-live="polite"></p>
+          <p>Contestants <a href="mock-draft-contest.html">submit on the website</a> under their signed-in usernames. Add named experts with <strong>New Expert Mock</strong> below, then <strong>Save &amp; Submit Entry</strong>. The main website compares all submitted entries in the main contest against its REAL NFL results.</p>
+          <p>Predictions lock <time data-mock-deadline></time>, or earlier if you close submissions. Saving Live or Final NFL results automatically scores every submitted entry. <a href="mock-draft-scoreboard.html">View Live Scoreboard</a>.</p>
+          <details class="mock-scoring-rules">
+            <summary>Actual 2027 NFL draft results (answer key)</summary>
+            <p>Enter actual NFL selections, not predictions. During the draft mark completed picks Confirmed, choose Live - Scoring, then Save NFL Results. When all 32 selections are in, Finalize NFL Results confirms all picks and publishes final scores. No external NFL feed is connected; update the results here.</p>
+            <div id="officialAnswerKeyEditor"></div>
+          </details>
+        </section>
+        <details class="mock-scoring-rules">
+          <summary>Advanced: manage 2027 contests and private hypothetical datasets</summary>
         <div class="mock-admin-actions mock-test-actions">
-          <label class="mock-field">New contest year<input id="newScoringContestYear" type="number" value="2027" min="2020" max="2100"></label>
+          <label class="mock-field">New contest year<input id="newScoringContestYear" type="number" value="2027" min="2027" max="2027" readonly></label>
           <label class="mock-field">Contest / test name<input id="newScoringDatasetName" type="text" maxlength="160"></label>
           <button id="createScoringContestBtn" class="mock-admin-button" type="button">Create Contest</button>
-          <button id="load2025CalibrationBtn" class="mock-admin-button" type="button">Load 2025 Scoring Test</button>
+          <button id="deleteScoringContestBtn" class="mock-admin-button mock-admin-button-danger" type="button" disabled>Delete Selected Contest</button>
           <button id="createScoringTestBtn" class="mock-admin-button" type="button">Create Test</button>
           <button id="cloneScoringTestBtn" class="mock-admin-button" type="button">Clone Test</button>
           <button id="resetScoringTestBtn" class="mock-admin-button mock-admin-button-danger" type="button">Reset Test Results</button>
           <button id="toggleScoringSubmissionsBtn" class="mock-admin-button" type="button">Close Submissions</button>
         </div>
-        <details class="mock-admin-builder" id="mockAdminBuilderPanel">
-          <summary>Create / Edit Mock</summary>
+        </details>
+        <details class="mock-admin-builder" id="mockAdminBuilderPanel" open>
+          <summary>Create / Edit Expert or Contestant Predictions</summary>
           <div class="mock-editor-toolbar">
             <div class="mock-scoring-controls">
               <label class="mock-field">Saved entry<select id="mockBuilderEntrySelect"></select></label>
-              <label class="mock-field">Entry name<input id="mockBuilderName" type="text" maxlength="160" placeholder="My 2027 Mock"></label>
+              <label class="mock-field"><span id="mockBuilderNameLabel">Contestant username</span><input id="mockBuilderName" type="text" maxlength="160" placeholder="Contestant username"></label>
               <label class="mock-field">Participant type<select id="mockBuilderRole"><option value="participant">Participant</option><option value="expert">Expert</option></select></label>
             </div>
             <div class="mock-admin-actions">
               <button id="newAdminMockBtn" class="mock-admin-button" type="button">New Mock</button>
+              <button id="newExpertMockBtn" class="mock-admin-button" type="button">New Expert Mock</button>
               <button id="cloneAdminMockBtn" class="mock-admin-button" type="button">Clone Entry</button>
+              <button id="recoverAdminMockBtn" class="mock-admin-button" type="button">Recover Browser Draft</button>
               <button id="saveAdminMockBtn" class="mock-admin-button mock-admin-button-save" type="button">Save Mock Draft</button>
+              <button id="saveSubmitEntryBtn" class="mock-admin-button mock-admin-button-save" type="button">Save &amp; Submit Entry</button>
               <button id="submitAdminMockBtn" class="mock-admin-button" type="button">Submit Saved Mock</button>
+              <button id="previewContestantMockBtn" class="mock-admin-button" type="button">Preview Contestant Results</button>
             </div>
           </div>
           <p id="mockBuilderStatus" role="status"></p>
-          <iframe id="mockAdminBuilderFrame" title="Admin mock draft builder" src="mock-draft-contest.html?adminBuilder=1" loading="lazy"></iframe>
+          <p class="mock-admin-hint">Contestants are listed by username. For an admin-created test entry, enter the contestant's username. Choose Expert or New Expert Mock to type an expert's name. Both types use the same scoring rules and appear in their own standings and the combined comparison.</p>
+          <p id="manualPreviewHint" class="mock-admin-hint">Preview Contestant Results uses the results dataset selected under Advanced.</p>
+          <p class="mock-admin-hint">Build your mock below: picks are on the left and available prospects on the right on wider screens. Use search or position filters, then + or drag a player to a pick. Selected players leave the pool; clearing or replacing a pick returns them. On phones the pool appears above the picks.</p>
+          <iframe id="mockAdminBuilderFrame" title="Admin mock draft builder" src="mock-draft-contest.html?adminBuilder=1&amp;v=20261114-prospect-pool" loading="lazy"></iframe>
         </details>
-        <div class="mock-editor-toolbar">
+        <details id="advancedScoringPanel" class="mock-scoring-rules">
+          <summary>Advanced: manual results, scoring rules, imports, and leaderboards</summary>
+        <div class="mock-scoring-controls">
+          <label class="mock-field">Results dataset<select id="scoringDatasetSelect"></select></label>
+          <strong id="scoringDatasetBadge"></strong>
+        </div>
+        <div id="resultsAnswerKeyToolbar" class="mock-editor-toolbar">
           <div class="mock-scoring-controls">
             <label class="mock-field">Draft year<input id="scoringYear" type="number" min="2020" max="2100" value="2027" readonly></label>
             <label class="mock-field">Draft status<select id="scoringStatus"><option value="paused">Paused</option><option value="live">Live - Scoring</option><option value="final">Final</option></select></label>
           </div>
           <div class="mock-admin-actions">
             <button id="reloadScoringBtn" class="mock-admin-button" type="button">Reload</button>
-            <button id="saveActualResultsBtn" class="mock-admin-button mock-admin-button-save" type="button">Save Results + Rules</button>
+            <button id="saveActualResultsBtn" class="mock-admin-button mock-admin-button-save" type="button">Save NFL Results</button>
+            <button id="finalizeActualResultsBtn" class="mock-admin-button mock-admin-button-save" type="button">Finalize NFL Results &amp; See Scores</button>
             <button id="scoreAllMocksBtn" class="mock-admin-button" type="button">Score All Mocks</button>
           </div>
         </div>
-        <p id="scoringFeedback" role="status" aria-live="polite"></p>
+        <p id="scoringActionHint" class="mock-admin-hint" role="status" aria-live="polite"></p>
         <details class="mock-scoring-rules" open><summary>Scoring Rules</summary><div id="scoringRulesFields" class="mock-scoring-rules-grid"></div></details>
+        <div id="resultsAnswerKeyWorkspace" class="mock-results-workspace">
         <div class="mock-scoring-table-wrap">
           <table class="mock-scoring-table"><caption>Actual Draft Results</caption>
             <thead><tr><th>Pick</th><th>Original owner</th><th>Selecting team</th><th>Player</th><th>Position</th><th>Traded</th><th>Trade history</th><th>Confirmed</th><th>Notes</th></tr></thead>
             <tbody id="actualResultsRows"></tbody>
           </table>
+        </div>
+        <aside class="mock-results-pool mock-admin-pane" aria-labelledby="resultsProspectTitle">
+          <h3 id="resultsProspectTitle">Available Prospects</h3>
+          <p class="mock-admin-hint">Results answer key only, not your mock entry. Choose a pick and add a player. Selected players leave this list and are disabled in other pick selectors. Clear a pick to return its player. Confirm results separately.</p>
+          <label class="mock-field">Add to pick<select id="resultsProspectPick"></select></label>
+          <label class="mock-field">Find a prospect<input id="resultsProspectSearch" type="search" placeholder="Name, school, or position"></label>
+          <div class="mock-results-position-tabs" role="group" aria-label="Filter results prospects by position">
+            <button type="button" class="mock-admin-button" data-results-position="ALL" aria-pressed="true">All</button>
+            <button type="button" class="mock-admin-button" data-results-position="QB" aria-pressed="false">QB</button>
+            <button type="button" class="mock-admin-button" data-results-position="RB" aria-pressed="false">RB</button>
+            <button type="button" class="mock-admin-button" data-results-position="WR" aria-pressed="false">WR</button>
+            <button type="button" class="mock-admin-button" data-results-position="TE" aria-pressed="false">TE</button>
+            <button type="button" class="mock-admin-button" data-results-position="OL" aria-pressed="false">OL</button>
+            <button type="button" class="mock-admin-button" data-results-position="DL" aria-pressed="false">DL</button>
+            <button type="button" class="mock-admin-button" data-results-position="EDGE" aria-pressed="false">EDGE</button>
+            <button type="button" class="mock-admin-button" data-results-position="LB" aria-pressed="false">LB</button>
+            <button type="button" class="mock-admin-button" data-results-position="DB" aria-pressed="false">DB</button>
+          </div>
+          <p id="resultsProspectCount" role="status" aria-live="polite"></p>
+          <div id="resultsProspectList" class="mock-results-prospect-list"></div>
+        </aside>
         </div>
         <section class="mock-score-entries" aria-labelledby="mockScoreEntriesTitle">
           <h3 id="mockScoreEntriesTitle">Mock Entries</h3>
@@ -202,12 +266,14 @@
           <div id="scoringLeaderboard" class="mock-scoring-table-wrap"></div>
           <div id="scoringMockBreakdowns"></div>
         </section>
+        </details>
       </section>
     </section>
   </main>
 
-  <script src="admin-mock-draft.js"></script>
-  <script src="admin-mock-draft-scoring.js"></script>
+  <script src="admin-mock-draft.js?v=20261115-real-contest"></script>
+  <script src="mock-draft-contest-policy.js?v=20261115-real-contest"></script>
+  <script src="admin-mock-draft-scoring.js?v=20261115-real-contest"></script>
   <script src="preferences.js"></script>
 </body>
 </html>

@@ -9,6 +9,7 @@
   <title>Mock Draft Summary</title>
   <link rel="stylesheet" href="mock-draft-summary.css">
   <script src="theme-utils.js?v=20260821-c9c656a0"></script>
+  <script src="firebase-config.js"></script>
 </head>
 <body class="mock-summary-page">
   <header class="summary-header">
@@ -24,6 +25,7 @@
         <p id="reportStatus" class="summary-status" role="status" aria-live="polite">Scoring your board against published results.</p>
       </div>
       <div class="summary-actions" aria-label="Report actions">
+        <button id="refreshReportBtn" type="button">Refresh scores</button>
         <button id="shareReportBtn" type="button" title="Share report link">Share</button>
         <button id="downloadReportBtn" type="button" title="Download score report as JSON">Download</button>
         <button id="printReportBtn" type="button" title="Print report">Print</button>
@@ -73,6 +75,7 @@
     </section>
     <p class="summary-footnote">Shared reports include this mock's picks in the page link. Contest standings show totals only; other entries' picks remain private.</p>
   </main>
-  <script src="mock-draft-summary.js"></script>
+  <script src="mock-draft-contest-policy.js?v=20261115-real-contest"></script>
+  <script src="mock-draft-summary.js?v=20261115-real-contest"></script>
 </body>
 </html>

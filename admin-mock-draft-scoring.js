@@ -16,12 +16,14 @@
   let builderEntryId = '';
   let builderDirty = false;
   let builderReady = false;
+  let resultsPosition = 'ALL';
   const builderFrame = document.getElementById('mockAdminBuilderFrame');
   const exportRequests = new Map();
 
   function message(value, error = false) {
     feedback.textContent = value;
     feedback.classList.toggle('is-error', error);
+    if (error) feedback.scrollIntoView({ block: 'nearest' });
   }
   function slug(value) {
     return String(value || '').trim().toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -48,8 +50,78 @@
     return field;
   }
   function changed() { dirty = true; message('Unsaved results or rules'); }
+  function prospectIsSelected(playerId, exceptPick) {
+    const player = prospects.get(playerId);
+    return state.results.some(result => result.pick !== exceptPick &&
+      (result.playerId === playerId || (player && result.playerName && slug(result.playerName) === slug(player.name))));
+  }
+  function renderResultsProspects() {
+    if (!state) return;
+    resultsBody.querySelectorAll('select[data-result-player]').forEach(select => {
+      const pick = Number(select.dataset.resultPlayer);
+      [...select.options].forEach(option => {
+        const used = Boolean(option.value) && prospectIsSelected(option.value, pick);
+        option.disabled = used;
+        const player = prospects.get(option.value);
+        if (player) option.textContent = `${player.name} - ${player.school}${used ? ' (already picked)' : ''}`;
+      });
+    });
+    const target = document.getElementById('resultsProspectPick');
+    const previousPick = Number(target.value);
+    target.replaceChildren();
+    state.results.forEach(result => {
+      const option = document.createElement('option');
+      option.value = String(result.pick);
+      option.textContent = `Pick ${result.pick}${result.playerName ? ` - ${result.playerName}` : ''}`;
+      target.append(option);
+    });
+    target.value = String(state.results.some(result => result.pick === previousPick)
+      ? previousPick : (state.results.find(result => !result.playerId && !result.playerName) || state.results[0]).pick);
+    target.disabled = busy || Boolean(state.locked);
+    const query = document.getElementById('resultsProspectSearch').value.trim().toLowerCase();
+    const available = [...prospects.entries()].filter(([id]) => !prospectIsSelected(id));
+    const filtered = available.filter(([, player]) => (resultsPosition === 'ALL' || player.position === resultsPosition) &&
+      `${player.name} ${player.school} ${player.position}`.toLowerCase().includes(query));
+    document.getElementById('resultsProspectCount').textContent = `${available.length} available · ${filtered.length} shown`;
+    const list = document.getElementById('resultsProspectList');
+    list.replaceChildren();
+    filtered.forEach(([id, player]) => {
+      const row = document.createElement('div');
+      row.className = 'mock-results-prospect-row';
+      const copy = document.createElement('span');
+      copy.textContent = player.name;
+      const detail = document.createElement('small');
+      detail.textContent = `${player.position} - ${player.school}`;
+      copy.append(detail);
+      const add = document.createElement('button');
+      add.type = 'button';
+      add.className = 'mock-admin-button';
+      add.textContent = '+';
+      add.setAttribute('aria-label', `Add ${player.name} to selected result pick`);
+      add.disabled = busy || Boolean(state.locked);
+      add.addEventListener('click', () => {
+        if (busy || state.locked || prospectIsSelected(id)) return;
+        const result = state.results.find(item => item.pick === Number(target.value));
+        if (!result) { message('Choose a result pick first', true); return; }
+        result.playerId = id;
+        result.playerName = player.name;
+        result.position = player.position;
+        result.confirmed = false;
+        changed();
+        const next = state.results.find(item => !item.playerId && !item.playerName);
+        if (next) target.value = String(next.pick);
+        render();
+      });
+      row.append(copy, add);
+      list.append(row);
+    });
+    if (!filtered.length) list.textContent = 'No available prospects match this filter.';
+  }
   async function request(action, body, scope) {
-    const selection = scope || { contestId: state?.contestId || 'contest-2027', datasetId: state?.datasetId || 'test-default' };
+    const selection = scope || { contestId: state?.contestId || 'contest-2027', datasetId: state?.datasetId || 'real-nfl' };
+    if (body && state?.year !== 2027) throw new Error('Reload the 2027 contest before making changes.');
+    const target = state?.contests.find(contest => contest.id === selection.contestId);
+    if (target && target.year !== 2027) throw new Error('Only 2027 contests are supported.');
     const query = body ? '' : `?${new URLSearchParams(selection)}`;
     const response = await fetch(`/api/admin/mock-draft/scoring${action}${query}`, {
       cache: 'no-store', method: body ? 'POST' : 'GET',
@@ -58,7 +130,8 @@
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'Scoring request failed');
-    const contestChanged = state && state.contestId !== payload.state.contestId;
+    if (payload.state.year !== 2027) throw new Error('The server returned a different year. No editor data was loaded.');
+    const contestChanged = !state || state.contestId !== payload.state.contestId;
     state = payload.state;
     prospects = state.catalog ? new Map(state.catalog.map(player => [player.id, player])) : defaultProspects;
     dirty = false;
@@ -76,6 +149,7 @@
       busy = false;
       document.getElementById('scoringEditorView').querySelectorAll('button,input,select').forEach(control => { control.disabled = false; });
       updateActionState();
+      renderResultsProspects();
     }
   }
   function requireSaved() { if (dirty) throw new Error('Save Results + Rules before importing or rescoring.'); }
@@ -111,23 +185,35 @@
       const options = [...prospects.entries()].map(([id, player]) => [id, `${player.name} - ${player.school}`]);
       if (result.playerId && !prospects.has(result.playerId)) options.unshift([result.playerId, result.playerName]);
       const playerSelect = optionSelect(options, result.playerId, `Player at pick ${result.pick}`);
+      playerSelect.dataset.resultPlayer = String(result.pick);
       const name = input('text', result.playerName, `Manual player name at pick ${result.pick}`);
       name.maxLength = 160;
       const posSelect = optionSelect(positions, result.position, `Position at pick ${result.pick}`);
       playerSelect.addEventListener('change', () => {
+        if (playerSelect.value && prospectIsSelected(playerSelect.value, result.pick)) {
+          playerSelect.value = result.playerId;
+          message('That prospect is already selected at another pick.', true);
+          return;
+        }
         const player = prospects.get(playerSelect.value);
         result.playerId = playerSelect.value;
         result.playerName = player ? player.name : '';
         result.position = player ? player.position : '';
         name.value = result.playerName;
         posSelect.value = result.position;
+        result.confirmed = false;
+        confirmed.checked = false;
         changed();
+        renderResultsProspects();
       });
       name.addEventListener('input', () => {
         result.playerName = name.value;
         result.playerId = manualId(name.value);
         playerSelect.value = '';
+        result.confirmed = false;
+        confirmed.checked = false;
         changed();
+        renderResultsProspects();
       });
       playerCell.append(playerSelect, name); cell(playerCell);
       posSelect.addEventListener('change', () => { result.position = posSelect.value; changed(); }); cell(posSelect);
@@ -147,12 +233,13 @@
     renderBreakdowns();
     renderLeaderboard();
     updateActionState();
+    renderResultsProspects();
   }
 
   function renderSelectors() {
     const contestSelect = document.getElementById('scoringContestSelect');
     contestSelect.replaceChildren();
-    state.contests.forEach(contest => {
+    state.contests.filter(contest => contest.year === 2027).forEach(contest => {
       const option = document.createElement('option'); option.value = contest.id; option.textContent = contest.name;
       contestSelect.append(option);
     });
@@ -165,24 +252,45 @@
     });
     datasetSelect.value = state.datasetId;
     const badge = document.getElementById('scoringDatasetBadge');
-    badge.textContent = state.locked ? 'ADMIN TEST / HISTORICAL REFERENCE' : state.type === 'test' ? 'TEST / HYPOTHETICAL' : 'REAL / NFL';
+    badge.textContent = state.type === 'test' ? 'PRIVATE HYPOTHETICAL - NOT THE WEBSITE RESULTS' : 'REAL / NFL';
     badge.classList.toggle('is-real', state.type === 'real');
   }
 
   function updateActionState() {
     if (!state) return;
+    document.getElementById('finalizeActualResultsBtn').disabled = busy || state.type !== 'real';
+    const submitted = state.mocks.filter(mock => mock.status === 'submitted');
+    const expertCount = submitted.filter(mock => mock.role === 'expert').length;
+    document.getElementById('contestEntryCount').textContent = `${submitted.length} submitted: ${submitted.length - expertCount} contestants, ${expertCount} experts. ${state.mocks.length - submitted.length} saved drafts (not entered).`;
+    document.getElementById('newScoringContestYear').value = 2027;
+    document.getElementById('newScoringContestYear').disabled = true;
+    const submittedCount = state.mocks.filter(mock => mock.status === 'submitted').length;
+    const scoreHint = state.status === 'paused'
+      ? 'This results dataset is paused. Save Live or Final status before rescoring.'
+      : !submittedCount ? 'There are no submitted mocks in this contest to rescore.' : '';
+    document.getElementById('scoreAllMocksBtn').disabled = busy || Boolean(scoreHint);
+    document.getElementById('scoreAllMocksBtn').title = scoreHint || 'Recalculate submitted entries using the saved results';
+    document.getElementById('scoringActionHint').textContent = scoreHint;
+    document.getElementById('deleteScoringContestBtn').disabled = busy || state.contestId === 'contest-2027';
+    document.getElementById('previewContestantMockBtn').disabled = busy || !builderReady;
     document.getElementById('cloneScoringTestBtn').disabled = busy || state.type !== 'test';
     document.getElementById('resetScoringTestBtn').disabled = busy || state.type !== 'test' || Boolean(state.locked);
     resultsBody.querySelectorAll('input,select').forEach(control => { control.disabled = busy || Boolean(state.locked); });
     document.getElementById('scoringStatus').disabled = busy || Boolean(state.locked);
     document.getElementById('scoringResultsFile').disabled = busy || Boolean(state.locked);
-    document.getElementById('mockBuilderName').placeholder = `My ${state.year} Mock`;
+    const expert = document.getElementById('mockBuilderRole').value === 'expert';
+    document.getElementById('mockBuilderNameLabel').textContent = expert ? 'Expert name' : 'Contestant username';
+    document.getElementById('mockBuilderName').placeholder = expert ? "Enter the expert's name" : 'Enter contestant username';
+    document.getElementById('newExpertMockBtn').disabled = busy || !builderReady || state.submissions !== 'open' || state.submissionPolicy?.open === false;
+    document.getElementById('newAdminMockBtn').disabled = busy || !builderReady || state.submissionPolicy?.open === false;
     document.getElementById('importLocalMockBtn').disabled = busy || Boolean(state.catalog);
-    document.querySelectorAll('[data-calibration-remove]').forEach(control => { control.disabled = true; });
     document.getElementById('toggleScoringSubmissionsBtn').textContent = state.submissions === 'open' ? 'Close Submissions' : 'Open Submissions';
     const entry = state.mocks.find(mock => mock.id === builderEntryId);
-    document.getElementById('saveAdminMockBtn').disabled = busy || !builderReady || state.submissions !== 'open' || entry?.status === 'submitted';
-    document.getElementById('submitAdminMockBtn').disabled = busy || builderDirty || !entry || entry.status !== 'draft' || state.submissions !== 'open';
+    document.getElementById('saveSubmitEntryBtn').disabled = busy || !builderReady || state.submissions !== 'open' || state.submissionPolicy?.open === false;
+    document.getElementById('saveSubmitEntryBtn').textContent = entry?.status === 'submitted' ? 'Update Submitted Entry' : 'Save & Submit Entry';
+    document.getElementById('saveAdminMockBtn').disabled = busy || !builderReady || state.submissions !== 'open' ||
+      state.submissionPolicy?.open === false || (entry?.status === 'submitted' && !state.submissionPolicy?.editable);
+    document.getElementById('submitAdminMockBtn').disabled = busy || builderDirty || !entry || entry.status !== 'draft' || state.submissions !== 'open' || state.submissionPolicy?.open === false;
   }
 
   function renderBuilderControls() {
@@ -193,17 +301,22 @@
     select.value = builderEntryId;
     const entry = state.mocks.find(mock => mock.id === builderEntryId);
     if (!builderDirty) {
-      document.getElementById('mockBuilderName').value = entry ? entry.name : '';
+      document.getElementById('mockBuilderName').value = entry ? entry.name : (sessionStorage.getItem('username') || '');
       document.getElementById('mockBuilderRole').value = entry ? entry.role : 'participant';
     }
-    document.getElementById('mockBuilderStatus').textContent = builderDirty ? 'Unsaved mock changes' : entry?.status === 'submitted' ? 'Submitted entry locked' : entry ? 'Draft saved; not yet submitted' : 'New unsaved mock';
+    document.getElementById('mockBuilderStatus').textContent = builderDirty ? 'Unsaved mock changes' : entry?.status === 'submitted'
+      ? state.submissionPolicy?.editable
+        ? `Submitted; editable until ${HushMockDeadline.formatDeadline(state.submissionPolicy.deadline)} (or earlier admin closure)`
+        : 'Submitted entry locked'
+      : entry ? 'Draft saved; not yet submitted' : 'New unsaved mock';
   }
 
   function loadBuilderEntry() {
     if (!builderReady || !state) return;
     const entry = state.mocks.find(mock => mock.id === builderEntryId);
-    builderFrame.contentWindow.postMessage({ type: 'hush-mock-load', picks: entry ? entry.picks : [], locked: entry?.status === 'submitted',
-      catalog: state.catalog, teamOrder: state.teamOrder, year: state.year }, location.origin);
+    builderFrame.contentWindow.postMessage({ type: 'hush-mock-load', picks: entry ? entry.picks : [], locked: entry?.status === 'submitted' && !state.submissionPolicy?.editable,
+      catalog: state.catalog, teamOrder: state.teamOrder, year: state.year,
+      storageKey: `hushAdminMockDraftBuilderV1:${state.contestId}` }, location.origin);
     builderDirty = false;
     renderBuilderControls(); updateActionState();
   }
@@ -224,6 +337,9 @@
     if (!data || typeof data !== 'object') return;
     if (data.type === 'hush-mock-builder-ready') { builderReady = true; loadBuilderEntry(); }
     if (data.type === 'hush-mock-builder-changed') { builderDirty = true; renderBuilderControls(); updateActionState(); }
+    if (data.type === 'hush-mock-review') {
+      document.getElementById('previewContestantMockBtn').click();
+    }
     if (data.type === 'hush-mock-exported' && exportRequests.has(data.requestId)) {
       const pending = exportRequests.get(data.requestId); clearTimeout(pending.timer); exportRequests.delete(data.requestId); pending.resolve(data.mock);
     }
@@ -236,16 +352,13 @@
     const table = document.createElement('table'); table.className = 'mock-scoring-table';
     const caption = document.createElement('caption'); caption.textContent = `${state.type === 'test' ? 'Test' : 'Real NFL'} Leaderboard - ${state.name}`; table.append(caption);
     const head = document.createElement('thead'); const headings = document.createElement('tr');
-    ['Rank','Entry','Type','Points','Pending picks','Expected (default rules)','Check'].forEach(label => { const cell = document.createElement('th'); cell.textContent = label; headings.append(cell); }); head.append(headings); table.append(head);
+    ['Rank','Entry','Type','Points','Pending picks'].forEach(label => { const cell = document.createElement('th'); cell.textContent = label; headings.append(cell); }); head.append(headings); table.append(head);
     const body = document.createElement('tbody');
     scores.forEach((score, index) => {
       const rank = scores.findIndex(entry => entry.total === score.total) + 1;
-      const expected = state.mocks.find(mock => mock.id === score.id)?.expectedScore;
-      const defaults = state.calibrationRules && Object.keys(state.calibrationRules).every(key => state.rules[key] === state.calibrationRules[key]);
-      const check = expected == null ? '--' : !state.locked ? 'Custom answer key' : !defaults ? 'Custom rules' : score.total === expected && score.pending === 0 ? 'PASS' : 'FAIL';
-      const row = document.createElement('tr'); [rank, score.name, score.role, score.total, score.pending, expected ?? '--', check].forEach(value => { const cell = document.createElement('td'); cell.textContent = value; row.append(cell); }); body.append(row);
+      const row = document.createElement('tr'); [rank, score.name, score.role, score.total, score.pending].forEach(value => { const cell = document.createElement('td'); cell.textContent = value; row.append(cell); }); body.append(row);
     });
-    if (!scores.length) { const row = document.createElement('tr'); const cell = document.createElement('td'); cell.colSpan = 7; cell.textContent = 'No scored submissions in this dataset'; row.append(cell); body.append(row); }
+    if (!scores.length) { const row = document.createElement('tr'); const cell = document.createElement('td'); cell.colSpan = 5; cell.textContent = 'No scored submissions in this dataset'; row.append(cell); body.append(row); }
     table.append(body); container.append(table);
   }
 
@@ -258,7 +371,6 @@
       const title = document.createElement('summary');
       title.textContent = `${mock.name} (${mock.role}, ${mock.status}) - ${score ? `${score.total} points (${score.pending} pending)` : 'Not scored'}`;
       const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'mock-admin-button mock-admin-button-danger'; remove.textContent = 'Remove Entry';
-      if (mock.calibration) { remove.dataset.calibrationRemove = 'true'; remove.disabled = true; }
       remove.addEventListener('click', () => run(async () => {
         requireSaved();
         if (!window.confirm(`Remove ${mock.name}?`)) return;
@@ -289,6 +401,14 @@
       const id = `${slug(player.name)}::${slug(player.school)}`;
       if (!defaultProspects.has(id)) defaultProspects.set(id, { ...player, position });
     }));
+    const ranked = new Map();
+    (event.detail.overallOrder || []).forEach(id => {
+      if (defaultProspects.has(id)) ranked.set(id, defaultProspects.get(id));
+    });
+    defaultProspects.forEach((player, id) => {
+      if (!ranked.has(id)) ranked.set(id, player);
+    });
+    defaultProspects = ranked;
     run(async () => { await request(''); loadBuilderEntry(); message('Selected results dataset loaded'); });
   });
   document.getElementById('scoringYear').addEventListener('input', event => {
@@ -303,6 +423,20 @@
     if (dirty && !window.confirm('Discard unsaved results and rules?')) return;
     await request(''); message('Loaded saved results and rules');
   }));
+  document.getElementById('finalizeActualResultsBtn').addEventListener('click', () => run(async () => {
+    if (!state || state.year !== 2027 || state.type !== 'real') throw new Error('Select the REAL NFL results dataset first.');
+    if (builderDirty) throw new Error('Save or submit the prediction you are editing before opening the scores.');
+    const incomplete = state.results.filter(result => !result.playerId || !result.playerName ||
+      !result.position || !result.originalTeam || !result.selectingTeam);
+    if (state.results.length !== 32 || incomplete.length) {
+      throw new Error(`Complete all 32 actual NFL result picks first.${incomplete.length ? ` Missing player, position, or team at pick(s): ${incomplete.map(result => result.pick).join(', ')}.` : ''}`);
+    }
+    if (!window.confirm('Finalize the REAL 2027 NFL results? This confirms all 32 picks and publishes final scores for this contest. Use only actual NFL draft results.')) return;
+    const results = state.results.map(result => ({ ...result, confirmed: true }));
+    await request('/save', { results, rules: state.rules, status: 'final', year: 2027, confirmReal: true });
+    message('Actual NFL results finalized and submitted entries scored.');
+    if (state.contestId === 'contest-2027') location.href = 'mock-draft-scoreboard.html';
+  }));
   document.getElementById('saveActualResultsBtn').addEventListener('click', () => run(async () => {
     if (!state) throw new Error('Reload scoring data first');
     if (state.type === 'real' && !window.confirm('Save changes to the REAL NFL draft answer key? Hypothetical picks belong in a TEST dataset.')) return;
@@ -311,7 +445,10 @@
     message(state.status === 'paused' ? 'Saved. Published scores remain paused.' : 'Saved and automatically rescored all imported mocks.');
   }));
   document.getElementById('scoreAllMocksBtn').addEventListener('click', () => run(async () => {
-    requireSaved(); await request('/score', {}); message('All imported mocks rescored');
+    requireSaved();
+    if (state.status === 'paused') throw new Error('This results dataset is paused. Save Live or Final first.');
+    if (!state.mocks.some(mock => mock.status === 'submitted')) throw new Error('No submitted mocks to score. Submit your finished mock from Create / Edit Mock first.');
+    await request('/score', {}); message('All submitted mocks rescored');
   }));
   document.getElementById('scoringMockFiles').addEventListener('change', event => {
     const files = [...event.target.files];
@@ -357,11 +494,19 @@
   document.getElementById('scoringContestSelect').addEventListener('change', event => run(async () => {
     if ((dirty || builderDirty) && !window.confirm('Switch contests and discard unsaved editor changes?')) { renderSelectors(); return; }
     const contest = state.contests.find(item => item.id === event.target.value);
-    await request('', null, { contestId: contest.id, datasetId: contest.datasets[0].id }); message('Contest selected');
+    await request('', null, { contestId: contest.id, datasetId: 'real-nfl' }); message('Contest selected');
   }));
   document.getElementById('scoringDatasetSelect').addEventListener('change', event => run(async () => {
     if (dirty && !window.confirm('Switch datasets and discard unsaved results or rules?')) { renderSelectors(); return; }
     await request('', null, { contestId: state.contestId, datasetId: event.target.value }); message('Results dataset selected');
+  }));
+  document.getElementById('resultsProspectSearch').addEventListener('input', renderResultsProspects);
+  document.querySelectorAll('[data-results-position]').forEach(button => button.addEventListener('click', () => {
+    resultsPosition = button.dataset.resultsPosition;
+    document.querySelectorAll('[data-results-position]').forEach(tab => {
+      tab.setAttribute('aria-pressed', String(tab === button));
+    });
+    renderResultsProspects();
   }));
   document.getElementById('scoringLeaderboardFilter').addEventListener('change', renderLeaderboard);
   document.getElementById('createScoringTestBtn').addEventListener('click', () => run(async () => {
@@ -374,14 +519,17 @@
     requireSaved(); if (!window.confirm('Clear this TEST answer key and test scores? Submitted entries and real NFL results will remain.')) return;
     await request('/test/reset', {}); message('Test reset; entries and real results preserved');
   }));
+  document.getElementById('deleteScoringContestBtn').addEventListener('click', () => run(async () => {
+    if (state.contestId === 'contest-2027') throw new Error('The main contest cannot be deleted');
+    const contest = state.contests.find(item => item.id === state.contestId);
+    const warning = `Permanently delete "${state.contestName}" (${state.year})?\n\nThis removes ${state.mocks.length} saved mock entries and all ${contest.datasets.length} results datasets, rules, and scores in this contest. This cannot be undone. Other contests are unchanged.${dirty || builderDirty ? '\n\nUnsaved edits in this contest will also be discarded.' : ''}`;
+    if (!window.confirm(warning)) return;
+    await request('/contest/delete', { confirmDelete: state.contestId });
+    message('Contest deleted. Switched to the main contest.');
+  }));
   document.getElementById('createScoringContestBtn').addEventListener('click', () => run(async () => {
     requireSaved(); if (builderDirty) throw new Error('Save your mock draft before creating another contest');
     await request('/contest/create', { name: document.getElementById('newScoringDatasetName').value.trim() || 'NFL Mock Draft', year: Number(document.getElementById('newScoringContestYear').value) }); message('Created a separate contest with empty TEST and REAL datasets');
-  }));
-  document.getElementById('load2025CalibrationBtn').addEventListener('click', () => run(async () => {
-    requireSaved(); if (builderDirty) throw new Error('Save your mock before loading the calibration contest');
-    await request('/calibration/load', {});
-    message('2025 admin calibration loaded; historical results locked, five fixtures scored.');
   }));
   document.getElementById('toggleScoringSubmissionsBtn').addEventListener('click', () => run(async () => {
     requireSaved(); const submissions = state.submissions === 'open' ? 'closed' : 'open';
@@ -400,6 +548,37 @@
     if (builderDirty && !window.confirm('Discard the unsaved mock and create a new one?')) return;
     builderEntryId = ''; builderDirty = false; loadBuilderEntry();
   });
+  document.getElementById('newExpertMockBtn').addEventListener('click', () => {
+    if (busy || !builderReady || state?.submissions !== 'open') return;
+    if (builderDirty && !window.confirm('Discard unsaved mock changes and start a new expert mock?')) return;
+    builderEntryId = ''; builderDirty = false; loadBuilderEntry();
+    document.getElementById('mockBuilderRole').value = 'expert';
+    document.getElementById('mockBuilderName').value = '';
+    builderDirty = true;
+    renderBuilderControls(); updateActionState();
+    document.getElementById('mockBuilderName').focus();
+  });
+  document.getElementById('recoverAdminMockBtn').addEventListener('click', () => {
+    if (busy || !builderReady || !state) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(`hushAdminMockDraftBuilderV1:${state.contestId}`)
+        || localStorage.getItem('hushAdminMockDraftBuilderV1') || 'null');
+      if (!Array.isArray(saved?.picks) || saved.picks.length !== 32 || !saved.picks.some(pick => pick.playerId)) {
+        throw new Error('No filled admin draft is saved in this browser.');
+      }
+      if (saved.picks.some(pick => pick.playerId && !prospects.has(pick.playerId))) {
+        throw new Error('This browser draft uses a different prospect list. Select the matching contest before recovering it.');
+      }
+      if (!window.confirm('Load the browser draft into the board? Current unsaved board changes will be replaced; saved entries are unchanged.')) return;
+      builderEntryId = '';
+      builderDirty = true;
+      builderFrame.contentWindow.postMessage({ type: 'hush-mock-load', picks: saved.picks.map((pick, index) => ({ ...pick, pick: index + 1 })), locked: false }, location.origin);
+      document.getElementById('mockBuilderName').value = `My ${state.year} Mock`;
+      document.getElementById('mockBuilderRole').value = 'participant';
+      renderBuilderControls(); updateActionState();
+      message('Browser draft recovered. Finish your picks, then submit to see results.');
+    } catch (error) { message(error.message, true); }
+  });
   document.getElementById('cloneAdminMockBtn').addEventListener('click', () => {
     const entry = state?.mocks.find(mock => mock.id === builderEntryId);
     if (!entry) { message('Select a saved entry to clone', true); return; }
@@ -408,17 +587,67 @@
     document.getElementById('mockBuilderName').value = `${entry.name} copy`; document.getElementById('mockBuilderRole').value = entry.role;
     renderBuilderControls(); updateActionState();
   });
+  function contestantReportUrl(mock) {
+    const bytes = new TextEncoder().encode(JSON.stringify(mock));
+    let binary = '';
+    bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+    const token = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    const query = new URLSearchParams({ adminPreview: '1', contestId: state.contestId, datasetId: state.datasetId, mock: token });
+    if (builderEntryId) query.set('entryId', builderEntryId);
+    return `mock-draft-summary.html?${query}`;
+  }
+  function builderIdentity() {
+    const role = document.getElementById('mockBuilderRole').value;
+    const name = document.getElementById('mockBuilderName').value.trim();
+    if (!name) throw new Error(role === 'expert' ? "Enter the expert's name." : "Enter the contestant's username.");
+    return { name, role, ...(role === 'participant' ? { username: name } : {}) };
+  }
+  document.getElementById('previewContestantMockBtn').addEventListener('click', async () => {
+    if (!state || busy || !builderReady) return;
+    if (dirty) { message('Save Results + Rules before previewing their scores.', true); return; }
+    const preview = window.open('about:blank', '_blank');
+    if (!preview) { message('Allow popups for Hush to open the contestant results preview.', true); return; }
+    try {
+      const mock = { ...await readBuilderMock(), ...builderIdentity() };
+      preview.location.href = contestantReportUrl(mock);
+      message('Contestant results preview opened. Use Refresh scores after saving new results.');
+    } catch (error) {
+      preview.close();
+      message(error.message || 'Unable to open contestant results preview.', true);
+    }
+  });
+  document.getElementById('saveSubmitEntryBtn').addEventListener('click', () => run(async () => {
+    if (!state || state.year !== 2027) throw new Error('Open the 2027 contest first.');
+    requireSaved();
+    const identity = builderIdentity();
+    if (!window.confirm(`Save and submit ${identity.name} as ${identity.role === 'expert' ? 'an expert' : 'a contestant'} in ${state.contestName}? Predictions can be updated until ${HushMockDeadline.formatDeadline(state.submissionPolicy.deadline)}, unless submissions close earlier. The NFL results answer key stays unchanged.`)) return;
+    const mock = await readBuilderMock();
+    await request('/entry/save', { mock: { ...mock, id: builderEntryId || undefined, ...identity } });
+    if (!builderEntryId) builderEntryId = state.mocks.at(-1).id;
+    builderDirty = false;
+    renderBuilderControls();
+    if (state.mocks.find(entry => entry.id === builderEntryId)?.status === 'draft') {
+      await request('/entry/submit', { id: builderEntryId });
+    }
+    loadBuilderEntry();
+    message('Entry submitted. The NFL answer key is unchanged. Live/Final results score automatically; Paused results wait for publication.');
+  }));
   document.getElementById('saveAdminMockBtn').addEventListener('click', () => run(async () => {
     requireSaved();
-    const mock = await readBuilderMock(); const name = document.getElementById('mockBuilderName').value.trim();
-    if (!name) throw new Error('Name your mock before saving');
-    await request('/entry/save', { mock: { ...mock, id: builderEntryId || undefined, name, role: document.getElementById('mockBuilderRole').value } });
+    const identity = builderIdentity();
+    const mock = await readBuilderMock();
+    await request('/entry/save', { mock: { ...mock, id: builderEntryId || undefined, ...identity } });
     if (!builderEntryId) builderEntryId = state.mocks.at(-1).id;
-    builderDirty = false; loadBuilderEntry(); message('Mock draft saved to the contest; submit it to enter the leaderboards');
+    builderDirty = false; loadBuilderEntry();
+    message(state.mocks.find(entry => entry.id === builderEntryId)?.status === 'submitted'
+      ? 'Submitted mock updated and rescored against active results.'
+      : 'Mock draft saved to the contest; submit it to enter the leaderboards');
   }));
   document.getElementById('submitAdminMockBtn').addEventListener('click', () => run(async () => {
     requireSaved(); if (builderDirty) throw new Error('Save your latest mock changes before submitting');
-    if (!window.confirm('Submit this saved mock? Its predictions will be locked.')) return;
+    if (!window.confirm(state.submissionPolicy?.editable
+      ? `Submit this saved mock? You may update it until ${HushMockDeadline.formatDeadline(state.submissionPolicy.deadline)}, unless submissions close earlier.`
+      : 'Submit this saved mock? Its predictions will be locked.')) return;
     await request('/entry/submit', { id: builderEntryId }); loadBuilderEntry(); message('Mock submitted; it will be scored against each active dataset independently');
   }));
 })();

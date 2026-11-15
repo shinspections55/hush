@@ -22,6 +22,7 @@ const { logAuctionResult, logIndividualBid, bulkLogIndividualBids, getPlayerAV, 
 const { generateServerCPUBids, evaluateBidStrategy } = require('./cpu-silent-auction');
 const { runTiedAuctionRound, pickRandomCPU, placeForcedBid, getAggression, decideAction } = require('./cpu-tied-live-auction');
 const { loadCpuLogicConfig: loadActiveCpuLogicConfig, saveCpuLogicConfig: saveActiveCpuLogicConfig } = require('./cpu-logic-store');
+const { createTradeService } = require('./draft-trades');
 
 app.use(express.json({ limit: '5mb' }));
 app.use(compression({ threshold: 1024 }));
@@ -1599,6 +1600,8 @@ function requireAdminDebugKey(req, res, next) {
   return next();
 }
 
+require('./learn-hush-store').registerLearnHushRoutes(app, requireAdminDebugKey, writeJsonFileAtomically, PERSISTENT_DATA_DIR);
+
 function normalizeGifId(rawId) {
   return String(rawId || '').trim();
 }
@@ -1962,7 +1965,13 @@ app.get('/top250.meta.json', async (_req, res) => {
   }
 });
 
-app.use(['/mock-draft-calibration.js', '/tools/test-mock-draft-calibration.js'], (_req, res) => res.sendStatus(404));
+app.use((req, res, next) => {
+  const mockPage = /^\/(?:admin-mock-draft|mock-draft-(?:contest|summary|scoreboard|contest-intro))(?:\.html)?\/?$/i.test(req.path);
+  if (mockPage && (req.query.sandbox != null || req.query.workspace === '2025')) {
+    return res.status(410).type('html').send('<h1>Test contests have been retired</h1><p>No test entry or fake results have been transferred to the real contest.</p><p><a href="/mock-draft-contest.html">Open the real 2027 contest</a> | <a href="/admin-mock-draft.html#scoring">2027 Admin</a></p>');
+  }
+  next();
+});
 
 app.use(express.static(root, {
   extensions: ['html'],
@@ -5764,11 +5773,12 @@ async function readMockDraftTeamOrder() {
   try {
     const payload = JSON.parse(await fs.readFile(MOCK_DRAFT_TEAM_ORDER_FILE, 'utf8'));
     const order = Array.isArray(payload) ? payload : payload.order;
-    if (Array.isArray(order) && order.length === MOCK_DRAFT_TEAM_CODES.length && new Set(order).size === MOCK_DRAFT_TEAM_CODES.length && order.every((code) => MOCK_DRAFT_TEAM_CODES.includes(code))) {
+    if (Array.isArray(order) && order.length === MOCK_DRAFT_TEAM_CODES.length && order.every((code) => MOCK_DRAFT_TEAM_CODES.includes(code))) {
       return order;
     }
-  } catch (_error) {
-    // Fall back to the standard code order until an admin saves a custom order.
+    throw new Error('Default pick owners must contain 32 valid NFL team codes');
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
   }
   return [...MOCK_DRAFT_TEAM_CODES];
 }
@@ -5902,11 +5912,51 @@ app.get('/api/public/mock-draft/overall-order', async (_req, res) => {
   }
 });
 
+const MOCK_DRAFT_TEAM_NEEDS_FILE = path.join(MOCK_DRAFT_DATA_DIRECTORY, 'team-needs-2027.json');
+
+app.get('/api/admin/mock-draft/team-needs', requireAdminDebugKey, async (_req, res) => {
+  try {
+    const teamNeeds = JSON.parse(await fs.readFile(MOCK_DRAFT_TEAM_NEEDS_FILE, 'utf8'));
+    for (const code of MOCK_DRAFT_TEAM_CODES) {
+      if (!teamNeeds[code] || !Array.isArray(teamNeeds[code].needs) || teamNeeds[code].needs.some(need => typeof need !== 'string')) {
+        throw new Error(`Invalid saved needs for ${code}`);
+      }
+    }
+    return res.json({ ok: true, teamNeeds });
+  } catch (error) {
+    console.error('[ADMIN] Read mock draft team needs error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to load team needs' });
+  }
+});
+
+app.post('/api/admin/mock-draft/team-needs/save', requireAdminDebugKey, async (req, res) => {
+  const needs = req.body && req.body.needs;
+  if (!needs || typeof needs !== 'object' || Array.isArray(needs) ||
+      Object.keys(needs).length !== MOCK_DRAFT_TEAM_CODES.length ||
+      MOCK_DRAFT_TEAM_CODES.some(code => !Object.prototype.hasOwnProperty.call(needs, code) ||
+        !Array.isArray(needs[code]) || needs[code].length > 10 ||
+        needs[code].some(need => typeof need !== 'string' || !need.trim() || need.trim().length > 20))) {
+    return res.status(400).json({ ok: false, error: 'Provide all 32 teams with up to 10 needs each (1-20 characters per need)' });
+  }
+  try {
+    const teamNeeds = JSON.parse(await fs.readFile(MOCK_DRAFT_TEAM_NEEDS_FILE, 'utf8'));
+    for (const code of MOCK_DRAFT_TEAM_CODES) {
+      if (!teamNeeds[code] || typeof teamNeeds[code] !== 'object') throw new Error(`Missing team ${code}`);
+      teamNeeds[code].needs = needs[code].map(need => need.trim());
+    }
+    await writeJsonFileAtomically(MOCK_DRAFT_TEAM_NEEDS_FILE, JSON.stringify(teamNeeds, null, 2));
+    return res.json({ ok: true, teamNeeds });
+  } catch (error) {
+    console.error('[ADMIN] Save mock draft team needs error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to save team needs' });
+  }
+});
+
 app.post('/api/admin/mock-draft/team-order/save', requireAdminDebugKey, async (req, res) => {
   try {
     const order = req.body && req.body.order;
-    if (!Array.isArray(order) || order.length !== MOCK_DRAFT_TEAM_CODES.length || new Set(order).size !== MOCK_DRAFT_TEAM_CODES.length || order.some((code) => !MOCK_DRAFT_TEAM_CODES.includes(code))) {
-      return res.status(400).json({ ok: false, error: 'Team order must contain every NFL team exactly once' });
+    if (!Array.isArray(order) || order.length !== MOCK_DRAFT_TEAM_CODES.length || order.some((code) => !MOCK_DRAFT_TEAM_CODES.includes(code))) {
+      return res.status(400).json({ ok: false, error: 'Pick owners must contain exactly 32 valid NFL team codes; teams may own multiple picks' });
     }
     await writeJsonFileAtomically(MOCK_DRAFT_TEAM_ORDER_FILE, JSON.stringify({ order }, null, 2));
     return res.json({ ok: true, order });
@@ -5919,12 +5969,15 @@ app.post('/api/admin/mock-draft/team-order/save', requireAdminDebugKey, async (r
 app.get('/api/public/mock-draft/default-team-order', async (_req, res) => {
   try {
     return res.json({ ok: true, order: await readMockDraftTeamOrder() });
-  } catch (_error) {
-    return res.json({ ok: true, order: [...MOCK_DRAFT_TEAM_CODES] });
+  } catch (error) {
+    console.error('[PUBLIC] Read default pick owners error:', error);
+    return res.status(500).json({ ok: false, error: 'Unable to read default pick owners' });
   }
 });
 
-require('./mock-draft-scoring-store').registerScoringRoutes(app, requireAdminDebugKey, writeJsonFileAtomically, readMockDraftTeamOrder);
+require('./mock-draft-scoring-store').registerScoringRoutes(app, requireAdminDebugKey, writeJsonFileAtomically, readMockDraftTeamOrder, {
+  verifyAccount: require('./mock-draft-account-auth').createAccountVerifier()
+});
 
 app.get('/api/admin/rankings/position/:position', requireAdminDebugKey, async (req, res) => {
   try {
@@ -6315,6 +6368,9 @@ function hasWaiverTeamActed(waiverState, teamName) {
 
 function markWaiverTeamActed(waiverState, teamName) {
   if (!waiverState || !teamName) return;
+  if (Array.isArray(waiverState.actedPicks) && !waiverState.actedPicks.includes(waiverState.turnIndex)) {
+    waiverState.actedPicks.push(waiverState.turnIndex);
+  }
   const normalizedTeamName = String(teamName || '').trim().toLowerCase();
   if (!normalizedTeamName) return;
   const actedTeams = getWaiverActedTeams(waiverState);
@@ -6350,6 +6406,18 @@ function resetWaiverTurnTimer(waiverState, draft, teamName) {
 
 function advanceWaiverTurn(waiverState, draft) {
   if (!waiverState || !Array.isArray(waiverState.order) || waiverState.order.length === 0) return;
+  if (Array.isArray(waiverState.actedPicks)) {
+    const nextIndex = waiverState.order.findIndex((_name, index) => !waiverState.actedPicks.includes(index));
+    if (nextIndex < 0) {
+      waiverState.active = false;
+      waiverState.completed = true;
+    } else {
+      waiverState.turnIndex = nextIndex;
+      resetWaiverTurnTimer(waiverState, draft, waiverState.order[nextIndex]);
+    }
+    waiverState.updatedAt = Date.now();
+    return;
+  }
 
   const nextTeamName = getNextUnactedWaiverTeam(waiverState);
   if (!nextTeamName) {
@@ -6370,7 +6438,9 @@ function finalizeWaiverStateProgress(draft, waiverState) {
   waiverState.pool = buildWaiverPoolFromDraft(draft);
   const order = Array.isArray(waiverState.order) ? waiverState.order.map((name) => String(name || '').trim()).filter(Boolean) : [];
   const actedTeams = getWaiverActedTeams(waiverState);
-  const allTeamsActed = order.length > 0 && order.every((teamName) => actedTeams.some((actedTeamName) => String(actedTeamName || '').trim().toLowerCase() === String(teamName || '').trim().toLowerCase()));
+  const allTeamsActed = Array.isArray(waiverState.actedPicks)
+    ? order.length > 0 && order.every((_name, index) => waiverState.actedPicks.includes(index))
+    : order.length > 0 && order.every((teamName) => actedTeams.some((actedTeamName) => String(actedTeamName || '').trim().toLowerCase() === String(teamName || '').trim().toLowerCase()));
   if (waiverState.pool.length === 0 || Number(waiverState.passesInRow || 0) >= order.length || allTeamsActed) {
     waiverState.active = false;
     waiverState.completed = true;
@@ -6630,6 +6700,7 @@ function recordWaiverTeamActivity(waiverState, teamName, action) {
   }
   const entry = {
     teamName: String(teamName || '').trim(),
+    pickIndex: Number(waiverState.turnIndex || 0),
     type: String(action && action.type || 'addDrop').trim(),
     addPlayerName: String(action && action.addPlayerName || '').trim(),
     addPlayerPosition: String(action && action.addPlayerPosition || '').trim().toUpperCase(),
@@ -7262,9 +7333,6 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
     const tiedBids = [];
     const allIndividualBids = []; // Collect all bids for bulk database operations
     const maxRosterSize = getConfiguredMaxRosterSize(Number(rosterSize || 0));
-    const targetRosterSize = Math.max(1, Number(rosterSize || 0));
-    const floorRosterSize = Math.max(1, targetRosterSize - 2);
-    const floorPriorityActive = Number(roundNumber || 0) >= 9;
     const teamRoundState = new Map(
       (teams || []).map((team) => [
         String(team && team.name || ''),
@@ -7446,13 +7514,8 @@ async function processAuctions(roundPlayers, teams, cpuBids, userBids, rosterLim
       console.log(`[processAuctions] ${player.name}: Total bids = ${gatedBids.length}`);
     }
 
-    const floorNeedBidders = floorPriorityActive
-      ? gatedBids.filter((entry) => {
-          const state = teamRoundState.get(String(entry?.team?.name || ''));
-          return (state && Number(state.rosterCount || 0) < floorRosterSize);
-        })
-      : [];
-    const eligibleBids = floorNeedBidders.length > 0 ? floorNeedBidders : gatedBids;
+    // Highest valid bid always wins; roster fill needs never outrank a higher bid.
+    const eligibleBids = gatedBids;
 
     // Create allBids array with ALL teams (including those who bid $0)
     const allTeamsBids = teams.map(team => {
@@ -7810,6 +7873,10 @@ function applyWonRoundResultsToDraftState(draftState, draftCode, roundNumber, re
       existingRosterPlayer.name = String((statePlayer && statePlayer.name) || existingRosterPlayer.name || result.playerName || '').trim();
       existingRosterPlayer.id = Number.isFinite(safePlayerId) ? safePlayerId : existingRosterPlayer.id;
     } else {
+      winnerTeam.budget = Math.max(0, Number(winnerTeam.budget || 0) - finalPrice);
+      if (Object.prototype.hasOwnProperty.call(winnerTeam, 'budgetRemaining')) {
+        winnerTeam.budgetRemaining = winnerTeam.budget;
+      }
       winnerTeam.roster.push({
         id: Number.isFinite(safePlayerId) ? safePlayerId : statePlayer.id,
         name: String((statePlayer && statePlayer.name) || result.playerName || '').trim(),
@@ -8352,7 +8419,8 @@ function scheduleRoundTimerIfReady(draftCode, draft) {
   // Only members currently on human control must be connected and acknowledged.
   const allReady = requiredMembers.every((member) => isConnected(member) && isOnCurrentRound(member));
 
-  if (!allReady || Number.isFinite(Number(draft.draftState.roundStartAt))) return allReady;
+  const scheduledStart = Number(draft.draftState.roundStartAt);
+  if (!allReady || (Number.isFinite(scheduledStart) && scheduledStart > 0)) return allReady;
 
   const currentRound = Number(draft.draftState.currentRound);
   const roundTimerMinutes = normalizeServerRoundTimerMinutes(draft.roundTimerMinutes);
@@ -8456,6 +8524,26 @@ function buildDraftActiveAuctionPayload(draft) {
   };
 }
 
+function buildDraftAuctionCompletionPayload(draft) {
+  const state = draft && draft.draftState;
+  const roundNumber = Number(state && state.lastAuctionCompletedRound);
+  if (!state || !roundNumber || roundNumber !== Number(state.currentRound) || !Array.isArray(state.teams)) {
+    return null;
+  }
+  return { roundNumber, teams: state.teams };
+}
+
+function buildDraftFinalRoundCompletionPayload(draft) {
+  const state = draft && draft.draftState;
+  const tiedBids = state && state.lastRoundResults && state.lastRoundResults.tiedBids;
+  if (!state || Number(state.currentRound) !== 10 || Number(state.lastFinalizedRound) !== 10
+      || state.pendingRoundResults || !Array.isArray(tiedBids) || tiedBids.length > 0
+      || !Array.isArray(state.teams)) {
+    return null;
+  }
+  return { roundNumber: 10, teams: state.teams };
+}
+
 function buildDraftStatePayloadForClient(draftState) {
   if (!draftState || typeof draftState !== 'object') {
     return {};
@@ -8502,7 +8590,12 @@ function buildDraftResumeResponse(draft, username, lastSeenVersion) {
     currentVersion,
     draftMeta: buildDraftMetaPayload(draft),
     pendingRoundResults: buildDraftPendingRoundResultsPayload(draft, username),
-    activeAuction: buildDraftActiveAuctionPayload(draft)
+    activeAuction: buildDraftActiveAuctionPayload(draft),
+    pendingAuctions: draft && draft.draftState && Array.isArray(draft.draftState.pendingAuctions)
+      ? draft.draftState.pendingAuctions.slice()
+      : [],
+    completedAuctions: buildDraftAuctionCompletionPayload(draft),
+    completedFinalRound: buildDraftFinalRoundCompletionPayload(draft)
   };
 
   if (normalizedLastSeen >= currentVersion) {
@@ -8753,7 +8846,25 @@ function scheduleLobbyDisconnectRemoval(code, username) {
   pendingLobbyDisconnectTimers.set(key, timerId);
 }
 
+const draftTrades = createTradeService({
+  isCpu: isCpuSummaryTeam,
+  capacity: (draft, phase) => {
+    const settings = normalizeRosterSettingsForSummary(draft.rosterSettings || draft.draftState.rosterSettings);
+    return phase === 'post'
+      ? buildSummarySlotBlueprint(settings).length + getDraftBenchCutTarget(draft)
+      : (Number(draft.draftState.rosterSize) || Object.values(settings).reduce((sum, count) => sum + count, 0)) + 3;
+  },
+  playerValue: (player, draft) => getWaiverPlayerAv(player, getWaiverPlayerValueMaps(draft)),
+  rosterScore: (roster, draft) => scoreWaiverRoster(roster,
+    normalizeRosterSettingsForSummary(draft.rosterSettings || draft.draftState.rosterSettings), getWaiverPlayerValueMaps(draft)),
+  waiverScore: getTeamTotalAvScore,
+  waiverMode: draft => normalizeWaiverLobbyMode(draft.waiverMode),
+  loadCpuRankings: async () => (await readDefaultRankingsData()).players,
+  persist: schedulePersistDraftState
+});
+
 io.on('connection', (socket) => {
+  draftTrades.register(socket, io, drafts);
   console.log(`[connection] New socket connected: ${socket.id}`);
 
   const clearPendingRoundAutoAdvance = (draftCode) => {
@@ -8802,6 +8913,7 @@ io.on('connection', (socket) => {
     draft.draftState.isProcessingRound = false;
     draft.draftState.lastFinalizedRound = pendingRoundNumber;
     draft.draftState.pendingRoundResults = null;
+    draftTrades.ensureWaiverPicks(draft);
     clearPendingRoundAutoAdvance(safeCode);
     schedulePersistDraftState(safeCode, `round_results_finalized:${String(trigger || 'manual')}`);
 
@@ -9580,12 +9692,23 @@ io.on('connection', (socket) => {
     return { ok: true, playerId: safePlayerId, bidAmount: safeBid };
   };
 
+  const checkTradeBidRevision = (draft, username, meta) => {
+    const expected = Number((draft.draftState.tradeBidRevisions || {})[username] || 0);
+    return !expected || Number(meta && meta.tradeBidRevision) === expected;
+  };
+
   // Sync all bids for the current round in one payload to avoid submit-time socket churn.
-  socket.on('syncRoundBids', (code, bidEntries, cb) => {
+  socket.on('syncRoundBids', (code, bidEntries, metaOrCb, cbMaybe) => {
+    const meta = typeof metaOrCb === 'object' && metaOrCb ? metaOrCb : {};
+    const cb = typeof metaOrCb === 'function' ? metaOrCb : cbMaybe;
     const username = socket.data.username;
     const draft = ensureDraftStateForSocket(code, socket, { username });
     if (!draft || !draft.draftState || !draft.draftState.bids) {
       if (cb) cb({ ok: false, reason: 'draft_not_ready' });
+      return;
+    }
+    if (!checkTradeBidRevision(draft, username, meta)) {
+      if (cb) cb({ ok: false, reason: 'trade_bids_reset' });
       return;
     }
 
@@ -9608,11 +9731,17 @@ io.on('connection', (socket) => {
   });
 
   // Place a bid on a player
-  socket.on('placeBid', (code, playerId, bidAmount, cb) => {
+  socket.on('placeBid', (code, playerId, bidAmount, metaOrCb, cbMaybe) => {
+    const meta = typeof metaOrCb === 'object' && metaOrCb ? metaOrCb : {};
+    const cb = typeof metaOrCb === 'function' ? metaOrCb : cbMaybe;
     const username = socket.data.username;
     const draft = ensureDraftStateForSocket(code, socket, { username });
     if (!draft || !draft.draftState || !draft.draftState.bids) {
       if (cb) cb({ ok: false, reason: 'draft_not_ready' });
+      return;
+    }
+    if (!checkTradeBidRevision(draft, username, meta)) {
+      if (cb) cb({ ok: false, reason: 'trade_bids_reset' });
       return;
     }
 
@@ -9683,6 +9812,10 @@ io.on('connection', (socket) => {
     }
 
     socket.data.username = submissionUsername;
+    if (!checkTradeBidRevision(draft, submissionUsername, meta)) {
+      if (cb) cb({ ok: false, reason: 'trade_bids_reset' });
+      return;
+    }
     console.log(`[submitBids] ${submissionUsername} submitted bids in ${draftCode}`);
     if (requestId) {
       const cached = getDraftActionReceipt(draft, 'submitBids', requestId);
@@ -9933,11 +10066,15 @@ io.on('connection', (socket) => {
 
     const clientTeams = Array.isArray(payload.teams) ? payload.teams : [];
     const stateTeams = Array.isArray(draftState.teams) ? draftState.teams : [];
-    const teams = clientTeams.length > 0 ? clientTeams : stateTeams;
+    const teams = Number(draftState.tradeRevision || 0) > 0
+      ? stateTeams
+      : (clientTeams.length > 0 ? clientTeams : stateTeams);
 
     const clientAllPlayers = Array.isArray(payload.allPlayers) ? payload.allPlayers : [];
     const stateAllPlayers = Array.isArray(draftState.allPlayers) ? draftState.allPlayers : [];
-    const allPlayers = clientAllPlayers.length > 0 ? clientAllPlayers : stateAllPlayers;
+    const allPlayers = Number(draftState.tradeRevision || 0) > 0 && stateAllPlayers.length
+      ? stateAllPlayers
+      : (clientAllPlayers.length > 0 ? clientAllPlayers : stateAllPlayers);
 
     const rosterSize = Number.isFinite(Number(payload.rosterSize)) ? Number(payload.rosterSize) : 0;
     const rosterLimits = payload.rosterLimits && typeof payload.rosterLimits === 'object'
@@ -10573,6 +10710,7 @@ io.on('connection', (socket) => {
       drafts[code].draftState.currentPlayers = [];
       drafts[code].draftState.recentAcquisitions = {}; // Clear recent acquisitions for new round
       drafts[code].draftState.pendingRoundResults = null;
+      drafts[code].draftState.lastAuctionCompletedRound = null;
       clearPendingRoundAutoAdvance(code);
       const roundStartedPayload = {
         currentRound: drafts[code].draftState.currentRound,
@@ -11101,11 +11239,20 @@ io.on('connection', (socket) => {
           }
         }, 7000);
       } else {
-        console.log(`[completeLiveAuction] No more auctions, waiting 2 seconds then emitting allMembersAccepted to draft_${code}`);
-        // Keep the completion flow tight so the PWA doesn't feel stalled.
+        const completedRound = Number(drafts[code].draftState.currentRound);
+        schedulePersistDraftState(code, 'live_auction_awarded');
+        console.log(`[completeLiveAuction] No more auctions, waiting for winner presentation in draft_${code}`);
         setTimeout(() => {
           try {
-            if (drafts[code]) {
+            if (drafts[code] && drafts[code].draftState
+                && Number(drafts[code].draftState.currentRound) === completedRound) {
+              drafts[code].draftState.lastAuctionCompletedRound = completedRound;
+              draftTrades.ensureWaiverPicks(drafts[code]);
+              schedulePersistDraftState(code, 'live_auctions_completed');
+              const completion = buildDraftAuctionCompletionPayload(drafts[code]);
+              if (completion) {
+                io.to(`draft_${code}`).emit('liveAuctionsCompleted', completion);
+              }
               io.to(`draft_${code}`).emit('allMembersAccepted');
               console.log(`[completeLiveAuction] allMembersAccepted emitted successfully`);
             }
@@ -11737,6 +11884,10 @@ io.on('connection', (socket) => {
       order = shuffleList(order);
     }
 
+    if (Array.isArray(draft.tradeWaiverPicks)) {
+      order = draft.tradeWaiverPicks.map(pick => pick.owner);
+    }
+
     draft.waiverState = {
       active: true,
       completed: false,
@@ -11750,6 +11901,7 @@ io.on('connection', (socket) => {
       pool: buildWaiverPoolFromDraft(draft),
       passesInRow: 0,
       actedTeams: [],
+      actedPicks: [],
       updatedAt: Date.now(),
       teamActivity: [],
       lastAction: {

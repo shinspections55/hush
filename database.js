@@ -1,51 +1,20 @@
-const path = require('path');
+const sqlite3 = require('sqlite3').verbose();
+const { prepareAuctionDatabasePath } = require('./auction-database-path');
 
-let sqlite3 = null;
-let sqliteEnabled = true;
-
-try {
-  sqlite3 = require('sqlite3').verbose();
-} catch (error) {
-  sqliteEnabled = false;
-  console.error('[DATABASE] sqlite3 module failed to load; running without persistent DB:', error.message);
+const { filePath: dbPath, external } = prepareAuctionDatabasePath();
+if (!external && process.env.NODE_ENV === 'production') {
+  console.warn('[DATABASE] Auction data is inside the deployment directory. Configure HUSH_AUCTION_DB_PATH on a persistent volume before redeploying.');
 }
-
-// Database file path
-const dbPath = path.join(__dirname, 'auction_data.db');
-
-const noopDb = {
-  run(sql, params, callback) {
-    const cb = typeof params === 'function' ? params : callback;
-    if (cb) cb(null);
-  },
-  get(sql, params, callback) {
-    const cb = typeof params === 'function' ? params : callback;
-    if (cb) cb(null, undefined);
-  },
-  all(sql, params, callback) {
-    const cb = typeof params === 'function' ? params : callback;
-    if (cb) cb(null, []);
-  },
-  close(callback) {
-    if (callback) callback(null);
+const openMode = sqlite3.OPEN_READWRITE
+  | ((!external || process.env.HUSH_ALLOW_NEW_AUCTION_DB === '1') ? sqlite3.OPEN_CREATE : 0);
+const db = new sqlite3.Database(dbPath, openMode, (err) => {
+  if (err) {
+    console.error('[DATABASE] Cannot open auction database; refusing to run without persistence:', err.message);
+    throw err;
   }
-};
-
-let db = noopDb;
-
-// Create database connection when sqlite is available
-if (sqliteEnabled) {
-  db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-      sqliteEnabled = false;
-      db = noopDb;
-      console.error('[DATABASE] Error opening SQLite database; switching to in-memory no-op mode:', err.message);
-    } else {
-      console.log('Connected to SQLite database');
-      initializeDatabase();
-    }
-  });
-}
+  console.log(`[DATABASE] Connected to SQLite database: ${dbPath}`);
+  db.serialize(initializeDatabase);
+});
 
 // Initialize database tables
 function initializeDatabase() {

@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const DEFAULT_ROSTER_SETTINGS = { QB: 1, WR: 2, RB: 2, TE: 1, FLEX: 1, K: 1, DEF: 1, BN: 13 };
     const DEFAULT_BENCH_CUT_TARGET = 5;
     const MAX_DRAFT_BENCH = 13;
@@ -22,7 +22,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const waiverOnClockStarters = document.getElementById('waiverOnClockStarters');
     const waiverOnClockBench = document.getElementById('waiverOnClockBench');
     const currentDraft = sessionStorage.getItem('currentDraft');
-    let draftSummary = loadSummary();
+    let draftSummary;
+    try {
+        draftSummary = await loadSummary();
+    } catch (error) {
+        console.error('[waivers] Could not load draft history:', error);
+        waiverPageNotice.textContent = 'Unable to load saved draft data. Check browser storage permissions and retry.';
+        return;
+    }
     let waiverState = null;
     let selectedPosition = 'ALL';
     let onClockRosterCount = 0;
@@ -183,6 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
             lastAction: rawState.lastAction || null,
             teamActivity: Array.isArray(rawState.teamActivity)
                 ? rawState.teamActivity.map(entry => ({
+                    pickIndex: Number.isInteger(entry && entry.pickIndex) ? entry.pickIndex : null,
                     teamName: String(entry && entry.teamName || '').trim(),
                     type: String(entry && entry.type || 'addDrop').trim(),
                     addPlayerName: String(entry && entry.addPlayerName || '').trim(),
@@ -220,6 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     byeWeek: resolvePlayerByeWeek(player),
                     avgValue: Number(player && player.avgValue || 0),
                     bid: player.bid,
+                    acquisitionCost: player.acquisitionCost,
                     prerank: player.prerank
                 }))
                 : []
@@ -366,10 +375,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return waiverState.order[Math.max(0, Math.min(Number(waiverState.turnIndex || 0), waiverState.order.length - 1))] || '';
     }
 
-    function getTeamWaiverActivity(teamName) {
+    function getTeamWaiverActivity(teamName, pickIndex) {
         if (!waiverState || !Array.isArray(waiverState.teamActivity) || !teamName) return null;
         const normalizedTeamName = String(teamName || '').trim().toLowerCase();
-        return [...waiverState.teamActivity].reverse().find(entry => String(entry && entry.teamName || '').trim().toLowerCase() === normalizedTeamName) || null;
+        return [...waiverState.teamActivity].reverse().find(entry =>
+            String(entry && entry.teamName || '').trim().toLowerCase() === normalizedTeamName
+            && (entry.pickIndex === null || entry.pickIndex === pickIndex)) || null;
     }
 
     function isCurrentUserTeamName(teamName) {
@@ -474,10 +485,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function persistSummary() {
         if (!draftSummary) return;
-        sessionStorage.setItem('latestDraftSummary', JSON.stringify(draftSummary));
+        window.HushDraftHistory.save(draftSummary).catch(error => {
+            console.error('[waivers] Could not save draft changes:', error);
+            waiverPageNotice.textContent = 'Draft changes could not be saved. Check browser storage and retry.';
+        });
     }
 
-    function persistCompletedDraftSummaryWithWaiverChanges() {
+    async function persistCompletedDraftSummaryWithWaiverChanges() {
         if (!draftSummary) return;
 
         const normalizedTeams = Array.isArray(draftSummary.teams)
@@ -494,42 +508,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         draftSummary = mergedSummary;
 
-        try {
-            sessionStorage.setItem('latestDraftSummary', JSON.stringify(mergedSummary));
-        } catch (_error) {
-            // ignore sessionStorage write failures
-        }
-
-        try {
-            const completedRaw = localStorage.getItem('completedDrafts');
-            const completedDrafts = completedRaw ? JSON.parse(completedRaw) : [];
-            const list = Array.isArray(completedDrafts) ? completedDrafts : [];
-            const draftCode = String(mergedSummary.draftCode || '').trim();
-            const existingIndex = list.findIndex((entry) => String(entry && entry.draftCode || '').trim() === draftCode);
-
-            if (existingIndex >= 0) {
-                list[existingIndex] = {
-                    ...list[existingIndex],
-                    ...mergedSummary,
-                    completed: true
-                };
-            } else {
-                list.push(mergedSummary);
-            }
-
-            localStorage.setItem('completedDrafts', JSON.stringify(list));
-        } catch (_error) {
-            // ignore localStorage parse/write failures
-        }
+        await window.HushDraftHistory.save(mergedSummary);
     }
 
-    function handleWaiverCompletionFlow() {
+    async function handleWaiverCompletionFlow() {
         if (!waiverState || !waiverState.completed || waiverCompletionHandled) {
             return;
         }
 
         waiverCompletionHandled = true;
-        persistCompletedDraftSummaryWithWaiverChanges();
+        try {
+            await persistCompletedDraftSummaryWithWaiverChanges();
+        } catch (error) {
+            waiverCompletionHandled = false;
+            console.error('[waivers] Could not save completed waivers:', error);
+            waiverPageNotice.textContent = 'Unable to save completed waivers. Check browser storage and retry.';
+            return;
+        }
 
         waiverPageNotice.textContent = 'Waivers are complete. Returning to updated draft summary...';
 
@@ -542,34 +537,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 900);
     }
 
-    function loadSummary() {
-        const currentDraftCode = sessionStorage.getItem('currentDraft');
-        const completedRaw = localStorage.getItem('completedDrafts');
-        const latestRaw = sessionStorage.getItem('latestDraftSummary');
-
-        if (completedRaw) {
-            try {
-                const completed = JSON.parse(completedRaw);
-                const drafts = Array.isArray(completed) ? completed.filter(draft => draft && draft.completed) : [];
-                if (currentDraftCode) {
-                    const exact = drafts.find(draft => draft.draftCode === currentDraftCode);
-                    if (exact) return exact;
-                }
-                if (drafts[0]) return drafts.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))[0];
-            } catch (_error) {
-                // ignore
-            }
-        }
-
-        if (latestRaw) {
-            try {
-                return JSON.parse(latestRaw);
-            } catch (_error) {
-                // ignore
-            }
-        }
-
-        return null;
+    async function loadSummary() {
+        return window.HushDraftHistory.loadSummary();
     }
 
     function syncFromServer() {
@@ -605,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentTurn = getCurrentWaiverTeamName();
         waiverOrderList.innerHTML = order.length
             ? order.map((teamName, index) => {
-                const activity = getTeamWaiverActivity(teamName);
+                const activity = getTeamWaiverActivity(teamName, index);
                 const activityMarkup = activity && activity.type === 'addDrop'
                     ? `
                         <div class="waiver-activity">
@@ -619,12 +588,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     `
                     : '';
-                const badgeText = waiverState && waiverState.active && currentTurn === teamName
+                const badgeText = waiverState && waiverState.active && Number(waiverState.turnIndex) === index
                     ? 'On clock'
                     : activity
                         ? (activity.type === 'addDrop' ? '' : 'Passed')
                         : '';
-                const isOnClock = !!(waiverState && waiverState.active && currentTurn === teamName);
+                const isOnClock = !!(waiverState && waiverState.active && Number(waiverState.turnIndex) === index);
                 const showInlinePass = isOnClock && isUsersWaiverTurn();
                 return `
                     <div class="waiver-order-item ${isOnClock ? 'active' : ''}">
@@ -944,14 +913,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     return `<div class="waiver-team-row"><span class="waiver-team-pos">${escapeHtml(slot.label || '--')}</span><span class="waiver-team-player">Empty</span><span class="waiver-team-cost">-</span></div>`;
                 }
                 const byeMarkup = getPlayerByeWeekMarkup(slot.player);
-                return `<div class="waiver-team-row"><span class="waiver-team-pos">${escapeHtml(slot.label || slot.player.position || 'UNK')}</span><span class="waiver-team-player">${escapeHtml(slot.player.name || 'Unknown')} ${byeMarkup}</span><span class="waiver-team-cost">$${Number(slot.player.bid || 0)}</span></div>`;
+                return `<div class="waiver-team-row"><span class="waiver-team-pos">${escapeHtml(slot.label || slot.player.position || 'UNK')}</span><span class="waiver-team-player">${escapeHtml(slot.player.name || 'Unknown')} ${byeMarkup}</span><span class="waiver-team-cost">$${Number(slot.player.acquisitionCost ?? slot.player.bid ?? 0)}</span></div>`;
             }).join('')
             : '<div class="bench-empty">No starters configured.</div>';
 
         waiverOnClockBench.innerHTML = bench.length
             ? bench.map(player => {
                 const byeMarkup = getPlayerByeWeekMarkup(player);
-                return `<div class="waiver-team-row"><span class="waiver-team-pos">${escapeHtml(player.position || 'BN')}</span><span class="waiver-team-player">${escapeHtml(player.name || 'Unknown')} ${byeMarkup}</span><span class="waiver-team-cost">$${Number(player.bid || 0)}</span></div>`;
+                return `<div class="waiver-team-row"><span class="waiver-team-pos">${escapeHtml(player.position || 'BN')}</span><span class="waiver-team-player">${escapeHtml(player.name || 'Unknown')} ${byeMarkup}</span><span class="waiver-team-cost">$${Number(player.acquisitionCost ?? player.bid ?? 0)}</span></div>`;
             }).join('')
             : '<div class="bench-empty">No bench players.</div>';
     }

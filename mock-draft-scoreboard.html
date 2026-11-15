@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>2027 Mock Draft Live Scoreboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="mock-draft-summary.css">
+  <script src="theme-utils.js?v=20260821-c9c656a0"></script>
+</head>
+<body class="bg-overlay mock-summary-page">
+  <main class="summary-main">
+    <a class="summary-back" href="mock-draft-contest.html">Build / update my mock</a>
+    <section class="summary-heading">
+      <div>
+        <p class="summary-eyebrow">2027 NFL DRAFT</p>
+        <h1>Live scoreboard</h1>
+        <p id="scoreboardStatus" role="status" aria-live="polite">Loading submitted mocks...</p>
+        <p>Entries lock <time data-mock-deadline datetime="2027-04-29T23:30:00.000Z">April 29, 2027 at 7:30 PM Eastern</time>, 30 minutes before the scheduled start, or earlier if closed by admin.</p>
+      </div>
+      <div class="summary-actions">
+        <a href="mock-draft-summary.html?submitted=1">My submitted mock</a>
+        <button id="refreshScoreboardBtn" type="button">Refresh scores</button>
+      </div>
+    </section>
+    <section class="summary-section" aria-label="Submitted mock standings">
+      <div class="summary-tabs" role="group" aria-label="Choose standings">
+        <button type="button" data-scoreboard-role="combined" aria-pressed="true">Overall</button>
+        <button type="button" data-scoreboard-role="expert" aria-pressed="false">Experts</button>
+        <button type="button" data-scoreboard-role="participant" aria-pressed="false">Contestants</button>
+      </div>
+      <div class="summary-table-scroll">
+        <table class="summary-table">
+          <thead><tr><th>Rank</th><th>Username / Expert</th><th>Group</th><th>Points</th><th>Pending</th></tr></thead>
+          <tbody id="liveScoreboardRows"></tbody>
+        </table>
+      </div>
+      <p class="summary-footnote">Automatically refreshes every 10 seconds. Only submitted entries for the 2027 public contest appear here. Predictions stay private. Scores update when real draft results are confirmed in admin; no external results feed is connected.</p>
+    </section>
+  </main>
+  <script src="mock-draft-contest-policy.js?v=20261115-real-contest"></script>
+  <script src="mock-draft-scoreboard.js?v=20261115-real-contest"></script>
+</body>
+</html>

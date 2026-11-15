@@ -1,10 +1,12 @@
 ﻿<!doctype html>
 <html lang="en">
 <head>
+    <script src="/public/draft-history.js?v=20261112-idb"></script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Admin Portal</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="/public/admin-learn-hush-editor.css?v=20261112-learn-editor">
   <script src="theme-utils.js?v=20260821-c9c656a0"></script>
 </head>
 <body class="bg-overlay admin-portal-page">
@@ -106,11 +108,28 @@
         </div>
       </section>
 
+      <section class="box admin-portal-card" id="learn-hush-editor">
+        <h2>Learn Hush Editor</h2>
+        <p class="form-helper">Edit every heading, paragraph and list item in the guide. Connect with your admin key above, load the guide, then save your changes for everyone.</p>
+        <p class="form-helper">Edited fields are plain text; their original bold formatting is removed. Unchanged fields keep their formatting.</p>
+        <div class="admin-portal-actions">
+          <button type="button" class="btn btn-signup" id="learnEditorLoad">Load guide</button>
+          <a class="form-link" href="learn-hush.html" target="_blank" rel="noopener">Open Learn Hush</a>
+        </div>
+        <p id="learnEditorStatus" role="status" aria-live="polite"></p>
+        <form id="learnEditorForm" hidden>
+          <fieldset id="learnEditorFields" style="border:0;padding:0"></fieldset>
+          <button type="submit" class="btn btn-login">Save guide</button>
+        </form>
+      </section>
+
       <section class="box admin-portal-card admin-mock-draft-card">
-        <h2>Mock Draft Prospect Manager</h2>
-        <p class="form-helper">Edit college prospect files by position, set a drag-and-drop overall board, and choose the default 32-team draft order.</p>
+        <h2>Mock Draft Challenge Editor</h2>
+        <p class="form-helper">Set the default owner of every first-round pick, including traded picks. Add, remove, and edit prospects, position rankings, and the overall board.</p>
         <div class="admin-portal-actions">
           <a href="admin-mock-draft.html" class="form-link">Open Mock Draft Manager</a>
+          <a href="admin-mock-draft.html#teams" class="form-link">Edit Default Pick Owners</a>
+          <a href="admin-mock-draft.html#overall" class="form-link">Edit Overall Rankings</a>
         </div>
       </section>
 
@@ -125,9 +144,8 @@
     </div>
   </main>
 
-  <script src="admin-portal.js?v=20260821-c9c656a0"></script>
+  <script src="admin-portal.js?v=20261112-idb"></script>
+  <script src="/public/admin-learn-hush-editor.js?v=20261112-learn-editor"></script>
   <script src="preferences.js"></script>
 </body>
 </html>
-
-

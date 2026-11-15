@@ -9,7 +9,8 @@
     "lock:refresh-login-flow": "node tools/refresh-login-lock.js",
     "assets:check": "node tools/asset-version.js check",
     "assets:bump": "node tools/asset-version.js bump",
-    "start": "node server.js"
+    "start": "node server.js",
+    "db:backup": "node tools/backup-auction-database.js"
   },
   "engines": {
     "node": ">=20.17.0"
@@ -23,5 +24,8 @@
     "nodemailer": "^8.0.10",
     "socket.io": "^4.7.2",
     "sqlite3": "^6.0.1"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.8"
   }
 }
