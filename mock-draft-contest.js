@@ -675,7 +675,7 @@ document.querySelectorAll('.mock-position-btn').forEach(button => {
   });
 });
 
-fileInput.addEventListener('change', async () => {
+fileInput?.addEventListener('change', async () => {
   const file = fileInput.files && fileInput.files[0];
   if (!file) return;
   try {
@@ -771,7 +771,7 @@ document.getElementById('reviewMockBtn').addEventListener('click', async event =
   }
 });
 
-document.getElementById('downloadMockBtn').addEventListener('click', () => {
+document.getElementById('downloadMockBtn')?.addEventListener('click', () => {
   const exportData = exportMockDraft();
   const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -819,7 +819,7 @@ async function loadPublicEntry() {
     document.getElementById('reviewMockBtn').textContent = payload.entry ? 'Update Mock & See Results' : 'Submit Mock & See Results';
     document.getElementById('reviewMockBtn').hidden = builderLocked;
     status.textContent = `${payload.username} - ${payload.entry ? 'Server submission saved.' : 'Not submitted yet.'} ${localDraftLoaded ? 'Showing this browser draft; submit any changes to update your server entry. ' : ''}${builderLocked
-      ? 'Submissions are locked. Open My submitted mock for results.'
+      ? 'Submissions are locked. Results will appear on the dashboard.'
       : `Editable until ${HushMockDeadline.formatDeadline(payload.submissionPolicy.deadline)} (or earlier admin closure). Local changes must be submitted to count.`}`;
     publicEntryReady = true;
     if (payload.submissionPolicy.open && payload.submissionPolicy.deadline) {
@@ -828,7 +828,7 @@ async function loadPublicEntry() {
         builderLocked = true;
         document.body.classList.add('mock-builder-locked');
         document.getElementById('reviewMockBtn').hidden = true;
-        status.textContent = `Submissions locked at ${HushMockDeadline.formatDeadline(payload.submissionPolicy.deadline)}. View your submitted mock or live scoreboard.`;
+        status.textContent = `Submissions locked at ${HushMockDeadline.formatDeadline(payload.submissionPolicy.deadline)}. Results will appear on the dashboard.`;
       }, delay);
     }
     render();
@@ -896,6 +896,8 @@ Promise.all([loadDefaultProspects(), loadDefaultTeamOrder(), loadTeamNeeds()]).t
 });
 if (!ADMIN_BUILDER_MODE) document.getElementById('reviewMockBtn').textContent = 'Submit Mock & See Results';
 if (ADMIN_BUILDER_MODE) {
-  document.getElementById('viewSubmittedMockBtn').hidden = true;
-  document.querySelector('.mock-scoreboard-link').hidden = true;
+  const submittedBtn = document.getElementById('viewSubmittedMockBtn');
+  if (submittedBtn) submittedBtn.hidden = true;
+  const scoreboardLink = document.querySelector('.mock-scoreboard-link');
+  if (scoreboardLink) scoreboardLink.hidden = true;
 }

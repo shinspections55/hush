@@ -7,7 +7,7 @@
   <meta name="description" content="Hush Mock Draft Contest">
   <title>Mock Draft Contest</title>
   <link rel="stylesheet" href="styles.css?v=20261113-dashboard-header">
-  <link rel="stylesheet" href="mock-draft-contest.css?v=20261114-prospect-pool">
+  <link rel="stylesheet" href="mock-draft-contest.css?v=20261116-clean-toolbar">
   <script src="theme-utils.js?v=20260821-c9c656a0"></script>
   <script src="firebase-config.js"></script>
 </head>
@@ -26,24 +26,19 @@
   </header>
 
   <main class="mock-contest-main">
-    <div class="mock-contest-toolbar">
-      <div class="mock-contest-summary">
-        <strong id="mockPickProgress">0 <span>/ 32</span></strong>
-        <span>picks filled</span>
-      </div>
-      <div class="mock-contest-actions">
-        <label class="mock-import-btn" for="prospectFileInput" title="Import a prospect JSON file">
-          <span aria-hidden="true">&#8593;</span> Import prospects
-        </label>
-        <input id="prospectFileInput" class="mock-file-input" type="file" accept=".json,application/json">
-        <button id="downloadMockBtn" class="mock-tool-btn" type="button" title="Download your mock draft as JSON" aria-label="Download mock draft">&#8595;</button>
-        <a id="reviewMockBtn" class="mock-import-btn" href="mock-draft-summary.html" title="Submit your mock and see your results">Submit Mock &amp; See Results</a>
-        <a id="viewSubmittedMockBtn" class="mock-import-btn" href="mock-draft-summary.html?submitted=1">My submitted mock</a>
-        <a class="mock-import-btn mock-scoreboard-link" href="mock-draft-scoreboard.html">Live scoreboard</a>
-        <button id="clearMockBtn" class="mock-tool-btn mock-tool-btn-danger" type="button" title="Clear all picks" aria-label="Clear all picks">&#8634;</button>
+    <section class="mock-contest-toolbar">
+      <div class="mock-toolbar-row">
+        <div class="mock-contest-summary">
+          <strong id="mockPickProgress">0 <span>/ 32</span></strong>
+          <span>picks filled</span>
+        </div>
+        <div class="mock-contest-actions">
+          <button id="clearMockBtn" class="mock-tool-btn mock-tool-btn-danger" type="button" title="Clear all picks" aria-label="Clear all picks">&#8634;</button>
+          <a id="reviewMockBtn" class="mock-import-btn mock-action-primary" href="mock-draft-summary.html" title="Submit your mock and see your results">Submit Mock &amp; See Results</a>
+        </div>
       </div>
       <p id="publicSubmissionStatus" role="status" aria-live="polite"></p>
-    </div>
+    </section>
 
     <section class="mock-draft-workspace" aria-label="Mock draft builder">
       <section class="mock-board-panel" aria-labelledby="mockBoardTitle">
@@ -99,6 +94,6 @@
 
   <script src="preferences.js"></script>
   <script src="mock-draft-contest-policy.js?v=20261115-real-contest"></script>
-  <script src="mock-draft-contest.js?v=20261115-real-contest"></script>
+  <script src="mock-draft-contest.js?v=20261116-clean-toolbar"></script>
 </body>
 </html>

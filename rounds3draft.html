@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0F2F44">
+  <meta name="description" content="Hush 3 Round Auction Draft">
+  <title>3 Round Auction Draft</title>
+  <link rel="stylesheet" href="/styles.css?v=20261113-dashboard-header">
+  <link rel="stylesheet" href="/rounds3draft.css?v=20261116-nominating-card">
+  <script src="/theme-utils.js?v=20260821-c9c656a0"></script>
+</head>
+<body class="bg-overlay dashboard-page rounds3-page">
+  <header class="dashboard-header hush-silver-bg dashboard-contest-header">
+    <div class="dashboard-header-left">
+      <a href="/dashboard.html" class="dashboard-home-link" aria-label="Hush dashboard">
+        <img src="/HUSHLOGO.png" alt="" class="dashboard-header-logo">
+        <span class="dashboard-contest-brand">HUSH <small>FANTASY DRAFTS</small></span>
+      </a>
+    </div>
+    <div class="dashboard-header-right">
+      <span id="r3LobbyCode" class="r3-lobby-code"></span>
+      <a href="/dashboard.html" class="r3-header-back">&larr; Dashboard</a>
+    </div>
+  </header>
+
+  <main class="r3-main">
+    <section class="r3-nomination-box" aria-live="polite">
+      <div class="r3-nom-status">
+        <span id="r3RoundInfo" class="r3-round-chip">Round 1 &middot; Pick 1.01</span>
+        <span id="r3NominatorInfo" class="r3-nominator"></span>
+      </div>
+
+      <div id="r3IdleState" class="r3-idle-state">
+        <h1>3 Round Auction Draft</h1>
+        <p>$100 budget &middot; 3 players per team &middot; min bid $1 &middot; 30s to nominate &middot; 10s bid clock</p>
+        <button id="r3StartBtn" class="r3-btn r3-btn-primary r3-btn-lg" type="button">Start Draft</button>
+      </div>
+
+      <div id="r3AuctionState" class="r3-auction-state hidden">
+        <div class="r3-nom-player">
+          <span class="r3-nom-label">On the block</span>
+          <strong id="r3NomName">&mdash;</strong>
+          <span id="r3NomMeta" class="r3-nom-meta"></span>
+        </div>
+        <div class="r3-nom-bid">
+          <span class="r3-nom-label">Current bid</span>
+          <strong id="r3BidAmount">$0</strong>
+          <span id="r3HighBidder" class="r3-nom-meta">No bids yet</span>
+        </div>
+        <div class="r3-nom-clock" aria-label="Bid countdown">
+          <strong id="r3Clock">10</strong>
+          <span>seconds</span>
+        </div>
+        <div id="r3BidControls" class="r3-bid-controls hidden">
+          <button id="r3BidPlusBtn" class="r3-btn r3-btn-primary" type="button">Bid +$1</button>
+          <input id="r3CustomBid" class="custom-bid" type="number" min="1" placeholder="Raise $">
+          <button id="r3BidCustomBtn" class="r3-btn r3-btn-bid" type="button">Place Bid</button>
+          <span id="r3BidHint" class="r3-bid-hint"></span>
+        </div>
+      </div>
+
+      <div id="r3NominatingState" class="r3-nominating-state hidden">
+        <span class="r3-nom-label">Up next</span>
+        <strong id="r3NominatingText">&mdash;</strong>
+        <span class="r3-nominating-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      </div>
+
+      <div id="r3ModeNotice" class="r3-mode-notice hidden"></div>
+    </section>
+
+    <section class="r3-board-panel" aria-label="Draft board">
+      <div id="draftBoard" class="r3-board"></div>
+    </section>
+  </main>
+
+  <dialog id="r3NominateDialog" class="r3-nominate-dialog" aria-labelledby="r3NominateTitle">
+    <div class="r3-dialog-shell">
+      <div class="r3-dialog-topbar">
+        <div>
+          <span class="r3-eyebrow">Your turn to nominate</span>
+          <h2 id="r3NominateTitle">Pick a player to put on the block</h2>
+        </div>
+        <div class="r3-nominate-clock" aria-label="Nomination countdown">
+          <strong id="r3NominateClock">30</strong>
+          <span>sec</span>
+        </div>
+      </div>
+      <label class="r3-search-wrap" for="r3Search">
+        <span aria-hidden="true">&#9906;</span>
+        <input id="r3Search" type="search" placeholder="Search players or teams" autocomplete="off">
+      </label>
+      <div class="r3-position-tabs" role="group" aria-label="Filter players by position">
+        <button class="r3-position-btn active" type="button" data-position="ALL" aria-pressed="true">All</button>
+        <button class="r3-position-btn" type="button" data-position="QB" aria-pressed="false">QB</button>
+        <button class="r3-position-btn" type="button" data-position="RB" aria-pressed="false">RB</button>
+        <button class="r3-position-btn" type="button" data-position="WR" aria-pressed="false">WR</button>
+        <button class="r3-position-btn" type="button" data-position="TE" aria-pressed="false">TE</button>
+        <button class="r3-position-btn" type="button" data-position="K" aria-pressed="false">K</button>
+        <button class="r3-position-btn" type="button" data-position="DEF" aria-pressed="false">DEF</button>
+      </div>
+      <div id="playerPool" class="r3-player-pool"></div>
+    </div>
+  </dialog>
+
+  <script src="/preferences.js"></script>
+  <script src="/rounds3draft.js?v=20261116-archetypes"></script>
+</body>
+</html>
