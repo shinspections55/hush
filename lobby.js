@@ -11,6 +11,7 @@ window.initializeLobby = function initializeLobby(opts){
   const DEFAULT_DRAFT_BENCH = 5;
   const DEFAULT_BENCH_CUT_TARGET = 5;
   const DEFAULT_ROUND_TIMER_MINUTES = 10;
+  const DEFAULT_ROUNDS3_PICK_TIMER_SECONDS = 30;
   const DEFAULT_AJ_DRAFT_MODE = true;
   let HUSH_NETWORK_PROFILE = 'high-latency';
   try {
@@ -78,6 +79,56 @@ window.initializeLobby = function initializeLobby(opts){
     return Math.max(3, Math.min(parsed, 10));
   }
 
+  function normalizeRounds3PickTimerSeconds(value, fallback = DEFAULT_ROUNDS3_PICK_TIMER_SECONDS) {
+    const parsed = Number.parseInt(value, 10);
+    return [20, 30, 45, 60].includes(parsed) ? parsed : fallback;
+  }
+
+  function buildDraftOrderAssignments(members, capacity, existing, randomizeMissing = false) {
+    const assignments = {};
+    const used = new Set();
+    const source = existing && typeof existing === 'object' ? existing : {};
+    const maxPosition = Math.max(1, Number.parseInt(capacity, 10) || 10);
+
+    (members || []).forEach((member) => {
+      const position = Number.parseInt(source[member], 10);
+      if (Number.isInteger(position) && position >= 1 && position <= maxPosition && !used.has(position)) {
+        assignments[member] = position;
+        used.add(position);
+      }
+    });
+
+    const available = Array.from({ length: maxPosition }, (_value, index) => index + 1)
+      .filter((position) => !used.has(position));
+    if (randomizeMissing) {
+      for (let index = available.length - 1; index > 0; index--) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [available[index], available[swapIndex]] = [available[swapIndex], available[index]];
+      }
+    }
+
+    (members || []).forEach((member) => {
+      if (typeof assignments[member] === 'undefined') {
+        assignments[member] = available.shift();
+      }
+    });
+    return assignments;
+  }
+
+  function generateDraftOrderAssignments(members, capacity, randomize = false) {
+    const positions = Array.from(
+      { length: Math.max(1, Number.parseInt(capacity, 10) || 10) },
+      (_value, index) => index + 1
+    );
+    if (randomize) {
+      for (let index = positions.length - 1; index > 0; index--) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [positions[index], positions[swapIndex]] = [positions[swapIndex], positions[index]];
+      }
+    }
+    return Object.fromEntries((members || []).map((member, index) => [member, positions[index]]));
+  }
+
   function normalizeWaiverMode(value, fallback = 'off') {
     const normalized = String(value || fallback || '').trim().toLowerCase();
     if (normalized === 'random' || normalized === 'skill') return normalized;
@@ -135,6 +186,7 @@ window.initializeLobby = function initializeLobby(opts){
   const rosterSummary = document.getElementById('rosterSummary');
   const applyRosterBtn = document.getElementById('applyRosterBtn');
   const roundTimerMinutesInput = document.getElementById('roundTimerMinutes');
+  const rounds3PickTimerSecondsInput = document.getElementById('rounds3PickTimerSeconds');
   const ajDraftModeInput = document.getElementById('ajDraftMode');
   const waiverModeInput = document.getElementById('waiverMode');
   const customBudgetControls = document.getElementById('customBudgetControls');
@@ -533,44 +585,85 @@ window.initializeLobby = function initializeLobby(opts){
     return String(value || '').trim().toLowerCase();
   }
 
+  function applyDraftTypeSettingsView(draftType) {
+    document.querySelectorAll('[data-draft-type-setting]').forEach((setting) => {
+      const visible = setting.dataset.draftTypeSetting === draftType;
+      setting.hidden = !visible;
+      setting.classList.toggle('hidden', !visible);
+    });
+  }
+
   function refreshMembers(){
     const draftsRaw = localStorage.getItem('drafts');
     const drafts = draftsRaw ? JSON.parse(draftsRaw) : {};
-    const members = (drafts[code] && drafts[code].members) ? drafts[code].members : [];
-    const isClosed = Boolean(drafts[code] && drafts[code].closed);
-    const host = resolveDraftHost(drafts[code]);
-    const isHost = isCurrentUserHost(drafts[code]);
+    drafts[code] = drafts[code] || { members: [] };
+    const draft = drafts[code];
+    const members = Array.isArray(draft.members) ? draft.members : [];
+    const isClosed = Boolean(draft.closed);
+    const host = resolveDraftHost(draft);
+    const isHost = isCurrentUserHost(draft);
+    const cap = Number(draft.capacity) || 10;
+    let dtype = draft.type || 'silent';
 
     if (hostDisplay) {
       hostDisplay.textContent = host ? `Host: ${host}` : 'Host: --';
     }
 
-    if (drafts[code] && host && drafts[code].host !== host) {
-      drafts[code].host = host;
+    if (host && draft.host !== host) {
+      draft.host = host;
       localStorage.setItem('drafts', JSON.stringify(drafts));
     }
 
     console.log('[lobby] Host resolved from server/state:', host);
 
+    if (!draft.type) {
+      draft.type = dtype;
+      localStorage.setItem('drafts', JSON.stringify(drafts));
+      try { if (socket) { socket.emit('updateDraft', code, draft); } } catch (e) {}
+    }
+
+    if (typeof draft.ajDraftMode !== 'boolean') {
+      draft.ajDraftMode = DEFAULT_AJ_DRAFT_MODE;
+      if (draft.ajDraftMode && (!Array.isArray(draft.ajRoundOrder) || draft.ajRoundOrder.length !== 10)) {
+        draft.ajRoundOrder = buildAjRoundOrder();
+      }
+      localStorage.setItem('drafts', JSON.stringify(drafts));
+      try { if (socket) { socket.emit('updateDraft', code, draft); } } catch (e) {}
+    }
+
+    if (dtype === 'rounds3' && isRounds3UnderConstruction()) {
+      dtype = 'silent';
+      draft.type = dtype;
+      localStorage.setItem('drafts', JSON.stringify(drafts));
+      try { if (socket) { socket.emit('updateDraft', code, draft); } } catch (_error) {}
+    }
+
+    const draftOrder = draft.draftOrder || 'manual';
+    if (dtype === 'rounds3') {
+      draft.draftOrder = draftOrder;
+      const normalizedAssignments = buildDraftOrderAssignments(
+        members,
+        cap,
+        draft.draftOrderAssignments,
+        draftOrder === 'random'
+      );
+      if (JSON.stringify(draft.draftOrderAssignments || {}) !== JSON.stringify(normalizedAssignments)) {
+        draft.draftOrderAssignments = normalizedAssignments;
+        localStorage.setItem('drafts', JSON.stringify(drafts));
+        try { if (socket) { socket.emit('updateDraft', code, draft); } } catch (e) {}
+      }
+    }
+    const draftOrderAssignments = draft.draftOrderAssignments || {};
+
     memberList.innerHTML = '';
-    
-    // Get draft order assignments if they exist
-    const draftOrderAssignments = (drafts[code] && drafts[code].draftOrderAssignments) ? drafts[code].draftOrderAssignments : {};
-    
-    members.forEach(m=>{
+
+    members.forEach((m) => {
       const li = document.createElement('li');
+      li.classList.add('lobby-member-row');
       const labels = [];
       if(m === user) labels.push('you');
       if(m === host) labels.push('HOST');
-      
-      // Show draft order number if rounds3 and random order
-      const dtype = drafts[code] && drafts[code].type;
-      const draftOrder = drafts[code] && drafts[code].draftOrder;
-      let orderNum = '';
-      if (dtype === 'rounds3' && draftOrder === 'random' && draftOrderAssignments[m]) {
-        orderNum = ` [#${draftOrderAssignments[m]}]`;
-      }
-      
+
       const statusDot = document.createElement('span');
       const connectionState = memberConnectionStates.get(normalizeMemberConnectionName(m)) || (m === user && socket && socket.connected ? 'connected' : 'unknown');
       const isConnected = connectionState === 'connected' || connectionState === 'good' || connectionState === 'excellent';
@@ -584,86 +677,122 @@ window.initializeLobby = function initializeLobby(opts){
       statusDot.title = isConnected ? 'Connected' : connectionState === 'reconnecting' ? 'Reconnecting' : 'Disconnected';
       statusDot.setAttribute('aria-label', statusDot.title);
       li.appendChild(statusDot);
-      li.appendChild(document.createTextNode(m + orderNum + (labels.length ? ' (' + labels.join(', ') + ')' : '')));
+
+      const name = document.createElement('span');
+      name.className = 'lobby-member-name';
+      const orderLabel = dtype === 'rounds3' && draftOrder === 'random'
+        ? ` [#${draftOrderAssignments[m]}]`
+        : '';
+      name.textContent = m + orderLabel + (labels.length ? ' (' + labels.join(', ') + ')' : '');
+      li.appendChild(name);
+
+      if (dtype === 'rounds3' && draftOrder === 'manual') {
+        const orderInput = document.createElement('select');
+        orderInput.className = 'type-btn lobby-member-order';
+        orderInput.setAttribute('aria-label', `Draft position for ${m}`);
+        const assignedPosition = Number(draftOrderAssignments[m]) || 1;
+        for (let position = 1; position <= cap; position++) {
+          const option = document.createElement('option');
+          option.value = String(position);
+          option.textContent = String(position);
+          option.selected = position === assignedPosition;
+          option.disabled = members.some((otherMember) => (
+            otherMember !== m && Number(draftOrderAssignments[otherMember]) === position
+          ));
+          orderInput.appendChild(option);
+        }
+        orderInput.disabled = !isHost || isClosed;
+        orderInput.addEventListener('change', () => {
+          const currentDraftsRaw = localStorage.getItem('drafts');
+          const currentDrafts = currentDraftsRaw ? JSON.parse(currentDraftsRaw) : {};
+          const currentDraft = currentDrafts[code];
+          if (!isCurrentUserHost(currentDraft) || !currentDraft) {
+            refreshMembers();
+            return;
+          }
+          const currentMembers = Array.isArray(currentDraft.members) ? currentDraft.members : [];
+          const assignments = buildDraftOrderAssignments(
+            currentMembers,
+            currentDraft.capacity || 10,
+            currentDraft.draftOrderAssignments
+          );
+          const nextPosition = Number.parseInt(orderInput.value, 10);
+          if (currentMembers.some((otherMember) => (
+            otherMember !== m && Number(assignments[otherMember]) === nextPosition
+          ))) {
+            refreshMembers();
+            return;
+          }
+          assignments[m] = nextPosition;
+          currentDraft.draftOrderAssignments = assignments;
+          localStorage.setItem('drafts', JSON.stringify(currentDrafts));
+          try { if (socket) { socket.emit('updateDraft', code, currentDraft); } } catch (e) { console.warn('updateDraft emit failed', e); }
+          refreshMembers();
+        });
+        li.appendChild(orderInput);
+      }
       memberList.appendChild(li);
     });
-    // show draft type
-    // Auto-set draft type to silent if not set
-    if (!drafts[code]) drafts[code] = {};
-    if (!drafts[code].type) {
-      drafts[code].type = 'silent';
-      localStorage.setItem('drafts', JSON.stringify(drafts));
-      try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
-    }
-    if (typeof drafts[code].ajDraftMode !== 'boolean') {
-      drafts[code].ajDraftMode = DEFAULT_AJ_DRAFT_MODE;
-      if (drafts[code].ajDraftMode && (!Array.isArray(drafts[code].ajRoundOrder) || drafts[code].ajRoundOrder.length !== 10)) {
-        drafts[code].ajRoundOrder = buildAjRoundOrder();
-      }
-      localStorage.setItem('drafts', JSON.stringify(drafts));
-      try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
-    }
-    let dtype = drafts[code].type || 'silent';
-    if (dtype === 'rounds3' && isRounds3UnderConstruction()) {
-      dtype = 'silent';
-      drafts[code].type = 'silent';
-      localStorage.setItem('drafts', JSON.stringify(drafts));
-      try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (_error) {}
-    }
+
     // Set the radio button based on current type
     draftTypeRadios.forEach(radio => {
       if (radio.value === dtype) radio.checked = true;
     });
     enforceRounds3UnderConstructionDisabled();
+    applyDraftTypeSettingsView(dtype);
     // Show/hide draft order section based on draft type
     if (draftOrderSection) {
       draftOrderSection.style.display = dtype === 'rounds3' ? 'flex' : 'none';
     }
     // Set draft order radio if rounds3 is selected
     if (dtype === 'rounds3') {
-      const draftOrder = drafts[code].draftOrder || 'manual';
       draftOrderRadios.forEach(radio => {
         if (radio.value === draftOrder) radio.checked = true;
       });
     }
     // show capacity
-    const cap = (drafts[code] && drafts[code].capacity) ? drafts[code].capacity : 10;
     if (memberCountBadge) {
       memberCountBadge.textContent = `Users in Lobby: ${members.length}`;
     }
     draftCapacityEl.textContent = cap;
-    const rosterSettings = normalizeRosterSettings(drafts[code].rosterSettings);
-    const benchCutTarget = normalizeBenchCutTarget(drafts[code].benchCutTarget, DEFAULT_BENCH_CUT_TARGET);
-    const roundTimerMinutes = normalizeRoundTimerMinutes(drafts[code].roundTimerMinutes, DEFAULT_ROUND_TIMER_MINUTES);
-    const ajDraftMode = typeof drafts[code].ajDraftMode === 'boolean'
-      ? drafts[code].ajDraftMode
+    const rosterSettings = normalizeRosterSettings(draft.rosterSettings);
+    const benchCutTarget = normalizeBenchCutTarget(draft.benchCutTarget, DEFAULT_BENCH_CUT_TARGET);
+    const roundTimerMinutes = normalizeRoundTimerMinutes(draft.roundTimerMinutes, DEFAULT_ROUND_TIMER_MINUTES);
+    const rounds3PickTimerSeconds = normalizeRounds3PickTimerSeconds(draft.rounds3PickTimerSeconds);
+    const ajDraftMode = typeof draft.ajDraftMode === 'boolean'
+      ? draft.ajDraftMode
       : DEFAULT_AJ_DRAFT_MODE;
-    const waiverMode = normalizeWaiverMode(drafts[code].waiverMode, 'off');
-    const hadSameRoster = JSON.stringify(drafts[code].rosterSettings || {}) === JSON.stringify(rosterSettings);
+    const waiverMode = normalizeWaiverMode(draft.waiverMode, 'off');
+    const hadSameRoster = JSON.stringify(draft.rosterSettings || {}) === JSON.stringify(rosterSettings);
     if (!hadSameRoster) {
       drafts[code].rosterSettings = rosterSettings;
       localStorage.setItem('drafts', JSON.stringify(drafts));
       try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
     }
-    if (drafts[code].benchCutTarget !== benchCutTarget) {
-      drafts[code].benchCutTarget = benchCutTarget;
+    if (draft.benchCutTarget !== benchCutTarget) {
+      draft.benchCutTarget = benchCutTarget;
       localStorage.setItem('drafts', JSON.stringify(drafts));
-      try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
+      try { if (socket) { socket.emit('updateDraft', code, draft); } } catch (e) {}
     }
-    if (drafts[code].roundTimerMinutes !== roundTimerMinutes) {
-      drafts[code].roundTimerMinutes = roundTimerMinutes;
+    if (draft.roundTimerMinutes !== roundTimerMinutes) {
+      draft.roundTimerMinutes = roundTimerMinutes;
       localStorage.setItem('drafts', JSON.stringify(drafts));
-      try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
+      try { if (socket) { socket.emit('updateDraft', code, draft); } } catch (e) {}
     }
-    if (Boolean(drafts[code].ajDraftMode) !== ajDraftMode) {
-      drafts[code].ajDraftMode = ajDraftMode;
+    if (draft.rounds3PickTimerSeconds !== rounds3PickTimerSeconds) {
+      draft.rounds3PickTimerSeconds = rounds3PickTimerSeconds;
       localStorage.setItem('drafts', JSON.stringify(drafts));
-      try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
+      try { if (socket) { socket.emit('updateDraft', code, draft); } } catch (e) {}
     }
-    if (!isValidWaiverMode(drafts[code].waiverMode) || String(drafts[code].waiverMode).trim().toLowerCase() !== waiverMode) {
-      drafts[code].waiverMode = waiverMode;
+    if (Boolean(draft.ajDraftMode) !== ajDraftMode) {
+      draft.ajDraftMode = ajDraftMode;
       localStorage.setItem('drafts', JSON.stringify(drafts));
-      try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) {}
+      try { if (socket) { socket.emit('updateDraft', code, draft); } } catch (e) {}
+    }
+    if (!isValidWaiverMode(draft.waiverMode) || String(draft.waiverMode).trim().toLowerCase() !== waiverMode) {
+      draft.waiverMode = waiverMode;
+      localStorage.setItem('drafts', JSON.stringify(drafts));
+      try { if (socket) { socket.emit('updateDraft', code, draft); } } catch (e) {}
     }
     Object.entries(rosterInputMap).forEach(([key, input]) => {
       if (!input) return;
@@ -672,6 +801,9 @@ window.initializeLobby = function initializeLobby(opts){
     });
     if (roundTimerMinutesInput) {
       roundTimerMinutesInput.value = String(roundTimerMinutes);
+    }
+    if (rounds3PickTimerSecondsInput) {
+      rounds3PickTimerSecondsInput.value = String(rounds3PickTimerSeconds);
     }
     if (ajDraftModeInput) {
       ajDraftModeInput.checked = ajDraftMode;
@@ -1263,31 +1395,11 @@ window.initializeLobby = function initializeLobby(opts){
       
       drafts[code] = drafts[code] || { members: [] };
       drafts[code].draftOrder = radio.value;
-      
-      // If random order is selected, generate random draft order numbers
-      if (radio.value === 'random') {
-        const capacity = drafts[code].capacity || 10;
-        
-        // Generate array of numbers from 1 to capacity
-        const numbers = Array.from({length: capacity}, (_, i) => i + 1);
-        
-        // Shuffle using Fisher-Yates algorithm
-        for (let i = numbers.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
-        }
-        
-        // Assign first N numbers to members
-        const assignments = {};
-        members.forEach((member, index) => {
-          assignments[member] = numbers[index];
-        });
-        
-        drafts[code].draftOrderAssignments = assignments;
-      } else {
-        // Clear assignments if switching to manual
-        delete drafts[code].draftOrderAssignments;
-      }
+      drafts[code].draftOrderAssignments = generateDraftOrderAssignments(
+        members,
+        drafts[code].capacity || 10,
+        radio.value === 'random'
+      );
       
       localStorage.setItem('drafts', JSON.stringify(drafts));
       try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) { console.warn('updateDraft emit failed', e); }
@@ -1338,6 +1450,7 @@ window.initializeLobby = function initializeLobby(opts){
     Object.values(rosterInputMap).forEach(input => { if (input) input.disabled = disableControls; });
     rosterStepperButtons.forEach((button) => { button.disabled = disableControls; });
     if (roundTimerMinutesInput) roundTimerMinutesInput.disabled = disableControls;
+    if (rounds3PickTimerSecondsInput) rounds3PickTimerSecondsInput.disabled = disableControls;
     if (ajDraftModeInput) ajDraftModeInput.disabled = disableControls;
     if (waiverModeInput) waiverModeInput.disabled = disableControls;
     if (rosterControls) {
@@ -1389,7 +1502,14 @@ window.initializeLobby = function initializeLobby(opts){
       const isHost = isCurrentUserHost(drafts[code]);
       if (!isHost) { alert('Only the host can set capacity'); return; }
       const val = capacitySelect.value;
-      drafts[code].capacity = parseInt(val) || 10;
+      const nextCapacity = parseInt(val, 10) || 10;
+      const members = drafts[code] && Array.isArray(drafts[code].members) ? drafts[code].members : [];
+      if (members.length > nextCapacity) {
+        alert(`Capacity cannot be lower than the ${members.length} users already in the lobby.`);
+        refreshMembers();
+        return;
+      }
+      drafts[code].capacity = nextCapacity;
       localStorage.setItem('drafts', JSON.stringify(drafts));
       try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) { console.warn('updateDraft emit failed', e); }
       refreshMembers();
@@ -1423,17 +1543,23 @@ window.initializeLobby = function initializeLobby(opts){
       DEFAULT_BENCH_CUT_TARGET,
       DEFAULT_BENCH_CUT_TARGET
     );
-    drafts[code].roundTimerMinutes = normalizeRoundTimerMinutes(
-      roundTimerMinutesInput ? roundTimerMinutesInput.value : undefined,
-      DEFAULT_ROUND_TIMER_MINUTES
-    );
-    drafts[code].ajDraftMode = Boolean(ajDraftModeInput && ajDraftModeInput.checked);
-    drafts[code].waiverMode = normalizeWaiverMode(waiverModeInput ? waiverModeInput.value : undefined, 'off');
-    drafts[code].ajRoundOrder = drafts[code].ajDraftMode
-      ? (Array.isArray(drafts[code].ajRoundOrder) && drafts[code].ajRoundOrder.length === 10 ? drafts[code].ajRoundOrder : buildAjRoundOrder())
-      : undefined;
-    if (!drafts[code].ajDraftMode) {
-      delete drafts[code].ajRoundOrder;
+    if (drafts[code].type === 'rounds3') {
+      drafts[code].rounds3PickTimerSeconds = normalizeRounds3PickTimerSeconds(
+        rounds3PickTimerSecondsInput ? rounds3PickTimerSecondsInput.value : undefined
+      );
+    } else {
+      drafts[code].roundTimerMinutes = normalizeRoundTimerMinutes(
+        roundTimerMinutesInput ? roundTimerMinutesInput.value : undefined,
+        DEFAULT_ROUND_TIMER_MINUTES
+      );
+      drafts[code].ajDraftMode = Boolean(ajDraftModeInput && ajDraftModeInput.checked);
+      drafts[code].waiverMode = normalizeWaiverMode(waiverModeInput ? waiverModeInput.value : undefined, 'off');
+      drafts[code].ajRoundOrder = drafts[code].ajDraftMode
+        ? (Array.isArray(drafts[code].ajRoundOrder) && drafts[code].ajRoundOrder.length === 10 ? drafts[code].ajRoundOrder : buildAjRoundOrder())
+        : undefined;
+      if (!drafts[code].ajDraftMode) {
+        delete drafts[code].ajRoundOrder;
+      }
     }
     localStorage.setItem('drafts', JSON.stringify(drafts));
     try { if (socket) { socket.emit('updateDraft', code, drafts[code]); } } catch (e) { console.warn('updateDraft emit failed', e); }
@@ -1483,6 +1609,9 @@ window.initializeLobby = function initializeLobby(opts){
   });
   if (roundTimerMinutesInput) {
     roundTimerMinutesInput.addEventListener('change', queueRosterAutosave);
+  }
+  if (rounds3PickTimerSecondsInput) {
+    rounds3PickTimerSecondsInput.addEventListener('change', queueRosterAutosave);
   }
   if (ajDraftModeInput) {
     ajDraftModeInput.addEventListener('change', queueRosterAutosave);
@@ -1561,16 +1690,23 @@ window.initializeLobby = function initializeLobby(opts){
       }
 
       drafts[code] = drafts[code] || { members: [] };
-      drafts[code].roundTimerMinutes = normalizeRoundTimerMinutes(
-        roundTimerMinutesInput ? roundTimerMinutesInput.value : undefined,
-        DEFAULT_ROUND_TIMER_MINUTES
-      );
-      drafts[code].ajDraftMode = Boolean(ajDraftModeInput && ajDraftModeInput.checked);
-      drafts[code].ajRoundOrder = drafts[code].ajDraftMode
-        ? buildAjRoundOrder()
-        : undefined;
-      if (!drafts[code].ajDraftMode) {
-        delete drafts[code].ajRoundOrder;
+      const selectedType = Array.from(draftTypeRadios).find(r => r.checked)?.value || 'silent';
+      if (selectedType === 'rounds3') {
+        drafts[code].rounds3PickTimerSeconds = normalizeRounds3PickTimerSeconds(
+          rounds3PickTimerSecondsInput ? rounds3PickTimerSecondsInput.value : undefined
+        );
+      } else {
+        drafts[code].roundTimerMinutes = normalizeRoundTimerMinutes(
+          roundTimerMinutesInput ? roundTimerMinutesInput.value : undefined,
+          DEFAULT_ROUND_TIMER_MINUTES
+        );
+        drafts[code].ajDraftMode = Boolean(ajDraftModeInput && ajDraftModeInput.checked);
+        drafts[code].ajRoundOrder = drafts[code].ajDraftMode
+          ? buildAjRoundOrder()
+          : undefined;
+        if (!drafts[code].ajDraftMode) {
+          delete drafts[code].ajRoundOrder;
+        }
       }
       const selectedRoundTimerMinutes = drafts[code].roundTimerMinutes;
       console.log('[lobby] startDraft selectedRoundTimerMinutes:', selectedRoundTimerMinutes, 'draft state:', drafts[code]);
@@ -1584,8 +1720,6 @@ window.initializeLobby = function initializeLobby(opts){
       }
       
       // Get selected draft type from radio buttons
-      const selectedType = Array.from(draftTypeRadios).find(r => r.checked)?.value || 'silent';
-
       const startDraftRequestId = `startdraft:${code}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
 
       const emitStartDraftWithRetry = (attempt = 0) => {

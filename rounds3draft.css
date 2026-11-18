@@ -1,5 +1,13 @@
 /* 3 Round Auction Draft — HUSH navy / steel / silver / ice design system */
 
+body.rounds3-page {
+  background-image: url("HUSHWHITE.png");
+}
+
+body.rounds3-page #hushGlobalThemeToggle {
+  display: none;
+}
+
 .rounds3-page {
   --r3-ice: var(--hush-ice, #D6E0EB);
   --r3-silver: var(--hush-silver, #AAB7C8);
@@ -57,6 +65,7 @@
 .r3-nomination-box {
   width: min(880px, 100%);
   min-height: 208px;
+  max-height: 560px;
   margin: 0 auto 16px;
   padding: 14px 18px 16px;
   box-sizing: border-box;
@@ -70,6 +79,21 @@
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
   text-align: center;
+  overflow: hidden;
+  transition: max-height 0.52s ease, min-height 0.52s ease, margin 0.52s ease, padding 0.52s ease,
+    opacity 0.38s ease, transform 0.52s ease, border-width 0.52s ease;
+}
+
+.r3-nomination-box.is-collapsing {
+  max-height: 0;
+  min-height: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-width: 0;
+  opacity: 0;
+  transform: translateY(-24px);
 }
 
 .r3-nom-status {
@@ -269,7 +293,7 @@
 
 .custom-bid:focus-visible { outline: 2px solid var(--r3-blue-soft); outline-offset: 1px; }
 
-/* ---------- Draft board: every team visible, no scrolling ---------- */
+/* ---------- Draft board ---------- */
 
 .r3-board-panel { min-width: 0; }
 
@@ -296,6 +320,10 @@
 .r3-team-col.is-nominating {
   border-color: rgba(245, 197, 66, 0.65);
   box-shadow: 0 0 0 1px rgba(245, 197, 66, 0.3), 0 12px 28px rgba(3, 5, 9, 0.26);
+}
+.r3-team-col.is-on-clock {
+  border-color: rgba(245, 197, 66, 0.7);
+  box-shadow: 0 0 0 1px rgba(245, 197, 66, 0.32), 0 12px 28px rgba(3, 5, 9, 0.26);
 }
 .r3-team-col.is-high-bidder {
   border-color: rgba(32, 201, 151, 0.6);
@@ -408,9 +436,23 @@
 .r3-dialog-shell {
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-height: 0;
   max-height: inherit;
   padding: 16px 0 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.r3-dialog-topbar,
+.r3-dialog-shell > .r3-search-wrap,
+.r3-dialog-shell > .r3-position-tabs {
+  flex-shrink: 0;
+}
+
+.r3-dialog-shell > .r3-position-tabs {
+  flex-wrap: wrap;
+  overflow: visible;
 }
 
 .r3-dialog-topbar {
@@ -543,10 +585,237 @@
 
 .r3-pool-empty { padding: 32px 20px; color: var(--r3-silver); font-size: 0.8rem; text-align: center; }
 
+/* ---------- Post-auction snake draft ---------- */
+
+.r3-snake-draft .r3-main {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 66px);
+  min-height: 580px;
+  padding-bottom: 14px;
+  overflow: hidden;
+}
+
+.r3-snake-draft .r3-board-panel {
+  flex: 1 1 50%;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: scroll;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-bottom: 10px;
+}
+
+.r3-snake-draft .r3-board {
+  padding: 2px;
+}
+
+.r3-snake-draft-panel {
+  flex: 1 1 50%;
+  display: flex;
+  flex-direction: column;
+  min-height: 260px;
+  max-height: calc(58vh - 52px);
+  margin-bottom: 52px;
+  overflow: hidden;
+  border: 1px solid rgba(170, 183, 200, 0.2);
+  border-radius: 16px;
+  background: var(--r3-card-grad);
+  box-shadow: 0 18px 42px rgba(3, 5, 9, 0.32);
+}
+
+.r3-snake-panel-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(80px, 0.35fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  flex-shrink: 0;
+}
+
+.r3-snake-panel-header p {
+  margin: 0;
+  color: var(--r3-silver);
+  font-size: 0.74rem;
+  text-align: center;
+}
+
+.r3-snake-header-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.r3-snake-clock {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--r3-blue-soft);
+  border-radius: 50%;
+  background: rgba(24, 69, 118, 0.25);
+}
+
+.r3-snake-clock strong {
+  color: #f8fbff;
+  font-size: 1rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.r3-snake-clock span {
+  color: var(--r3-steel);
+  font-size: 0.48rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.r3-snake-clock.is-urgent { border-color: rgba(229, 115, 115, 0.8); background: rgba(139, 63, 74, 0.3); }
+.r3-snake-clock.is-urgent strong { color: #ffb3ba; }
+
+.r3-snake-search-wrap {
+  width: 260px;
+  flex: 0 0 260px;
+  max-width: 100%;
+  height: 32px;
+  margin: 0;
+  box-sizing: border-box;
+  justify-self: end;
+}
+.r3-snake-search-wrap input { min-width: 0; }
+.r3-snake-position-tabs { min-width: 0; padding: 0; gap: 4px; flex-wrap: wrap; overflow: visible; }
+.r3-snake-position-tabs .r3-position-btn { min-width: 32px; padding: 0 7px; }
+
+.r3-preference-notice { margin: 0; padding: 6px 16px; color: var(--r3-gold); font-size: 0.75rem; }
+.r3-snake-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid var(--r3-line);
+}
+.r3-rankings-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.r3-my-roster {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px 12px;
+  border-left: 1px solid var(--r3-line);
+}
+.r3-my-roster h2 { margin: 0; font-size: 0.95rem; color: var(--r3-ice); }
+.r3-my-roster-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; flex-shrink: 0; }
+.r3-my-roster-header p { margin: 0; color: var(--r3-silver); font-size: 0.72rem; text-align: right; white-space: nowrap; }
+.r3-my-roster-slots { margin: 0; padding: 0; list-style: none; overflow: auto; min-height: 0; }
+.r3-my-roster-slots li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--r3-line);
+  font-size: 0.75rem;
+}
+.r3-my-roster-slots .r3-roster-pos { min-width: 48px; }
+.r3-player-actions { display: flex; align-items: center; gap: 4px; }
+.r3-player-actions .r3-btn { min-height: 28px; padding: 0 7px; font-size: 0.65rem; }
+.r3-star-btn {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--r3-silver);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+.r3-star-btn.active { color: var(--r3-gold); }
+.r3-snake-player-row.is-starred { background: rgba(245, 197, 66, 0.09); }
+.r3-star-btn:focus-visible { outline: 2px solid var(--r3-gold); outline-offset: 2px; }
+
+.r3-snake-player-heading,
+.r3-snake-player-row {
+  display: grid;
+  grid-template-columns: 24px 32px 32px minmax(100px, 1fr) 40px 40px 180px;
+  min-width: 620px;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+}
+
+.r3-snake-player-heading {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--r3-line);
+  color: var(--r3-steel);
+  font-size: 0.61rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.r3-snake-player-pool {
+  min-height: 0;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+.r3-snake-draft .r3-board-panel,
+.r3-snake-player-pool {
+  scrollbar-color: var(--r3-steel) rgba(3, 5, 9, 0.35);
+}
+.r3-snake-draft .r3-board-panel::-webkit-scrollbar,
+.r3-snake-player-pool::-webkit-scrollbar { width: 12px; height: 12px; }
+.r3-snake-draft .r3-board-panel::-webkit-scrollbar-track,
+.r3-snake-player-pool::-webkit-scrollbar-track { background: rgba(3, 5, 9, 0.35); }
+.r3-snake-draft .r3-board-panel::-webkit-scrollbar-thumb,
+.r3-snake-player-pool::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(3, 5, 9, 0.35);
+  border-radius: 6px;
+  background: var(--r3-steel);
+}
+.r3-board-panel:focus-visible,
+.r3-snake-player-pool:focus-visible { outline: 2px solid var(--r3-blue); outline-offset: -2px; }
+
+.r3-snake-player-row {
+  min-height: 38px;
+  border-top: 1px solid rgba(170, 183, 200, 0.08);
+  font-size: 0.74rem;
+}
+
+.r3-snake-player-row:hover { background: rgba(255, 255, 255, 0.04); }
+.r3-snake-rank { color: var(--r3-steel); font-variant-numeric: tabular-nums; }
+.r3-snake-player-row .r3-player-av { color: var(--r3-silver); }
+.r3-snake-pick-btn { min-height: 28px; padding: 0 9px; font-size: 0.65rem; }
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 1150px) {
   .r3-board { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+}
+
+@media (max-width: 1000px) {
+  .r3-snake-panel-header { grid-template-columns: minmax(0, 1fr) 40px 260px; }
+  .r3-snake-position-tabs { grid-column: 1 / -1; grid-row: 1; }
+  .r3-snake-panel-header p { grid-column: 1; grid-row: 2; }
+  .r3-snake-header-controls { display: contents; }
+  .r3-snake-header-controls .r3-snake-clock { grid-column: 2; grid-row: 2; }
+  .r3-snake-search-wrap { grid-column: 3; grid-row: 2; }
+}
+
+@media (max-width: 760px) {
+  .r3-snake-workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: 220px 200px; overflow: auto; }
+  .r3-my-roster { border-left: 0; border-top: 1px solid var(--r3-line); }
 }
 
 @media (max-width: 560px) {
@@ -559,6 +828,10 @@
   .r3-nom-clock strong { font-size: 1.2rem; }
   .r3-board { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; }
   .rounds3-page .dashboard-header-right { flex-wrap: wrap; gap: 10px; }
+  .r3-snake-draft .r3-main { height: calc(100dvh - 60px); min-height: 0; padding: 10px; }
+  .r3-snake-draft-panel { min-height: 220px; max-height: none; }
+  .r3-snake-panel-header { grid-template-columns: minmax(0, 1fr) 40px; }
+  .r3-snake-search-wrap { grid-column: 1 / -1; grid-row: 3; }
 }
 
 @media (prefers-reduced-motion: reduce) {

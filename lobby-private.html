@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Private Draft Lobby</title>
-  <link rel="stylesheet" href="styles.css?v=20260821-c9c656a0">
-  <script src="theme-utils.js?v=20260821-c9c656a0"></script>
+  <link rel="stylesheet" href="styles.css?v=20261118-096f565c">
+  <script src="theme-utils.js?v=20261118-096f565c"></script>
   </head>
 <body class="bg-overlay lobby-page lobby-private-page">
   <header class="site-header">
@@ -45,16 +45,10 @@
                   <input type="radio" name="draftType" value="silent" checked>
                   <span>Silent auction</span>
                 </label>
-                <div class="draft-type-under-construction">
-                  <div class="under-construction-badge">Under Construction</div>
-                  <label class="radio-label radio-label-under-construction">
-                    <span class="radio-x-wrap">
-                      <input type="radio" name="draftType" value="rounds3">
-                      <span class="radio-red-x" aria-hidden="true">X</span>
-                    </span>
-                    <span>3 rounds auction</span>
-                  </label>
-                </div>
+                <label class="radio-label">
+                  <input type="radio" name="draftType" value="rounds3">
+                  <span>3 rounds auction</span>
+                </label>
               </div>
             </div>
             <div id="draftOrderSection" class="lobby-controls draft-order-section">
@@ -96,7 +90,7 @@
                     <label class="roster-stepper" data-roster-key="DEF"><span>DEF</span><div class="roster-stepper-controls"><span class="roster-stepper-value" id="rosterDEFValue">1</span><div class="roster-stepper-arrows"><button type="button" class="roster-stepper-btn" data-roster-step="DEF" data-step-dir="1" aria-label="Increase DEF">&#9650;</button><button type="button" class="roster-stepper-btn" data-roster-step="DEF" data-step-dir="-1" aria-label="Decrease DEF">&#9660;</button></div></div><input id="rosterDEF" type="hidden" data-min="0" data-max="5" value="1"></label>
                     <label class="roster-stepper" data-roster-key="BN"><span>BN</span><div class="roster-stepper-controls"><span class="roster-stepper-value" id="rosterBNValue">5</span><div class="roster-stepper-arrows"><button type="button" class="roster-stepper-btn" data-roster-step="BN" data-step-dir="1" aria-label="Increase BN">&#9650;</button><button type="button" class="roster-stepper-btn" data-roster-step="BN" data-step-dir="-1" aria-label="Decrease BN">&#9660;</button></div></div><input id="rosterBN" type="hidden" data-min="0" data-max="13" value="5"></label>
                   </div>
-                  <div class="capacity-controls">
+                  <div class="capacity-controls" data-draft-type-setting="silent">
                     <label for="roundTimerMinutes" class="type-display">Round Timer:</label>
                     <select id="roundTimerMinutes" class="type-btn" aria-label="Select round timer minutes">
                       <option value="3">3 minutes</option>
@@ -109,11 +103,20 @@
                       <option value="10">10 minutes</option>
                     </select>
                   </div>
-                  <div class="capacity-controls">
+                  <div class="capacity-controls" data-draft-type-setting="rounds3" hidden>
+                    <label for="rounds3PickTimerSeconds" class="type-display">Time per pick:</label>
+                    <select id="rounds3PickTimerSeconds" class="type-btn" aria-label="Select time per pick">
+                      <option value="20">20 seconds</option>
+                      <option value="30" selected>30 seconds</option>
+                      <option value="45">45 seconds</option>
+                      <option value="60">1 minute</option>
+                    </select>
+                  </div>
+                  <div class="capacity-controls" data-draft-type-setting="silent">
                     <label for="ajDraftMode" class="type-display">A-J:</label>
                     <input id="ajDraftMode" type="checkbox" aria-label="Toggle A-J round balancing mode">
                   </div>
-                  <div class="capacity-controls">
+                  <div class="capacity-controls" data-draft-type-setting="silent">
                     <label for="waiverMode" class="type-display">Waivers:</label>
                     <select id="waiverMode" class="type-btn" aria-label="Select waiver mode">
                       <option value="off">Off</option>
@@ -124,10 +127,10 @@
                   <button id="applyRosterBtn" type="button" class="type-btn">Save Changes</button>
                 </div>
                 <div id="rosterSummary" class="roster-summary"></div>
-                <div class="lobby-controls custom-budgets-controls" id="customBudgetControls">
+                <div class="lobby-controls custom-budgets-controls" id="customBudgetControls" data-draft-type-setting="silent">
                   <button id="toggleBudgetPanelBtn" type="button" class="type-btn">Custom Budgets</button>
                 </div>
-                <div id="customBudgetPanel" class="custom-budget-panel hidden">
+                <div id="customBudgetPanel" class="custom-budget-panel hidden" data-draft-type-setting="silent">
                   <div id="customBudgetList" class="custom-budget-list"></div>
                   <div class="custom-budget-actions">
                     <button id="applyCustomBudgetsBtn" type="button" class="type-btn">Apply Budgets</button>

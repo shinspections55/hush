@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#0F2F44">
   <meta name="description" content="Hush 3 Round Auction Draft">
   <title>3 Round Auction Draft</title>
-  <link rel="stylesheet" href="/styles.css?v=20261113-dashboard-header">
-  <link rel="stylesheet" href="/rounds3draft.css?v=20261116-nominating-card">
-  <script src="/theme-utils.js?v=20260821-c9c656a0"></script>
+  <link rel="stylesheet" href="/styles.css?v=20261118-096f565c">
+  <link rel="stylesheet" href="/rounds3draft.css?v=20261118-096f565c">
+  <script src="/theme-utils.js?v=20261118-096f565c"></script>
 </head>
 <body class="bg-overlay dashboard-page rounds3-page">
   <header class="dashboard-header hush-silver-bg dashboard-contest-header">
@@ -33,7 +33,7 @@
 
       <div id="r3IdleState" class="r3-idle-state">
         <h1>3 Round Auction Draft</h1>
-        <p>$100 budget &middot; 3 players per team &middot; min bid $1 &middot; 30s to nominate &middot; 10s bid clock</p>
+        <p id="r3DraftSettingsSummary">$100 budget &middot; 3 players per team &middot; min bid $1 &middot; 30s per pick &middot; 10s bid clock</p>
         <button id="r3StartBtn" class="r3-btn r3-btn-primary r3-btn-lg" type="button">Start Draft</button>
       </div>
 
@@ -69,8 +69,50 @@
       <div id="r3ModeNotice" class="r3-mode-notice hidden"></div>
     </section>
 
-    <section class="r3-board-panel" aria-label="Draft board">
+    <section class="r3-board-panel" aria-label="Draft board" tabindex="0">
       <div id="draftBoard" class="r3-board"></div>
+    </section>
+
+    <section id="r3SnakeDraftPanel" class="r3-snake-draft-panel hidden" aria-label="Ranked players">
+      <div class="r3-snake-workspace">
+        <section class="r3-rankings-list" aria-label="Available players and queue">
+          <header class="r3-snake-panel-header">
+            <div class="r3-position-tabs r3-snake-position-tabs" role="group" aria-label="Filter ranked players by position">
+              <button class="r3-position-btn r3-snake-position-btn active" type="button" data-position="ALL" aria-pressed="true">All</button>
+              <button class="r3-position-btn r3-snake-position-btn" type="button" data-position="QB" aria-pressed="false">QB</button>
+              <button class="r3-position-btn r3-snake-position-btn" type="button" data-position="RB" aria-pressed="false">RB</button>
+              <button class="r3-position-btn r3-snake-position-btn" type="button" data-position="WR" aria-pressed="false">WR</button>
+              <button class="r3-position-btn r3-snake-position-btn" type="button" data-position="TE" aria-pressed="false">TE</button>
+              <button class="r3-position-btn r3-snake-position-btn" type="button" data-position="K" aria-pressed="false">K</button>
+              <button class="r3-position-btn r3-snake-position-btn" type="button" data-position="DEF" aria-pressed="false">DEF</button>
+              <button id="r3QueueToggle" class="r3-position-btn" type="button" aria-pressed="false" title="Reorder your queue. Your first available target is auto-picked if your timer expires.">Queue (0)</button>
+            </div>
+            <p id="r3SnakePickStatus" aria-live="polite">The snake draft is starting.</p>
+            <div class="r3-snake-header-controls">
+              <div class="r3-snake-clock" aria-label="Pick countdown">
+                <strong id="r3SnakeClock">30</strong>
+                <span>seconds</span>
+              </div>
+              <label class="r3-search-wrap r3-snake-search-wrap" for="r3SnakeSearch">
+                <span aria-hidden="true">&#9906;</span>
+                <input id="r3SnakeSearch" type="search" placeholder="Search players or teams" autocomplete="off">
+              </label>
+            </div>
+          </header>
+          <p id="r3PreferenceNotice" class="r3-preference-notice hidden" role="status"></p>
+          <div class="r3-snake-player-heading" aria-hidden="true">
+            <span>Star</span><span id="r3PlayerRankHeading">Rank</span><span>Pos</span><span>Player</span><span>Team</span><span>Value</span><span>Actions</span>
+          </div>
+          <div id="r3SnakePlayerPool" class="r3-snake-player-pool" role="region" aria-label="Players available to draft" tabindex="0"></div>
+        </section>
+        <aside class="r3-my-roster" aria-labelledby="r3MyRosterTitle">
+          <header class="r3-my-roster-header">
+            <h2 id="r3MyRosterTitle">My Roster</h2>
+            <p id="r3MyRosterSummary"></p>
+          </header>
+          <ul id="r3MyRosterSlots" class="r3-my-roster-slots"></ul>
+        </aside>
+      </div>
     </section>
   </main>
 
@@ -104,6 +146,7 @@
   </dialog>
 
   <script src="/preferences.js"></script>
-  <script src="/rounds3draft.js?v=20261116-archetypes"></script>
+  <script src="/rounds3draft.js?v=20261118-096f565c"></script>
+  <script src="/rounds3draft-sim.js?v=20261118-096f565c"></script>
 </body>
 </html>

@@ -2892,6 +2892,9 @@ body.dashboard-light-mode .admin-cpu-pill{background:rgba(52,152,219,0.12);borde
 }
 .capacity-controls{display:flex;gap:8px;align-items:center}
 .draft-order-section{display:none;margin-left:20px}
+.lobby-member-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.lobby-member-name{min-width:0}
+.lobby-member-order{width:64px;flex:0 0 64px;padding:4px 6px}
 .dismiss-btn{float:right;background:transparent;border:none;color:var(--hush-ice);cursor:pointer}
 .roster-controls{display:block}
 .roster-grid{display:grid;grid-template-columns:repeat(4,minmax(78px,1fr));gap:8px 10px;margin-top:8px}

@@ -8091,6 +8091,11 @@ function normalizeServerRoundTimerMinutes(value) {
   return Math.max(3, Math.min(parsed, 10));
 }
 
+function normalizeServerRounds3PickTimerSeconds(value) {
+  const parsed = Number.parseInt(value, 10);
+  return [20, 30, 45, 60].includes(parsed) ? parsed : 30;
+}
+
 function resolveDraftMemberName(draft, username) {
   const rawName = String(username || '').trim();
   if (!rawName) return '';
@@ -9102,9 +9107,9 @@ io.on('connection', (socket) => {
       }
     }
 
-    // merge only non-members fields (type, capacity, public, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder, waiverMode)
+    // merge only non-members fields (type, capacity, public, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, rounds3PickTimerSeconds, ajDraftMode, ajRoundOrder, waiverMode)
     drafts[draftCode] = drafts[draftCode] || { members: [], type: null, capacity: null, public: false };
-    const allowed = (({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder, waiverMode }) => ({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, ajDraftMode, ajRoundOrder, waiverMode }))(state || {});
+    const allowed = (({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, rounds3PickTimerSeconds, ajDraftMode, ajRoundOrder, waiverMode }) => ({ type, capacity, public: pub, draftOrder, draftOrderAssignments, customBudgets, rosterSettings, benchCutTarget, roundTimerMinutes, rounds3PickTimerSeconds, ajDraftMode, ajRoundOrder, waiverMode }))(state || {});
     // apply allowed fields
     if(typeof allowed.type !== 'undefined') drafts[draftCode].type = allowed.type;
     if(typeof allowed.capacity !== 'undefined') drafts[draftCode].capacity = allowed.capacity;
@@ -9115,6 +9120,9 @@ io.on('connection', (socket) => {
     if(typeof allowed.rosterSettings !== 'undefined') drafts[draftCode].rosterSettings = allowed.rosterSettings;
     if(typeof allowed.benchCutTarget !== 'undefined') drafts[draftCode].benchCutTarget = allowed.benchCutTarget;
     if(typeof allowed.roundTimerMinutes !== 'undefined') drafts[draftCode].roundTimerMinutes = allowed.roundTimerMinutes;
+    if(typeof allowed.rounds3PickTimerSeconds !== 'undefined') {
+      drafts[draftCode].rounds3PickTimerSeconds = normalizeServerRounds3PickTimerSeconds(allowed.rounds3PickTimerSeconds);
+    }
     if(typeof allowed.ajDraftMode !== 'undefined') drafts[draftCode].ajDraftMode = !!allowed.ajDraftMode;
     if(typeof allowed.ajRoundOrder !== 'undefined') drafts[draftCode].ajRoundOrder = Array.isArray(allowed.ajRoundOrder) ? allowed.ajRoundOrder.slice(0, 10) : undefined;
     if(typeof allowed.waiverMode !== 'undefined') drafts[draftCode].waiverMode = normalizeWaiverLobbyMode(allowed.waiverMode);

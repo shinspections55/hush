@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
   <link rel="apple-touch-icon" href="/icon-192x192.png">
   <title>Draft Lobby</title>
-  <link rel="stylesheet" href="styles.css?v=20260821-c9c656a0">
+  <link rel="stylesheet" href="styles.css?v=20261118-096f565c">
 </head>
 <body class="bg-overlay lobby-page">
   <header class="site-header">
@@ -42,16 +42,10 @@
               <input type="radio" name="draftType" value="silent" checked>
               <span>Silent auction</span>
             </label>
-            <div class="draft-type-under-construction">
-              <div class="under-construction-badge">Under Construction</div>
-              <label class="radio-label radio-label-under-construction">
-                <span class="radio-x-wrap">
-                  <input type="radio" name="draftType" value="rounds3">
-                  <span class="radio-red-x" aria-hidden="true">X</span>
-                </span>
-                <span>3 rounds auction</span>
-              </label>
-            </div>
+            <label class="radio-label">
+              <input type="radio" name="draftType" value="rounds3">
+              <span>3 rounds auction</span>
+            </label>
           </div>
         </div>
         <div id="draftOrderSection" class="lobby-controls draft-order-section">
@@ -85,6 +79,6 @@
   </main>
   <script src="/socket.io/socket.io.js"></script>
   <script src="preferences.js"></script>
-  <script src="lobby.js?v=20260821-c9c656a0"></script>
+  <script src="lobby.js?v=20261118-096f565c"></script>
 </body>
 </html>

@@ -13,6 +13,9 @@ const SERVICE_WORKERS = ['service-worker.js', 'public/service-worker.js'];
 const HASHED_ASSETS = [
   'public/silentdraft.js',
   'public/silentdraft.css',
+  'rounds3draft.js',
+  'rounds3draft-sim.js',
+  'rounds3draft.css',
   'public/lobby.js',
   'public/draft-summary.js',
   'public/waivers.js',
